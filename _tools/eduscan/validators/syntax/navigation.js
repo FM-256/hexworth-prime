@@ -90,13 +90,19 @@ class NavigationValidator {
             return [];
         }
 
-        // Pattern 3: href pointing to parent index or dashboard
+        // Pattern 3: href pointing to parent index, same-directory index, or dashboard
         if (/href\s*=\s*["'][^"']*(\.\.\/index\.html|\.\.\/\.\.\/index\.html|dashboard\.html)/i.test(content)) {
             return [];
         }
 
+        // Pattern 3b: href="index.html" (same-directory index, e.g., projects/index.html)
+        if (/href\s*=\s*["']index\.html["']/i.test(content)) {
+            return [];
+        }
+
         // Pattern 4: Text content indicating back navigation
-        if (/←\s*Back|Return to|Go\s*Back|Exit\s*Lab/i.test(content)) {
+        // Includes ← (literal), &larr; (HTML entity), &lt; (< as back indicator)
+        if (/←\s*\w|&larr;\s*\w|&lt;\s*\w|Return to|Go\s*Back|Exit\s*Lab/i.test(content)) {
             return [];
         }
 

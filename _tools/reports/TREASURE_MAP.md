@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-03-09 7:28:31 PM
+                    Scanned: 2026-03-11 2:39:53 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,27 +10,27 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 2292 |
-| Directories | 577 |
-| Content Files | 2292 |
-| Scan Duration | 270ms |
+| Files Scanned | 2312 |
+| Directories | 583 |
+| Content Files | 2312 |
+| Scan Duration | 293ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 985 |
-| html | 624 |
-| lab | 390 |
+| presentation | 996 |
+| html | 627 |
+| lab | 394 |
 | quiz | 241 |
-| applet | 52 |
+| applet | 54 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1678 |
-| Available | 1666 |
+| Total Modules | 1709 |
+| Available | 1697 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 79 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -40,19 +40,19 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 1 |
-| Suspect | 66 |
+| Critical | 0 |
+| Suspect | 67 |
 | Warning | 450 |
-| Info | 307 |
-| **Total** | **7670** |
+| Info | 309 |
+| **Total** | **7242** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1664 |
+| Ready | 1681 |
 | Not Ready | 4 |
-| Unknown | 624 |
+| Unknown | 627 |
 
 
 ## FILE HIERARCHY
@@ -142,6 +142,8 @@
 │   │   └── 📁 a9-rusted-lock
 │   │       └── 📍 index.html
 │   ├── 📁 engine
+│   └── 📍 index.html
+├── 📁 career
 │   └── 📍 index.html
 ├── ❓ career-quiz.html
 ├── 📁 components
@@ -408,6 +410,8 @@
 ├── 📁 docs
 │   └── 📁 features
 ├── 📄 faq.html
+├── 📁 funding
+│   └── 📍 index.html
 ├── 📄 games.html
 ├── 📄 handler-dashboard.html
 ├── 📁 hive
@@ -731,12 +735,18 @@
 │   │       ├── 📄 cloud-ch12-use-cases.tool.html
 │   │       └── 📄 cloud-cloud.tool.html
 │   ├── 🏠 code [house:code]
+│   │   ├── 📁 algorithms
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📄 code-cloudformation-designer.applet.html
 │   │   │   ├── 📄 code-data-format-converter.applet.html
 │   │   │   ├── 📄 code-docker-playground.applet.html
 │   │   │   ├── 📄 code-kubernetes-cluster-sim.applet.html
 │   │   │   ├── 📄 code-pipeline-builder.applet.html
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 armory
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 cortex
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 devops
 │   │   │   ├── 📍 index.html
@@ -766,6 +776,20 @@
 │   │   │       │   ├── 📄 do-29-cert-alignment.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 cicd
+│   │   │       │   ├── 📊 do-100-workflow-fundamentals.presentation.html
+│   │   │       │   ├── 📊 do-101-workflow-syntax.presentation.html
+│   │   │       │   ├── 📊 do-102-variables-secrets.presentation.html
+│   │   │       │   ├── 📊 do-103-custom-actions.presentation.html
+│   │   │       │   ├── 📊 do-104-runners.presentation.html
+│   │   │       │   ├── 📊 do-105-security-hardening.presentation.html
+│   │   │       │   ├── 📊 do-106-deployment-pipelines.presentation.html
+│   │   │       │   ├── 📊 do-107-advanced-patterns.presentation.html
+│   │   │       │   ├── 📊 do-108-language-pipelines.presentation.html
+│   │   │       │   ├── 📊 do-109-publishing-artifacts.presentation.html
+│   │   │       │   ├── 🔬 do-110-workflow-builder.lab.html
+│   │   │       │   ├── 🔬 do-111-pipeline-debugger.lab.html
+│   │   │       │   ├── 🔬 do-112-cicd-pipeline-lab.lab.html
+│   │   │       │   ├── 🔬 do-113-security-audit.lab.html
 │   │   │       │   ├── 📄 do-21-github-actions.html
 │   │   │       │   ├── 🔬 do-22-cicd-lab.html
 │   │   │       │   ├── 📄 do-70-cicd-fundamentals.html
@@ -2680,6 +2704,8 @@
 │       │   │   ├── 📄 web-server-comparison.applet.html
 │       │   │   └── 📄 web-smb-file-sharing.applet.html
 │       │   └── 📄 web-networking-interactive.applet.html
+│       ├── 📁 backbone
+│       │   └── 📍 index.html
 │       ├── 📁 exams
 │       │   ├── 📍 index.html
 │       │   ├── 📄 web-networking-exam-flashcards.exam.html
@@ -3135,6 +3161,8 @@
 |---------|------|------|--------|
 | code-docker-playground.applet | presentation | ✓ | 0 |
 | code-kubernetes-cluster-sim.applet | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | do-82-ansible-fundamentals | presentation | ✓ | 0 |
 | do-83-automation-landscape | presentation | ✓ | 0 |
 | do-88-ansible-inventory | presentation | ✓ | 0 |
@@ -3153,6 +3181,20 @@
 | do-27-cicd-iac-quiz | presentation | ✓ | 0 |
 | do-28-devops-jeopardy | presentation | ✓ | 0 |
 | do-29-cert-alignment | presentation | ✓ | 0 |
+| do-100-workflow-fundamentals.presentation | presentation | ✓ | 0 |
+| do-101-workflow-syntax.presentation | presentation | ✓ | 0 |
+| do-102-variables-secrets.presentation | presentation | ✓ | 0 |
+| do-103-custom-actions.presentation | presentation | ✓ | 0 |
+| do-104-runners.presentation | presentation | ✓ | 0 |
+| do-105-security-hardening.presentation | presentation | ✓ | 0 |
+| do-106-deployment-pipelines.presentation | presentation | ✓ | 0 |
+| do-107-advanced-patterns.presentation | presentation | ✓ | 0 |
+| do-108-language-pipelines.presentation | presentation | ✓ | 0 |
+| do-109-publishing-artifacts.presentation | presentation | ✓ | 0 |
+| do-110-workflow-builder.lab | lab | ✓ | 0 |
+| do-111-pipeline-debugger.lab | lab | ✓ | 0 |
+| do-112-cicd-pipeline-lab.lab | lab | ✓ | 0 |
+| do-113-security-audit.lab | lab | ✓ | 0 |
 | do-21-github-actions | presentation | ✓ | 0 |
 | do-22-cicd-lab | presentation | ✓ | 0 |
 | do-70-cicd-fundamentals | presentation | ✓ | 0 |
@@ -3507,9 +3549,9 @@
 | forge-troubleshooting-scenarios.lab | presentation | ✓ | 0 |
 | forge-vm-setup.lab | presentation | ✓ | 0 |
 | forge-wireless-security.lab | presentation | ✓ | 0 |
-| forge-aplus-core1-prep-round-2.quiz | quiz | ✓ | 1 |
-| forge-aplus-core1-prep-round-3.quiz | quiz | ✓ | 1 |
-| forge-aplus-core1-prep-round-4.quiz | quiz | ✓ | 1 |
+| forge-aplus-core1-prep-round-2.quiz | quiz | ✓ | 0 |
+| forge-aplus-core1-prep-round-3.quiz | quiz | ✓ | 0 |
+| forge-aplus-core1-prep-round-4.quiz | quiz | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
@@ -4316,6 +4358,7 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | audit-tool | applet | ✓ | 1 |
+| index | presentation | ✓ | 0 |
 | career-quiz | applet | ✓ | 1 |
 | ctf-leaderboard.applet | presentation | ✓ | 0 |
 | botnet-architecture.presentation | presentation | ✓ | 0 |
@@ -4666,13 +4709,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### CRITICAL (1)
-
-**[XP-004]** setUserProfile() writes xp: without Math.max guard — can overwrite higher XP values
-  File: `components/FirestoreManager.js`
-  Fix: Wrap xp value with Math.max(currentXP, newXP) before writing
-
-### SUSPECT (66) — heuristic, needs review
+### SUSPECT (67) — heuristic, needs review
 
 **[HEUR-006]** Hardcoded relative href in shared renderer: ../../dashboard.html — resolves differently depending on consumer page depth
   File: `components/CertPathRenderer.js`
@@ -4894,11 +4931,15 @@
   File: `components/UpdateManager.js`
   Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
+**[HEUR-005]** Duplicate script include: "../components/AccessGuard.js" loaded 2 times (lines 5, 666)
+  File: `career/index.html`
+  Fix: Remove duplicate <script src="../components/AccessGuard.js"> tag
+
 **[HEUR-003]** TODO marker in script: Line 29:  private static final boolean IS_DEBUG = true; // T
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-mobile.html`
   Fix: Resolve or remove TODO comment
 
-**[HEUR-001]** Excessive inline scripts: 16 <script> blocks without src (threshold: 8)
+**[HEUR-001]** Excessive inline scripts: 13 <script> blocks without src (threshold: 8)
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-xss.html`
   Fix: Consider extracting inline scripts to external .js files
 
@@ -6740,7 +6781,7 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-### INFO (307)
+### INFO (309)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -6792,6 +6833,14 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/quizzes/cloud-cse-module08.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/cortex/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)

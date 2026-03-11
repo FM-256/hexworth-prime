@@ -389,7 +389,7 @@ const ModuleProgress = (function() {
                 navigateFn();
             } else {
                 const timeout = new Promise(r => setTimeout(r, 8000));
-                Promise.race([syncPromise, timeout]).then(() => navigateFn());
+                Promise.race([syncPromise, timeout]).then(navigateFn, navigateFn);
             }
         }
 
@@ -479,7 +479,7 @@ const ModuleProgress = (function() {
                 navigateFn();
             } else {
                 const timeout = new Promise(r => setTimeout(r, 8000));
-                Promise.race([syncPromise, timeout]).then(() => navigateFn());
+                Promise.race([syncPromise, timeout]).then(navigateFn, navigateFn);
             }
         }
 
@@ -491,9 +491,9 @@ const ModuleProgress = (function() {
      */
     function hasCompletedAnyModule(progress) {
         for (const house of Object.values(progress)) {
-            if (typeof house === 'object') {
+            if (typeof house === 'object' && house !== null && !Array.isArray(house)) {
                 for (const module of Object.values(house)) {
-                    if (module.completed) return true;
+                    if (module && typeof module === 'object' && module.completed) return true;
                 }
             }
         }
@@ -505,9 +505,9 @@ const ModuleProgress = (function() {
      */
     function hasPassedAnyQuiz(progress) {
         for (const house of Object.values(progress)) {
-            if (typeof house === 'object') {
+            if (typeof house === 'object' && house !== null && !Array.isArray(house)) {
                 for (const module of Object.values(house)) {
-                    if (module.completed && module.score !== undefined) return true;
+                    if (module && typeof module === 'object' && module.completed && module.score !== undefined) return true;
                 }
             }
         }

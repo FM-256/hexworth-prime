@@ -1,0 +1,3584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-031: Operation BLACKOUT - House of Script</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Share Tech Mono', 'Cascadia Code', monospace; background: #0a0a0a; height: 100vh; overflow: hidden; color: #00ff41; }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* CRT MONITOR EFFECT                                              */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .crt-container { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+
+        .crt-screen { position: relative; width: 100%; height: 100%; }
+
+        /* Scanlines */
+        .crt-screen::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15) 0px,
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Screen flicker */
+        .crt-screen::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 255, 65, 0.02);
+            pointer-events: none;
+            z-index: 999;
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 0.97; }
+            50% { opacity: 1; }
+        }
+
+        /* Phosphor glow */
+        .phosphor-glow {
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5), 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* MATRIX RAIN BACKGROUND                                          */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* CINEMATIC INTRO                                                  */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .cinematic-overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1s ease;
+        }
+        .cinematic-overlay.fade-out { opacity: 0; pointer-events: none; }
+
+        /* BURN EFFECT */
+        .cinematic-overlay.burning {
+            pointer-events: none;
+        }
+        .burn-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2001;
+        }
+        .burn-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            background: linear-gradient(to bottom,
+                transparent 0%,
+                rgba(255, 100, 0, 0.3) 20%,
+                rgba(255, 60, 0, 0.8) 40%,
+                rgba(255, 200, 50, 1) 50%,
+                rgba(255, 60, 0, 0.8) 60%,
+                rgba(255, 100, 0, 0.3) 80%,
+                transparent 100%
+            );
+            box-shadow: 0 0 60px 30px rgba(255, 100, 0, 0.5);
+            transform: translateY(-100%);
+            animation: burnDown 2s ease-in forwards;
+        }
+        @keyframes burnDown {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+        .burn-mask {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 0;
+            background: #000;
+            animation: burnMask 2s ease-in forwards;
+        }
+        @keyframes burnMask {
+            0% { height: 0; top: 0; }
+            100% { height: 100%; top: 0; }
+        }
+
+        /* EMBER PARTICLES */
+        .ember-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 2002;
+        }
+        .ember {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: radial-gradient(circle, #ffcc00 0%, #ff6600 50%, transparent 70%);
+            border-radius: 50%;
+            box-shadow: 0 0 6px 2px rgba(255, 150, 0, 0.8);
+            animation: emberFloat 1.5s ease-out forwards;
+        }
+        @keyframes emberFloat {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-120px) translateX(var(--drift)) scale(0.3); }
+        }
+
+        .cinematic-content {
+            max-width: 800px;
+            padding: 40px;
+            text-align: left;
+        }
+
+        .classified-stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            font-size: 4em;
+            color: rgba(239, 68, 68, 0.3);
+            border: 8px solid rgba(239, 68, 68, 0.3);
+            padding: 10px 30px;
+            font-weight: bold;
+            letter-spacing: 10px;
+            pointer-events: none;
+            opacity: 0;
+            animation: stampIn 0.5s ease forwards;
+            animation-delay: 2s;
+        }
+        @keyframes stampIn { to { opacity: 1; } }
+
+        .document-header {
+            border-bottom: 2px solid #ef4444;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        .document-header h1 {
+            color: #ef4444;
+            font-size: 1.5em;
+            letter-spacing: 3px;
+        }
+        .document-header .doc-id {
+            color: #666;
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
+
+        .typewriter-text {
+            color: #00ff41;
+            font-size: 1em;
+            line-height: 1.8;
+            min-height: 200px;
+        }
+        .typewriter-text .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background: #00ff41;
+            animation: blink 0.7s infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+        .redacted {
+            background: #333;
+            color: #333;
+            padding: 0 5px;
+            user-select: none;
+        }
+
+        .specter-reveal {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+        }
+        .specter-reveal.show { display: block; animation: glitchIn 0.5s ease; }
+        @keyframes glitchIn {
+            0%, 20%, 40%, 60%, 80%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        }
+
+        .specter-avatar {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            position: relative;
+        }
+        .specter-face {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #ef4444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            animation: glitchFace 2s infinite;
+        }
+        @keyframes glitchFace {
+            0%, 90%, 100% { transform: translate(0); filter: none; }
+            92% { transform: translate(-2px, 1px); filter: hue-rotate(90deg); }
+            94% { transform: translate(2px, -1px); filter: hue-rotate(180deg); }
+            96% { transform: translate(-1px, 2px); filter: hue-rotate(270deg); }
+            98% { transform: translate(1px, -2px); }
+        }
+
+        .specter-name {
+            color: #ef4444;
+            text-align: center;
+            font-size: 1.2em;
+            letter-spacing: 5px;
+            margin-top: 10px;
+        }
+
+        .specter-warning {
+            color: #ef4444;
+            text-align: center;
+            font-size: 0.8em;
+            margin-top: 15px;
+            letter-spacing: 2px;
+            animation: warnPulse 1s infinite;
+        }
+        @keyframes warnPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* SPECTER Stamp Container - Phase 2 */
+        .specter-stamp-container {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1.3) rotate(-5deg);
+            background: linear-gradient(145deg, #1a0505 0%, #2d0a0a 50%, #1a0505 100%);
+            border: 3px solid #ef4444;
+            border-radius: 12px;
+            padding: 30px 40px;
+            box-shadow: 0 0 60px rgba(239, 68, 68, 0.4), inset 0 0 30px rgba(0,0,0,0.5);
+            opacity: 0;
+            z-index: 2003;
+        }
+        .specter-stamp-container.show {
+            display: block;
+            animation: specterStampIn 0.15s ease-out forwards;
+        }
+        @keyframes specterStampIn {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(1.3) rotate(-5deg); }
+            60% { opacity: 1; transform: translate(-50%, -50%) scale(0.95) rotate(1deg); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+        }
+        .specter-stamp-container .specter-reveal {
+            display: block;
+            margin: 0;
+            padding: 15px;
+            background: transparent;
+            border: none;
+            animation: none;
+        }
+
+        .cinematic-buttons {
+            display: none;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .cinematic-buttons.show { display: flex; }
+
+        .cin-btn {
+            padding: 15px 30px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1em;
+            border: 2px solid;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .cin-btn.primary { color: #00ff41; border-color: #00ff41; }
+        .cin-btn.primary:hover { background: #00ff41; color: #000; box-shadow: 0 0 20px rgba(0,255,65,0.5); }
+        .cin-btn.secondary { color: #666; border-color: #666; }
+        .cin-btn.secondary:hover { border-color: #999; color: #999; }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* PHASE ANNOUNCEMENT OVERLAY                                       */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .phase-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .phase-overlay.show { display: flex; }
+
+        .phase-announcement {
+            text-align: center;
+            opacity: 0;
+            transform: scale(1.5) rotate(-3deg);
+        }
+        .phase-announcement.stamp-in {
+            animation: phaseStampIn 0.2s ease-out forwards;
+        }
+        @keyframes phaseStampIn {
+            0% { opacity: 0; transform: scale(1.5) rotate(-3deg); }
+            60% { opacity: 1; transform: scale(0.95) rotate(1deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        .phase-number {
+            font-size: 1.2em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            margin-bottom: 10px;
+        }
+        .phase-codename {
+            font-size: 3em;
+            font-weight: bold;
+            color: #00ff41;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
+            margin-bottom: 15px;
+        }
+        .phase-title {
+            font-size: 1.1em;
+            color: #888;
+            font-style: italic;
+            letter-spacing: 2px;
+        }
+
+        /* Handler Intel Briefing */
+        .handler-briefing {
+            margin-top: 40px;
+            max-width: 500px;
+            padding: 20px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .handler-briefing.show {
+            animation: briefingFadeIn 0.5s ease-out 0.3s forwards;
+        }
+        @keyframes briefingFadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .handler-briefing-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            color: #3b82f6;
+            font-size: 0.8em;
+        }
+        .handler-briefing-text {
+            color: #93c5fd;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        .phase-start-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.1em;
+            background: transparent;
+            border: 2px solid #00ff41;
+            color: #00ff41;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .phase-start-btn.show {
+            animation: btnFadeIn 0.3s ease-out 0.8s forwards;
+        }
+        @keyframes btnFadeIn {
+            to { opacity: 1; }
+        }
+        .phase-start-btn:hover {
+            background: #00ff41;
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* LEVEL COMPLETE OVERLAY                                          */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .level-complete-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .level-complete-overlay.show { display: flex; }
+
+        .level-complete-content {
+            text-align: center;
+            opacity: 0;
+            transform: scale(1.3) rotate(-2deg);
+        }
+        .level-complete-content.stamp-in {
+            animation: levelCompleteStamp 0.2s ease-out forwards;
+        }
+        @keyframes levelCompleteStamp {
+            0% { opacity: 0; transform: scale(1.3) rotate(-2deg); }
+            60% { opacity: 1; transform: scale(0.97) rotate(0.5deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        .complete-codename {
+            font-size: 1em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            margin-bottom: 10px;
+        }
+        .complete-title {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #22c55e;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 30px rgba(34, 197, 94, 0.5);
+            margin-bottom: 30px;
+        }
+
+        /* Spy Hat Rating */
+        .hat-rating {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .spy-hat {
+            font-size: 3em;
+            opacity: 0;
+            transform: scale(0) rotate(-20deg);
+            filter: grayscale(100%) brightness(0.3);
+            transition: filter 0.3s;
+        }
+        .spy-hat.earned {
+            filter: none;
+        }
+        .spy-hat.animate {
+            animation: hatReveal 0.4s ease-out forwards;
+        }
+        @keyframes hatReveal {
+            0% { opacity: 0; transform: scale(0) rotate(-20deg); }
+            60% { opacity: 1; transform: scale(1.2) rotate(5deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        .hat-criteria {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 30px;
+        }
+        .hat-criterion {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .hat-criterion.earned { color: #22c55e; }
+        .hat-criterion-icon { width: 20px; }
+
+        .level-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            padding: 15px 30px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+        }
+        .level-stat {
+            text-align: center;
+        }
+        .level-stat-value {
+            font-size: 1.5em;
+            color: #00ff41;
+            font-weight: bold;
+        }
+        .level-stat-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .continue-btn {
+            padding: 15px 40px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.1em;
+            background: transparent;
+            border: 2px solid #22c55e;
+            color: #22c55e;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .continue-btn.show {
+            animation: btnFadeIn 0.3s ease-out forwards;
+        }
+        .continue-btn:hover {
+            background: #22c55e;
+            color: #000;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.5);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* DIFFICULTY SELECT - STAMP STYLE                                  */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .difficulty-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 1999;
+            justify-content: center;
+            align-items: center;
+        }
+        .difficulty-screen.show { display: flex; }
+
+        .stamp-container {
+            background: linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 50%, #0d0d0d 100%);
+            border: 3px solid #8b5cf6;
+            border-radius: 12px;
+            padding: 25px 30px;
+            box-shadow: 0 0 60px rgba(139, 92, 246, 0.4), inset 0 0 30px rgba(0,0,0,0.5);
+            opacity: 0;
+            transform: scale(1.3) rotate(-5deg);
+            transition: none;
+        }
+        .difficulty-screen.stamped .stamp-container {
+            animation: stampIn 0.15s ease-out forwards;
+        }
+        @keyframes stampIn {
+            0% { opacity: 0; transform: scale(1.3) rotate(-5deg); }
+            60% { opacity: 1; transform: scale(0.95) rotate(1deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .difficulty-screen.stamped {
+            animation: screenShake 0.15s ease-out 0.1s;
+        }
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0); }
+            25% { transform: translate(-5px, 3px); }
+            50% { transform: translate(5px, -3px); }
+            75% { transform: translate(-3px, 2px); }
+        }
+
+        .difficulty-screen h2 {
+            color: #8b5cf6;
+            font-size: 1.4em;
+            letter-spacing: 4px;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        .difficulty-screen p { color: #666; margin-bottom: 15px; font-size: 0.8em; text-align: center; }
+
+        .difficulty-cards {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            justify-content: center;
+        }
+
+        .diff-card {
+            width: 150px;
+            padding: 12px 10px;
+            background: rgba(20,20,20,0.9);
+            border: 2px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .diff-card:hover { transform: translateY(-2px); }
+        .diff-card.selected { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139,92,246,0.3); }
+        .diff-card.recruit { --accent: #22c55e; }
+        .diff-card.operator { --accent: #f59e0b; }
+        .diff-card.ghost { --accent: #ef4444; }
+        .diff-card.selected.recruit { border-color: #22c55e; box-shadow: 0 0 20px rgba(34,197,94,0.3); }
+        .diff-card.selected.operator { border-color: #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+        .diff-card.selected.ghost { border-color: #ef4444; box-shadow: 0 0 20px rgba(239,68,68,0.3); }
+
+        .diff-card h3 { color: var(--accent); font-size: 1em; margin-bottom: 3px; }
+        .diff-card .diff-desc { color: #888; font-size: 0.65em; margin-bottom: 8px; }
+        .diff-card ul { text-align: left; font-size: 0.6em; color: #666; list-style: none; }
+        .diff-card li { padding: 1px 0; }
+        .diff-card li::before { content: '> '; color: var(--accent); }
+
+        .modifier-section {
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: rgba(20,20,20,0.5);
+            border-radius: 6px;
+        }
+        .modifier-section h4 { color: #f59e0b; font-size: 0.7em; margin-bottom: 8px; text-align: center; }
+        .modifiers { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+        .modifier {
+            padding: 5px 10px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #333;
+            border-radius: 15px;
+            font-size: 0.65em;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modifier:hover { border-color: #666; color: #aaa; }
+        .modifier.active { border-color: #f59e0b; color: #f59e0b; background: rgba(245,158,11,0.1); }
+
+        .start-mission-btn {
+            display: block;
+            margin: 15px auto 0;
+            padding: 12px 35px;
+            font-size: 1em;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border: none;
+            color: white;
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 3px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .start-mission-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 40px rgba(239,68,68,0.4); }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* MAIN GAME LAYOUT                                                 */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .game-container {
+            display: none;
+            grid-template-columns: minmax(40px, 300px) 1fr minmax(40px, 260px);
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .game-container.show { display: grid; }
+        .game-container.visible { opacity: 1; }
+        .game-container.red-alert { animation: redPulse 1s infinite; }
+        @keyframes redPulse { 0%, 100% { box-shadow: inset 0 0 50px rgba(239,68,68,0.2); } 50% { box-shadow: inset 0 0 100px rgba(239,68,68,0.4); } }
+        .game-container.screen-shake { animation: shake 0.5s ease-in-out; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #0d0d0d 0%, #1a1a1a 100%);
+            padding: 10px 20px;
+            border-bottom: 2px solid #ef4444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .op-badge {
+            background: rgba(239, 68, 68, 0.2);
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            color: #ef4444;
+            border: 1px solid #ef4444;
+            letter-spacing: 2px;
+            animation: pulseBadge 2s infinite;
+        }
+        @keyframes pulseBadge { 0%, 100% { box-shadow: 0 0 5px rgba(239,68,68,0.5); } 50% { box-shadow: 0 0 15px rgba(239,68,68,0.8); } }
+        .header h1 { color: #ef4444; font-size: 1.1em; letter-spacing: 2px; }
+        .diff-badge {
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.65em;
+            letter-spacing: 1px;
+        }
+        .diff-badge.recruit { background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid #22c55e; }
+        .diff-badge.operator { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+        .diff-badge.ghost { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid #ef4444; }
+
+        /* Timer & Progress */
+        .header-center { display: flex; align-items: center; gap: 25px; }
+        .mission-timer { font-size: 1.4em; color: #00ff41; letter-spacing: 2px; }
+        .mission-timer.warning { color: #f59e0b; }
+        .mission-timer.critical { color: #ef4444; animation: timerPulse 0.5s infinite; }
+        @keyframes timerPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .progress-bars { display: flex; gap: 20px; }
+        .progress-bar-wrap { min-width: 150px; }
+        .progress-label { font-size: 0.65em; display: flex; justify-content: space-between; margin-bottom: 3px; }
+        .progress-label.you { color: #00ff41; }
+        .progress-label.specter { color: #ef4444; }
+        .progress-track { height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; border: 1px solid #333; }
+        .progress-fill { height: 100%; transition: width 0.3s; }
+        .progress-fill.you { background: linear-gradient(90deg, #00ff41, #22c55e); }
+        .progress-fill.specter { background: linear-gradient(90deg, #ef4444, #f97316); }
+
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .abort-btn {
+            color: #666;
+            text-decoration: none;
+            padding: 5px 12px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-size: 0.8em;
+            transition: all 0.2s;
+        }
+        .abort-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* COLLAPSIBLE PANELS                                               */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .panel-toggle {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+            transition: all 0.3s ease;
+            font-size: 11px;
+            color: #888;
+        }
+        .panel-toggle:hover {
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+        }
+        .left-panel .panel-toggle {
+            right: 2px;
+            border-radius: 4px;
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+        .left-panel .panel-toggle:hover { background: rgba(239, 68, 68, 0.3); color: #ff6b6b; }
+        .right-panel .panel-toggle {
+            left: 2px;
+            border-radius: 4px;
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .right-panel .panel-toggle:hover { background: rgba(59, 130, 246, 0.3); color: #60a5fa; }
+
+        .panel-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: opacity 0.3s ease;
+            height: 100%;
+        }
+        .panel-collapsed .panel-content {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .panel-collapsed-label {
+            display: none;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            padding: 20px 8px;
+            font-size: 0.75em;
+            letter-spacing: 3px;
+            color: #666;
+            text-align: center;
+        }
+        .panel-collapsed .panel-collapsed-label {
+            display: block;
+        }
+        .left-panel .panel-collapsed-label { color: #ef4444; }
+        .right-panel .panel-collapsed-label { color: #3b82f6; }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* LEFT PANEL                                                       */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .left-panel {
+            background: rgba(13, 17, 23, 0.95);
+            border-right: 2px solid #ef4444;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            transition: width 0.3s ease, min-width 0.3s ease;
+        }
+        .left-panel.panel-collapsed {
+            min-width: 40px !important;
+            width: 40px !important;
+        }
+
+        /* Network Map */
+        .network-section { padding: 12px; border-bottom: 1px solid #30363d; }
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8em;
+            color: #ef4444;
+            margin-bottom: 10px;
+        }
+        .section-header::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+        .network-svg { width: 100%; height: 150px; }
+        .node-rect { transition: all 0.3s; }
+        .connection-line { stroke: #30363d; stroke-width: 2; transition: all 0.3s; }
+        .connection-line.active { stroke: #22c55e; stroke-dasharray: 5,5; animation: dashFlow 1s linear infinite; }
+        .connection-line.down { stroke: #ef4444; stroke-dasharray: 2,4; }
+        @keyframes dashFlow { to { stroke-dashoffset: -10; } }
+
+        /* Handler Comms */
+        .handler-section {
+            padding: 12px;
+            border-bottom: 1px solid #30363d;
+            background: rgba(59, 130, 246, 0.05);
+        }
+        .handler-header { color: #3b82f6; }
+        .handler-message {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            position: relative;
+        }
+        .handler-avatar {
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            width: 30px;
+            height: 30px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            border: 2px solid #0d1117;
+        }
+        .handler-text {
+            margin-left: 30px;
+            font-size: 0.75em;
+            color: #93c5fd;
+            line-height: 1.4;
+        }
+        .handler-static {
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.03) 1px, transparent 2px);
+            opacity: 0;
+            pointer-events: none;
+            border-radius: 8px;
+        }
+        .handler-static.active { animation: staticNoise 0.1s infinite; }
+        @keyframes staticNoise { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.2; } }
+
+        /* Threat Feed */
+        .threat-section { flex: 1; padding: 12px; overflow-y: auto; max-height: 150px; }
+        .threat-header { color: #f59e0b; }
+        .threat-item {
+            padding: 6px 10px;
+            margin-top: 6px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } }
+        .threat-item.critical { background: rgba(239,68,68,0.15); border-left: 3px solid #ef4444; color: #fca5a5; }
+        .threat-item.warning { background: rgba(245,158,11,0.15); border-left: 3px solid #f59e0b; color: #fcd34d; }
+        .threat-item.info { background: rgba(59,130,246,0.15); border-left: 3px solid #3b82f6; color: #93c5fd; }
+        .threat-item.success { background: rgba(34,197,94,0.15); border-left: 3px solid #22c55e; color: #86efac; }
+        .threat-time { color: #666; margin-right: 6px; }
+
+        /* Puzzle Panel */
+        .puzzle-section {
+            display: none;
+            padding: 12px;
+            background: rgba(139,92,246,0.05);
+            border-top: 1px solid #8b5cf6;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .puzzle-section.active { display: block; }
+        .puzzle-header { color: #8b5cf6; }
+
+        /* Power-ups */
+        .powerups-section {
+            padding: 10px 12px;
+            border-top: 1px solid #30363d;
+            display: flex;
+            gap: 8px;
+        }
+        .powerup {
+            flex: 1;
+            padding: 8px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.4;
+        }
+        .powerup.available { opacity: 1; border-color: #22c55e; }
+        .powerup.available:hover { background: rgba(34,197,94,0.1); }
+        .powerup.used { opacity: 0.3; cursor: not-allowed; }
+        .powerup-icon { font-size: 1.2em; }
+        .powerup-name { font-size: 0.6em; color: #888; margin-top: 3px; }
+        .powerup-key { font-size: 0.55em; color: #666; }
+    </style>
+</head>
+<body>
+    <!-- Matrix Rain Canvas -->
+    <canvas class="matrix-bg" id="matrixCanvas"></canvas>
+
+    <div class="crt-container">
+        <div class="crt-screen">
+            <!-- CINEMATIC INTRO -->
+            <div class="cinematic-overlay" id="cinematicOverlay">
+                <!-- Burn effect elements -->
+                <div class="burn-overlay" id="burnOverlay"></div>
+                <div class="ember-container" id="emberContainer"></div>
+
+                <!-- Phase 1: Briefing (will burn away) -->
+                <div class="cinematic-content" id="briefingContent">
+                    <div class="classified-stamp">TOP SECRET</div>
+                    <div class="document-header" id="docHeader">
+                        <h1>OPERATION BLACKOUT</h1>
+                        <div class="doc-id">DOC-7734-ALPHA // EYES ONLY // <span class="redacted">REDACTED</span></div>
+                    </div>
+                    <div class="typewriter-text" id="typewriterText"></div>
+                </div>
+
+                <!-- Phase 2: SPECTER + Buttons (stamps in after burn) -->
+                <div class="specter-stamp-container" id="specterStamp">
+                    <div class="specter-reveal show">
+                        <div class="specter-avatar">
+                            <div class="specter-face"><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                        </div>
+                        <div class="specter-name">S P E C T E R</div>
+                        <div class="specter-warning">HOSTILE OPERATOR DETECTED</div>
+                    </div>
+                    <div class="cinematic-buttons show">
+                        <button class="cin-btn primary" onclick="proceedToDifficulty()">ACCEPT MISSION</button>
+                        <button class="cin-btn secondary" onclick="location.href='../../index.html'">DECLINE</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIFFICULTY SELECTION -->
+            <div class="difficulty-screen" id="difficultyScreen">
+                <div class="stamp-container">
+                    <h2>SELECT CLEARANCE LEVEL</h2>
+                    <p>Choose your challenge. Modifiers add complexity.</p>
+                    <div class="difficulty-cards">
+                        <div class="diff-card recruit" onclick="selectDifficulty('recruit', this)">
+                            <h3>RECRUIT</h3>
+                            <div class="diff-desc">Training simulation</div>
+                            <ul>
+                                <li>SPECTER: Slow</li>
+                                <li>Time: 90 minutes</li>
+                                <li>Full hints</li>
+                                <li>Handler assists</li>
+                            </ul>
+                        </div>
+                        <div class="diff-card operator selected" onclick="selectDifficulty('operator', this)">
+                            <h3>OPERATOR</h3>
+                            <div class="diff-desc">Standard mission</div>
+                            <ul>
+                                <li>SPECTER: Normal</li>
+                                <li>Time: 60 minutes</li>
+                                <li>Basic hints</li>
+                                <li>Limited assists</li>
+                            </ul>
+                        </div>
+                        <div class="diff-card ghost" onclick="selectDifficulty('ghost', this)">
+                            <h3>GHOST</h3>
+                            <div class="diff-desc">Elite operation</div>
+                            <ul>
+                                <li>SPECTER: Aggressive</li>
+                                <li>Time: 45 minutes</li>
+                                <li>Minimal hints</li>
+                                <li>No assists</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modifier-section">
+                        <h4>CHALLENGE MODIFIERS (Optional)</h4>
+                        <div class="modifiers">
+                            <div class="modifier" onclick="toggleModifier('noHints', this)">No Hints</div>
+                            <div class="modifier" onclick="toggleModifier('speedrun', this)">Speedrun Mode</div>
+                            <div class="modifier" onclick="toggleModifier('oneLife', this)">One Mistake = Fail</div>
+                            <div class="modifier" onclick="toggleModifier('doubleSpecter', this)">2x SPECTER Speed</div>
+                            <div class="modifier" onclick="toggleModifier('decoys', this)">Decoy Intel Active</div>
+                        </div>
+                    </div>
+                    <button class="start-mission-btn" onclick="startMission()">INITIATE OPERATION</button>
+                </div>
+            </div>
+
+            <!-- MAIN GAME -->
+            <div class="game-container" id="gameContainer">
+                <!-- Header -->
+                <div class="header">
+                    <div class="header-left">
+                        <span class="op-badge">CLH-031</span>
+                        <h2>OPERATION BLACKOUT</h2>
+                        <span class="diff-badge operator" id="diffBadge">OPERATOR</span>
+                    </div>
+                    <div class="header-center">
+                        <div class="mission-timer phosphor-glow" id="missionTimer">04:00</div>
+                        <div class="progress-bars">
+                            <div class="progress-bar-wrap">
+                                <div class="progress-label you"><span>OPERATOR</span><span id="youPct">0%</span></div>
+                                <div class="progress-track"><div class="progress-fill you" id="youBar" style="width:0%"></div></div>
+                            </div>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-label specter"><span>SPECTER</span><span id="specterPct">0%</span></div>
+                                <div class="progress-track"><div class="progress-fill specter" id="specterBar" style="width:0%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <a href="../../../../index.html" class="abort-btn">ABORT</a>
+                    </div>
+                </div>
+
+                <!-- Left Panel -->
+                <div class="left-panel" id="leftPanel">
+                    <div class="panel-toggle" onclick="togglePanel('left')" title="Toggle Panel">◀</div>
+                    <div class="panel-collapsed-label">INTEL PANEL</div>
+                    <div class="panel-content">
+                    <div class="network-section">
+                        <div class="section-header">NETWORK STATUS</div>
+                        <svg class="network-svg" viewBox="0 0 276 150" id="networkMap">
+                            <!-- Lines -->
+                            <line id="line-you-tower" class="connection-line active" x1="45" y1="40" x2="138" y2="40"/>
+                            <line id="line-tower-target" class="connection-line active" x1="138" y1="40" x2="231" y2="40"/>
+                            <line id="line-you-backup" class="connection-line" x1="45" y1="40" x2="138" y2="110"/>
+                            <line id="line-backup-target" class="connection-line" x1="138" y1="110" x2="231" y2="40"/>
+
+                            <!-- You -->
+                            <g transform="translate(20,15)">
+                                <rect class="node-rect" width="50" height="50" rx="6" fill="#0d1117" stroke="#22c55e" stroke-width="2"/>
+                                <text x="25" y="30" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="bold">YOU</text>
+                                <text x="25" y="58" text-anchor="middle" fill="#666" font-size="8">RELAY</text>
+                            </g>
+                            <!-- Tower -->
+                            <g transform="translate(113,15)" id="towerNode">
+                                <rect class="node-rect" id="towerRect" width="50" height="50" rx="6" fill="#0d1117" stroke="#22c55e" stroke-width="2"/>
+                                <text x="25" y="28" text-anchor="middle" font-size="18" id="towerIcon"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></text>
+                                <text x="25" y="58" text-anchor="middle" fill="#666" font-size="8">TOWER</text>
+                            </g>
+                            <!-- Target -->
+                            <g transform="translate(206,15)">
+                                <rect class="node-rect" width="50" height="50" rx="6" fill="#0d1117" stroke="#f59e0b" stroke-width="2"/>
+                                <text x="25" y="28" text-anchor="middle" font-size="18"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></text>
+                                <text x="25" y="58" text-anchor="middle" fill="#666" font-size="8">PROMETHEUS</text>
+                            </g>
+                            <!-- Backup -->
+                            <g transform="translate(113,85)" id="backupNode">
+                                <rect class="node-rect" id="backupRect" width="50" height="50" rx="6" fill="#0d1117" stroke="#333" stroke-width="2"/>
+                                <text x="25" y="28" text-anchor="middle" font-size="18" fill="#666" id="backupIcon"><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></text>
+                                <text x="25" y="58" text-anchor="middle" fill="#666" font-size="8">BACKUP</text>
+                            </g>
+                            <!-- SPECTER -->
+                            <g transform="translate(206,85)" id="specterNode">
+                                <rect class="node-rect" width="50" height="50" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,2"/>
+                                <text x="25" y="28" text-anchor="middle" font-size="18" class="specter-icon"><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></text>
+                                <text x="25" y="58" text-anchor="middle" fill="#ef4444" font-size="8">SPECTER</text>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <div class="handler-section" id="handlerSection">
+                        <div class="section-header handler-header">HANDLER COMMS</div>
+                        <div class="handler-message">
+                            <div class="handler-static" id="handlerStatic"></div>
+                            <div class="handler-avatar"><img src="/assets/images/icons/icon-headphones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                            <div class="handler-text" id="handlerText">Standing by for mission start...</div>
+                        </div>
+                    </div>
+
+                    <div class="threat-section" id="threatFeed">
+                        <div class="section-header threat-header">THREAT INTEL</div>
+                    </div>
+
+                    <!-- Puzzle panels will be inserted here -->
+                    <div class="puzzle-section" id="patchPuzzle">
+                        <div class="section-header puzzle-header">PATCH PANEL</div>
+                        <p style="font-size:0.7em;color:#888;margin-bottom:10px;">Connect BACKUP to PROMETHEUS</p>
+                        <div id="patchPanelContent"></div>
+                    </div>
+
+                    <div class="puzzle-section" id="firewallPuzzle">
+                        <div class="section-header puzzle-header">FIREWALL CONFIG</div>
+                        <div id="firewallContent"></div>
+                    </div>
+
+                    <div class="puzzle-section" id="logPuzzle">
+                        <div class="section-header puzzle-header">LOG ANALYSIS</div>
+                        <div id="logContent"></div>
+                    </div>
+
+                    <div class="puzzle-section" id="hashPuzzle">
+                        <div class="section-header puzzle-header">HASH CRACK</div>
+                        <div id="hashContent"></div>
+                    </div>
+
+                    <div class="puzzle-section" id="regexPuzzle">
+                        <div class="section-header puzzle-header">REGEX FILTER</div>
+                        <div id="regexContent"></div>
+                    </div>
+
+                    <div class="puzzle-section" id="permsPuzzle">
+                        <div class="section-header puzzle-header">FIX PERMISSIONS</div>
+                        <div id="permsContent"></div>
+                    </div>
+
+                    <div class="puzzle-section" id="binaryPuzzle">
+                        <div class="section-header puzzle-header">BINARY DECODE</div>
+                        <div id="binaryContent"></div>
+                    </div>
+
+                    <div class="puzzle-section" id="processPuzzle">
+                        <div class="section-header puzzle-header">PROCESS TREE</div>
+                        <div id="processContent"></div>
+                    </div>
+
+                    <div class="puzzle-section" id="servicesPuzzle">
+                        <div class="section-header puzzle-header">RESTART SERVICES</div>
+                        <div id="servicesContent"></div>
+                    </div>
+
+                    <div class="powerups-section">
+                        <div class="powerup" id="pu-sniffer" onclick="usePowerup('sniffer')" title="See SPECTER's next move">
+                            <div class="powerup-icon"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                            <div class="powerup-name">Sniffer</div>
+                            <div class="powerup-key">[1]</div>
+                        </div>
+                        <div class="powerup" id="pu-rootkit" onclick="usePowerup('rootkit')" title="Freeze SPECTER for 15s">
+                            <div class="powerup-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                            <div class="powerup-name">Rootkit</div>
+                            <div class="powerup-key">[2]</div>
+                        </div>
+                        <div class="powerup" id="pu-exploit" onclick="usePowerup('exploit')" title="Skip current puzzle">
+                            <div class="powerup-icon"><img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                            <div class="powerup-name">Exploit</div>
+                            <div class="powerup-key">[3]</div>
+                        </div>
+                    </div>
+                    </div><!-- /panel-content -->
+                </div>
+
+                <!-- MAIN TERMINAL PANEL -->
+                <div class="main-panel">
+                    <div class="terminal-header">
+                        <span class="terminal-dot dot-red"></span>
+                        <span class="terminal-dot dot-yellow"></span>
+                        <span class="terminal-dot dot-green"></span>
+                        <span class="terminal-title phosphor-glow" id="terminalTitle">operator@RELAY:~</span>
+                        <span class="conn-status connected" id="connStatus">CONNECTED</span>
+                    </div>
+                    <div class="terminal" id="terminal"></div>
+                    <div class="input-line">
+                        <span class="input-prompt phosphor-glow" id="prompt">operator@RELAY:~$</span>
+                        <input type="text" id="cmdInput" autocomplete="off" spellcheck="false" tabindex="0" disabled>
+                    </div>
+                </div>
+
+                <!-- RIGHT INTEL PANEL -->
+                <div class="right-panel" id="rightPanel">
+                    <div class="panel-toggle" onclick="togglePanel('right')" title="Toggle Panel"><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                    <div class="panel-collapsed-label">FIELD MANUAL</div>
+                    <div class="panel-content">
+                    <div class="intel-header"><div class="section-header intel-header-text">FIELD MANUAL</div></div>
+                    <div class="intel-content">
+                        <div class="intel-section">
+                            <h3>CURRENT OBJECTIVE</h3>
+                            <div class="intel-box" id="objectiveBox">Awaiting mission start...</div>
+                        </div>
+                        <div class="intel-section">
+                            <h4>COMMAND REFERENCE</h4>
+                            <div class="intel-cmd"><code>ssh user@host</code><span>Remote connect</span></div>
+                            <div class="intel-cmd"><code>find / -name "x"</code><span>Search files</span></div>
+                            <div class="intel-cmd"><code>cat file</code><span>View contents</span></div>
+                            <div class="intel-cmd"><code>scp file host:/path</code><span>Copy remote</span></div>
+                            <div class="intel-cmd"><code>pkill -u user</code><span>Kill processes</span></div>
+                        </div>
+                        <div class="intel-section" id="specterIntelSection" style="display:none;">
+                            <h4>SPECTER INTEL</h4>
+                            <div class="specter-intel" id="specterIntel"></div>
+                        </div>
+                    </div>
+                    <div class="achievements-section">
+                        <h4>ACHIEVEMENTS</h4>
+                        <div class="ach" id="ach-speed"><span><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span><div><b>Speed Demon</b><small>Under 2 min</small></div></div>
+                        <div class="ach" id="ach-perfect"><span><img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span><div><b>Perfect Run</b><small>No mistakes</small></div></div>
+                        <div class="ach" id="ach-ghost"><span><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span><div><b>Ghost Protocol</b><small>GHOST difficulty</small></div></div>
+                        <div class="ach" id="ach-crusher"><span><img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span><div><b>SPECTER Crusher</b><small>Keep SPECTER &lt;50%</small></div></div>
+                    </div>
+                    </div><!-- /panel-content -->
+                </div>
+
+                <!-- MISSION PANEL -->
+                <div class="mission-panel">
+                    <div class="objective-display">
+                        <div class="obj-label">OBJECTIVE</div>
+                        <div class="obj-text" id="objText">Awaiting mission start...</div>
+                        <div class="obj-hint" id="objHint"></div>
+                    </div>
+                    <div class="stage-dots" id="stageDots"></div>
+                </div>
+            </div>
+
+            <!-- PHASE ANNOUNCEMENT OVERLAY -->
+            <div class="phase-overlay" id="phaseOverlay">
+                <div class="phase-announcement" id="phaseAnnouncement">
+                    <div class="phase-number" id="phaseNumber">PHASE 1 OF 9</div>
+                    <div class="phase-codename" id="phaseCodename">LIFELINE</div>
+                    <div class="phase-title" id="phaseTitle">"Restore backup connection"</div>
+                </div>
+                <div class="handler-briefing" id="handlerBriefing">
+                    <div class="handler-briefing-header">
+                        <span><img src="/assets/images/icons/icon-headphones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> HANDLER INTEL
+                    </div>
+                    <div class="handler-briefing-text" id="handlerBriefingText">
+                        Intel loading...
+                    </div>
+                </div>
+                <button class="phase-start-btn" id="phaseStartBtn" onclick="startLevel()">BEGIN PHASE</button>
+            </div>
+
+            <!-- LEVEL COMPLETE OVERLAY -->
+            <div class="level-complete-overlay" id="levelCompleteOverlay">
+                <div class="level-complete-content" id="levelCompleteContent">
+                    <div class="complete-codename" id="completeCodename">PHASE 1: LIFELINE</div>
+                    <div class="complete-title">COMPLETE</div>
+                    <div class="hat-rating" id="hatRating">
+                        <div class="spy-hat" id="hat1"><img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                        <div class="spy-hat" id="hat2"><img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                        <div class="spy-hat" id="hat3"><img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                    </div>
+                    <div class="hat-criteria" id="hatCriteria">
+                        <div class="hat-criterion" id="criterion1">
+                            <span class="hat-criterion-icon">○</span>
+                            <span>Level completed</span>
+                        </div>
+                        <div class="hat-criterion" id="criterion2">
+                            <span class="hat-criterion-icon">○</span>
+                            <span>No hints used</span>
+                        </div>
+                        <div class="hat-criterion" id="criterion3">
+                            <span class="hat-criterion-icon">○</span>
+                            <span>Under par time, no mistakes</span>
+                        </div>
+                    </div>
+                    <div class="level-stats" id="levelStats">
+                        <div class="level-stat">
+                            <div class="level-stat-value" id="statTime">0:00</div>
+                            <div class="level-stat-label">Time</div>
+                        </div>
+                        <div class="level-stat">
+                            <div class="level-stat-value" id="statMistakes">0</div>
+                            <div class="level-stat-label">Mistakes</div>
+                        </div>
+                        <div class="level-stat">
+                            <div class="level-stat-value" id="statPar">2:00</div>
+                            <div class="level-stat-label">Par</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="continue-btn" id="continueBtn" onclick="continueToNextLevel()">CONTINUE</button>
+            </div>
+
+            <!-- VICTORY MODAL -->
+            <div class="modal-overlay" id="victoryModal">
+                <div class="modal victory">
+                    <div class="modal-icon"><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                    <h2>MISSION COMPLETE</h2>
+                    <p id="victoryMessage">Intel extracted. SPECTER neutralized.</p>
+                    <div class="modal-stats" id="victoryStats"></div>
+                    <div class="skills-section" id="skillsSection"></div>
+                    <div class="debrief-section" id="debriefSection"></div>
+                    <div class="leaderboard-section" id="lbSection"></div>
+                    <div class="modal-buttons">
+                        <button class="modal-btn primary" onclick="saveAndExit()">RETURN TO BASE</button>
+                        <button class="modal-btn secondary" onclick="location.reload()">REPLAY</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEFEAT MODAL -->
+            <div class="modal-overlay" id="defeatModal">
+                <div class="modal defeat">
+                    <div class="modal-icon"><img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                    <h2>MISSION FAILED</h2>
+                    <p id="defeatMessage">SPECTER achieved network lockdown.</p>
+                    <div class="modal-stats" id="defeatStats"></div>
+                    <div class="tips-section" id="tipsSection"></div>
+                    <div class="modal-buttons">
+                        <button class="modal-btn primary" onclick="location.reload()">RETRY</button>
+                        <button class="modal-btn secondary" onclick="location.href='../../index.html'">ABORT</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PLOT TWIST MODAL -->
+            <div class="modal-overlay" id="twistModal">
+                <div class="modal twist">
+                    <div class="glitch-text" id="twistTitle">INCOMING TRANSMISSION</div>
+                    <div class="twist-content" id="twistContent"></div>
+                    <button class="modal-btn primary" onclick="closeTwist()">ACKNOWLEDGED</button>
+                </div>
+            </div>
+
+            <!-- BOSS FIGHT MODAL -->
+            <div class="modal-overlay" id="bossModal">
+                <div class="modal boss">
+                    <h2>FINAL CONFRONTATION</h2>
+                    <div class="boss-arena">
+                        <div class="boss-specter"><div class="specter-face large"><img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div><div>SPECTER</div></div>
+                        <div class="boss-vs">VS</div>
+                        <div class="boss-you"><div class="you-face"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div><div>OPERATOR</div></div>
+                    </div>
+                    <div class="boss-challenge" id="bossChallenge"></div>
+                    <div class="boss-input">
+                        <input type="text" id="bossInput" placeholder="Type command...">
+                    </div>
+                    <div class="boss-timer" id="bossTimer">5.0s</div>
+                </div>
+            </div>
+
+            <!-- EPILOGUE MODAL -->
+            <div class="modal-overlay" id="epilogueModal">
+                <div class="modal epilogue">
+                    <h2 id="epilogueTitle">OPERATION BLACKOUT</h2>
+                    <div class="epilogue-text" id="epilogueText"></div>
+                    <button class="modal-btn primary" onclick="closeEpilogue()">CONTINUE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Toggle -->
+    <div class="audio-toggle">
+        <button class="audio-btn" id="audioBtn" onclick="toggleAudio()"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></button>
+    </div>
+
+    <style>
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* MAIN TERMINAL                                                    */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .main-panel { display: flex; flex-direction: column; background: #0a0a0a; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 8px 15px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #30363d; }
+        .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; } .dot-yellow { background: #ffbd2e; } .dot-green { background: #27ca3f; }
+        .terminal-title { margin-left: 10px; font-size: 0.85em; color: #00ff41; }
+        .conn-status { margin-left: auto; font-size: 0.7em; padding: 3px 10px; border-radius: 4px; }
+        .conn-status.connected { background: rgba(34,197,94,0.2); color: #22c55e; }
+        .conn-status.disconnected { background: rgba(239,68,68,0.2); color: #ef4444; animation: pulse 1s infinite; }
+        @keyframes pulse { 50% { opacity: 0.5; } }
+
+        .terminal { flex: 1; padding: 15px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
+        .term-line { margin-bottom: 3px; white-space: pre-wrap; animation: typeIn 0.05s ease; }
+        @keyframes typeIn { from { opacity: 0; } }
+        .term-line.output { color: #8b949e; }
+        .term-line.error { color: #ef4444; }
+        .term-line.success { color: #22c55e; }
+        .term-line.system { color: #3b82f6; }
+        .term-line.specter { color: #ef4444; font-style: italic; }
+        .term-line.highlight { color: #f59e0b; }
+        .term-line.handler { color: #60a5fa; }
+
+        .input-line { display: flex; align-items: center; padding: 10px 15px; background: #0d1117; border-top: 1px solid #30363d; }
+        .input-prompt { margin-right: 8px; font-size: 0.9em; }
+        #cmdInput { flex: 1; background: transparent; border: none; color: #00ff41; font-family: inherit; font-size: 13px; outline: none; }
+        #cmdInput:disabled { color: #4b5563; }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* RIGHT PANEL                                                      */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .right-panel {
+            background: rgba(13,17,23,0.95);
+            border-left: 2px solid #3b82f6;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            transition: width 0.3s ease, min-width 0.3s ease;
+        }
+        .right-panel.panel-collapsed {
+            min-width: 40px !important;
+            width: 40px !important;
+        }
+        .intel-header { padding: 12px; border-bottom: 1px solid #30363d; }
+        .intel-header-text { color: #3b82f6; }
+        .intel-content { flex: 1; padding: 12px; overflow-y: auto; }
+        .intel-section { margin-bottom: 15px; }
+        .intel-section h4 { color: #60a5fa; font-size: 0.7em; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid #30363d; }
+        .intel-box { font-size: 0.75em; color: #c9d1d9; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; border-left: 3px solid #3b82f6; }
+        .intel-cmd { display: flex; justify-content: space-between; font-size: 0.7em; padding: 4px 0; color: #888; }
+        .intel-cmd code { color: #00ff41; background: #1a1a1a; padding: 2px 6px; border-radius: 3px; }
+        .specter-intel { background: rgba(239,68,68,0.1); border: 1px solid #ef4444; border-radius: 6px; padding: 10px; font-size: 0.75em; color: #fca5a5; }
+
+        .achievements-section { padding: 12px; border-top: 1px solid #30363d; }
+        .achievements-section h4 { color: #fbbf24; font-size: 0.7em; margin-bottom: 8px; }
+        .ach { display: flex; align-items: center; gap: 8px; padding: 5px; opacity: 0.3; font-size: 0.7em; }
+        .ach.unlocked { opacity: 1; background: rgba(251,191,36,0.1); border-radius: 4px; }
+        .ach span { font-size: 1.3em; }
+        .ach b { color: #fbbf24; display: block; }
+        .ach small { color: #666; font-size: 0.85em; }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* MISSION PANEL                                                    */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .mission-panel { grid-column: 1/-1; background: rgba(13,17,23,0.95); border-top: 2px solid #ef4444; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .objective-display { flex: 1; }
+        .obj-label { font-size: 0.65em; color: #ef4444; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+        .obj-label::before { content: '!'; width: 14px; height: 14px; background: #ef4444; color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; }
+        .obj-text { color: #fca5a5; font-size: 0.85em; }
+        .obj-hint { color: #666; font-size: 0.7em; margin-top: 2px; }
+        .stage-dots { display: flex; gap: 4px; }
+        .stage-dot { width: 8px; height: 8px; border-radius: 50%; border: 2px solid #333; transition: all 0.3s; }
+        .stage-dot.complete { background: #22c55e; border-color: #22c55e; }
+        .stage-dot.active { border-color: #ef4444; animation: pulseDot 1s infinite; }
+        @keyframes pulseDot { 50% { box-shadow: 0 0 8px #ef4444; } }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* MODALS                                                           */
+        /* ═══════════════════════════════════════════════════════════════ */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d0d0d, #1a1a1a); border-radius: 16px; padding: 30px; text-align: center; max-width: 550px; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.9); } }
+        .modal.victory { border: 2px solid #22c55e; }
+        .modal.defeat { border: 2px solid #ef4444; }
+        .modal.twist { border: 2px solid #f59e0b; }
+        .modal.boss { border: 2px solid #8b5cf6; max-width: 600px; }
+        .modal.epilogue { border: 2px solid #60a5fa; }
+        .modal-icon { font-size: 3em; margin-bottom: 10px; }
+        .modal h2 { font-size: 1.5em; margin-bottom: 10px; }
+        .modal.victory h2 { color: #22c55e; }
+        .modal.defeat h2 { color: #ef4444; }
+        .modal.twist h2, .glitch-text { color: #f59e0b; animation: glitchText 0.5s infinite; }
+        @keyframes glitchText { 0%, 100% { transform: translate(0); } 25% { transform: translate(-2px, 1px); } 75% { transform: translate(2px, -1px); } }
+        .modal p { color: #888; margin-bottom: 20px; }
+        .modal-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-box { background: rgba(0,0,0,0.3); padding: 12px 8px; border-radius: 8px; }
+        .stat-label { font-size: 0.6em; color: #666; }
+        .stat-value { font-size: 1.2em; font-weight: bold; margin-top: 3px; }
+        .stat-value.good { color: #22c55e; }
+        .stat-value.bad { color: #ef4444; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 20px; }
+        .modal-btn { padding: 12px 25px; font-family: inherit; font-size: 0.9em; border: 2px solid; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .modal-btn.primary { background: #ef4444; border-color: #ef4444; color: white; }
+        .modal-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(239,68,68,0.3); }
+        .modal-btn.secondary { background: transparent; border-color: #666; color: #888; }
+        .modal-btn.secondary:hover { border-color: #999; color: #ccc; }
+
+        .skills-section, .debrief-section, .tips-section { text-align: left; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .skills-section h4, .debrief-section h4, .tips-section h4 { color: #60a5fa; font-size: 0.8em; margin-bottom: 10px; }
+        .skill-row { display: flex; justify-content: space-between; font-size: 0.8em; padding: 4px 0; }
+        .skill-grade { font-weight: bold; }
+        .skill-grade.a { color: #22c55e; }
+        .skill-grade.b { color: #f59e0b; }
+        .skill-grade.c { color: #ef4444; }
+        .tips-section ul { font-size: 0.8em; color: #888; padding-left: 20px; }
+        .tips-section li { margin-bottom: 5px; }
+        .leaderboard-section h4 { color: #fbbf24; font-size: 0.8em; margin-bottom: 10px; }
+        .lb-entry { display: flex; justify-content: space-between; font-size: 0.75em; padding: 5px 10px; background: rgba(0,0,0,0.2); border-radius: 4px; margin-bottom: 4px; }
+        .lb-entry.current { background: rgba(34,197,94,0.2); border: 1px solid #22c55e; }
+        .lb-rank { color: #fbbf24; }
+        .lb-time { color: #22c55e; }
+
+        /* Boss Arena */
+        .boss-arena { display: flex; justify-content: center; align-items: center; gap: 30px; margin: 20px 0; }
+        .boss-specter, .boss-you { text-align: center; }
+        .specter-face.large { width: 80px; height: 80px; font-size: 3em; border: 3px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: glitchFace 1s infinite; }
+        .you-face { width: 80px; height: 80px; font-size: 3em; border: 3px solid #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+        .boss-vs { font-size: 2em; color: #666; }
+        .boss-challenge { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px; margin-bottom: 15px; }
+        .boss-input input { width: 100%; padding: 12px; background: #1a1a1a; border: 2px solid #333; border-radius: 6px; color: #00ff41; font-family: inherit; text-align: center; font-size: 1.1em; outline: none; }
+        .boss-input input:focus { border-color: #8b5cf6; }
+        .boss-timer { font-size: 2em; color: #ef4444; margin-top: 15px; }
+
+        /* Epilogue */
+        .epilogue-text { text-align: left; color: #c9d1d9; font-size: 0.9em; line-height: 1.6; max-height: 300px; overflow-y: auto; margin-bottom: 20px; }
+
+        /* Twist */
+        .twist-content { text-align: left; padding: 20px; background: rgba(245,158,11,0.1); border-radius: 8px; margin-bottom: 20px; color: #fcd34d; font-size: 0.9em; line-height: 1.6; }
+
+        /* Audio Toggle */
+        .audio-toggle { position: fixed; bottom: 15px; right: 15px; z-index: 100; }
+        .audio-btn { width: 40px; height: 40px; border-radius: 50%; background: rgba(20,20,20,0.9); border: 1px solid #333; color: #888; cursor: pointer; font-size: 1.2em; transition: all 0.2s; }
+        .audio-btn:hover { border-color: #666; color: #ccc; }
+        .audio-btn.muted { color: #ef4444; }
+    </style>
+
+    <script src="../../../components/CLHConfig.js"></script>
+    <script>
+    // ═══════════════════════════════════════════════════════════════════════
+    // OPERATION BLACKOUT - ULTIMATE EXPERIENCE
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // ───────────────────────────────────────────────────────────────────────
+    // MATRIX RAIN
+    // ───────────────────────────────────────────────────────────────────────
+    const matrixCanvas = document.getElementById('matrixCanvas');
+    const matrixCtx = matrixCanvas.getContext('2d');
+    let matrixDrops = [];
+
+    function initMatrix() {
+        matrixCanvas.width = window.innerWidth;
+        matrixCanvas.height = window.innerHeight;
+        const cols = Math.floor(matrixCanvas.width / 14);
+        matrixDrops = Array(cols).fill(1);
+    }
+
+    function drawMatrix() {
+        matrixCtx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+        matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+        matrixCtx.fillStyle = '#00ff41';
+        matrixCtx.font = '14px monospace';
+        for (let i = 0; i < matrixDrops.length; i++) {
+            const char = Math.random() > 0.5 ? '1' : '0';
+            matrixCtx.fillText(char, i * 14, matrixDrops[i] * 14);
+            if (matrixDrops[i] * 14 > matrixCanvas.height && Math.random() > 0.975) {
+                matrixDrops[i] = 0;
+            }
+            matrixDrops[i]++;
+        }
+        requestAnimationFrame(drawMatrix);
+    }
+
+    initMatrix();
+    drawMatrix();
+    window.addEventListener('resize', initMatrix);
+
+    // ───────────────────────────────────────────────────────────────────────
+    // AUDIO SYSTEM
+    // ───────────────────────────────────────────────────────────────────────
+    const Audio = {
+        ctx: null, enabled: true, heartbeatInterval: null,
+        init() {
+            try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+        },
+        tone(freq, dur, type = 'sine', vol = 0.3) {
+            if (!this.enabled || !this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type; osc.frequency.value = freq;
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + dur);
+        },
+        type() { if (Math.random() > 0.7) this.tone(600 + Math.random() * 400, 0.02, 'square', 0.05); },
+        success() { this.tone(523, 0.1); setTimeout(() => this.tone(659, 0.1), 100); setTimeout(() => this.tone(784, 0.15), 200); },
+        error() { this.tone(200, 0.2, 'sawtooth', 0.2); },
+        alert() { this.tone(880, 0.1, 'square', 0.2); setTimeout(() => this.tone(660, 0.15, 'square', 0.2), 120); },
+        specter() { this.tone(150, 0.3, 'sawtooth', 0.25); setTimeout(() => this.tone(100, 0.4, 'sawtooth', 0.15), 200); },
+        fireCrackle(duration = 2000) {
+            if (!this.enabled || !this.ctx) return;
+            const bufferSize = this.ctx.sampleRate * (duration / 1000);
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * (Math.random() > 0.97 ? 1 : 0.1);
+            }
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.value = 800; filter.Q.value = 0.5;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.4, this.ctx.currentTime + duration / 2000);
+            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + duration / 1000);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+            noise.start(); noise.stop(this.ctx.currentTime + duration / 1000);
+        },
+        stampImpact() {
+            if (!this.enabled || !this.ctx) return;
+            // Low thump
+            this.tone(80, 0.15, 'sine', 0.5);
+            this.tone(60, 0.2, 'sine', 0.4);
+            // Impact noise burst
+            const bufferSize = this.ctx.sampleRate * 0.1;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                const decay = 1 - (i / bufferSize);
+                data[i] = (Math.random() * 2 - 1) * decay * decay;
+            }
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.value = 400;
+            const gain = this.ctx.createGain();
+            gain.gain.value = 0.4;
+            noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+            noise.start();
+        },
+        startHeartbeat(bpm = 60) {
+            if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = setInterval(() => { this.tone(60, 0.1, 'sine', 0.15); setTimeout(() => this.tone(50, 0.15, 'sine', 0.1), 100); }, 60000 / bpm);
+        },
+        setHeartbeatBPM(bpm) { this.startHeartbeat(bpm); },
+        stopHeartbeat() { if (this.heartbeatInterval) clearInterval(this.heartbeatInterval); }
+    };
+
+    function toggleAudio() {
+        Audio.enabled = !Audio.enabled;
+        document.getElementById('audioBtn').classList.toggle('muted', !Audio.enabled);
+        if (!Audio.enabled) Audio.stopHeartbeat();
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // PANEL COLLAPSE/EXPAND
+    // ───────────────────────────────────────────────────────────────────────
+    function togglePanel(side) {
+        const panel = document.getElementById(side === 'left' ? 'leftPanel' : 'rightPanel');
+        const toggle = panel.querySelector('.panel-toggle');
+        const isCollapsed = panel.classList.toggle('panel-collapsed');
+
+        if (side === 'left') {
+            toggle.innerHTML = isCollapsed ? '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' : '◀';
+        } else {
+            toggle.innerHTML = isCollapsed ? '◀' : '<img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
+        }
+
+        // Save state to localStorage
+        localStorage.setItem(`clh031-panel-${side}`, isCollapsed ? 'collapsed' : 'expanded');
+    }
+
+    // Restore panel states on load
+    function restorePanelStates() {
+        ['left', 'right'].forEach(side => {
+            const state = localStorage.getItem(`clh031-panel-${side}`);
+            if (state === 'collapsed') {
+                togglePanel(side);
+            }
+        });
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // DIFFICULTY & MODIFIERS
+    // ───────────────────────────────────────────────────────────────────────
+    const DIFF = {
+        recruit: { name: 'RECRUIT', time: 5400, specterSpeed: 1, specterInterval: 5000 },    // 90 minutes
+        operator: { name: 'OPERATOR', time: 3600, specterSpeed: 2, specterInterval: 3000 }, // 60 minutes
+        ghost: { name: 'GHOST', time: 2700, specterSpeed: 3, specterInterval: 2000 }        // 45 minutes
+    };
+
+    // ───────────────────────────────────────────────────────────────────────
+    // GAME STATE
+    // ───────────────────────────────────────────────────────────────────────
+    const G = {
+        difficulty: 'operator',
+        modifiers: {},
+        started: false, ended: false,
+        timeRemaining: 240, missionTime: 0,
+        youProgress: 0, specterProgress: 0,
+        // Level system
+        currentLevel: 0,
+        inFinale: false,
+        levelStates: [], // { startTime, mistakes, hintsUsed, completed, hats }
+        // Legacy (kept for puzzle flags)
+        mistakes: 0, puzzlesSolved: 0,
+        connected: true, host: 'RELAY',
+        towerUp: true, backupUp: false, firewallBlocking: false,
+        logSolved: false, hashSolved: false, binarySolved: false,
+        permsSolved: false, servicesSolved: false, regexSolved: false, processSolved: false,
+        powerups: { sniffer: false, rootkit: false, exploit: false },
+        specterFrozen: false, specterFreezeEnd: 0,
+        cmdHistory: [], historyIdx: -1,
+        achievements: [],
+        decoyIntel: false, plotTwistShown: false,
+        timerInt: null, specterInt: null,
+        sideMissionActive: false
+    };
+
+    // ───────────────────────────────────────────────────────────────────────
+    // LEVELS - 9 Puzzle-based phases + Terminal Finale
+    // ───────────────────────────────────────────────────────────────────────
+    const LEVELS = [
+        {
+            id: 1,
+            codename: 'LIFELINE',
+            title: 'Restore backup connection',
+            puzzle: 'patchPuzzle',
+            objective: 'Connect BACKUP node to PROMETHEUS',
+            handlerIntel: "Operator, SPECTER just took down the main tower. Your backup node is still online - route A4 connects to B3 which leads to PROMETHEUS. Get that connection up!",
+            check: () => G.backupUp,
+            parTime: { recruit: 180, operator: 120, ghost: 60 }
+        },
+        {
+            id: 2,
+            codename: 'FORTRESS',
+            title: 'Lock down the perimeter',
+            puzzle: 'firewallPuzzle',
+            objective: 'Configure firewall: DENY hostile, ALLOW relay',
+            handlerIntel: "Firewall's been compromised. We've traced SPECTER's relay to 10.13.37.66 - that's your hostile. Your relay address is 10.13.37.100. DENY the hostile, ALLOW yourself.",
+            check: () => !G.firewallBlocking,
+            parTime: { recruit: 240, operator: 150, ghost: 90 }
+        },
+        {
+            id: 3,
+            codename: 'BREADCRUMB',
+            title: 'Follow the trail',
+            puzzle: 'logPuzzle',
+            objective: 'Analyze auth logs - identify SPECTER\'s IP',
+            handlerIntel: "SPECTER's been sloppy. Check the authentication logs - look for failed attempts followed by a successful breach. That's your hostile IP signature.",
+            check: () => G.logSolved,
+            parTime: { recruit: 300, operator: 180, ghost: 120 }
+        },
+        {
+            id: 4,
+            codename: 'CIPHER',
+            title: 'Break the encryption',
+            puzzle: 'hashPuzzle',
+            objective: 'Crack the intercepted hash',
+            handlerIntel: "We intercepted an access key hash. Intel suggests it's MD5 - probably a weak password. SPECTER got lazy. Crack it and we're in.",
+            check: () => G.hashSolved,
+            parTime: { recruit: 240, operator: 150, ghost: 90 }
+        },
+        {
+            id: 5,
+            codename: 'NEEDLEPOINT',
+            title: 'Extract signal from noise',
+            puzzle: 'regexPuzzle',
+            objective: 'Use regex to filter target data',
+            handlerIntel: "We've got a data dump but it's full of noise. You need to extract all IP addresses from the mess. Pattern matching is your friend here - think regex.",
+            check: () => G.regexSolved,
+            parTime: { recruit: 300, operator: 180, ghost: 120 }
+        },
+        {
+            id: 6,
+            codename: 'KEYMASTER',
+            title: 'Restore access control',
+            puzzle: 'permsPuzzle',
+            objective: 'Fix file permissions on intel',
+            handlerIntel: "The classified intel file got its permissions scrambled. It needs owner read/write only - that's 600 in octal. Lock it down properly.",
+            check: () => G.permsSolved,
+            parTime: { recruit: 240, operator: 150, ghost: 90 }
+        },
+        {
+            id: 7,
+            codename: 'ROSETTA',
+            title: 'Translate the intel',
+            puzzle: 'binaryPuzzle',
+            objective: 'Decode the binary transmission',
+            handlerIntel: "Intercepted a binary transmission from SPECTER's handler. Convert it to ASCII - it's a short command word. This could be critical.",
+            check: () => G.binarySolved,
+            parTime: { recruit: 180, operator: 120, ghost: 60 }
+        },
+        {
+            id: 8,
+            codename: 'GHOSTHUNT',
+            title: 'Find the hidden threat',
+            puzzle: 'processPuzzle',
+            objective: 'Identify and terminate rogue process',
+            handlerIntel: "SPECTER spawned rogue processes to maintain persistence. Check the process tree - anything running under 'specter' or with suspicious parent chains needs to go.",
+            check: () => G.processSolved,
+            parTime: { recruit: 300, operator: 180, ghost: 120 }
+        },
+        {
+            id: 9,
+            codename: 'IGNITION',
+            title: 'Bring systems online',
+            puzzle: 'servicesPuzzle',
+            objective: 'Restart services in correct order',
+            handlerIntel: "Critical services are down. Restart sequence matters: networking first, then firewall, then ssh. Wrong order will cascade fail.",
+            check: () => G.servicesSolved,
+            parTime: { recruit: 240, operator: 150, ghost: 90 }
+        }
+    ];
+
+    // Terminal finale after all 9 levels
+    const FINALE = {
+        phase1: {
+            objective: 'Extract classified intel',
+            hint: 'cat /data/ops/mission_intel.classified',
+            check: c => c.includes('cat') && c.includes('classified'),
+            handlerMsg: "All systems green. Extract the intel - it's in /data/ops/mission_intel.classified"
+        },
+        phase2: {
+            objective: 'Exfiltrate and neutralize SPECTER',
+            hint: 'scp file destination + pkill -u specter',
+            check: c => (c.includes('scp') || c.includes('exfil')) && c.includes('pkill'),
+            handlerMsg: "Intel secured. Now exfiltrate and take SPECTER offline permanently. scp the file out and pkill their processes."
+        }
+    };
+
+    // Legacy STAGES for backward compatibility during transition
+    const STAGES = LEVELS.map((lvl, i) => ({
+        id: i + 1,
+        obj: lvl.objective,
+        hint: lvl.handlerIntel.substring(0, 50) + '...',
+        puzzle: lvl.puzzle,
+        check: lvl.check
+    }));
+
+    // ───────────────────────────────────────────────────────────────────────
+    // SPECTER TAUNTS
+    // ───────────────────────────────────────────────────────────────────────
+    const TAUNTS = [
+        "SPECTER: I see you, operator. You're too slow.",
+        "SPECTER: Did you really think this would be easy?",
+        "SPECTER: Your keystrokes betray your fear.",
+        "SPECTER: I've been watching you. Pathetic.",
+        "SPECTER: Every second you waste, I grow stronger.",
+        "SPECTER: Your network belongs to me now.",
+        "SPECTER: Tick tock, operator. Tick tock.",
+        "SPECTER: I can hear your heartbeat through the packets.",
+        "SPECTER: Your firewall was cute. Emphasis on 'was'.",
+        "SPECTER: They sent YOU? This is almost insulting.",
+        "SPECTER: I've cracked better operators before breakfast.",
+        "SPECTER: I'm not locked in here with you. You're locked in here with ME.",
+        "SPECTER: Nice SSH key. I have a copy now.",
+        "SPECTER: I AM root.",
+        "SPECTER: Your encryption is... adorable.",
+        "SPECTER: That password? I cracked it in 0.3 seconds.",
+        "SPECTER: The clock is your enemy. I am its friend.",
+        "SPECTER: Is that your best? Truly?",
+        "SPECTER: Even your cursor blinks with hesitation.",
+        "SPECTER: First the tower. Next... everything else.",
+        "SPECTER: I can taste your desperation in the latency.",
+        "SPECTER: Checkmate in 3... 2..."
+    ];
+
+    const HANDLER_MSGS = [
+        "Operator, stay focused. You've got this.",
+        "SPECTER's signature detected. Watch your six.",
+        "Intel confirms target files in /data/ops.",
+        "Don't let SPECTER get in your head.",
+        "Backup link available if primary goes down.",
+        "You're making good progress. Keep moving.",
+        "Remember your training. One step at a time."
+    ];
+
+    // ───────────────────────────────────────────────────────────────────────
+    // CINEMATIC INTRO
+    // ───────────────────────────────────────────────────────────────────────
+    const BRIEFING = `MISSION BRIEFING - PRIORITY ALPHA
+
+Target: PROMETHEUS server cluster
+Location: [REDACTED] data center
+Classification: TOP SECRET
+
+Intelligence reports confirm hostile operator "SPECTER" has infiltrated
+the target network. SPECTER is actively exfiltrating classified data.
+
+Your mission: Extract critical intel from PROMETHEUS before SPECTER
+achieves full network lockdown.
+
+WARNING: SPECTER is aware of our presence and will attempt to sabotage
+your operation. Expect active countermeasures including:
+- Network infrastructure attacks
+- Firewall manipulation
+- Direct interference with your connection
+
+Time is critical. SPECTER's lockdown protocol activates in [REDACTED].
+
+This message will self-destruct.
+
+ACCEPT to proceed. DECLINE to abort.`;
+
+    let typewriterIdx = 0;
+    function runTypewriter() {
+        const el = document.getElementById('typewriterText');
+        if (typewriterIdx < BRIEFING.length) {
+            el.innerHTML = BRIEFING.substring(0, typewriterIdx + 1).replace(/\n/g, '<br>') + '<span class="cursor"></span>';
+            typewriterIdx++;
+            Audio.type();
+            setTimeout(runTypewriter, 15 + Math.random() * 20);
+        } else {
+            // Briefing complete - remove cursor
+            el.innerHTML = BRIEFING.replace(/\n/g, '<br>');
+
+            // After brief pause, auto-burn the briefing and stamp in SPECTER
+            setTimeout(() => {
+                burnBriefingAndShowSpecter();
+            }, 1500);
+        }
+    }
+
+    function burnBriefingAndShowSpecter() {
+        const briefingContent = document.getElementById('briefingContent');
+        const burnOverlay = document.getElementById('burnOverlay');
+        const emberContainer = document.getElementById('emberContainer');
+        const specterStamp = document.getElementById('specterStamp');
+
+        // Initialize audio if needed
+        if (!Audio.ctx) Audio.init();
+
+        // Start burn effect on briefing
+        Audio.fireCrackle(2000);
+        burnOverlay.innerHTML = '<div class="burn-line"></div><div class="burn-mask"></div>';
+
+        // Spawn embers during burn
+        let emberCount = 0;
+        const emberInterval = setInterval(() => {
+            if (emberCount++ > 35) { clearInterval(emberInterval); return; }
+            const ember = document.createElement('div');
+            ember.className = 'ember';
+            const burnProgress = Math.min(emberCount / 17, 1);
+            ember.style.left = (Math.random() * 100) + '%';
+            ember.style.top = (burnProgress * 100) + '%';
+            ember.style.setProperty('--drift', (Math.random() * 60 - 30) + 'px');
+            emberContainer.appendChild(ember);
+            setTimeout(() => ember.remove(), 1500);
+        }, 50);
+
+        // After burn, hide briefing and stamp in SPECTER
+        setTimeout(() => {
+            briefingContent.style.display = 'none';
+            burnOverlay.innerHTML = '';
+            specterStamp.classList.add('show');
+            Audio.stampImpact();
+            Audio.specter();
+        }, 1800);
+    }
+
+    setTimeout(runTypewriter, 1000);
+
+    function proceedToDifficulty() {
+        const cinematic = document.getElementById('cinematicOverlay');
+        const specterStamp = document.getElementById('specterStamp');
+        const burnOverlay = document.getElementById('burnOverlay');
+        const emberContainer = document.getElementById('emberContainer');
+        const diffScreen = document.getElementById('difficultyScreen');
+
+        // Initialize audio if needed
+        if (!Audio.ctx) Audio.init();
+
+        // Burn the SPECTER stamp
+        Audio.fireCrackle(1500);
+        burnOverlay.innerHTML = '<div class="burn-line"></div><div class="burn-mask"></div>';
+
+        // Spawn embers
+        let emberCount = 0;
+        const emberInterval = setInterval(() => {
+            if (emberCount++ > 30) { clearInterval(emberInterval); return; }
+            const ember = document.createElement('div');
+            ember.className = 'ember';
+            const burnProgress = Math.min(emberCount / 15, 1);
+            ember.style.left = (Math.random() * 100) + '%';
+            ember.style.top = (burnProgress * 100) + '%';
+            ember.style.setProperty('--drift', (Math.random() * 60 - 30) + 'px');
+            emberContainer.appendChild(ember);
+            setTimeout(() => ember.remove(), 1500);
+        }, 50);
+
+        // After burn, stamp in difficulty screen
+        setTimeout(() => {
+            cinematic.style.display = 'none';
+            diffScreen.classList.add('show');
+            setTimeout(() => {
+                diffScreen.classList.add('stamped');
+                Audio.stampImpact();
+            }, 100);
+        }, 1600);
+    }
+
+    function selectDifficulty(diff, el) {
+        G.difficulty = diff;
+        document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    function toggleModifier(mod, el) {
+        G.modifiers[mod] = !G.modifiers[mod];
+        el.classList.toggle('active', G.modifiers[mod]);
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // START MISSION
+    // ───────────────────────────────────────────────────────────────────────
+    function startMission() {
+        Audio.init();
+        const diff = DIFF[G.difficulty];
+        G.timeRemaining = diff.time;
+        if (G.modifiers.doubleSpecter) diff.specterInterval /= 2;
+
+        document.getElementById('difficultyScreen').classList.remove('show');
+        document.getElementById('gameContainer').classList.add('show');
+        setTimeout(() => document.getElementById('gameContainer').classList.add('visible'), 50);
+
+        // Restore panel collapse states
+        restorePanelStates();
+
+        document.getElementById('diffBadge').className = 'diff-badge ' + G.difficulty;
+        document.getElementById('diffBadge').textContent = diff.name;
+
+        // Create stage dots for levels
+        const dotsEl = document.getElementById('stageDots');
+        dotsEl.innerHTML = LEVELS.map((_, i) => `<div class="stage-dot" data-stage="${i+1}"></div>`).join('');
+
+        // Initialize level states array
+        G.levelStates = LEVELS.map(() => ({
+            startTime: null,
+            endTime: null,
+            mistakes: 0,
+            hintsUsed: 0,
+            completed: false,
+            hats: 0
+        }));
+
+        // Initialize puzzles
+        initPuzzles();
+
+        G.started = true;
+        print('[SYSTEM] Operation BLACKOUT initiated', 'system');
+        print('[INTEL] SPECTER detected on target network', 'error');
+        print('[HANDLER] Good luck, operator. I\'ll be in your ear.', 'handler');
+        addThreat('Mission started', 'info');
+
+        // Start timers
+        Audio.startHeartbeat(70);
+        G.timerInt = setInterval(tickTimer, 1000);
+        G.specterInt = setInterval(tickSpecter, diff.specterInterval);
+
+        // Enable terminal - player needs to SSH first
+        document.getElementById('cmdInput').disabled = false;
+        document.getElementById('cmdInput').focus();
+        handlerSay('Operator, establish SSH connection to PROMETHEUS to begin.');
+
+        // Update objective to prompt SSH
+        document.getElementById('objText').textContent = 'Establish SSH to PROMETHEUS';
+        document.getElementById('objHint').textContent = '> ssh operator@prometheus';
+        document.getElementById('objectiveBox').innerHTML = '<b>Establish SSH to PROMETHEUS</b><br><small>ssh operator@prometheus</small>';
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // TERMINAL
+    // ───────────────────────────────────────────────────────────────────────
+    function print(text, cls = '') {
+        const el = document.getElementById('terminal');
+        const line = document.createElement('div');
+        line.className = 'term-line ' + cls;
+        line.innerHTML = text;
+        el.appendChild(line);
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function addThreat(text, type = 'info') {
+        const feed = document.getElementById('threatFeed');
+        const time = formatTime(G.missionTime);
+        const item = document.createElement('div');
+        item.className = 'threat-item ' + type;
+        item.innerHTML = `<span class="threat-time">[${time}]</span>${text}`;
+        feed.appendChild(item);
+        feed.scrollTop = feed.scrollHeight;
+        while (feed.children.length > 8) feed.removeChild(feed.children[1]);
+    }
+
+    function handlerSay(text) {
+        document.getElementById('handlerText').textContent = text;
+    }
+
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimer() {
+        const el = document.getElementById('missionTimer');
+        el.textContent = formatTime(G.timeRemaining);
+        el.classList.remove('warning', 'critical');
+        if (G.timeRemaining <= 30) { el.classList.add('critical'); Audio.setHeartbeatBPM(120); }
+        else if (G.timeRemaining <= 60) { el.classList.add('warning'); Audio.setHeartbeatBPM(90); }
+    }
+
+    function updateProgress() {
+        document.getElementById('youBar').style.width = G.youProgress + '%';
+        document.getElementById('youPct').textContent = Math.round(G.youProgress) + '%';
+        document.getElementById('specterBar').style.width = G.specterProgress + '%';
+        document.getElementById('specterPct').textContent = Math.round(G.specterProgress) + '%';
+        if (G.specterProgress > 80) document.getElementById('gameContainer').classList.add('red-alert');
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // TIMERS
+    // ───────────────────────────────────────────────────────────────────────
+    function tickTimer() {
+        G.missionTime++;
+        G.timeRemaining--;
+        updateTimer();
+
+        // Plot twist at halfway
+        if (G.missionTime === Math.floor(DIFF[G.difficulty].time / 2) && !G.plotTwistShown) {
+            showPlotTwist();
+        }
+
+        if (G.timeRemaining <= 0) defeat();
+    }
+
+    function tickSpecter() {
+        if (G.ended || G.specterFrozen) return;
+
+        const diff = DIFF[G.difficulty];
+        G.specterProgress = Math.min(99, G.specterProgress + diff.specterSpeed * 0.5);
+
+        // Steal progress if player stalling
+        if (G.youProgress > 20 && Math.random() < 0.1) {
+            G.youProgress = Math.max(0, G.youProgress - 1);
+            addThreat('SPECTER intercepted your data!', 'critical');
+        }
+
+        updateProgress();
+
+        // Random taunts
+        if (Math.random() < 0.15) {
+            const taunt = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
+            print(`<span class="glitch">${taunt}</span>`, 'specter');
+            Audio.specter();
+        }
+
+        // SPECTER events now controlled by level system
+        // Tower destruction and firewall are triggered at level start
+
+        if (G.specterProgress >= 100) defeat();
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // STAGES
+    // ───────────────────────────────────────────────────────────────────────
+    function advanceStage() {
+        if (G.currentStage > 0) {
+            const dot = document.querySelector(`.stage-dot[data-stage="${G.currentStage}"]`);
+            if (dot) dot.classList.add('complete');
+        }
+
+        G.currentStage++;
+        G.youProgress = (G.currentStage / STAGES.length) * 100;
+        updateProgress();
+
+        if (G.currentStage > STAGES.length) {
+            bossFight();
+            return;
+        }
+
+        const stage = STAGES[G.currentStage - 1];
+        const dot = document.querySelector(`.stage-dot[data-stage="${G.currentStage}"]`);
+        if (dot) { dot.classList.remove('complete'); dot.classList.add('active'); }
+
+        document.getElementById('objText').textContent = stage.obj;
+        document.getElementById('objHint').textContent = G.modifiers.noHints ? '' : '> ' + stage.hint;
+        document.getElementById('objectiveBox').innerHTML = `<b>${stage.obj}</b><br><small>${stage.hint}</small>`;
+
+        document.querySelectorAll('.puzzle-section').forEach(p => p.classList.remove('active'));
+        if (stage.puzzle) document.getElementById(stage.puzzle).classList.add('active');
+
+        addThreat(stage.obj, 'info');
+        Audio.success();
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // LEVEL SYSTEM
+    // ───────────────────────────────────────────────────────────────────────
+    function showPhaseAnnouncement(levelNum) {
+        if (levelNum > LEVELS.length) {
+            // All levels complete - start terminal finale
+            startFinale();
+            return;
+        }
+
+        const level = LEVELS[levelNum - 1];
+        G.currentLevel = levelNum;
+
+        // STORY BEATS: Trigger SPECTER events for specific levels
+        if (levelNum === 2 && !G.firewallBlocking) {
+            // Phase 2 (FORTRESS): SPECTER enables firewall
+            enableFirewall();
+        }
+
+        // Initialize level state
+        G.levelStates[levelNum - 1] = {
+            startTime: null,
+            endTime: null,
+            mistakes: 0,
+            hintsUsed: 0,
+            completed: false,
+            hats: 0
+        };
+
+        // Update overlay content
+        document.getElementById('phaseNumber').textContent = `PHASE ${levelNum} OF ${LEVELS.length}`;
+        document.getElementById('phaseCodename').textContent = level.codename;
+        document.getElementById('phaseTitle').textContent = `"${level.title}"`;
+        document.getElementById('handlerBriefingText').textContent = level.handlerIntel;
+
+        // Show overlay
+        const overlay = document.getElementById('phaseOverlay');
+        const announcement = document.getElementById('phaseAnnouncement');
+        const briefing = document.getElementById('handlerBriefing');
+        const btn = document.getElementById('phaseStartBtn');
+
+        // Reset animations
+        announcement.classList.remove('stamp-in');
+        briefing.classList.remove('show');
+        btn.classList.remove('show');
+
+        overlay.classList.add('show');
+
+        // Trigger animations
+        setTimeout(() => {
+            announcement.classList.add('stamp-in');
+            Audio.stampImpact();
+        }, 100);
+
+        setTimeout(() => {
+            briefing.classList.add('show');
+        }, 400);
+
+        setTimeout(() => {
+            btn.classList.add('show');
+        }, 900);
+    }
+
+    function startLevel() {
+        const level = LEVELS[G.currentLevel - 1];
+
+        // Hide phase overlay
+        document.getElementById('phaseOverlay').classList.remove('show');
+
+        // Record start time
+        G.levelStates[G.currentLevel - 1].startTime = G.missionTime;
+
+        // Show the puzzle in the left panel
+        document.querySelectorAll('.puzzle-section').forEach(p => p.classList.remove('active'));
+        if (level.puzzle) {
+            document.getElementById(level.puzzle).classList.add('active');
+        }
+
+        // Update objective display
+        document.getElementById('objText').textContent = level.objective;
+        document.getElementById('objHint').textContent = G.modifiers.noHints ? '' : '> ' + level.handlerIntel.substring(0, 60) + '...';
+        document.getElementById('objectiveBox').innerHTML = `<b>${level.objective}</b><br><small>Phase ${G.currentLevel}: ${level.codename}</small>`;
+
+        // Update progress dots
+        const dot = document.querySelector(`.stage-dot[data-stage="${G.currentLevel}"]`);
+        if (dot) {
+            document.querySelectorAll('.stage-dot').forEach(d => d.classList.remove('active'));
+            dot.classList.add('active');
+        }
+
+        // Handler message in comms panel
+        handlerSay(level.handlerIntel);
+
+        // Add to threat feed
+        addThreat(`PHASE ${G.currentLevel}: ${level.codename}`, 'info');
+
+        // Enable terminal
+        document.getElementById('cmdInput').disabled = false;
+        document.getElementById('cmdInput').focus();
+
+        Audio.success();
+    }
+
+    function checkLevelComplete() {
+        if (G.currentLevel < 1 || G.currentLevel > LEVELS.length) return false;
+
+        const level = LEVELS[G.currentLevel - 1];
+        if (level.check()) {
+            levelComplete();
+            return true;
+        }
+        return false;
+    }
+
+    function levelComplete() {
+        const level = LEVELS[G.currentLevel - 1];
+        const state = G.levelStates[G.currentLevel - 1];
+
+        // Record end time
+        state.endTime = G.missionTime;
+        state.completed = true;
+
+        const timeTaken = state.endTime - state.startTime;
+        const parTime = level.parTime[G.difficulty];
+
+        // Calculate hats earned
+        let hatsEarned = 1; // Always get 1 hat for completion
+        const noHints = state.hintsUsed === 0;
+        const underPar = timeTaken <= parTime && state.mistakes === 0;
+
+        if (noHints) hatsEarned++;
+        if (underPar) hatsEarned++;
+
+        state.hats = hatsEarned;
+
+        // Update progress
+        G.youProgress = (G.currentLevel / LEVELS.length) * 100;
+        G.puzzlesSolved++;
+        updateProgress();
+
+        // Award powerups based on progress
+        awardPowerups();
+
+        // Mark stage dot complete
+        const dot = document.querySelector(`.stage-dot[data-stage="${G.currentLevel}"]`);
+        if (dot) {
+            dot.classList.remove('active');
+            dot.classList.add('complete');
+        }
+
+        // Hide active puzzle
+        document.querySelectorAll('.puzzle-section').forEach(p => p.classList.remove('active'));
+
+        // Show level complete overlay
+        showLevelCompleteOverlay(level, state, timeTaken, parTime, noHints, underPar);
+    }
+
+    function showLevelCompleteOverlay(level, state, timeTaken, parTime, noHints, underPar) {
+        const overlay = document.getElementById('levelCompleteOverlay');
+        const content = document.getElementById('levelCompleteContent');
+        const continueBtn = document.getElementById('continueBtn');
+
+        // Update content
+        document.getElementById('completeCodename').textContent = `PHASE ${G.currentLevel}: ${level.codename}`;
+
+        // Update stats
+        document.getElementById('statTime').textContent = formatTime(timeTaken);
+        document.getElementById('statMistakes').textContent = state.mistakes;
+        document.getElementById('statPar').textContent = formatTime(parTime);
+
+        // Update criteria
+        const c1 = document.getElementById('criterion1');
+        const c2 = document.getElementById('criterion2');
+        const c3 = document.getElementById('criterion3');
+
+        c1.classList.add('earned');
+        c1.querySelector('.hat-criterion-icon').textContent = '✓';
+
+        if (noHints) {
+            c2.classList.add('earned');
+            c2.querySelector('.hat-criterion-icon').textContent = '✓';
+        } else {
+            c2.classList.remove('earned');
+            c2.querySelector('.hat-criterion-icon').textContent = '✗';
+        }
+
+        if (underPar) {
+            c3.classList.add('earned');
+            c3.querySelector('.hat-criterion-icon').textContent = '✓';
+        } else {
+            c3.classList.remove('earned');
+            c3.querySelector('.hat-criterion-icon').textContent = '✗';
+        }
+
+        // Reset animations
+        content.classList.remove('stamp-in');
+        continueBtn.classList.remove('show');
+        document.querySelectorAll('.spy-hat').forEach(h => {
+            h.classList.remove('animate', 'earned');
+        });
+
+        // Show overlay
+        overlay.classList.add('show');
+
+        // Trigger stamp animation
+        setTimeout(() => {
+            content.classList.add('stamp-in');
+            Audio.stampImpact();
+        }, 100);
+
+        // Animate hats one by one
+        const hats = [
+            document.getElementById('hat1'),
+            document.getElementById('hat2'),
+            document.getElementById('hat3')
+        ];
+
+        setTimeout(() => {
+            hats[0].classList.add('earned', 'animate');
+            Audio.success();
+        }, 600);
+
+        if (noHints) {
+            setTimeout(() => {
+                hats[1].classList.add('earned', 'animate');
+                Audio.success();
+            }, 900);
+        } else {
+            setTimeout(() => {
+                hats[1].classList.add('animate');
+            }, 900);
+        }
+
+        if (underPar) {
+            setTimeout(() => {
+                hats[2].classList.add('earned', 'animate');
+                Audio.success();
+            }, 1200);
+        } else {
+            setTimeout(() => {
+                hats[2].classList.add('animate');
+            }, 1200);
+        }
+
+        // Show continue button
+        setTimeout(() => {
+            continueBtn.classList.add('show');
+        }, 1500);
+    }
+
+    function continueToNextLevel() {
+        document.getElementById('levelCompleteOverlay').classList.remove('show');
+        showPhaseAnnouncement(G.currentLevel + 1);
+    }
+
+    function startFinale() {
+        G.inFinale = true;
+
+        // Update objective for terminal finale
+        document.getElementById('objText').textContent = FINALE.phase1.objective;
+        document.getElementById('objHint').textContent = '> ' + FINALE.phase1.hint;
+        document.getElementById('objectiveBox').innerHTML = `<b>${FINALE.phase1.objective}</b><br><small>FINAL PHASE: EXTRACTION</small>`;
+
+        handlerSay(FINALE.phase1.handlerMsg);
+        addThreat('FINAL PHASE: EXTRACTION', 'info');
+
+        document.getElementById('cmdInput').disabled = false;
+        document.getElementById('cmdInput').focus();
+
+        print('[HANDLER] All puzzles complete. Now for the extraction.', 'handler');
+        Audio.success();
+    }
+
+    function recordMistake() {
+        G.mistakes++;
+        if (G.currentLevel >= 1 && G.currentLevel <= LEVELS.length) {
+            const state = G.levelStates[G.currentLevel - 1];
+            if (state) state.mistakes++;
+        }
+    }
+
+    function recordHintUsed() {
+        if (G.currentLevel >= 1 && G.currentLevel <= LEVELS.length) {
+            const state = G.levelStates[G.currentLevel - 1];
+            if (state) state.hintsUsed++;
+        }
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // SPECTER EVENTS
+    // ───────────────────────────────────────────────────────────────────────
+    function destroyTower() {
+        G.towerUp = false;
+        G.connected = false;
+        document.getElementById('towerRect').setAttribute('stroke', '#ef4444');
+        document.getElementById('towerIcon').innerHTML = '<img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">';
+        document.getElementById('line-you-tower').classList.remove('active');
+        document.getElementById('line-you-tower').classList.add('down');
+        document.getElementById('line-tower-target').classList.remove('active');
+        document.getElementById('line-tower-target').classList.add('down');
+        document.getElementById('connStatus').textContent = 'DISCONNECTED';
+        document.getElementById('connStatus').classList.remove('connected');
+        document.getElementById('connStatus').classList.add('disconnected');
+        document.getElementById('cmdInput').disabled = true;
+        document.getElementById('gameContainer').classList.add('screen-shake');
+        setTimeout(() => document.getElementById('gameContainer').classList.remove('screen-shake'), 500);
+        print('[SPECTER] *destroys cell tower* Say goodbye to your connection.', 'specter');
+        addThreat('CELL TOWER DESTROYED', 'critical');
+        Audio.alert();
+        // Level system: This is a story beat, level progression handles the puzzle trigger
+    }
+
+    function enableFirewall() {
+        G.firewallBlocking = true;
+        G.connected = false;
+        document.getElementById('connStatus').textContent = 'BLOCKED';
+        document.getElementById('connStatus').classList.remove('connected');
+        document.getElementById('connStatus').classList.add('disconnected');
+        document.getElementById('cmdInput').disabled = true;
+        print('[SPECTER] *enables firewall* Let me show you real network control.', 'specter');
+        addThreat('FIREWALL BLOCKING', 'critical');
+        Audio.alert();
+        // Level system: This is a story beat, level progression handles the puzzle trigger
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // PUZZLES
+    // ───────────────────────────────────────────────────────────────────────
+    function initPuzzles() {
+        // Patch Panel
+        document.getElementById('patchPanelContent').innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div><div style="font-size:0.65em;color:#666;margin-bottom:5px;">SOURCE</div>
+                    <div class="port" data-p="A1" onclick="selPort(this,'s')">A1-RELAY</div>
+                    <div class="port" data-p="A4" onclick="selPort(this,'s')">A4-BACKUP</div>
+                </div>
+                <div><div style="font-size:0.65em;color:#666;margin-bottom:5px;">DEST</div>
+                    <div class="port" data-p="B1" onclick="selPort(this,'d')">B1-TOWER</div>
+                    <div class="port" data-p="B3" onclick="selPort(this,'d')">B3-PROMETHEUS</div>
+                </div>
+            </div>
+            <button class="puzzle-btn" id="patchBtn" onclick="connectPatch()" disabled>CONNECT</button>`;
+
+        // Log Analysis
+        document.getElementById('logContent').innerHTML = `
+            <div class="log-box">
+                <div>10:15:02 sshd: Accepted key admin from 10.13.37.50</div>
+                <div>10:15:45 sshd: Accepted key operator from 10.13.37.100</div>
+                <div style="color:#f59e0b;">10:16:12 sshd: Failed password root from 10.13.37.66</div>
+                <div style="color:#ef4444;">10:16:15 sshd: Accepted pwd specter from 10.13.37.66</div>
+            </div>
+            <input type="text" id="logAnswer" placeholder="Enter SPECTER's IP" class="puzzle-input">
+            <button class="puzzle-btn" onclick="checkLog()">SUBMIT</button>`;
+
+        // Hash
+        document.getElementById('hashContent').innerHTML = `
+            <div class="hash-box">5f4dcc3b5aa765d61d8327deb882cf99</div>
+            <p style="font-size:0.65em;color:#666;margin:8px 0;">Common password MD5</p>
+            <div class="hash-opts">
+                <span class="hash-opt" onclick="checkHash('admin',this)">admin</span>
+                <span class="hash-opt" onclick="checkHash('password',this)">password</span>
+                <span class="hash-opt" onclick="checkHash('123456',this)">123456</span>
+                <span class="hash-opt" onclick="checkHash('root',this)">root</span>
+            </div>`;
+
+        // Binary
+        document.getElementById('binaryContent').innerHTML = `
+            <div class="binary-box">01000111 01001111</div>
+            <input type="text" id="binaryAnswer" placeholder="Decoded text" class="puzzle-input">
+            <button class="puzzle-btn" onclick="checkBinary()">DECODE</button>`;
+
+        // Firewall
+        document.getElementById('firewallContent').innerHTML = `
+            <div class="fw-rule"><select id="fw1a"><option>--</option><option>ALLOW</option><option>DENY</option></select>
+            <input type="text" id="fw1ip" placeholder="IP" class="puzzle-input sm"></div>
+            <div class="fw-rule"><select id="fw2a"><option>--</option><option>ALLOW</option><option>DENY</option></select>
+            <input type="text" id="fw2ip" placeholder="IP" class="puzzle-input sm"></div>
+            <button class="puzzle-btn" onclick="applyFirewall()">APPLY</button>`;
+
+        // Permissions
+        document.getElementById('permsContent').innerHTML = `
+            <div style="font-size:0.7em;color:#888;margin-bottom:8px;">intel.classified needs: owner read/write only</div>
+            <input type="text" id="permsAnswer" placeholder="chmod ???" class="puzzle-input">
+            <button class="puzzle-btn" onclick="checkPerms()">APPLY</button>`;
+
+        // Services
+        document.getElementById('servicesContent').innerHTML = `
+            <div style="font-size:0.7em;color:#888;margin-bottom:8px;">Start in dependency order:</div>
+            <div class="svc-btns">
+                <button class="svc-btn" onclick="startSvc('networking',this)">networking</button>
+                <button class="svc-btn" onclick="startSvc('firewall',this)">firewall</button>
+                <button class="svc-btn" onclick="startSvc('ssh',this)">ssh</button>
+            </div>`;
+
+        // Regex Filter
+        document.getElementById('regexContent').innerHTML = `
+            <div style="font-size:0.7em;color:#888;margin-bottom:8px;">Extract all IPs from data dump:</div>
+            <div class="data-dump" style="font-size:0.6em;background:#000;padding:8px;border-radius:4px;max-height:60px;overflow-y:auto;margin-bottom:8px;">
+                user=admin@10.13.37.50<br>
+                ERROR: connection from 192.168.1.1<br>
+                SPECTER relay: 10.13.37.66<br>
+                backup node: 10.13.37.100
+            </div>
+            <input type="text" id="regexAnswer" placeholder="Enter regex pattern" class="puzzle-input" style="font-family:monospace;">
+            <button class="puzzle-btn" onclick="checkRegex()">APPLY FILTER</button>`;
+
+        // Process Tree
+        document.getElementById('processContent').innerHTML = `
+            <div style="font-size:0.7em;color:#888;margin-bottom:8px;">Terminate SPECTER's rogue processes:</div>
+            <div class="process-tree" style="font-size:0.65em;line-height:1.6;">
+                <div class="process-item" style="cursor:pointer;padding:2px 4px;" onclick="killProcess('1',this)">PID 1 - init (root)</div>
+                <div class="process-item" style="cursor:pointer;padding:2px 4px;margin-left:10px;" onclick="killProcess('100',this)">PID 100 - sshd (root)</div>
+                <div class="process-item" style="cursor:pointer;padding:2px 4px;margin-left:10px;color:#ef4444;" onclick="killProcess('1337',this)">PID 1337 - backdoor (specter)</div>
+                <div class="process-item" style="cursor:pointer;padding:2px 4px;margin-left:10px;" onclick="killProcess('200',this)">PID 200 - cron (root)</div>
+                <div class="process-item" style="cursor:pointer;padding:2px 4px;margin-left:20px;color:#ef4444;" onclick="killProcess('6666',this)">PID 6666 - keylogger (specter)</div>
+                <div class="process-item" style="cursor:pointer;padding:2px 4px;margin-left:10px;" onclick="killProcess('300',this)">PID 300 - nginx (www)</div>
+                <div class="process-item" style="cursor:pointer;padding:2px 4px;margin-left:20px;color:#ef4444;" onclick="killProcess('9999',this)">PID 9999 - exfil (specter)</div>
+            </div>
+            <div style="font-size:0.6em;color:#666;margin-top:8px;">Click to terminate (kill -9)</div>`;
+    }
+
+    // Puzzle handlers
+    let selSrc = null, selDst = null, svcOrder = [];
+
+    window.selPort = function(el, type) {
+        document.querySelectorAll('.port').forEach(p => { if ((type === 's' && p.dataset.p.startsWith('A')) || (type === 'd' && p.dataset.p.startsWith('B'))) p.classList.remove('sel'); });
+        el.classList.add('sel');
+        if (type === 's') selSrc = el.dataset.p; else selDst = el.dataset.p;
+        document.getElementById('patchBtn').disabled = !(selSrc && selDst);
+    };
+
+    window.connectPatch = function() {
+        if (selSrc === 'A4' && selDst === 'B3') {
+            G.backupUp = true; G.connected = true;
+            document.getElementById('backupRect').setAttribute('stroke', '#22c55e');
+            document.getElementById('line-you-backup').classList.add('active');
+            document.getElementById('line-backup-target').classList.add('active');
+            document.getElementById('connStatus').textContent = 'CONNECTED';
+            document.getElementById('connStatus').classList.remove('disconnected');
+            document.getElementById('connStatus').classList.add('connected');
+            document.getElementById('cmdInput').disabled = false;
+            document.getElementById('patchPuzzle').classList.remove('active');
+            print('[SUCCESS] Backup link established', 'success');
+            levelComplete();
+        } else { recordMistake(); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    window.checkLog = function() {
+        if (document.getElementById('logAnswer').value.includes('66')) {
+            G.logSolved = true;
+            document.getElementById('logPuzzle').classList.remove('active');
+            print('[SUCCESS] SPECTER IP identified: 10.13.37.66', 'success');
+            levelComplete();
+        } else { recordMistake(); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    window.checkHash = function(ans, el) {
+        if (ans === 'password') {
+            G.hashSolved = true; el.classList.add('correct');
+            document.getElementById('hashPuzzle').classList.remove('active');
+            print('[SUCCESS] Hash cracked: password', 'success');
+            levelComplete();
+        } else { recordMistake(); el.classList.add('wrong'); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    window.checkBinary = function() {
+        const ans = document.getElementById('binaryAnswer').value.toUpperCase();
+        if (ans === 'GO') {
+            G.binarySolved = true;
+            document.getElementById('binaryPuzzle').classList.remove('active');
+            print('[SUCCESS] Binary decoded: GO', 'success');
+            levelComplete();
+        } else { recordMistake(); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    window.applyFirewall = function() {
+        const a1 = document.getElementById('fw1a').value, ip1 = document.getElementById('fw1ip').value;
+        const a2 = document.getElementById('fw2a').value, ip2 = document.getElementById('fw2ip').value;
+        const denySpecter = (a1 === 'DENY' && ip1.includes('66')) || (a2 === 'DENY' && ip2.includes('66'));
+        const allowSelf = (a1 === 'ALLOW' && ip1.includes('100')) || (a2 === 'ALLOW' && ip2.includes('100'));
+        if (denySpecter && allowSelf) {
+            G.firewallBlocking = false; G.connected = true;
+            document.getElementById('connStatus').textContent = 'CONNECTED';
+            document.getElementById('connStatus').classList.remove('disconnected');
+            document.getElementById('connStatus').classList.add('connected');
+            document.getElementById('cmdInput').disabled = false;
+            document.getElementById('firewallPuzzle').classList.remove('active');
+            print('[SUCCESS] Firewall configured', 'success');
+            levelComplete();
+        } else { recordMistake(); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    window.checkPerms = function() {
+        const ans = document.getElementById('permsAnswer').value;
+        if (ans.includes('600') || ans.includes('rw-------')) {
+            G.permsSolved = true;
+            document.getElementById('permsPuzzle').classList.remove('active');
+            print('[SUCCESS] Permissions fixed', 'success');
+            levelComplete();
+        } else { recordMistake(); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    window.startSvc = function(name, el) {
+        const order = ['networking', 'firewall', 'ssh'];
+        if (name === order[svcOrder.length]) {
+            svcOrder.push(name); el.classList.add('done'); el.disabled = true;
+            if (svcOrder.length === 3) {
+                G.servicesSolved = true;
+                document.getElementById('servicesPuzzle').classList.remove('active');
+                print('[SUCCESS] Services restored', 'success');
+                levelComplete();
+            }
+        } else { recordMistake(); el.classList.add('wrong'); setTimeout(() => el.classList.remove('wrong'), 500); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    // Regex puzzle handler
+    window.checkRegex = function() {
+        const ans = document.getElementById('regexAnswer').value.trim();
+        // Accept common IP regex patterns
+        const validPatterns = [
+            /\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/,
+            /\[0-9\]/,
+            /\\d\+/
+        ];
+        const isValid = ans.includes('\\d') || ans.includes('[0-9]') || ans.includes('\\.');
+        if (isValid && ans.length >= 5) {
+            G.regexSolved = true;
+            document.getElementById('regexPuzzle').classList.remove('active');
+            print('[SUCCESS] Regex pattern accepted', 'success');
+            levelComplete();
+        } else { recordMistake(); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    // Process tree puzzle handler
+    window.killProcess = function(pid, el) {
+        const rogueProcesses = ['1337', '6666', '9999'];
+        if (rogueProcesses.includes(pid)) {
+            el.classList.add('killed');
+            el.onclick = null;
+            const killed = document.querySelectorAll('.process-item.killed').length;
+            if (killed === rogueProcesses.length) {
+                G.processSolved = true;
+                document.getElementById('processPuzzle').classList.remove('active');
+                print('[SUCCESS] Rogue processes terminated', 'success');
+                levelComplete();
+            }
+        } else { recordMistake(); el.classList.add('wrong'); setTimeout(() => el.classList.remove('wrong'), 500); Audio.error(); if (G.modifiers.oneLife) defeat(); }
+    };
+
+    // ───────────────────────────────────────────────────────────────────────
+    // COMMAND PROCESSING
+    // ───────────────────────────────────────────────────────────────────────
+    const AVAILABLE_CMDS = [
+        'ssh', 'find', 'cat', 'scp', 'pkill', 'ls', 'pwd', 'whoami', 'help',
+        'cd', 'grep', 'head', 'tail', 'chmod', 'ps', 'kill', 'netstat', 'ifconfig',
+        'clear', 'history', 'man', 'exit', 'logout', 'uname', 'hostname', 'date', 'uptime'
+    ];
+
+    // Tab completion helper - finds common prefix among strings
+    function findCommonPrefix(strings) {
+        if (strings.length === 0) return '';
+        if (strings.length === 1) return strings[0];
+        let prefix = strings[0];
+        for (let i = 1; i < strings.length; i++) {
+            while (strings[i].toLowerCase().indexOf(prefix.toLowerCase()) !== 0) {
+                prefix = prefix.substring(0, prefix.length - 1);
+                if (prefix === '') return '';
+            }
+        }
+        return prefix;
+    }
+
+    // Known files/paths for auto-complete by context
+    // Format: { name: isDirectory }
+    const COMPLETION_PATHS = {
+        '/': { 'data': true, 'home': true, 'var': true, 'etc': true, 'tmp': true, 'opt': true, 'usr': true },
+        '/data': { 'ops': true, 'logs': true, 'backups': true },
+        '/data/ops': { 'mission_intel.classified': false, 'targets.list': false, 'creds.enc': false },
+        '/home': { 'operator': true, 'specter': true, 'admin': true },
+        '/home/operator': { '.bashrc': false, '.ssh': true, 'notes.txt': false, 'Documents': true, 'Downloads': true, 'intel.classified': false, 'mission_notes.txt': false },
+        '/home/specter': { '.hidden': true, 'plans.txt': false },
+        '/var': { 'log': true, 'run': true, 'tmp': true },
+        '/var/log': { 'auth.log': false, 'syslog': false, 'messages': false, 'secure': false, 'daemon.log': false },
+        '/etc': { 'passwd': false, 'shadow': false, 'hosts': false, 'hostname': false, 'network': true, 'ssh': true },
+        // Relative paths (current working directory = ~ = /home/operator)
+        '': { 'Documents': true, 'Downloads': true, 'intel.classified': false, 'mission_notes.txt': false }
+    };
+
+    // SSH targets for auto-complete
+    const SSH_TARGETS = ['operator@prometheus', 'admin@prometheus', 'specter@darknet'];
+
+    // Current working directory (always home for this terminal)
+    const CWD = '/home/operator';
+
+    // Normalize a path for lookup - handles absolute and relative paths
+    function normalizePath(path) {
+        // Empty or . means current directory (use '' key for visible files only)
+        if (!path || path === '.') return '';
+        if (path === '~') return CWD;
+        if (path === '/') return '/';
+        // Collapse multiple slashes
+        path = path.replace(/\/+/g, '/');
+        // Remove trailing slash (unless root)
+        if (path.endsWith('/')) {
+            path = path.slice(0, -1);
+        }
+        // Handle relative paths by prepending CWD
+        if (!path.startsWith('/')) {
+            path = CWD + '/' + path;
+            path = path.replace(/\/+/g, '/');
+        }
+        return path;
+    }
+
+    // Check if a path represents a directory
+    function isDirectory(path) {
+        const normalized = normalizePath(path);
+        const exists = COMPLETION_PATHS.hasOwnProperty(normalized);
+        return exists;
+    }
+
+    // Get completions for a directory path
+    function getCompletions(dirPath) {
+        const normalized = normalizePath(dirPath);
+        const result = COMPLETION_PATHS[normalized] || {};
+        return result;
+    }
+
+    const cmdInput = document.getElementById('cmdInput');
+
+    // Use capture phase to intercept Tab before browser default behavior
+    cmdInput.addEventListener('keydown', function(e) {
+        // Arrow Up - previous command
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (G.cmdHistory.length > 0) {
+                if (G.historyIdx === -1) {
+                    G.historyIdx = G.cmdHistory.length - 1;
+                } else if (G.historyIdx > 0) {
+                    G.historyIdx--;
+                }
+                this.value = G.cmdHistory[G.historyIdx];
+            }
+            return;
+        }
+
+        // Arrow Down - next command
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (G.historyIdx !== -1) {
+                if (G.historyIdx < G.cmdHistory.length - 1) {
+                    G.historyIdx++;
+                    this.value = G.cmdHistory[G.historyIdx];
+                } else {
+                    G.historyIdx = -1;
+                    this.value = '';
+                }
+            }
+            return;
+        }
+
+        // Tab - auto-complete
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const val = this.value;
+            if (!val || val.trim().length === 0) {
+                return false;
+            }
+
+            const parts = val.split(/\s+/);
+            // If input ends with whitespace, user wants to complete a new argument
+            if (/\s$/.test(val)) {
+                parts.push('');
+            }
+            const lastPart = parts[parts.length - 1];
+            const isFirstWord = parts.length === 1;
+
+            let matches = [];
+            let completionBase = '';
+
+            // Command completion (first word)
+            if (isFirstWord) {
+                const partial = lastPart.toLowerCase();
+                matches = AVAILABLE_CMDS.filter(cmd => cmd.startsWith(partial));
+                completionBase = '';
+            }
+            // SSH target completion
+            else if (parts[0].toLowerCase() === 'ssh') {
+                const partial = lastPart.toLowerCase();
+                matches = SSH_TARGETS.filter(t => t.toLowerCase().startsWith(partial));
+                completionBase = '';
+            }
+            // Path completion
+            else {
+                const partial = lastPart;
+                const lastSlash = partial.lastIndexOf('/');
+
+                // Check if partial is already a complete directory - show its contents
+                // (but not for empty partial - that's just "show current dir contents")
+                if (partial !== '' && isDirectory(partial) && !partial.endsWith('/')) {
+                    const dirContents = getCompletions(partial);
+                    const items = Object.keys(dirContents);
+                    if (items.length > 0) {
+                        print(`<span style="color:#00ff41;">operator@${G.host || 'RELAY'}:~$</span> ${val}`, 'output');
+                        print('  ' + items.join('  '), 'system');
+                        parts[parts.length - 1] = partial + '/';
+                        this.value = parts.join(' ');
+                        return false;
+                    }
+                }
+
+                if (lastSlash === -1) {
+                    // No slash - complete from current directory
+                    const prefix = partial.toLowerCase();
+                    const dirContents = getCompletions('');
+                    const items = Object.keys(dirContents);
+                    matches = items.filter(p => p.toLowerCase().startsWith(prefix));
+                    completionBase = '';
+                } else {
+                    // Has slash - complete based on directory
+                    const dirPath = partial.substring(0, lastSlash) || '/';
+                    const filePrefix = partial.substring(lastSlash + 1).toLowerCase();
+                    // Don't double-up slashes for root directory
+                    completionBase = dirPath === '/' ? '/' : dirPath + '/';
+
+                    // Get available completions for this directory
+                    const dirContents = getCompletions(dirPath);
+                    const items = Object.keys(dirContents);
+                    matches = items.filter(item => item.toLowerCase().startsWith(filePrefix));
+                }
+            }
+
+
+            // Apply completion
+            if (matches.length === 1) {
+                // Single match - complete fully
+                if (isFirstWord) {
+                    this.value = matches[0] + ' ';
+                } else {
+                    const completedPath = completionBase + matches[0];
+                    // Add trailing slash if it's a directory
+                    const suffix = isDirectory(completedPath) ? '/' : '';
+                    parts[parts.length - 1] = completedPath + suffix;
+                    this.value = parts.join(' ');
+                }
+            } else if (matches.length > 1) {
+                // Multiple matches - show options and fill common prefix
+                print(`<span style="color:#00ff41;">operator@${G.host || 'RELAY'}:~$</span> ${val}`, 'output');
+                print('  ' + matches.join('  '), 'system');
+
+                // Find and apply common prefix
+                const common = findCommonPrefix(matches);
+                if (isFirstWord) {
+                    if (common.length > lastPart.length) {
+                        this.value = common;
+                    }
+                } else {
+                    const currentPartial = lastPart.substring(completionBase.length);
+                    if (common.length > currentPartial.length) {
+                        parts[parts.length - 1] = completionBase + common;
+                        this.value = parts.join(' ');
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Enter - execute command
+        if (e.key === 'Enter') {
+            const cmd = this.value.trim();
+            if (cmd) {
+                G.historyIdx = -1; // Reset history navigation
+                processCmd(cmd);
+            }
+            this.value = '';
+            return;
+        }
+
+        // Regular typing - play sound
+        if (e.key.length === 1) {
+            Audio.type();
+        }
+    });
+
+    // Prevent Tab from leaving the input at window level
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab' && document.activeElement === cmdInput && !cmdInput.disabled) {
+            e.preventDefault();
+        }
+    }, true);
+
+    let finalePhase = 1;
+    let finaleExtracted = false;
+    let finaleExfiltrated = false;
+
+    function processCmd(cmd) {
+        G.cmdHistory.push(cmd);
+        print(`<span style="color:#00ff41;">operator@${G.host}:~$</span> ${cmd}`);
+        if (!G.connected) { print('[ERROR] No connection', 'error'); return; }
+
+        // Handle finale commands
+        if (G.inFinale) {
+            simOutput(cmd);
+            checkFinaleProgress(cmd);
+            return;
+        }
+
+        // Open world: process any command
+        simOutput(cmd);
+    }
+
+    function checkFinaleProgress(cmd) {
+        // Phase 1: Extract intel
+        if (finalePhase === 1 && FINALE.phase1.check(cmd)) {
+            finaleExtracted = true;
+            finalePhase = 2;
+            setTimeout(() => {
+                document.getElementById('objText').textContent = FINALE.phase2.objective;
+                document.getElementById('objHint').textContent = '> ' + FINALE.phase2.hint;
+                document.getElementById('objectiveBox').innerHTML = `<b>${FINALE.phase2.objective}</b><br><small>FINAL PHASE: NEUTRALIZATION</small>`;
+                handlerSay(FINALE.phase2.handlerMsg);
+                addThreat('Intel extracted - now neutralize SPECTER', 'success');
+                print('[HANDLER] Intel secured. Now finish the job.', 'handler');
+            }, 500);
+        }
+
+        // Phase 2: Exfiltrate and neutralize
+        if (finalePhase === 2 && FINALE.phase2.check(cmd)) {
+            finaleExfiltrated = true;
+            setTimeout(() => {
+                victory();
+            }, 800);
+        }
+    }
+
+    let sshConnected = false;
+    let towerAttackScheduled = false;
+
+    function simOutput(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        const base = parts[0];
+
+        // SSH command
+        if (base === 'ssh') {
+            if (cmd.includes('prometheus')) {
+                print('Connecting to prometheus...', 'output');
+                setTimeout(() => {
+                    print('Welcome to PROMETHEUS', 'system');
+                    print('Last login: ' + new Date().toLocaleString(), 'output');
+                    G.host = 'PROMETHEUS';
+                    G.connected = true;
+
+                    if (!sshConnected) {
+                        sshConnected = true;
+                        handlerSay('Good, you\'re in. Run recon - find the intel. You have 30 seconds before SPECTER detects you.');
+                        addThreat('SSH connection established', 'success');
+                        document.getElementById('objText').textContent = 'Explore and locate intel';
+                        document.getElementById('objHint').textContent = '> find, ls, cat - 30 seconds until SPECTER strikes';
+                        document.getElementById('objectiveBox').innerHTML = '<b>Explore PROMETHEUS</b><br><small>30 seconds until SPECTER detects you</small>';
+
+                        if (!towerAttackScheduled) {
+                            towerAttackScheduled = true;
+                            setTimeout(() => {
+                                if (G.towerUp) {
+                                    destroyTower();
+                                    setTimeout(() => showPhaseAnnouncement(1), 2000);
+                                }
+                            }, 30000);
+                        }
+                    }
+                }, 500);
+            } else {
+                print('usage: ssh [user@]hostname', 'output');
+                print('  ssh operator@prometheus  - Connect to PROMETHEUS server', 'output');
+            }
+            return;
+        }
+
+        // Find command
+        if (base === 'find') {
+            if (parts.length < 2) {
+                print('usage: find [path] -name [pattern]', 'output');
+            } else if (cmd.includes('classified') || cmd.includes('intel')) {
+                print('/data/ops/mission_intel.classified', 'output');
+                if (G.modifiers.decoys) print('/data/ops/decoy_intel.classified', 'output');
+            } else if (cmd.includes('log')) {
+                print('/var/log/auth.log', 'output');
+                print('/var/log/syslog', 'output');
+            } else {
+                print('find: no matches found', 'output');
+            }
+            return;
+        }
+
+        // Cat command
+        if (base === 'cat') {
+            if (parts.length < 2) {
+                print('usage: cat [file]', 'output');
+            } else if (cmd.includes('classified')) {
+                if (cmd.includes('decoy') && G.modifiers.decoys) {
+                    print('[TRAP] Decoy file! Time penalty: 10 seconds', 'error');
+                    G.timeRemaining -= 10;
+                    Audio.error();
+                } else {
+                    print('═══════════════════════════════════════', 'highlight');
+                    print('TOP SECRET // OPERATION BLACKOUT', 'error');
+                    print('TARGET: SPECTER-7 - NEUTRALIZE', 'output');
+                    print('LOCATION: Node 7-ALPHA', 'output');
+                    print('STATUS: ACTIVE THREAT', 'output');
+                    print('═══════════════════════════════════════', 'highlight');
+                }
+            } else if (cmd.includes('auth.log') || cmd.includes('log')) {
+                print('Jan 31 08:15:22 prometheus sshd: Failed password for root from 10.13.37.66', 'output');
+                print('Jan 31 08:15:24 prometheus sshd: Failed password for root from 10.13.37.66', 'output');
+                print('Jan 31 08:15:27 prometheus sshd: Accepted password for specter from 10.13.37.66', 'output');
+                print('Jan 31 08:16:01 prometheus sshd: Connection from 10.13.37.100 authorized', 'output');
+            } else if (cmd.includes('passwd')) {
+                print('root:x:0:0:root:/root:/bin/bash', 'output');
+                print('operator:x:1000:1000::/home/operator:/bin/bash', 'output');
+                print('specter:x:1001:1001::/home/specter:/bin/bash', 'output');
+            } else {
+                print(`cat: ${parts[1]}: No such file or directory`, 'error');
+            }
+            return;
+        }
+
+        // ls command
+        if (base === 'ls') {
+            const hasLongFlag = cmd.includes('-la') || cmd.includes('-l') || cmd.includes('-al');
+            // Find path argument (skip flags that start with -)
+            let path = parts.slice(1).find(p => !p.startsWith('-')) || '.';
+            // Normalize path: collapse multiple slashes, remove trailing slash (except for root)
+            if (path !== '/' && path !== '.') {
+                path = path.replace(/\/+/g, '/').replace(/\/$/, '');
+            }
+
+            // Valid directories and their contents
+            const validDirs = {
+                '.': 'Documents  Downloads  intel.classified  mission_notes.txt',
+                '~': 'Documents  Downloads  intel.classified  mission_notes.txt',
+                '/': 'data  home  var  etc  tmp  opt  usr',
+                '/home/operator': 'Documents  Downloads  intel.classified  mission_notes.txt',
+                'Documents': '',  // empty directory
+                'Downloads': '',  // empty directory
+                '/data': 'ops  logs  backups',
+                '/data/ops': 'mission_intel.classified  targets.list  creds.enc',
+                '/var': 'log  run  tmp',
+                '/var/log': 'auth.log  syslog  messages  kern.log',
+                '/etc': 'passwd  shadow  hosts  hostname  network  ssh',
+                '/home': 'operator  specter  admin'
+            };
+
+            // Valid files (can't ls into these, just show the name)
+            const validFiles = ['intel.classified', 'mission_notes.txt', '/etc/passwd', '/etc/shadow'];
+
+            if (validFiles.includes(path)) {
+                print(path.split('/').pop(), 'output');
+            } else if (validDirs.hasOwnProperty(path)) {
+                if (hasLongFlag && (path === '.' || path === '~' || path === '/home/operator')) {
+                    print('total 24', 'output');
+                    print('drwxr-xr-x  2 operator operator 4096 Jan 31 08:00 Documents', 'output');
+                    print('drwxr-xr-x  2 operator operator 4096 Jan 31 08:00 Downloads', 'output');
+                    print('-rw-------  1 operator operator  256 Jan 31 08:14 intel.classified', 'output');
+                    print('-rw-r--r--  1 operator operator  128 Jan 31 08:12 mission_notes.txt', 'output');
+                } else if (validDirs[path] === '') {
+                    // Empty directory - no output
+                } else {
+                    print(validDirs[path], 'output');
+                }
+            } else {
+                print(`ls: cannot access '${path}': No such file or directory`, 'error');
+            }
+            return;
+        }
+
+        // Process management
+        if (base === 'ps') {
+            print('  PID TTY          TIME CMD', 'output');
+            print(' 1024 pts/0    00:00:00 bash', 'output');
+            print(' 1337 pts/0    00:00:12 specter_agent', 'output');
+            print(' 1338 pts/0    00:00:05 specter_exfil', 'output');
+            print(' 2048 pts/0    00:00:00 ps', 'output');
+            return;
+        }
+
+        if (base === 'pkill' || base === 'kill') {
+            if (cmd.includes('specter')) {
+                print('[KILLED] SPECTER processes terminated', 'success');
+            } else if (parts.length < 2) {
+                print(`usage: ${base} [process_name]`, 'output');
+            } else {
+                print(`${base}: process ${parts[1]} not found`, 'error');
+            }
+            return;
+        }
+
+        // Network commands
+        if (base === 'netstat') {
+            print('Active Internet connections', 'output');
+            print('Proto  Local Address          Foreign Address        State', 'output');
+            print('tcp    0.0.0.0:22            0.0.0.0:*              LISTEN', 'output');
+            print('tcp    10.13.37.100:22       10.13.37.66:48521      ESTABLISHED', 'output');
+            return;
+        }
+
+        if (base === 'ifconfig') {
+            print('eth0: flags=4163<UP,BROADCAST,RUNNING>  mtu 1500', 'output');
+            print('        inet 10.13.37.100  netmask 255.255.255.0', 'output');
+            return;
+        }
+
+        // File transfer
+        if (base === 'scp') {
+            if (parts.length < 3) {
+                print('usage: scp [file] [user@host:path]', 'output');
+            } else {
+                print('Exfiltrating...', 'output');
+                setTimeout(() => print('[SUCCESS] File transferred', 'success'), 500);
+            }
+            return;
+        }
+
+        // Basic commands
+        if (base === 'pwd') { print('/home/operator', 'output'); return; }
+        if (base === 'whoami') { print('operator', 'output'); return; }
+        if (base === 'hostname') { print(G.host || 'RELAY', 'output'); return; }
+        if (base === 'uname') { print('Linux prometheus 5.4.0 #1 SMP x86_64 GNU/Linux', 'output'); return; }
+        if (base === 'date') { print(new Date().toString(), 'output'); return; }
+        if (base === 'uptime') { print(' 08:23:45 up 127 days, 4:32, 2 users, load average: 0.42, 0.38, 0.35', 'output'); return; }
+        if (base === 'id') { print('uid=1000(operator) gid=1000(operator) groups=1000(operator),27(sudo)', 'output'); return; }
+
+        // chmod for permissions puzzle
+        if (base === 'chmod') {
+            if (parts.length < 3) {
+                print('usage: chmod [mode] [file]', 'output');
+            } else {
+                print(`chmod: mode of '${parts[2]}' changed to ${parts[1]}`, 'output');
+            }
+            return;
+        }
+
+        // Clear terminal
+        if (base === 'clear' || base === 'cls') {
+            document.getElementById('terminal').innerHTML = '';
+            return;
+        }
+
+        // History
+        if (base === 'history') {
+            G.cmdHistory.forEach((c, i) => print(`  ${i + 1}  ${c}`, 'output'));
+            return;
+        }
+
+        // Help
+        if (base === 'help' || base === 'man') {
+            print('AVAILABLE COMMANDS:', 'system');
+            print('  ssh user@host     - Connect to remote server', 'output');
+            print('  find path -name   - Search for files', 'output');
+            print('  cat file          - Display file contents', 'output');
+            print('  ls [path]         - List directory', 'output');
+            print('  ps                - Show running processes', 'output');
+            print('  pkill name        - Kill processes by name', 'output');
+            print('  scp file host     - Secure copy file', 'output');
+            print('  chmod mode file   - Change permissions', 'output');
+            print('  netstat           - Network connections', 'output');
+            print('  clear             - Clear terminal', 'output');
+            print('  history           - Show command history', 'output');
+            print('', 'output');
+            print('Use Tab for auto-completion, ↑/↓ for history', 'system');
+            return;
+        }
+
+        // Exit/logout
+        if (base === 'exit' || base === 'logout') {
+            print('Connection closed.', 'output');
+            G.connected = false;
+            G.host = 'RELAY';
+            return;
+        }
+
+        // CD (simulate)
+        if (base === 'cd') {
+            if (parts.length < 2 || parts[1] === '~') {
+                print('', 'output'); // Silent success
+            } else {
+                print('', 'output'); // Simulate cd working
+            }
+            return;
+        }
+
+        // Grep
+        if (base === 'grep') {
+            if (parts.length < 2) {
+                print('usage: grep [pattern] [file]', 'output');
+            } else if (cmd.includes('specter') || cmd.includes('10.13.37.66')) {
+                print('Jan 31 08:15:27 prometheus sshd: Accepted password for specter from 10.13.37.66', 'highlight');
+            } else {
+                print('(no matches)', 'output');
+            }
+            return;
+        }
+
+        // Unknown command
+        print(`${base}: command not found`, 'error');
+        print(`Type 'help' for available commands`, 'output');
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // POWERUPS
+    // ───────────────────────────────────────────────────────────────────────
+    window.usePowerup = function(type) {
+        const el = document.getElementById('pu-' + type);
+        if (!G.powerups[type] || el.classList.contains('used')) return;
+        el.classList.add('used');
+        if (type === 'sniffer') {
+            const next = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
+            document.getElementById('specterIntelSection').style.display = 'block';
+            document.getElementById('specterIntel').textContent = 'Next move: ' + next.replace('SPECTER: ', '');
+            addThreat('Packet sniffer activated', 'success');
+        } else if (type === 'rootkit') {
+            G.specterFrozen = true;
+            setTimeout(() => { G.specterFrozen = false; }, 15000);
+            addThreat('SPECTER frozen for 15s', 'success');
+        } else if (type === 'exploit') {
+            // Skip current level with exploit - only get completion hat
+            if (G.currentLevel >= 1 && G.currentLevel <= LEVELS.length && !G.inFinale) {
+                const level = LEVELS[G.currentLevel - 1];
+                const state = G.levelStates[G.currentLevel - 1];
+                // Set the puzzle flag as solved
+                if (level.puzzle === 'patchPuzzle') G.backupUp = true;
+                else if (level.puzzle === 'firewallPuzzle') G.firewallBlocking = false;
+                else if (level.puzzle === 'logPuzzle') G.logSolved = true;
+                else if (level.puzzle === 'hashPuzzle') G.hashSolved = true;
+                else if (level.puzzle === 'binaryPuzzle') G.binarySolved = true;
+                else if (level.puzzle === 'permsPuzzle') G.permsSolved = true;
+                else if (level.puzzle === 'servicesPuzzle') G.servicesSolved = true;
+                else if (level.puzzle === 'regexPuzzle') G.regexSolved = true;
+                else if (level.puzzle === 'processPuzzle') G.processSolved = true;
+                // Mark hints as used (no silent op hat)
+                state.hintsUsed = 1;
+                state.mistakes = 1;
+                levelComplete();
+            }
+            addThreat('Puzzle bypassed with exploit', 'success');
+        }
+        Audio.success();
+    };
+
+    // Give powerups based on performance
+    function awardPowerups() {
+        if (G.puzzlesSolved >= 2) { G.powerups.sniffer = true; document.getElementById('pu-sniffer').classList.add('available'); }
+        if (G.puzzlesSolved >= 4) { G.powerups.rootkit = true; document.getElementById('pu-rootkit').classList.add('available'); }
+        if (G.puzzlesSolved >= 6) { G.powerups.exploit = true; document.getElementById('pu-exploit').classList.add('available'); }
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // PLOT TWIST
+    // ───────────────────────────────────────────────────────────────────────
+    function showPlotTwist() {
+        G.plotTwistShown = true;
+        document.getElementById('twistContent').innerHTML = `
+            <b>[HANDLER - ENCRYPTED CHANNEL]</b><br><br>
+            Operator, we've intercepted new intel.<br><br>
+            SPECTER isn't just stealing data. They're planting a logic bomb.<br><br>
+            If SPECTER reaches 100%, the entire network goes dark permanently.<br><br>
+            The stakes just got higher. Complete your mission. <b>Now.</b>
+        `;
+        document.getElementById('twistModal').classList.add('show');
+        Audio.alert();
+    }
+
+    window.closeTwist = function() {
+        document.getElementById('twistModal').classList.remove('show');
+    };
+
+    // ───────────────────────────────────────────────────────────────────────
+    // BOSS FIGHT
+    // ───────────────────────────────────────────────────────────────────────
+    const BOSS_CMDS = ['pkill specter', 'kill -9 specter', 'rm -rf /specter', 'logout specter', 'revoke specter'];
+    let bossIdx = 0, bossTimer = 5, bossInt = null;
+
+    function bossFight() {
+        clearInterval(G.timerInt);
+        clearInterval(G.specterInt);
+        document.getElementById('bossModal').classList.add('show');
+        nextBossChallenge();
+        document.getElementById('bossInput').focus();
+        document.getElementById('bossInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') checkBossInput(this.value);
+        });
+        bossInt = setInterval(tickBoss, 100);
+    }
+
+    function nextBossChallenge() {
+        if (bossIdx >= 3) { victory(); return; }
+        const cmd = BOSS_CMDS[Math.floor(Math.random() * BOSS_CMDS.length)];
+        document.getElementById('bossChallenge').innerHTML = `<div style="color:#888;font-size:0.8em;">Type to counter SPECTER:</div><div style="color:#00ff41;font-size:1.5em;margin-top:10px;">${cmd}</div>`;
+        bossTimer = 5;
+        document.getElementById('bossInput').value = '';
+        G.currentBossCmd = cmd;
+    }
+
+    function tickBoss() {
+        bossTimer -= 0.1;
+        document.getElementById('bossTimer').textContent = bossTimer.toFixed(1) + 's';
+        if (bossTimer <= 0) { clearInterval(bossInt); defeat(); }
+    }
+
+    function checkBossInput(val) {
+        if (val.toLowerCase().trim() === G.currentBossCmd) {
+            bossIdx++;
+            Audio.success();
+            nextBossChallenge();
+        }
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // END GAME
+    // ───────────────────────────────────────────────────────────────────────
+    function victory() {
+        G.ended = true;
+        clearInterval(G.timerInt);
+        clearInterval(G.specterInt);
+        clearInterval(bossInt);
+        Audio.stopHeartbeat();
+        document.getElementById('bossModal').classList.remove('show');
+
+        // Calculate total hats earned
+        const totalHats = G.levelStates.reduce((sum, state) => sum + (state.hats || 0), 0);
+        const maxHats = LEVELS.length * 3;
+
+        // Determine rating tier
+        let ratingTitle = 'TRAINEE';
+        if (totalHats >= 27) ratingTitle = 'LEGENDARY OPERATIVE';
+        else if (totalHats >= 22) ratingTitle = 'SENIOR OPERATIVE';
+        else if (totalHats >= 16) ratingTitle = 'FIELD AGENT';
+        else if (totalHats >= 10) ratingTitle = 'JUNIOR AGENT';
+
+        // Check achievements
+        if (G.missionTime < 120) G.achievements.push('speed');
+        if (G.mistakes === 0) G.achievements.push('perfect');
+        if (G.difficulty === 'ghost') G.achievements.push('ghost');
+        if (G.specterProgress < 50) G.achievements.push('crusher');
+        G.achievements.forEach(a => document.getElementById('ach-' + a).classList.add('unlocked'));
+
+        // Stats with hat summary
+        document.getElementById('victoryStats').innerHTML = `
+            <div class="stat-box"><div class="stat-label">TIME</div><div class="stat-value good">${formatTime(G.missionTime)}</div></div>
+            <div class="stat-box"><div class="stat-label">HATS</div><div class="stat-value good"><img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ${totalHats}/${maxHats}</div></div>
+            <div class="stat-box"><div class="stat-label">RATING</div><div class="stat-value good">${ratingTitle}</div></div>
+            <div class="stat-box"><div class="stat-label">MISTAKES</div><div class="stat-value ${G.mistakes === 0 ? 'good' : ''}">${G.mistakes}</div></div>
+        `;
+
+        document.getElementById('victoryModal').classList.add('show');
+    }
+
+    function defeat() {
+        G.ended = true;
+        clearInterval(G.timerInt);
+        clearInterval(G.specterInt);
+        clearInterval(bossInt);
+        Audio.stopHeartbeat();
+        Audio.specter();
+
+        document.getElementById('defeatStats').innerHTML = `
+            <div class="stat-box"><div class="stat-label">PROGRESS</div><div class="stat-value bad">${Math.round(G.youProgress)}%</div></div>
+            <div class="stat-box"><div class="stat-label">SPECTER</div><div class="stat-value">100%</div></div>
+            <div class="stat-box"><div class="stat-label">PHASE</div><div class="stat-value">${G.currentLevel}/${LEVELS.length}</div></div>
+            <div class="stat-box"><div class="stat-label">TIME</div><div class="stat-value">${formatTime(G.missionTime)}</div></div>
+        `;
+
+        document.getElementById('tipsSection').innerHTML = `<h4>DEBRIEF</h4><ul>
+            <li>SPECTER outpaced you - work faster</li>
+            <li>Try RECRUIT difficulty first</li>
+            <li>Use powerups strategically</li>
+        </ul>`;
+
+        document.getElementById('defeatModal').classList.add('show');
+    }
+
+    function saveAndExit() {
+        const totalHats = G.levelStates.reduce((sum, state) => sum + (state.hats || 0), 0);
+        const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (!p.script) p.script = {};
+        p.script['clh-031'] = {
+            completed: true,
+            completedAt: new Date().toISOString(),
+            xpEarned: 150 + (totalHats * 10), // Bonus XP for hats
+            time: G.missionTime,
+            difficulty: G.difficulty,
+            achievements: G.achievements,
+            totalHats: totalHats,
+            levelStates: G.levelStates
+        };
+        localStorage.setItem('hexworth_progress', JSON.stringify(p));
+        location.href = '../../index.html';
+    }
+    
+        function completeModule() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('script', 'script-lab', {
+                    returnUrl: 'script-quiz.quiz.html'
+                });
+            }
+        }
+    </script>
+
+    <style>
+        /* Puzzle Styles */
+        .port { padding: 8px; margin: 3px 0; background: #1a1a1a; border: 2px solid #333; border-radius: 4px; font-size: 0.7em; cursor: pointer; text-align: center; transition: all 0.2s; }
+        .port:hover { border-color: #8b5cf6; }
+        .port.sel { border-color: #00ff41; background: rgba(0,255,65,0.1); }
+        .puzzle-btn { width: 100%; padding: 10px; margin-top: 10px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; }
+        .puzzle-btn:disabled { background: #333; cursor: not-allowed; }
+        .puzzle-input { width: 100%; padding: 8px; margin-top: 8px; background: #1a1a1a; border: 1px solid #333; border-radius: 4px; color: #00ff41; font-family: inherit; }
+        .puzzle-input.sm { width: 100px; }
+        .log-box { background: #0a0a0a; padding: 8px; border-radius: 4px; font-size: 0.65em; max-height: 80px; overflow-y: auto; margin-bottom: 8px; }
+        .hash-box { background: #0a0a0a; padding: 10px; border-radius: 4px; font-size: 0.75em; color: #f59e0b; word-break: break-all; }
+        .hash-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+        .hash-opt { padding: 6px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 4px; font-size: 0.7em; cursor: pointer; }
+        .hash-opt:hover { border-color: #8b5cf6; }
+        .hash-opt.correct { border-color: #22c55e; background: rgba(34,197,94,0.2); color: #22c55e; }
+        .hash-opt.wrong { border-color: #ef4444; }
+        .binary-box { background: #0a0a0a; padding: 10px; border-radius: 4px; font-size: 0.8em; color: #00ff41; letter-spacing: 2px; margin-bottom: 8px; }
+        .fw-rule { display: flex; gap: 6px; margin-bottom: 6px; }
+        .fw-rule select { padding: 6px; background: #1a1a1a; border: 1px solid #333; border-radius: 4px; color: #00ff41; }
+        .svc-btns { display: flex; gap: 8px; }
+        .svc-btn { padding: 8px 12px; background: #1a1a1a; border: 2px solid #333; border-radius: 4px; color: #888; cursor: pointer; font-family: inherit; font-size: 0.7em; }
+        .svc-btn:hover { border-color: #8b5cf6; }
+        .svc-btn.done { border-color: #22c55e; color: #22c55e; }
+        .svc-btn.wrong { border-color: #ef4444; animation: shake 0.3s; }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+        /* Process Tree Puzzle */
+        .process-item { border-radius: 4px; transition: all 0.2s; }
+        .process-item:hover { background: rgba(139, 92, 246, 0.2); }
+        .process-item.killed { text-decoration: line-through; color: #666 !important; opacity: 0.5; cursor: default; }
+        .process-item.wrong { background: rgba(239, 68, 68, 0.3); animation: shake 0.3s; }
+    </style>
+    
+    <div style="text-align:center; padding:20px; margin-top:10px;">
+        <button onclick="completeModule()" style="background:#22c55e; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 8px rgba(34,197,94,0.3);">Complete Module ✓</button>
+    </div>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
