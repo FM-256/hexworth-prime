@@ -1,0 +1,2324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API-7: Cloud APIs &mdash; AWS, Azure &amp; GCP Patterns | House of the Cloud</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --accent: #79c0ff;
+            --accent-dim: rgba(121, 192, 255, 0.15);
+            --accent-border: rgba(121, 192, 255, 0.25);
+            --bg: #0d1117;
+            --bg-card: #161b22;
+            --bg-card2: #1c2128;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --text-dim: #6e7681;
+            --green: #3fb950;
+            --green-dim: rgba(63, 185, 80, 0.12);
+            --green-border: rgba(63, 185, 80, 0.3);
+            --red: #f85149;
+            --red-dim: rgba(248, 81, 73, 0.12);
+            --red-border: rgba(248, 81, 73, 0.3);
+            --yellow: #d29922;
+            --yellow-dim: rgba(210, 153, 34, 0.12);
+            --yellow-border: rgba(210, 153, 34, 0.3);
+            --purple: #a371f7;
+            --purple-dim: rgba(163, 113, 247, 0.12);
+            --purple-border: rgba(163, 113, 247, 0.3);
+            --orange: #f0883e;
+            /* Provider accent colors */
+            --aws: #f90;
+            --aws-dim: rgba(255, 153, 0, 0.12);
+            --aws-border: rgba(255, 153, 0, 0.3);
+            --azure: #0078d4;
+            --azure-dim: rgba(0, 120, 212, 0.15);
+            --azure-border: rgba(0, 120, 212, 0.35);
+            --gcp: #4285f4;
+            --gcp-dim: rgba(66, 133, 244, 0.12);
+            --gcp-border: rgba(66, 133, 244, 0.3);
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .presentation-header {
+            padding: 16px 36px;
+            background: rgba(13, 17, 23, 0.95);
+            border-bottom: 1px solid var(--accent-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .back-btn {
+            padding: 7px 14px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 6px;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.83rem;
+            transition: all 0.25s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(121, 192, 255, 0.25);
+            border-color: rgba(121, 192, 255, 0.45);
+        }
+
+        .house-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .progress-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-bar {
+            width: 160px;
+            height: 4px;
+            background: rgba(121, 192, 255, 0.15);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #388bfd, #79c0ff);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        /* ── Slide Container ── */
+        .slides-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 48px 24px;
+        }
+
+        .slide {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .slide.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Slide Typography ── */
+        .module-tag {
+            text-align: center;
+            font-size: 0.72rem;
+            color: var(--accent);
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .slide-title {
+            font-size: 2.4rem;
+            font-weight: 300;
+            color: var(--text);
+            text-align: center;
+            margin-bottom: 10px;
+            line-height: 1.25;
+        }
+
+        .slide-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        /* ── Content Cards ── */
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+            gap: 20px;
+            margin-top: 28px;
+        }
+
+        .content-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.25s ease;
+        }
+
+        .content-card:hover {
+            border-color: var(--accent-border);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+        }
+
+        .card-icon {
+            font-size: 2.2rem;
+            margin-bottom: 14px;
+            line-height: 1;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            color: var(--text);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .card-description {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            line-height: 1.65;
+        }
+
+        /* ── Key Points ── */
+        .key-points {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            padding: 20px 24px;
+            margin: 24px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .key-points h4 {
+            color: var(--accent);
+            margin-bottom: 12px;
+            font-size: 0.82rem;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .key-points ul {
+            list-style: none;
+        }
+
+        .key-points li {
+            padding: 6px 0 6px 24px;
+            position: relative;
+            color: var(--text);
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        .key-points li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+        }
+
+        /* ── Info Box ── */
+        .info-box {
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 10px;
+            padding: 22px 26px;
+            margin: 22px 0;
+        }
+
+        .info-box-label {
+            font-size: 0.72rem;
+            color: var(--accent);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .info-box p {
+            font-size: 0.9rem;
+            color: var(--text);
+            line-height: 1.65;
+        }
+
+        /* ── Warning Box ── */
+        .danger-box {
+            background: var(--red-dim);
+            border: 1px solid var(--red-border);
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin: 20px 0;
+        }
+
+        .danger-box-label {
+            font-size: 0.72rem;
+            color: var(--red);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .danger-box p {
+            font-size: 0.9rem;
+            color: var(--text);
+            line-height: 1.65;
+        }
+
+        /* ── Success Box ── */
+        .success-box {
+            background: var(--green-dim);
+            border: 1px solid var(--green-border);
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin: 20px 0;
+        }
+
+        .success-box-label {
+            font-size: 0.72rem;
+            color: var(--green);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .success-box p {
+            font-size: 0.9rem;
+            color: var(--text);
+            line-height: 1.65;
+        }
+
+        /* ── Comparison Table ── */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+            font-size: 0.88rem;
+        }
+
+        .comparison-table th {
+            background: var(--accent-dim);
+            padding: 13px 15px;
+            text-align: left;
+            color: var(--accent);
+            font-weight: 600;
+            border-bottom: 1px solid var(--accent-border);
+        }
+
+        .comparison-table td {
+            padding: 11px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            vertical-align: top;
+        }
+
+        .comparison-table tr:hover td {
+            background: rgba(121, 192, 255, 0.03);
+        }
+
+        .tag-good  { color: var(--green); font-weight: 500; }
+        .tag-bad   { color: var(--red); font-weight: 500; }
+        .tag-ok    { color: var(--yellow); font-weight: 500; }
+        .tag-info  { color: var(--accent); font-weight: 500; }
+        .tag-aws   { color: var(--aws); font-weight: 600; }
+        .tag-azure { color: #60b0ff; font-weight: 600; }
+        .tag-gcp   { color: #7baaf7; font-weight: 600; }
+
+        /* ── Code Block ── */
+        .code-block {
+            background: #010409;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin: 16px 0;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+
+        .code-block .c-key  { color: var(--accent); }
+        .code-block .c-str  { color: #a5d6ff; }
+        .code-block .c-val  { color: #79c0ff; }
+        .code-block .c-cmt  { color: var(--text-dim); font-style: italic; }
+        .code-block .c-grn  { color: var(--green); }
+        .code-block .c-red  { color: var(--red); }
+        .code-block .c-yel  { color: var(--yellow); }
+        .code-block .c-pur  { color: var(--purple); }
+        .code-block .c-org  { color: var(--orange); }
+
+        /* ── Flow Diagram ── */
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0;
+            margin: 28px 0;
+            justify-content: center;
+        }
+
+        .flow-step {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-border);
+            border-radius: 10px;
+            padding: 14px 18px;
+            text-align: center;
+            min-width: 110px;
+            flex-shrink: 0;
+        }
+
+        .flow-step .flow-icon {
+            font-size: 1.6rem;
+            margin-bottom: 6px;
+        }
+
+        .flow-step .flow-label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .flow-step .flow-actor {
+            font-size: 0.7rem;
+            color: var(--accent);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .flow-arrow {
+            color: var(--accent);
+            font-size: 1.3rem;
+            padding: 0 6px;
+            flex-shrink: 0;
+        }
+
+        /* ── Section Divider ── */
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 32px 0 20px;
+        }
+
+        .section-divider h3 {
+            font-size: 1.1rem;
+            color: var(--accent);
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .section-divider-line {
+            flex: 1;
+            height: 1px;
+            background: rgba(121, 192, 255, 0.18);
+        }
+
+        /* ── Three-column comparison ── */
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .three-col-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .three-col-card h4 {
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .three-col-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .three-col-card ul {
+            list-style: none;
+            margin-top: 10px;
+        }
+
+        .three-col-card ul li {
+            font-size: 0.83rem;
+            color: var(--text-muted);
+            padding: 4px 0 4px 16px;
+            position: relative;
+        }
+
+        .three-col-card ul li::before {
+            content: '·';
+            position: absolute;
+            left: 4px;
+            color: var(--accent);
+        }
+
+        /* ── Provider badge header cards ── */
+        .provider-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .provider-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 4px;
+        }
+
+        .provider-badge.aws   { background: var(--aws-dim); border: 1px solid var(--aws-border); color: var(--aws); }
+        .provider-badge.azure { background: var(--azure-dim); border: 1px solid var(--azure-border); color: #60b0ff; }
+        .provider-badge.gcp   { background: var(--gcp-dim); border: 1px solid var(--gcp-border); color: #7baaf7; }
+
+        /* ── Review Questions ── */
+        .review-question {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 10px;
+            padding: 20px 22px;
+            margin-bottom: 16px;
+        }
+
+        .review-question .q-text {
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .show-answer-btn {
+            padding: 8px 16px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 6px;
+            color: var(--accent);
+            font-size: 0.83rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .show-answer-btn:hover {
+            background: rgba(121, 192, 255, 0.25);
+        }
+
+        .answer-reveal {
+            display: none;
+            margin-top: 14px;
+            padding: 14px 16px;
+            background: var(--green-dim);
+            border: 1px solid var(--green-border);
+            border-radius: 8px;
+            font-size: 0.88rem;
+            color: var(--text);
+            line-height: 1.65;
+        }
+
+        .answer-reveal.visible {
+            display: block;
+        }
+
+        /* ── Interactive API Trace Lab ── */
+        .trace-lab {
+            background: #010409;
+            border: 1px solid var(--accent-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+
+        .trace-lab-title {
+            font-size: 1rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .trace-lab-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 22px;
+            line-height: 1.55;
+        }
+
+        /* Progress track across the top */
+        .trace-progress {
+            display: flex;
+            gap: 0;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .trace-step-tab {
+            flex: 1;
+            text-align: center;
+            padding: 9px 6px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            background: var(--bg-card2);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-right: 1px solid rgba(255,255,255,0.06);
+            position: relative;
+        }
+
+        .trace-step-tab:last-child { border-right: none; }
+
+        .trace-step-tab.done {
+            color: var(--green);
+            background: rgba(63, 185, 80, 0.06);
+        }
+
+        .trace-step-tab.active {
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        /* Main diagram area */
+        .trace-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            flex-wrap: wrap;
+            margin-bottom: 22px;
+        }
+
+        .trace-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 16px 14px;
+            background: var(--bg-card);
+            border: 2px solid rgba(255,255,255,0.07);
+            border-radius: 10px;
+            min-width: 100px;
+            text-align: center;
+            transition: all 0.35s ease;
+            flex-shrink: 0;
+        }
+
+        .trace-node.node-active {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(121, 192, 255, 0.2);
+            background: var(--accent-dim);
+        }
+
+        .trace-node.node-done {
+            border-color: var(--green-border);
+            background: var(--green-dim);
+        }
+
+        .trace-node-icon {
+            font-size: 1.8rem;
+            line-height: 1;
+        }
+
+        .trace-node-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            line-height: 1.3;
+        }
+
+        .trace-node.node-active .trace-node-label { color: var(--accent); }
+        .trace-node.node-done .trace-node-label   { color: var(--green); }
+
+        .trace-connector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 0 4px;
+            flex-shrink: 0;
+        }
+
+        .trace-arrow-line {
+            width: 32px;
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+            position: relative;
+            transition: background 0.35s ease;
+        }
+
+        .trace-arrow-line.line-active {
+            background: linear-gradient(90deg, var(--green), var(--accent));
+        }
+
+        .trace-arrow-head {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.15);
+            margin-left: 26px;
+            margin-top: -4px;
+            line-height: 1;
+            transition: color 0.35s ease;
+        }
+
+        .trace-arrow-head.head-active {
+            color: var(--accent);
+        }
+
+        .trace-arrow-label {
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+            margin-top: 4px;
+            transition: color 0.35s ease;
+        }
+
+        .trace-arrow-label.label-active {
+            color: var(--accent);
+        }
+
+        /* Detail panel below the diagram */
+        .trace-detail {
+            background: var(--bg-card2);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 18px;
+            min-height: 120px;
+        }
+
+        .trace-detail-header {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .trace-step-num {
+            background: var(--accent);
+            color: #0d1117;
+            font-size: 0.7rem;
+            font-weight: 700;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .trace-detail-body {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.65;
+            margin-bottom: 10px;
+        }
+
+        .trace-detail-code {
+            background: #010409;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: var(--text);
+            line-height: 1.65;
+            word-break: break-all;
+        }
+
+        /* Trace lab nav */
+        .trace-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .trace-nav-btn {
+            padding: 9px 20px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 7px;
+            color: var(--accent);
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .trace-nav-btn:hover { background: rgba(121, 192, 255, 0.25); }
+        .trace-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .trace-nav-btn.primary {
+            background: linear-gradient(135deg, #388bfd, #79c0ff);
+            border: none;
+            color: #0d1117;
+            font-weight: 700;
+        }
+
+        .trace-step-count {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            flex: 1;
+            text-align: center;
+        }
+
+        .trace-reset-btn {
+            padding: 9px 16px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 7px;
+            color: var(--text-dim);
+            font-size: 0.82rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .trace-reset-btn:hover {
+            border-color: var(--red-border);
+            color: var(--red);
+        }
+
+        /* ── Navigation ── */
+        .slide-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 50px;
+            padding-top: 28px;
+            border-top: 1px solid rgba(121, 192, 255, 0.1);
+        }
+
+        .nav-btn {
+            padding: 11px 28px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 8px;
+            color: var(--accent);
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+            font-weight: 500;
+        }
+
+        .nav-btn:hover {
+            background: rgba(121, 192, 255, 0.22);
+            border-color: rgba(121, 192, 255, 0.45);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.primary {
+            background: linear-gradient(135deg, #388bfd, #79c0ff);
+            border: none;
+            color: #0d1117;
+            font-weight: 700;
+        }
+
+        .nav-btn.primary:hover {
+            box-shadow: 0 5px 18px rgba(121, 192, 255, 0.35);
+        }
+
+        .slide-dots {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .slide-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: rgba(121, 192, 255, 0.22);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            border: none;
+        }
+
+        .slide-dot.active {
+            background: var(--accent);
+            transform: scale(1.3);
+        }
+
+        /* ── Completion Box ── */
+        .completion-box {
+            background: linear-gradient(135deg, var(--accent-dim), rgba(56, 139, 253, 0.08));
+            border: 1px solid var(--accent-border);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 28px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .completion-box:hover {
+            background: linear-gradient(135deg, rgba(121, 192, 255, 0.2), rgba(56, 139, 253, 0.12));
+            border-color: rgba(121, 192, 255, 0.5);
+            box-shadow: 0 6px 24px rgba(121, 192, 255, 0.18);
+        }
+
+        .completion-box h3 {
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .completion-box p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .presentation-header {
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px 16px;
+            }
+            .slide-title { font-size: 1.75rem; }
+            .content-grid { grid-template-columns: 1fr; }
+            .three-col { grid-template-columns: 1fr; }
+            .slide-nav { flex-direction: column; gap: 18px; }
+            .flow-diagram { flex-direction: column; align-items: flex-start; }
+            .flow-arrow { transform: rotate(90deg); align-self: center; }
+            .trace-diagram { flex-direction: column; align-items: center; }
+            .trace-connector { flex-direction: row; }
+            .trace-arrow-line { height: 24px; width: 2px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="presentation-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&larr; Back to Cloud House</a>
+            <div class="house-badge">
+                <img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none'">
+                <span>HOUSE OF THE CLOUD &mdash; API SERIES</span>
+            </div>
+        </div>
+        <div class="progress-indicator">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <span class="progress-text" id="progressText">Slide 1 of 15</span>
+        </div>
+    </header>
+
+    <main class="slides-container">
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 1 — Introduction
+        ════════════════════════════════════════════════ -->
+        <section class="slide active" data-slide="1">
+            <p class="module-tag">API Series &mdash; Module 7</p>
+            <h1 class="slide-title">Cloud APIs &mdash; AWS, Azure &amp; GCP Patterns</h1>
+            <p class="slide-subtitle">API gateways, serverless integrations, managed identity, and cross-cloud strategy</p>
+
+            <div class="content-grid">
+                <div class="content-card">
+                    <div class="card-icon"><img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <h2 class="card-title">Three Clouds, One Pattern</h2>
+                    <p class="card-description">AWS, Azure, and GCP each expose their infrastructure through APIs first. Every feature — from compute to AI — is an API call. Understanding the shared patterns unlocks all three platforms at once.</p>
+                </div>
+                <div class="content-card">
+                    <div class="card-icon"><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <h2 class="card-title">Auth Without Passwords</h2>
+                    <p class="card-description">IAM roles, Managed Identities, and Workload Identity Federation eliminate hardcoded credentials entirely. Modern cloud-native auth is identity-based and token-based, not key-based.</p>
+                </div>
+                <div class="content-card">
+                    <div class="card-icon"><img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <h2 class="card-title">Interactive Lab Included</h2>
+                    <p class="card-description">Trace a live API request from browser to database through all seven cloud infrastructure layers &mdash; DNS, CDN, API Gateway, serverless function, auth, and storage &mdash; click by click.</p>
+                </div>
+            </div>
+
+            <div class="key-points">
+                <h4>Learning Objectives</h4>
+                <ul>
+                    <li>Explain why cloud providers expose everything as APIs and what this means for architecture</li>
+                    <li>Compare AWS API Gateway, Azure API Management, and GCP Cloud Endpoints feature sets</li>
+                    <li>Configure Lambda, Azure Functions, and Cloud Run as serverless API backends</li>
+                    <li>Apply IAM roles, Managed Identity, and Workload Identity Federation for passwordless auth</li>
+                    <li>Design an observability strategy using CloudWatch, Azure Monitor, and Cloud Logging</li>
+                    <li>Evaluate when a multi-cloud API strategy adds value versus complexity</li>
+                </ul>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()" disabled>&larr; Previous</button>
+                <div class="slide-dots" id="slideDots"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 2 — Cloud API Landscape
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="2">
+            <p class="module-tag">API-7 &mdash; Foundation</p>
+            <h1 class="slide-title">The Cloud API Landscape</h1>
+            <p class="slide-subtitle">Why cloud providers expose everything as APIs &mdash; and why that matters</p>
+
+            <div class="info-box">
+                <div class="info-box-label">Core Principle</div>
+                <p>Every cloud service is a managed API endpoint. Clicking the console is just a thin UI wrapper around the same REST/gRPC calls your application makes. The console and your code are equal citizens &mdash; both consume the same control plane API.</p>
+            </div>
+
+            <div class="three-col">
+                <div class="three-col-card" style="border-color: rgba(255,153,0,0.25);">
+                    <div class="provider-header">
+                        <span class="provider-badge aws">AWS</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">API Surface</span>
+                    </div>
+                    <p>400+ services, each with its own endpoint signature. The AWS SDK calls <code style="font-size:0.8em;color:var(--accent)">*.amazonaws.com</code> using SigV4 signed requests. IAM governs every call.</p>
+                    <ul>
+                        <li>Control plane: management APIs (create/delete)</li>
+                        <li>Data plane: service APIs (read/write data)</li>
+                        <li>SigV4 signing on every request</li>
+                        <li>Regional + global endpoints</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(0,120,212,0.3);">
+                    <div class="provider-header">
+                        <span class="provider-badge azure">AZURE</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">API Surface</span>
+                    </div>
+                    <p>Azure Resource Manager (ARM) is the universal control plane. All services are ARM resources. REST calls hit <code style="font-size:0.8em;color:var(--accent)">management.azure.com</code> with an OAuth 2.0 bearer token.</p>
+                    <ul>
+                        <li>ARM templates = API calls as JSON</li>
+                        <li>RBAC at every resource scope</li>
+                        <li>Subscription &rarr; Resource Group &rarr; Resource</li>
+                        <li>Azure AD tokens for all auth</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(66,133,244,0.3);">
+                    <div class="provider-header">
+                        <span class="provider-badge gcp">GCP</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">API Surface</span>
+                    </div>
+                    <p>All GCP APIs are hosted on <code style="font-size:0.8em;color:var(--accent)">*.googleapis.com</code>. Google Cloud APIs follow the Google API Design Guide &mdash; resource-oriented, discoverable, and versioned.</p>
+                    <ul>
+                        <li>Resource-oriented design (AIP standards)</li>
+                        <li>gRPC + REST transcoding</li>
+                        <li>OAuth 2.0 + service account tokens</li>
+                        <li>Project &rarr; IAM binding model</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="key-points">
+                <h4>Why API-First Architecture Matters</h4>
+                <ul>
+                    <li>Infrastructure as Code (Terraform, Pulumi) is just structured API calls &mdash; no special protocol</li>
+                    <li>Security events are API call logs &mdash; CloudTrail / Activity Log / Cloud Audit Logs are the source of truth</li>
+                    <li>Rate limits, throttling, and quotas are enforced at the API layer &mdash; know your limits before you hit them</li>
+                    <li>Every console click leaves an audit trail that your security team can see &mdash; there is no "off the books" change</li>
+                </ul>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots2"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 3 — AWS API Gateway
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="3">
+            <p class="module-tag">API-7 &mdash; AWS</p>
+            <h1 class="slide-title">AWS API Gateway</h1>
+            <p class="slide-subtitle">REST APIs, HTTP APIs, and WebSocket APIs &mdash; when to use which</p>
+
+            <div class="three-col">
+                <div class="three-col-card" style="border-color: rgba(255,153,0,0.3);">
+                    <h4 style="color:var(--aws);">REST API</h4>
+                    <p>The original, feature-rich option. Full control over API behavior with request/response transformation, caching, and usage plans.</p>
+                    <ul>
+                        <li>Request validation + model schemas</li>
+                        <li>Response caching (TTL configurable)</li>
+                        <li>Usage plans + API keys</li>
+                        <li>AWS WAF integration</li>
+                        <li>Private APIs (VPC endpoint)</li>
+                        <li>Canary deployments</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(255,153,0,0.3);">
+                    <h4 style="color:var(--aws);">HTTP API</h4>
+                    <p>The modern, lower-latency option. Up to 71% cheaper than REST API. Best for serverless and microservice backends.</p>
+                    <ul>
+                        <li>JWT authorizers (native OIDC)</li>
+                        <li>Lambda proxy integration only</li>
+                        <li>CORS configuration built-in</li>
+                        <li>Automatic deployments</li>
+                        <li>Lower per-request cost</li>
+                        <li>No caching, no WAF</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(255,153,0,0.3);">
+                    <h4 style="color:var(--aws);">WebSocket API</h4>
+                    <p>Persistent bidirectional connections. Ideal for real-time apps: chat, live dashboards, collaborative tools, and push notifications.</p>
+                    <ul>
+                        <li>Route selection expressions</li>
+                        <li>$connect / $disconnect routes</li>
+                        <li>Connection management via @connections API</li>
+                        <li>DynamoDB for connection registry</li>
+                        <li>Per-message Lambda invocations</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="section-divider">
+                <div class="section-divider-line"></div>
+                <h3>Key Configuration Concepts</h3>
+                <div class="section-divider-line"></div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt"># Deploy an HTTP API with Lambda integration using AWS CLI</span>
+aws apigatewayv2 create-api \
+  --name <span class="c-str">"hexworth-api"</span> \
+  --protocol-type <span class="c-str">"HTTP"</span> \
+  --cors-configuration <span class="c-str">'{"AllowOrigins":["https://app.hexworth.io"],"AllowMethods":["GET","POST"]}'</span>
+
+<span class="c-cmt"># Create Lambda integration (proxy mode — event contains full request)</span>
+aws apigatewayv2 create-integration \
+  --api-id <span class="c-val">abc123</span> \
+  --integration-type <span class="c-key">AWS_PROXY</span> \
+  --integration-uri <span class="c-str">"arn:aws:lambda:us-east-1:123456789:function:api-handler"</span> \
+  --payload-format-version <span class="c-str">"2.0"</span>
+            </div>
+
+            <div class="info-box">
+                <div class="info-box-label">REST vs HTTP API Decision Tree</div>
+                <p>Need <strong>caching, WAF, custom domain + ACM, usage plans, or VPC endpoint</strong>? Use REST API. Building a <strong>new serverless microservice or OIDC/JWT-secured API</strong>? HTTP API is faster to deploy and costs less. Need <strong>real-time push</strong>? WebSocket.</p>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots3"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 4 — AWS Lambda Integration
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="4">
+            <p class="module-tag">API-7 &mdash; AWS</p>
+            <h1 class="slide-title">AWS Lambda Integration</h1>
+            <p class="slide-subtitle">API Gateway + Lambda proxy pattern &mdash; the serverless API backbone</p>
+
+            <div class="flow-diagram">
+                <div class="flow-step">
+                    <div class="flow-actor">Client</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-user.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">HTTP Request<br>+ JWT token</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">API GW</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">Authorizer<br>Route match</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">Lambda</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">Handler<br>Business logic</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">Backend</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-database.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">DynamoDB<br>RDS / S3</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">Response</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-checkmark.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">statusCode<br>body / headers</div>
+                </div>
+            </div>
+
+            <div class="section-divider">
+                <div class="section-divider-line"></div>
+                <h3>Lambda Proxy Event (payload v2.0)</h3>
+                <div class="section-divider-line"></div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt">// Lambda receives a structured event — proxy integration passes everything</span>
+<span class="c-key">exports.handler</span> = <span class="c-org">async</span> (event) => {
+  <span class="c-key">const</span> { routeKey, pathParameters, queryStringParameters,
+          requestContext, body, headers } = event;
+
+  <span class="c-cmt">// requestContext.authorizer.jwt.claims contains verified JWT claims</span>
+  <span class="c-key">const</span> userId = event.requestContext.authorizer?.jwt?.claims?.sub;
+
+  <span class="c-key">return</span> {
+    statusCode: <span class="c-val">200</span>,
+    headers: { <span class="c-str">'Content-Type'</span>: <span class="c-str">'application/json'</span> },
+    body: <span class="c-grn">JSON.stringify</span>({ userId, message: <span class="c-str">'success'</span> })
+  };
+};
+            </div>
+
+            <div class="key-points">
+                <h4>Proxy vs. Custom Integration</h4>
+                <ul>
+                    <li><strong>Proxy integration</strong>: API Gateway passes the full request to Lambda as-is. Lambda controls the response shape including status code and headers.</li>
+                    <li><strong>Custom integration</strong>: API Gateway uses VTL mapping templates to transform request/response. Enables response transformation without Lambda code changes.</li>
+                    <li><strong>Cold start latency</strong>: Use provisioned concurrency for latency-sensitive APIs. Typical Lambda cold start: 100-500ms. Provisioned: &lt;1ms.</li>
+                    <li><strong>Timeout ceiling</strong>: API Gateway maximum timeout is 29 seconds. Lambda maximum is 15 minutes &mdash; async patterns required for long jobs.</li>
+                </ul>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots4"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 5 — AWS IAM for APIs
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="5">
+            <p class="module-tag">API-7 &mdash; AWS</p>
+            <h1 class="slide-title">AWS IAM for APIs</h1>
+            <p class="slide-subtitle">IAM roles, resource policies, and Cognito authorizers</p>
+
+            <div class="three-col">
+                <div class="three-col-card" style="border-color: rgba(255,153,0,0.3);">
+                    <h4 style="color:var(--aws);">IAM Authorizer</h4>
+                    <p>Caller signs requests with SigV4 using IAM credentials. API Gateway validates the signature and checks the caller's IAM policies.</p>
+                    <ul>
+                        <li>Machine-to-machine auth</li>
+                        <li>Works with IAM roles (EC2, Lambda, ECS)</li>
+                        <li>No tokens to refresh &mdash; role credentials are auto-rotated</li>
+                        <li>Fine-grained: allow specific methods/resources</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(255,153,0,0.3);">
+                    <h4 style="color:var(--aws);">Cognito Authorizer</h4>
+                    <p>Validates a Cognito User Pool JWT. No Lambda required &mdash; API Gateway validates the token natively, then passes claims to the backend.</p>
+                    <ul>
+                        <li>User-facing apps (web / mobile)</li>
+                        <li>Verifies ID token or access token</li>
+                        <li>Groups map to authorization scopes</li>
+                        <li>Hosted UI for login flow included</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(255,153,0,0.3);">
+                    <h4 style="color:var(--aws);">Lambda Authorizer</h4>
+                    <p>A custom Lambda function handles auth logic. Returns an IAM policy document that API Gateway caches and enforces.</p>
+                    <ul>
+                        <li>Any auth scheme (custom headers, API keys, SAML)</li>
+                        <li>TOKEN type (bearer) or REQUEST type (full context)</li>
+                        <li>Cache policy result for TTL (default 300s)</li>
+                        <li>Return Allow/Deny + context object</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="section-divider">
+                <div class="section-divider-line"></div>
+                <h3>IAM Role Policy for API Execution</h3>
+                <div class="section-divider-line"></div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt">// IAM policy granting a service role permission to invoke specific API endpoints</span>
+{
+  <span class="c-key">"Effect"</span>: <span class="c-str">"Allow"</span>,
+  <span class="c-key">"Action"</span>: <span class="c-str">"execute-api:Invoke"</span>,
+  <span class="c-key">"Resource"</span>: [
+    <span class="c-str">"arn:aws:execute-api:us-east-1:123456789012:abc1def2gh/prod/GET/orders"</span>,
+    <span class="c-str">"arn:aws:execute-api:us-east-1:123456789012:abc1def2gh/prod/POST/orders"</span>
+  ]
+}
+<span class="c-cmt">// Resource format: arn:aws:execute-api:{region}:{account}:{apiId}/{stage}/{method}/{resource}</span>
+            </div>
+
+            <div class="danger-box">
+                <div class="danger-box-label">Security Anti-Pattern</div>
+                <p>Never use IAM access keys (long-term credentials) in application code. Use IAM roles assigned to EC2 instance profiles, Lambda execution roles, or ECS task roles. The SDK retrieves temporary credentials automatically from the instance metadata service.</p>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots5"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 6 — Azure API Management
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="6">
+            <p class="module-tag">API-7 &mdash; Azure</p>
+            <h1 class="slide-title">Azure API Management</h1>
+            <p class="slide-subtitle">Policies, products, subscriptions, and the developer portal</p>
+
+            <div class="info-box">
+                <div class="info-box-label">What APIM Is</div>
+                <p>Azure API Management (APIM) is a fully managed API gateway that sits in front of any backend &mdash; Azure Functions, App Service, on-premises, or third-party. Unlike AWS API Gateway which is function-centric, APIM is built for governing large API portfolios across teams with full lifecycle management.</p>
+            </div>
+
+            <div class="content-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px,1fr));">
+                <div class="content-card">
+                    <div class="card-title" style="color:#60b0ff;">Policies</div>
+                    <p class="card-description">XML-based policy pipeline: inbound (validate, transform, authenticate) &rarr; backend (route, retry, circuit-break) &rarr; outbound (format, cache, rate-limit) &rarr; on-error. Policies compose without code changes to the backend.</p>
+                </div>
+                <div class="content-card">
+                    <div class="card-title" style="color:#60b0ff;">Products</div>
+                    <p class="card-description">A product is a bundle of APIs with a shared subscription key, rate limit, and quota. "Free Tier" and "Enterprise" are different products pointing at the same APIs. Consumers subscribe to products, not raw APIs.</p>
+                </div>
+                <div class="content-card">
+                    <div class="card-title" style="color:#60b0ff;">Developer Portal</div>
+                    <p class="card-description">Auto-generated, customizable documentation site. Developers browse APIs, read specs (OpenAPI), test calls interactively, and obtain subscription keys &mdash; no engineering team effort per API.</p>
+                </div>
+                <div class="content-card">
+                    <div class="card-title" style="color:#60b0ff;">Subscriptions</div>
+                    <p class="card-description">Subscription keys are the primary consumer credential. Each subscription has a primary + secondary key, expiry, scope (product, API, or operation), and usage analytics visible in the portal.</p>
+                </div>
+            </div>
+
+            <div class="section-divider">
+                <div class="section-divider-line"></div>
+                <h3>Policy Example: Rate Limit + JWT Validate</h3>
+                <div class="section-divider-line"></div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt">&lt;!-- inbound policy block -- applied to every request before it reaches the backend --&gt;</span>
+&lt;<span class="c-key">inbound</span>&gt;
+    &lt;<span class="c-key">validate-jwt</span> header-name=<span class="c-str">"Authorization"</span> failed-validation-httpcode=<span class="c-val">"401"</span>&gt;
+        &lt;<span class="c-key">openid-config</span> url=<span class="c-str">"https://login.microsoftonline.com/{tenant}/.well-known/openid-config"</span>/&gt;
+        &lt;<span class="c-key">required-claims</span>&gt;
+            &lt;<span class="c-key">claim</span> name=<span class="c-str">"scp"</span> match=<span class="c-str">"any"</span>&gt;&lt;<span class="c-key">value</span>&gt;api.read&lt;/<span class="c-key">value</span>&gt;&lt;/<span class="c-key">claim</span>&gt;
+        &lt;/<span class="c-key">required-claims</span>&gt;
+    &lt;/<span class="c-key">validate-jwt</span>&gt;
+    &lt;<span class="c-key">rate-limit-by-key</span> calls=<span class="c-val">"100"</span> renewal-period=<span class="c-val">"60"</span>
+        counter-key=<span class="c-str">"@(context.Subscription.Id)"</span>/&gt;
+&lt;/<span class="c-key">inbound</span>&gt;
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots6"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 7 — Azure Functions + APIM Integration
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="7">
+            <p class="module-tag">API-7 &mdash; Azure</p>
+            <h1 class="slide-title">Azure Functions + API Management</h1>
+            <p class="slide-subtitle">Serverless functions as managed API backends</p>
+
+            <div class="flow-diagram">
+                <div class="flow-step">
+                    <div class="flow-actor">Consumer</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-user.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">HTTPS +<br>Subscription Key</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">APIM</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">Policy Pipeline<br>JWT + Rate Limit</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">Function</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">Azure Function<br>HTTP Trigger</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">Backend</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-database.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">Cosmos DB<br>Storage / SQL</div>
+                </div>
+            </div>
+
+            <div class="three-col">
+                <div class="three-col-card">
+                    <h4>Import a Function App</h4>
+                    <p>APIM auto-discovers Function App HTTP triggers. Import creates API operations from all exported functions. Function keys are stored as APIM named values &mdash; never exposed to consumers.</p>
+                </div>
+                <div class="three-col-card">
+                    <h4>Consumption vs. Premium Plan</h4>
+                    <p>APIM Consumption tier matches Functions Consumption billing (per-request). For VNet-integrated backends, use Functions Premium plan + APIM Developer or Premium tier.</p>
+                </div>
+                <div class="three-col-card">
+                    <h4>Managed Identity Auth</h4>
+                    <p>APIM uses its system-assigned Managed Identity to call the Function App. Disable Function API keys entirely &mdash; only APIM's identity can invoke the backend.</p>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt">// Azure Function with HTTP trigger — minimal serverless API handler</span>
+<span class="c-key">const</span> { app } = require(<span class="c-str">'@azure/functions'</span>);
+
+app.<span class="c-grn">http</span>(<span class="c-str">'getOrder'</span>, {
+    methods: [<span class="c-str">'GET'</span>],
+    authLevel: <span class="c-str">'anonymous'</span>, <span class="c-cmt">// auth handled by APIM policy upstream</span>
+    route: <span class="c-str">'orders/{id}'</span>,
+    handler: <span class="c-org">async</span> (request, context) => {
+        <span class="c-key">const</span> orderId = request.params.id;
+        <span class="c-cmt">// Managed Identity credential used to access Cosmos DB</span>
+        <span class="c-key">return</span> { status: <span class="c-val">200</span>, jsonBody: { orderId, status: <span class="c-str">'fulfilled'</span> } };
+    }
+});
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots7"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 8 — Azure Managed Identity
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="8">
+            <p class="module-tag">API-7 &mdash; Azure</p>
+            <h1 class="slide-title">Azure Managed Identity</h1>
+            <p class="slide-subtitle">Passwordless authentication for APIs and Azure services</p>
+
+            <div class="info-box">
+                <div class="info-box-label">The Problem It Solves</div>
+                <p>Application code historically stores connection strings, client secrets, and API keys. Each secret is a breach vector. Managed Identity gives an Azure resource an identity in Azure AD &mdash; the platform handles credential issuance, rotation, and revocation with zero developer involvement.</p>
+            </div>
+
+            <div class="three-col">
+                <div class="three-col-card" style="border-color: rgba(0,120,212,0.3);">
+                    <h4 style="color:#60b0ff;">System-Assigned</h4>
+                    <p>Identity is tied to a single resource. Created and deleted with the resource. Best for single-service, single-target scenarios.</p>
+                    <ul>
+                        <li>1 resource : 1 identity</li>
+                        <li>Lifecycle bound to resource</li>
+                        <li>No sharing between resources</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(0,120,212,0.3);">
+                    <h4 style="color:#60b0ff;">User-Assigned</h4>
+                    <p>Standalone identity resource assigned to multiple compute resources. Best for shared auth across a fleet (e.g., all functions in a solution share one identity).</p>
+                    <ul>
+                        <li>1 identity : many resources</li>
+                        <li>Independent lifecycle</li>
+                        <li>Reusable, preauthorized</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(0,120,212,0.3);">
+                    <h4 style="color:#60b0ff;">Workload Identity</h4>
+                    <p>Extends Managed Identity to non-Azure workloads (GitHub Actions, Kubernetes pods, on-premises). Uses federated identity credentials instead of secrets.</p>
+                    <ul>
+                        <li>OIDC federation, no secrets</li>
+                        <li>GitHub Actions CI/CD auth</li>
+                        <li>AKS pod identity (AAD Workload ID)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="section-divider">
+                <div class="section-divider-line"></div>
+                <h3>Using DefaultAzureCredential (Zero-Config Auth)</h3>
+                <div class="section-divider-line"></div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt">// Works with Managed Identity in Azure, local az CLI credentials in dev</span>
+<span class="c-key">const</span> { DefaultAzureCredential } = require(<span class="c-str">'@azure/identity'</span>);
+<span class="c-key">const</span> { SecretClient }         = require(<span class="c-str">'@azure/keyvault-secrets'</span>);
+<span class="c-key">const</span> { BlobServiceClient }    = require(<span class="c-str">'@azure/storage-blob'</span>);
+
+<span class="c-cmt">// No secrets in code. Credential chain: MI → Azure CLI → env vars → VS Code</span>
+<span class="c-key">const</span> credential = <span class="c-org">new</span> <span class="c-grn">DefaultAzureCredential</span>();
+
+<span class="c-key">const</span> kvClient   = <span class="c-org">new</span> <span class="c-grn">SecretClient</span>(<span class="c-str">'https://hexworth-kv.vault.azure.net'</span>, credential);
+<span class="c-key">const</span> blobClient = <span class="c-grn">BlobServiceClient.fromConnectionString</span>(... ); <span class="c-cmt">// or via credential</span>
+            </div>
+
+            <div class="success-box">
+                <div class="success-box-label">Best Practice</div>
+                <p>Assign the Managed Identity the most restrictive role possible on the narrowest scope. Example: assign <strong>Storage Blob Data Reader</strong> on a single container, not <strong>Contributor</strong> on the storage account. Use Azure RBAC, not access keys, for all storage and Key Vault access.</p>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots8"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 9 — GCP Cloud Endpoints
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="9">
+            <p class="module-tag">API-7 &mdash; GCP</p>
+            <h1 class="slide-title">GCP Cloud Endpoints</h1>
+            <p class="slide-subtitle">OpenAPI-based API management on Google infrastructure</p>
+
+            <div class="info-box">
+                <div class="info-box-label">What Cloud Endpoints Is</div>
+                <p>Cloud Endpoints is GCP's API management layer built on <strong>Extensible Service Proxy (ESP)</strong> &mdash; an open-source, NGINX-based proxy that runs alongside your backend container. Your OpenAPI or gRPC spec is the source of truth for routing, auth, and quotas. Endpoints is config-driven, not GUI-driven.</p>
+            </div>
+
+            <div class="content-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px,1fr));">
+                <div class="content-card">
+                    <div class="card-title" style="color:#7baaf7;">OpenAPI (REST)</div>
+                    <p class="card-description">Deploy an OpenAPI 2.0 spec to Service Management. ESP validates and routes calls matching the spec. Unmatched paths return 404 before hitting your backend.</p>
+                </div>
+                <div class="content-card">
+                    <div class="card-title" style="color:#7baaf7;">gRPC + Transcoding</div>
+                    <p class="card-description">Define services in .proto files. ESP transcodes HTTP/JSON requests to gRPC calls and back. REST clients call gRPC services with zero code changes to the backend.</p>
+                </div>
+                <div class="content-card">
+                    <div class="card-title" style="color:#7baaf7;">Quotas &amp; Limits</div>
+                    <p class="card-description">Per-consumer quotas defined in the service config YAML. Quota violations return 429 with a descriptive error before the request reaches your backend.</p>
+                </div>
+                <div class="content-card">
+                    <div class="card-title" style="color:#7baaf7;">Auth Options</div>
+                    <p class="card-description">API keys for public consumers, Google ID tokens for GCP service accounts, Firebase ID tokens for users, and any OIDC-compatible JWT. Multiple auth methods per operation.</p>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt"># Deploy Cloud Endpoints service config</span>
+gcloud endpoints services deploy openapi.yaml
+
+<span class="c-cmt"># openapi.yaml snippet — x-google-backend routes to Cloud Run</span>
+<span class="c-key">swagger</span>: <span class="c-str">"2.0"</span>
+<span class="c-key">host</span>: <span class="c-str">"api.hexworth-lab.cloud.goog"</span>
+<span class="c-key">x-google-backend</span>:
+  <span class="c-key">address</span>: <span class="c-str">"https://api-handler-abc123-uc.a.run.app"</span>
+<span class="c-key">securityDefinitions</span>:
+  <span class="c-key">google_id_token</span>:
+    <span class="c-key">authorizationUrl</span>: <span class="c-str">""</span>
+    <span class="c-key">flow</span>: <span class="c-str">"implicit"</span>
+    <span class="c-key">type</span>: <span class="c-str">"oauth2"</span>
+    <span class="c-key">x-google-issuer</span>: <span class="c-str">"https://accounts.google.com"</span>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots9"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 10 — GCP Cloud Functions + Cloud Run
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="10">
+            <p class="module-tag">API-7 &mdash; GCP</p>
+            <h1 class="slide-title">GCP Functions &amp; Cloud Run</h1>
+            <p class="slide-subtitle">Two serverless API backends: event-driven functions vs. containerized services</p>
+
+            <div class="three-col">
+                <div class="three-col-card" style="border-color: rgba(66,133,244,0.3);">
+                    <div class="provider-header">
+                        <span class="provider-badge gcp">FUNCTIONS</span>
+                    </div>
+                    <h4 style="color:#7baaf7;">Cloud Functions (2nd gen)</h4>
+                    <p>Runs a single function per deployment. Built on Cloud Run under the hood. HTTP triggers, Pub/Sub, Eventarc, and Firestore triggers supported.</p>
+                    <ul>
+                        <li>Up to 60-min timeout (gen 2)</li>
+                        <li>16GB RAM, 4 vCPU max</li>
+                        <li>Concurrency up to 1000 per instance</li>
+                        <li>Direct VPC connector support</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(66,133,244,0.3);">
+                    <div class="provider-header">
+                        <span class="provider-badge gcp">CLOUD RUN</span>
+                    </div>
+                    <h4 style="color:#7baaf7;">Cloud Run</h4>
+                    <p>Run any container that listens on HTTP. Scales to zero, auto-scales horizontally. Best for REST APIs, full Express/FastAPI apps, and anything needing a custom runtime.</p>
+                    <ul>
+                        <li>Any language, any framework</li>
+                        <li>Deploy from source or image</li>
+                        <li>Traffic splitting for canary releases</li>
+                        <li>Ingress control (all / internal / LB)</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(66,133,244,0.3);">
+                    <div class="provider-header">
+                        <span class="provider-badge gcp">WHEN TO USE</span>
+                    </div>
+                    <h4>Decision Guide</h4>
+                    <p>Choose Functions for event-driven, single-purpose workloads. Choose Cloud Run for REST APIs, custom Docker images, or when you need request-level concurrency control.</p>
+                    <ul>
+                        <li>Functions: Pub/Sub consumer, Firestore trigger</li>
+                        <li>Cloud Run: REST API, ML inference endpoint</li>
+                        <li>Cloud Run Jobs: batch processing, migrations</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt"># Deploy a Cloud Run service from source — builds and runs automatically</span>
+gcloud run deploy api-handler \
+  --source . \
+  --region us-central1 \
+  --no-allow-unauthenticated \       <span class="c-cmt"># IAM-only access (no public)</span>
+  --service-account api-sa@PROJECT.iam.gserviceaccount.com \
+  --set-env-vars PROJECT_ID=hexworth-prod
+
+<span class="c-cmt"># Grant Cloud Endpoints service account permission to invoke the Cloud Run service</span>
+gcloud run services add-iam-policy-binding api-handler \
+  --member=<span class="c-str">"serviceAccount:endpoints-sa@PROJECT.iam.gserviceaccount.com"</span> \
+  --role=<span class="c-str">"roles/run.invoker"</span>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots10"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 11 — GCP Service Accounts & Workload Identity
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="11">
+            <p class="module-tag">API-7 &mdash; GCP</p>
+            <h1 class="slide-title">GCP Service Accounts &amp; Workload Identity</h1>
+            <p class="slide-subtitle">Passwordless auth for GCP APIs and federated external workloads</p>
+
+            <div class="key-points">
+                <h4>Service Account Fundamentals</h4>
+                <ul>
+                    <li>A service account is both a <strong>principal</strong> (something that makes API calls) and a <strong>resource</strong> (something IAM bindings are set on)</li>
+                    <li>Attached to Cloud Run, GKE pods, Cloud Functions &mdash; code gets a token automatically from the metadata server</li>
+                    <li>Service account keys (JSON) are a last resort for non-GCP workloads &mdash; they are long-lived and must be rotated manually</li>
+                    <li>Workload Identity Federation replaces service account keys for external systems (GitHub Actions, AWS, Azure)</li>
+                </ul>
+            </div>
+
+            <div class="section-divider">
+                <div class="section-divider-line"></div>
+                <h3>Workload Identity Federation Pattern</h3>
+                <div class="section-divider-line"></div>
+            </div>
+
+            <div class="flow-diagram">
+                <div class="flow-step">
+                    <div class="flow-actor">GitHub Actions</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-code.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">OIDC Token<br>(GitHub issuer)</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">WIF Pool</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">Validate OIDC<br>Map to SA</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">Security Token</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">Short-lived<br>GCP access token</div>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="flow-actor">GCP API</div>
+                    <div class="flow-icon"><img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.2em;height:1.2em;object-fit:contain"></div>
+                    <div class="flow-label">Authenticated<br>API call</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt"># Configure Workload Identity Pool to trust GitHub Actions OIDC tokens</span>
+gcloud iam workload-identity-pools providers create-oidc github-provider \
+  --location=<span class="c-str">"global"</span> \
+  --workload-identity-pool=<span class="c-str">"github-pool"</span> \
+  --issuer-uri=<span class="c-str">"https://token.actions.githubusercontent.com"</span> \
+  --attribute-mapping=<span class="c-str">"google.subject=assertion.sub,attribute.repository=assertion.repository"</span> \
+  --attribute-condition=<span class="c-str">"attribute.repository == 'hexworth-prime/api-deploy'"</span>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots11"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 12 — Cross-Cloud Comparison Grid
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="12">
+            <p class="module-tag">API-7 &mdash; Comparison</p>
+            <h1 class="slide-title">Cross-Cloud Comparison Grid</h1>
+            <p class="slide-subtitle">Side-by-side feature matrix across AWS, Azure, and GCP</p>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Capability</th>
+                        <th><span class="tag-aws">AWS</span></th>
+                        <th><span class="tag-azure">Azure</span></th>
+                        <th><span class="tag-gcp">GCP</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>API Gateway</strong></td>
+                        <td>API Gateway (REST / HTTP / WebSocket)</td>
+                        <td>API Management (APIM)</td>
+                        <td>Cloud Endpoints / Apigee</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Serverless Compute</strong></td>
+                        <td>Lambda (ZIP or container, 15 min max)</td>
+                        <td>Azure Functions (Consumption / Flex / Premium)</td>
+                        <td>Cloud Functions gen 2 / Cloud Run</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Identity / Auth</strong></td>
+                        <td>IAM roles + Cognito + Lambda Authorizer</td>
+                        <td>Managed Identity + Azure AD + APIM policy</td>
+                        <td>Service Accounts + Workload Identity Federation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Passwordless Service Auth</strong></td>
+                        <td><span class="tag-good">IAM Instance Profile / Execution Role</span></td>
+                        <td><span class="tag-good">System / User-Assigned Managed Identity</span></td>
+                        <td><span class="tag-good">Service Account attached to resource</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>External Workload Auth</strong></td>
+                        <td>IAM Roles Anywhere (OIDC / X.509)</td>
+                        <td>Federated Identity Credential (GitHub, GCP, AWS)</td>
+                        <td>Workload Identity Federation (any OIDC)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>API Monitoring</strong></td>
+                        <td>CloudWatch (metrics, logs, X-Ray traces)</td>
+                        <td>Azure Monitor + Application Insights</td>
+                        <td>Cloud Monitoring + Cloud Trace + Cloud Logging</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Rate Limiting</strong></td>
+                        <td><span class="tag-ok">Usage Plans (REST) / No native (HTTP)</span></td>
+                        <td><span class="tag-good">Policy: rate-limit-by-key per subscription</span></td>
+                        <td><span class="tag-good">Quota per consumer in service config</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Developer Portal</strong></td>
+                        <td><span class="tag-bad">None native (use third-party)</span></td>
+                        <td><span class="tag-good">Built-in, customizable portal</span></td>
+                        <td><span class="tag-ok">Apigee has portal; Endpoints uses docs</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>WebSocket / Streaming</strong></td>
+                        <td><span class="tag-good">WebSocket API native</span></td>
+                        <td><span class="tag-ok">Azure Web PubSub / SignalR Service</span></td>
+                        <td><span class="tag-ok">Cloud Run HTTP/2 streaming or Pub/Sub</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>WAF Integration</strong></td>
+                        <td>AWS WAF (attach to REST API or CloudFront)</td>
+                        <td>Azure Front Door WAF / APIM with WAF policy</td>
+                        <td>Cloud Armor (attach to Load Balancer)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Pricing Model</strong></td>
+                        <td>Per million API calls + data transfer</td>
+                        <td>Per unit (Developer/Basic/Standard/Premium)</td>
+                        <td>Per million API calls (Endpoints free)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots12"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 13 — API Observability
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="13">
+            <p class="module-tag">API-7 &mdash; Observability</p>
+            <h1 class="slide-title">API Observability</h1>
+            <p class="slide-subtitle">CloudWatch, Azure Monitor, and Cloud Logging for API metrics and traces</p>
+
+            <div class="three-col">
+                <div class="three-col-card" style="border-color: rgba(255,153,0,0.3);">
+                    <div class="provider-header">
+                        <span class="provider-badge aws">AWS</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">CloudWatch + X-Ray</span>
+                    </div>
+                    <p>API Gateway automatically logs to CloudWatch. Enable detailed metrics per method for 4xx/5xx rates, latency (p50/p99), and cache hit ratio.</p>
+                    <ul>
+                        <li>Execution logs: full request/response (dev only)</li>
+                        <li>Access logs: custom format (JSON recommended)</li>
+                        <li>X-Ray traces: segment per Lambda invocation</li>
+                        <li>Log Insights: query across log groups</li>
+                        <li>Contributor Insights: identify top callers</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(0,120,212,0.3);">
+                    <div class="provider-header">
+                        <span class="provider-badge azure">AZURE</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">Monitor + App Insights</span>
+                    </div>
+                    <p>APIM emits diagnostic logs and metrics to Azure Monitor. Application Insights gives distributed tracing across APIM + Function App + downstream services.</p>
+                    <ul>
+                        <li>ApiManagementGatewayLogs table in Log Analytics</li>
+                        <li>App Insights: operation map, failures, perf</li>
+                        <li>Availability tests: proactive endpoint checks</li>
+                        <li>Alerts: action groups with email / PagerDuty</li>
+                        <li>Live metrics stream for real-time debugging</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color: rgba(66,133,244,0.3);">
+                    <div class="provider-header">
+                        <span class="provider-badge gcp">GCP</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">Logging + Trace + Monitoring</span>
+                    </div>
+                    <p>Cloud Endpoints writes request logs to Cloud Logging automatically. Cloud Trace provides end-to-end latency analysis. Cloud Monitoring dashboards and alerting policies close the loop.</p>
+                    <ul>
+                        <li>Log Explorer: filter by producer / resource</li>
+                        <li>Cloud Trace: waterfall view per request</li>
+                        <li>Error Reporting: automatic error grouping</li>
+                        <li>SLO monitoring: error budget dashboards</li>
+                        <li>Log-based metrics: extract KPIs from logs</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <div class="info-box-label">The Four Pillars of API Observability</div>
+                <p><strong>Metrics</strong> (rates, latency, error %) &rarr; <strong>Logs</strong> (per-request detail, caller identity) &rarr; <strong>Traces</strong> (cross-service latency breakdown) &rarr; <strong>Alerts</strong> (SLA breach notification). Every cloud platform supports all four &mdash; the difference is in the ergonomics and default instrumentation depth.</p>
+            </div>
+
+            <div class="code-block">
+<span class="c-cmt"># CloudWatch Insights query — API error rate by resource and status code</span>
+fields @timestamp, status, resourcePath, httpMethod, responseLength
+| filter status >= 400
+| stats count(*) as errors by resourcePath, status, httpMethod
+| sort errors desc
+| limit 20
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots13"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 14 — Interactive Lab: API Request Trace
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="14">
+            <p class="module-tag">API-7 &mdash; Interactive Lab</p>
+            <h1 class="slide-title">Lab: Trace an API Request</h1>
+            <p class="slide-subtitle">Click through each layer to follow a request from browser to database and back</p>
+
+            <div class="trace-lab">
+                <div class="trace-lab-title">API Request Path Visualizer</div>
+                <div class="trace-lab-desc">A user clicks "Place Order" in a web app. Below is the full path that request takes through cloud infrastructure. Step through each hop to see what happens at each layer, the data exchanged, and the latency contribution.</div>
+
+                <!-- Progress tabs -->
+                <div class="trace-progress" id="traceProgress"></div>
+
+                <!-- Node diagram -->
+                <div class="trace-diagram" id="traceDiagram">
+                    <!-- Nodes injected by JS -->
+                </div>
+
+                <!-- Detail panel -->
+                <div class="trace-detail" id="traceDetail">
+                    <div class="trace-detail-header">
+                        <div class="trace-step-num" id="traceStepNum">1</div>
+                        <span id="traceDetailTitle">Click "Next Hop" to begin the trace</span>
+                    </div>
+                    <div class="trace-detail-body" id="traceDetailBody">
+                        Follow the request from the browser through DNS, CDN, API Gateway, the serverless function, auth validation, and the database &mdash; then back to the client. Each step shows the actual data in transit.
+                    </div>
+                    <div class="trace-detail-code" id="traceDetailCode" style="display:none;"></div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="trace-nav">
+                    <button class="trace-nav-btn" id="tracePrevBtn" onclick="tracePrev()" disabled>&larr; Prev Hop</button>
+                    <span class="trace-step-count" id="traceStepCount">Step 1 of 8</span>
+                    <button class="trace-nav-btn primary" id="traceNextBtn" onclick="traceNext()">Next Hop &rarr;</button>
+                    <button class="trace-reset-btn" onclick="traceReset()">Reset</button>
+                </div>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots14"></div>
+                <button class="nav-btn" onclick="nextSlide()">Next &rarr;</button>
+            </nav>
+        </section>
+
+
+        <!-- ═══════════════════════════════════════════════
+             SLIDE 15 — Multi-Cloud + Review Questions
+        ════════════════════════════════════════════════ -->
+        <section class="slide" data-slide="15">
+            <p class="module-tag">API-7 &mdash; Strategy &amp; Review</p>
+            <h1 class="slide-title">Multi-Cloud API Strategy &amp; Review</h1>
+            <p class="slide-subtitle">When multi-cloud adds value &mdash; then test your knowledge</p>
+
+            <div class="three-col" style="margin-bottom:32px;">
+                <div class="three-col-card" style="border-color:rgba(63,185,80,0.2);">
+                    <h4 style="color:var(--green);">When It Makes Sense</h4>
+                    <ul>
+                        <li>Best-of-breed services per workload (GCP AI + AWS gateway)</li>
+                        <li>Regulatory geo-isolation requirements</li>
+                        <li>Avoiding vendor lock-in for core data plane</li>
+                        <li>Acquired company runs a different cloud</li>
+                        <li>DR: active-active across providers</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color:rgba(248,81,73,0.2);">
+                    <h4 style="color:var(--red);">When It Adds Complexity</h4>
+                    <ul>
+                        <li>Two IAM models, two secrets managers, two networks to secure</li>
+                        <li>Cross-cloud latency (egress costs + RTT)</li>
+                        <li>Skills gap: team must know all three platforms</li>
+                        <li>Observability fragmented across dashboards</li>
+                        <li>Early-stage: premature optimization kills velocity</li>
+                    </ul>
+                </div>
+                <div class="three-col-card" style="border-color:rgba(121,192,255,0.2);">
+                    <h4 style="color:var(--accent);">The Neutral Abstraction Play</h4>
+                    <ul>
+                        <li>Kubernetes + Istio service mesh: same API surface, any cloud</li>
+                        <li>Terraform: provider-agnostic infra as code</li>
+                        <li>Kong / Gravitee: cloud-neutral API gateway layer</li>
+                        <li>OpenTelemetry: vendor-neutral observability pipeline</li>
+                        <li>Cost: abstraction layers add operational overhead</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="section-divider">
+                <div class="section-divider-line"></div>
+                <h3>Review Questions</h3>
+                <div class="section-divider-line"></div>
+            </div>
+
+            <div class="review-question">
+                <div class="q-text">1. You need to expose a Lambda function as a REST API with response caching and AWS WAF integration. Which API Gateway type should you choose and why?</div>
+                <button class="show-answer-btn" onclick="toggleAnswer('a1')">Show Answer</button>
+                <div class="answer-reveal" id="a1">REST API (not HTTP API). HTTP API does not support response caching or WAF attachment. REST API supports both, plus usage plans, custom authorizers, and model schema validation. The trade-off is higher per-call cost and more complex configuration.</div>
+            </div>
+
+            <div class="review-question">
+                <div class="q-text">2. An Azure Function App needs to read secrets from Key Vault and write blobs to Storage Account without any credentials in the application code. What is the correct approach?</div>
+                <button class="show-answer-btn" onclick="toggleAnswer('a2')">Show Answer</button>
+                <div class="answer-reveal" id="a2">Enable a system-assigned (or user-assigned) Managed Identity on the Function App. Assign the identity the <strong>Key Vault Secrets User</strong> role on the Key Vault and the <strong>Storage Blob Data Contributor</strong> role on the Storage Account (or a specific container). Use DefaultAzureCredential in the application code &mdash; it automatically retrieves a token from the Managed Identity endpoint at runtime.</div>
+            </div>
+
+            <div class="review-question">
+                <div class="q-text">3. A GitHub Actions workflow needs to deploy to GCP Cloud Run without storing a service account JSON key file in the repository. What mechanism enables this?</div>
+                <button class="show-answer-btn" onclick="toggleAnswer('a3')">Show Answer</button>
+                <div class="answer-reveal" id="a3">Workload Identity Federation. Configure a GCP Workload Identity Pool with a GitHub OIDC provider. GitHub Actions emits a short-lived OIDC token signed by GitHub. GCP Security Token Service validates the token against the pool configuration and exchanges it for a short-lived GCP access token scoped to a service account. No long-lived JSON keys are ever created or stored.</div>
+            </div>
+
+            <div class="review-question">
+                <div class="q-text">4. You are designing the rate limiting strategy for an APIM-fronted API. Consumers subscribe to either a "Free" or "Pro" product. How do you enforce different limits per product?</div>
+                <button class="show-answer-btn" onclick="toggleAnswer('a4')">Show Answer</button>
+                <div class="answer-reveal" id="a4">Define separate Products in APIM ("Free" and "Pro"). Apply product-scoped inbound policies using the <code>rate-limit-by-key</code> policy with <code>counter-key="@(context.Subscription.Id)"</code>. The Free product policy sets a lower call count and renewal period (e.g., 100 calls/minute). The Pro product policy sets a higher limit. Consumers subscribe to the appropriate product and receive the matching key &mdash; the policy evaluates their subscription ID on every request.</div>
+            </div>
+
+            <div class="review-question">
+                <div class="q-text">5. For a production API, name the three observability signals you should instrument and one specific tool per signal across any cloud provider.</div>
+                <button class="show-answer-btn" onclick="toggleAnswer('a5')">Show Answer</button>
+                <div class="answer-reveal" id="a5"><strong>Metrics</strong>: error rate, latency (p99), request rate &mdash; CloudWatch Metrics / Azure Monitor / Cloud Monitoring. <strong>Logs</strong>: structured per-request logs with caller ID and response code &mdash; CloudWatch Logs / Log Analytics / Cloud Logging. <strong>Traces</strong>: distributed trace showing time spent in each service &mdash; AWS X-Ray / Application Insights / Cloud Trace. Alerts close the loop by triggering on metric thresholds or log-based conditions.</div>
+            </div>
+
+            <div class="completion-box" onclick="markComplete()">
+                <h3>Module Complete</h3>
+                <p>You have covered AWS API Gateway, Lambda integration, IAM roles and authorizers, Azure APIM, Functions, Managed Identity, GCP Cloud Endpoints, Cloud Run, Workload Identity Federation, the cross-cloud comparison grid, API observability, and multi-cloud strategy.<br><br>Click to mark API-7 complete and record your progress.</p>
+            </div>
+
+            <nav class="slide-nav">
+                <button class="nav-btn" onclick="prevSlide()">&larr; Previous</button>
+                <div class="slide-dots" id="slideDots15"></div>
+                <button class="nav-btn" disabled>Finished</button>
+            </nav>
+        </section>
+
+    </main>
+
+    <script>
+    /* ── Slide Engine ── */
+    const TOTAL_SLIDES = 15;
+    let currentSlide  = 1;
+
+    /* Build dot navigators on first render */
+    function buildDots() {
+        document.querySelectorAll('[id^="slideDots"]').forEach(container => {
+            container.innerHTML = '';
+            for (let i = 1; i <= TOTAL_SLIDES; i++) {
+                const btn = document.createElement('button');
+                btn.className  = 'slide-dot' + (i === currentSlide ? ' active' : '');
+                btn.title      = 'Go to slide ' + i;
+                btn.setAttribute('aria-label', 'Slide ' + i);
+                btn.onclick    = () => goToSlide(i);
+                container.appendChild(btn);
+            }
+        });
+    }
+
+    /* Update header progress bar and all dot sets */
+    function updateProgress() {
+        const pct  = Math.round((currentSlide / TOTAL_SLIDES) * 100);
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressText').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.querySelectorAll('[id^="slideDots"]').forEach(container => {
+            container.querySelectorAll('.slide-dot').forEach((dot, idx) => {
+                dot.classList.toggle('active', idx + 1 === currentSlide);
+            });
+        });
+    }
+
+    function showSlide(n) {
+        document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+        const target = document.querySelector('[data-slide="' + n + '"]');
+        if (target) { target.classList.add('active'); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        updateProgress();
+    }
+
+    function goToSlide(n) {
+        currentSlide = Math.max(1, Math.min(TOTAL_SLIDES, n));
+        showSlide(currentSlide);
+    }
+
+    function nextSlide() { goToSlide(currentSlide + 1); }
+    function prevSlide() { goToSlide(currentSlide - 1); }
+
+    /* Keyboard navigation — left/right arrows */
+    document.addEventListener('keydown', e => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  nextSlide();
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    prevSlide();
+    });
+
+    /* ── Review Question Toggle ── */
+    function toggleAnswer(id) {
+        const el  = document.getElementById(id);
+        const btn = el.previousElementSibling;
+        const open = el.classList.toggle('visible');
+        btn.textContent = open ? 'Hide Answer' : 'Show Answer';
+    }
+
+    /* ── Module Completion ── */
+    function markComplete() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'cloud-api-007');
+        }
+        const box = document.querySelector('.completion-box');
+        box.style.borderColor = 'rgba(63, 185, 80, 0.6)';
+        box.style.background  = 'linear-gradient(135deg, rgba(63,185,80,0.1), rgba(63,185,80,0.05))';
+        box.querySelector('h3').textContent      = 'Progress Saved';
+        box.querySelector('h3').style.color      = 'var(--green)';
+        box.querySelector('p').textContent       = 'API-7 marked complete. Your progress has been recorded.';
+        box.style.cursor = 'default';
+        box.onclick      = null;
+    }
+
+    /* ═══════════════════════════════════════════════
+       Interactive Lab: API Request Trace
+    ════════════════════════════════════════════════ */
+    const TRACE_STEPS = [
+        {
+            label:   'Browser',
+            icon:    'icon-user.webp',
+            title:   'Step 1 — Browser: User Initiates Request',
+            body:    'The user clicks "Place Order." The browser\'s JavaScript calls fetch() targeting the API endpoint. HTTPS is used — the browser performs a TLS handshake (1-RTT with TLS 1.3) and sends the request with an Authorization header containing the user\'s JWT.',
+            code:    'fetch("https://api.hexworth-lab.io/orders", {\n  method: "POST",\n  headers: {\n    "Authorization": "Bearer eyJhbGciOiJSUzI1NiJ9...",\n    "Content-Type": "application/json"\n  },\n  body: JSON.stringify({ item: "lab-kit-v3", qty: 1 })\n});',
+            latency: '0 ms (origin)'
+        },
+        {
+            label:   'DNS',
+            icon:    'icon-network.webp',
+            title:   'Step 2 — DNS: Resolve api.hexworth-lab.io',
+            body:    'The browser queries its DNS resolver. The domain is an alias (CNAME) to CloudFront (AWS) or Azure Front Door. The CDN\'s IP is returned — typically < 5ms from a recursive resolver. DNS TTL is 60s so repeat requests skip this step.',
+            code:    '; DNS lookup result\napi.hexworth-lab.io. 60  IN  CNAME  d1abc.cloudfront.net.\nd1abc.cloudfront.net. 60  IN  A     18.244.11.3\n\n; Resolved in ~4ms (cached resolver hit)',
+            latency: '~4 ms'
+        },
+        {
+            label:   'CDN',
+            icon:    'icon-cloud.webp',
+            title:   'Step 3 — CDN: Cache Check at the Edge',
+            body:    'The request arrives at a CDN edge POP (Point of Presence) geographically close to the user. The CDN checks its cache — POST requests are not cacheable, so this is a cache MISS. The CDN forwards the request to the API Gateway origin. For GET requests, a cached response would return here with ~1ms latency.',
+            code:    'X-Cache: Miss from cloudfront\nVia: 1.1 abc123.cloudfront.net (CloudFront)\nX-Amz-Cf-Pop: MIA50-P2\nX-Forwarded-For: 98.12.34.56, 130.176.11.8\n\n; POST — forwarding to API Gateway origin',
+            latency: '+8 ms'
+        },
+        {
+            label:   'API Gateway',
+            icon:    'icon-shield.webp',
+            title:   'Step 4 — API Gateway: Route, Authorize, Throttle',
+            body:    'API Gateway receives the request. It matches the route POST /orders to the configured integration. Before invoking the backend, it validates the JWT (Cognito/OIDC authorizer): checks signature, issuer, expiry, and required scopes. It also checks the rate limit counter for this subscription. All checks pass.',
+            code:    '// API Gateway validates the JWT natively (HTTP API with JWT authorizer)\n// Claims extracted and forwarded to Lambda as event.requestContext.authorizer.jwt.claims\n{\n  "sub":   "user-8f3a2b",\n  "email": "student@hexworth.io",\n  "scope": "orders:write",\n  "exp":   1775000000  // not expired\n}\n// Rate check: 23/100 calls used this minute — OK\n// Invoking Lambda: arn:aws:lambda:us-east-1:...:function:order-handler',
+            latency: '+12 ms'
+        },
+        {
+            label:   'Lambda',
+            icon:    'icon-lightning.webp',
+            title:   'Step 5 — Lambda: Business Logic Executes',
+            body:    'The Lambda function receives the proxy event. It validates the order payload (item exists, qty > 0, user account active). It uses the Lambda execution role — an IAM role assigned to this function — to authenticate to downstream services. No credentials in code. The function calls DynamoDB and publishes a fulfillment event to SQS.',
+            code:    'exports.handler = async (event) => {\n  const { sub } = event.requestContext.authorizer.jwt.claims;\n  const body = JSON.parse(event.body);\n\n  // DynamoDB call uses execution role credentials (auto from env)\n  await dynamoDB.put({ TableName: "orders", Item: {\n    orderId: uuid(), userId: sub, ...body, status: "pending"\n  }}).promise();\n\n  // Publish to SQS for async fulfillment\n  await sqs.sendMessage({ QueueUrl: FULFILLMENT_QUEUE, MessageBody: ... }).promise();\n\n  return { statusCode: 201, body: JSON.stringify({ orderId, status: "accepted" }) };\n};',
+            latency: '+22 ms'
+        },
+        {
+            label:   'Database',
+            icon:    'icon-database.webp',
+            title:   'Step 6 — Database: Durable Write to DynamoDB',
+            body:    'DynamoDB receives the PutItem call authenticated by the Lambda execution role\'s SigV4-signed request. The item is written to the primary shard and replicated to two additional AZs before acknowledging success (strong consistency option). The write capacity unit is consumed from the provisioned throughput allocation.',
+            code:    '// DynamoDB response\n{\n  "ConsumedCapacity": {\n    "TableName": "orders",\n    "CapacityUnits": 1.0,\n    "WriteCapacityUnits": 1.0\n  }\n}\n// Item durably written across 3 AZs in us-east-1\n// SQS message queued for async fulfillment worker',
+            latency: '+6 ms'
+        },
+        {
+            label:   'Response',
+            icon:    'icon-checkmark.webp',
+            title:   'Step 7 — Response: API Gateway Returns 201',
+            body:    'Lambda returns the response object to API Gateway. API Gateway maps it to an HTTP response, adds CORS headers (allowed by CORS configuration on the API), and sends it back through the CDN to the client. The CDN adds cache-control headers but does not cache (POST response).',
+            code:    'HTTP/2 201 Created\nContent-Type: application/json\nAccess-Control-Allow-Origin: https://app.hexworth.io\nX-Cache: Miss from cloudfront\nX-Amz-RequestId: abc-123-def-456\n\n{"orderId": "ord-8f3a-2b4c", "status": "accepted"}',
+            latency: '+3 ms'
+        },
+        {
+            label:   'Browser',
+            icon:    'icon-user.webp',
+            title:   'Step 8 — Browser: Render Confirmation',
+            body:    'The browser receives the 201 response. The JavaScript promise resolves, the UI updates to show the order confirmation, and the user sees "Order placed successfully." Total round-trip time from click to confirmation: approximately 55ms — well within the 100ms perception threshold for instantaneous feedback.',
+            code:    '// Browser JS handles the resolved fetch promise\nconst { orderId, status } = await response.json();\nshowConfirmation({ orderId, status });\n\n// Total RTT breakdown:\n//  DNS:         4ms\n//  CDN edge:    8ms\n//  API Gateway: 12ms\n//  Lambda:      22ms (includes DynamoDB 6ms)\n//  Response:    3ms + network return\n// ─────────────────\n//  Total:       ~55ms',
+            latency: 'Total ~55 ms'
+        }
+    ];
+
+    const NODES = [
+        { id: 'node-browser',  label: 'Browser',     icon: 'icon-user.webp' },
+        { id: 'node-dns',      label: 'DNS',          icon: 'icon-network.webp' },
+        { id: 'node-cdn',      label: 'CDN Edge',     icon: 'icon-cloud.webp' },
+        { id: 'node-apigw',    label: 'API Gateway',  icon: 'icon-shield.webp' },
+        { id: 'node-lambda',   label: 'Lambda',       icon: 'icon-lightning.webp' },
+        { id: 'node-db',       label: 'Database',     icon: 'icon-database.webp' },
+        { id: 'node-response', label: 'Response',     icon: 'icon-checkmark.webp' },
+        { id: 'node-client',   label: 'Browser',      icon: 'icon-user.webp' }
+    ];
+
+    /* Node-to-step mapping: which step activates which node (0-indexed) */
+    const NODE_STEP_MAP = [0, 1, 2, 3, 4, 5, 6, 7];
+
+    let traceStep = 0; // 0-indexed current step
+
+    /* Build the trace diagram nodes and connectors */
+    function buildTraceDiagram() {
+        const diagram = document.getElementById('traceDiagram');
+        diagram.innerHTML = '';
+
+        NODES.forEach((node, idx) => {
+            /* Node element */
+            const el = document.createElement('div');
+            el.className  = 'trace-node';
+            el.id         = node.id;
+            el.innerHTML  =
+                '<div class="trace-node-icon"><img src="/assets/images/icons/' + node.icon + '" ' +
+                'alt="" style="width:1.5em;height:1.5em;object-fit:contain;" onerror="this.style.display=\'none\'"></div>' +
+                '<div class="trace-node-label">' + node.label + '</div>';
+            diagram.appendChild(el);
+
+            /* Connector between nodes (not after last) */
+            if (idx < NODES.length - 1) {
+                const conn = document.createElement('div');
+                conn.className = 'trace-connector';
+                conn.id        = 'conn-' + idx;
+                conn.innerHTML =
+                    '<div class="trace-arrow-line" id="line-' + idx + '"></div>' +
+                    '<div class="trace-arrow-head" id="head-' + idx + '">&rsaquo;</div>' +
+                    '<div class="trace-arrow-label" id="lbl-' + idx + '">&nbsp;</div>';
+                diagram.appendChild(conn);
+            }
+        });
+    }
+
+    /* Build the step-progress tab bar */
+    function buildTraceTabs() {
+        const bar = document.getElementById('traceProgress');
+        bar.innerHTML = '';
+        TRACE_STEPS.forEach((step, idx) => {
+            const tab = document.createElement('div');
+            tab.className   = 'trace-step-tab';
+            tab.textContent = step.label;
+            tab.id          = 'tab-' + idx;
+            bar.appendChild(tab);
+        });
+    }
+
+    /* Apply the visual state for a given step index */
+    function applyTraceState() {
+        const step = TRACE_STEPS[traceStep];
+
+        /* Update tabs */
+        TRACE_STEPS.forEach((_, idx) => {
+            const tab = document.getElementById('tab-' + idx);
+            tab.className = 'trace-step-tab' +
+                (idx < traceStep  ? ' done'   : '') +
+                (idx === traceStep ? ' active' : '');
+        });
+
+        /* Update nodes */
+        NODES.forEach((node, idx) => {
+            const el = document.getElementById(node.id);
+            if (!el) { return; }
+            el.classList.remove('node-active', 'node-done');
+            if (NODE_STEP_MAP[idx] < traceStep)  { el.classList.add('node-done'); }
+            if (NODE_STEP_MAP[idx] === traceStep) { el.classList.add('node-active'); }
+        });
+
+        /* Update connectors */
+        for (let i = 0; i < NODES.length - 1; i++) {
+            const line = document.getElementById('line-' + i);
+            const head = document.getElementById('head-' + i);
+            const lbl  = document.getElementById('lbl-'  + i);
+            if (!line) { continue; }
+            const active = i < traceStep;
+            line.className = 'trace-arrow-line' + (active ? ' line-active' : '');
+            head.className = 'trace-arrow-head'  + (active ? ' head-active' : '');
+            lbl.className  = 'trace-arrow-label' + (active ? ' label-active' : '');
+            lbl.textContent = active ? TRACE_STEPS[i].latency : '\u00a0';
+        }
+
+        /* Update detail panel */
+        document.getElementById('traceStepNum').textContent      = traceStep + 1;
+        document.getElementById('traceDetailTitle').textContent  = step.title;
+        document.getElementById('traceDetailBody').textContent   = step.body;
+
+        const codeEl = document.getElementById('traceDetailCode');
+        if (step.code) {
+            codeEl.textContent = step.code;
+            codeEl.style.display = 'block';
+        } else {
+            codeEl.style.display = 'none';
+        }
+
+        /* Update nav */
+        document.getElementById('traceStepCount').textContent =
+            'Step ' + (traceStep + 1) + ' of ' + TRACE_STEPS.length;
+        document.getElementById('tracePrevBtn').disabled = (traceStep === 0);
+        document.getElementById('traceNextBtn').disabled = (traceStep === TRACE_STEPS.length - 1);
+        if (traceStep === TRACE_STEPS.length - 1) {
+            document.getElementById('traceNextBtn').textContent = 'Complete';
+        } else {
+            document.getElementById('traceNextBtn').textContent = 'Next Hop \u2192';
+        }
+    }
+
+    function traceNext()  { if (traceStep < TRACE_STEPS.length - 1) { traceStep++; applyTraceState(); } }
+    function tracePrev()  { if (traceStep > 0)                       { traceStep--; applyTraceState(); } }
+    function traceReset() { traceStep = 0; applyTraceState(); }
+
+    /* ── Bootstrap ── */
+    buildDots();
+    updateProgress();
+    buildTraceDiagram();
+    buildTraceTabs();
+    applyTraceState();
+    </script>
+
+</body>
+</html>
