@@ -346,7 +346,18 @@ code{background:rgba(34,197,94,0.1);color:var(--sa);padding:1px 6px;border-radiu
     </div>
     <div class="exercise-body" id="body-ex5">
       <div class="scenario"><strong>SCENARIO</strong>You start a long-running task but need your terminal back. Linux job control lets you push processes to the background, bring them forward, and keep them alive after logout.</div>
-      <p style="color:var(--ts);font-size:0.9rem;margin-bottom:0.75rem;">Follow the job control workflow below in the simulated terminal.</p>
+      <p style="color:var(--ts);font-size:0.9rem;margin-bottom:0.75rem;">Follow the 7-step job control workflow in the simulated terminal.</p>
+
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.82rem;line-height:1.8;">
+        <strong style="color:var(--sg);font-size:0.7rem;letter-spacing:0.08em;display:block;margin-bottom:0.25rem;">WORKFLOW (follow in order)</strong>
+        <span id="t5-step-1" style="color:var(--sg);">1. <code>sleep 100 &</code> — start a background job</span><br>
+        <span id="t5-step-2" style="color:var(--ts);">2. <code>jobs</code> — verify it is running</span><br>
+        <span id="t5-step-3" style="color:var(--ts);">3. <code>fg %1</code> — bring it to the foreground</span><br>
+        <span id="t5-step-4" style="color:var(--ts);">4. <code>Ctrl+Z</code> — suspend the foreground process (type ctrl+z)</span><br>
+        <span id="t5-step-5" style="color:var(--ts);">5. <code>bg %1</code> — resume it in the background</span><br>
+        <span id="t5-step-6" style="color:var(--ts);">6. <code>disown %1</code> — detach job from the shell</span><br>
+        <span id="t5-step-7" style="color:var(--ts);">7. <code>nohup sleep 200 &</code> — start a new hangup-immune process</span>
+      </div>
 
       <div class="terminal-wrap">
         <div class="term-bar">
@@ -359,7 +370,7 @@ code{background:rgba(34,197,94,0.1);color:var(--sa);padding:1px 6px;border-radiu
           <div class="term-output" id="t5-display"></div>
           <div class="term-input-row">
             <span class="term-prompt">student@hexworth:~$</span>
-            <input class="term-input" id="t5-input" type="text" autocomplete="off" spellcheck="false" placeholder="start with: sleep 100 &amp;">
+            <input class="term-input" id="t5-input" type="text" autocomplete="off" spellcheck="false" placeholder="step 1: sleep 100 &amp;">
           </div>
           <div class="term-hint" id="t5-hint">Hint: type <strong>sleep 100 &amp;</strong> to start a background job.</div>
           <div class="term-feedback" id="t5-fb"></div>
@@ -714,61 +725,117 @@ document.getElementById('t4-input').addEventListener('keydown', function(e) {
 });
 
 // ── Exercise 5: Job Control ──────────────────────────────────────
-var t5State = 'idle'; // idle, bg_running, suspended, done
+// States: idle → bg_running → fg_running → suspended → bg_resumed → disowned → done
+var t5Step = 0;       // current step (0-based, 7 steps total)
 var t5Attempts = 0;
 var t5Resolved = false;
-var t5Steps = 0; // track steps completed
+
+var T5_STEPS = [
+  { expect: ['sleep 100 &','sleep 100&'],
+    output: '$ sleep 100 &\n[1] 5512\n',
+    feedback: 'Job 1 started in the background (PID 5512). Now type: jobs',
+    next: 'bg_running', hint: 'sleep 100 &amp;' },
+  { expect: ['jobs'],
+    output: '$ jobs\n[1]+  Running                 sleep 100 &\n',
+    feedback: 'Job 1 is running in the background. Bring it forward: fg %1',
+    next: 'fg_check', hint: 'jobs' },
+  { expect: ['fg %1','fg'],
+    output: '$ fg %1\nsleep 100\n<span class="t-dim">(process is now in the foreground — your terminal is blocked)</span>\n',
+    feedback: 'sleep 100 is now blocking your terminal. Suspend it with Ctrl+Z (type: ctrl+z)',
+    next: 'fg_running', hint: 'fg %1' },
+  { expect: ['ctrl+z','ctrl-z','^z','ctrl z'],
+    output: '<span class="t-yellow">^Z</span>\n[1]+  Stopped                 sleep 100\n',
+    feedback: 'Process suspended (SIGTSTP). It is paused, not killed. Resume it in the background: bg %1',
+    next: 'suspended', hint: 'ctrl+z' },
+  { expect: ['bg %1','bg'],
+    output: '$ bg %1\n[1]+ sleep 100 &\n',
+    feedback: 'Job resumed in background. Now detach it from the shell: disown %1',
+    next: 'bg_resumed', hint: 'bg %1' },
+  { expect: ['disown %1','disown'],
+    output: '$ disown %1\n<span class="t-dim">(job removed from shell job table — survives shell exit)</span>\n',
+    feedback: 'Job disowned. Even if you close this terminal, PID 5512 keeps running. Last step: nohup sleep 200 &',
+    next: 'disowned', hint: 'disown %1' },
+  { expect: null, // matches any nohup command
+    test: function(low) { return low.startsWith('nohup ') && low.endsWith('&'); },
+    output: null, // built dynamically
+    feedback: 'nohup starts a process that ignores SIGHUP (logout signal). Output goes to nohup.out. Exercise complete!',
+    next: 'done', hint: 'nohup sleep 200 &amp;' }
+];
+
+function t5Highlight(stepIdx) {
+  for (var i = 0; i < T5_STEPS.length; i++) {
+    var el = document.getElementById('t5-step-' + (i + 1));
+    if (el) el.style.color = (i === stepIdx) ? 'var(--sg)' : (i < stepIdx) ? 'var(--ok)' : 'var(--ts)';
+  }
+}
+
+t5Highlight(0);
 
 document.getElementById('t5-input').addEventListener('keydown', function(e) {
   if (e.key !== 'Enter') return;
   var cmd = this.value.trim();
   this.value = '';
-  if (t5Resolved) return;
+  if (t5Resolved || !cmd) return;
 
   var low = cmd.toLowerCase().replace(/\s+/g,' ');
   var disp = document.getElementById('t5-display');
+  var step = T5_STEPS[t5Step];
 
-  if ((low === 'sleep 100 &' || low === 'sleep 100&') && t5State === 'idle') {
-    t5State = 'bg_running';
-    t5Steps++;
-    disp.innerHTML += '$ ' + cmd + '\n[1] 5512\n';
-    showFeedback('t5-fb', 'Job 1 started in the background (PID 5512). Try: jobs', 'ok');
-  } else if (low === 'jobs') {
-    if (t5State === 'idle') {
-      disp.innerHTML += '$ jobs\n(no jobs)\n';
-      showFeedback('t5-fb', 'No jobs yet. Start one with: sleep 100 &', 'ok');
-    } else if (t5State === 'bg_running') {
-      disp.innerHTML += '$ jobs\n[1]+  Running    sleep 100 &\n';
-      showFeedback('t5-fb', 'Job 1 is running in the background. Try: fg %1', 'ok');
-    } else if (t5State === 'suspended') {
-      disp.innerHTML += '$ jobs\n[1]+  Stopped    sleep 100\n';
-      showFeedback('t5-fb', 'Job 1 is suspended (Ctrl+Z). Use bg %1 to resume in background.', 'ok');
+  // Check if this command matches the current step
+  var match = false;
+  if (step.expect) {
+    for (var i = 0; i < step.expect.length; i++) {
+      if (low === step.expect[i]) { match = true; break; }
     }
-  } else if (low === 'fg %1' || low === 'fg') {
-    if (t5State === 'bg_running') {
-      t5Steps++;
-      t5State = 'suspended'; // user will ctrl+z
-      disp.innerHTML += '$ ' + cmd + '\nsleep 100\n<span class="t-yellow">^Z</span>\n[1]+  Stopped    sleep 100\n';
-      showFeedback('t5-fb', 'Brought to foreground then suspended (Ctrl+Z simulated). Now run: bg %1', 'ok');
+  } else if (step.test) {
+    match = step.test(low);
+  }
+
+  if (match) {
+    // Step matched — show output and advance
+    if (step.output) {
+      disp.innerHTML += step.output;
     } else {
-      disp.innerHTML += '$ ' + cmd + '\n<span class="t-dim">bash: fg: %1: no such job</span>\n';
-      showFeedback('t5-fb', 'No foreground job to bring back.', 'err');
+      // Dynamic output (nohup)
+      disp.innerHTML += '$ ' + cmd + '\nnohup: ignoring input and appending output to nohup.out\n[2] 5601\n';
     }
-  } else if ((low === 'bg %1' || low === 'bg') && t5State === 'suspended') {
-    t5Steps++;
-    t5State = 'bg_running';
-    disp.innerHTML += '$ ' + cmd + '\n[1]+ sleep 100 &\n';
-    showFeedback('t5-fb', 'Job resumed in background. Now try: nohup sleep 200 &', 'ok');
-  } else if (low.startsWith('nohup')) {
-    t5Steps++;
-    disp.innerHTML += '$ ' + cmd + '\nnohup: ignoring input and appending output to nohup.out\n[2] 5601\n';
-    showFeedback('t5-fb', 'Perfect! nohup makes the process immune to SIGHUP (logout). Exercise complete.', 'ok');
-    t5Resolved = true;
-    markDone(5);
+    showFeedback('t5-fb', step.feedback, 'ok');
+    t5Step++;
+    t5Attempts = 0;
+
+    // Update step highlighting and placeholder
+    if (t5Step < T5_STEPS.length) {
+      t5Highlight(t5Step);
+      this.placeholder = 'step ' + (t5Step + 1) + ': ' + (T5_STEPS[t5Step].hint || '').replace(/&amp;/g,'&');
+    } else {
+      t5Highlight(T5_STEPS.length); // all green
+      t5Resolved = true;
+      markDone(5);
+    }
+
+    // Auto-scroll terminal
+    disp.scrollTop = disp.scrollHeight;
   } else {
+    // Wrong command — give contextual help
     t5Attempts++;
-    showFeedback('t5-fb', 'Unexpected command for this exercise. Follow the job control workflow.', 'err');
-    if (t5Attempts >= 2) showHint('t5-hint');
+    var hintText = 'Expected: <strong>' + (step.hint || '').replace(/&/g,'&amp;') + '</strong>';
+    if (low === 'jobs') {
+      // Allow informational jobs at any step
+      var jobsOut = '';
+      if (t5Step === 0) jobsOut = '$ jobs\n<span class="t-dim">(no jobs)</span>\n';
+      else if (t5Step === 3) jobsOut = '$ jobs\n[1]+  Running                 sleep 100 &\n<span class="t-dim">(foreground — type ctrl+z to suspend)</span>\n';
+      else if (t5Step === 4) jobsOut = '$ jobs\n[1]+  Stopped                 sleep 100\n';
+      else jobsOut = '$ jobs\n[1]+  Running                 sleep 100 &\n';
+      disp.innerHTML += jobsOut;
+      showFeedback('t5-fb', 'Status checked. Next command: ' + step.hint, 'ok');
+      disp.scrollTop = disp.scrollHeight;
+      return;
+    }
+    showFeedback('t5-fb', 'Step ' + (t5Step + 1) + ' expects: ' + step.hint + '. ' + (t5Attempts >= 2 ? '' : 'Follow the workflow above.'), 'err');
+    if (t5Attempts >= 2) {
+      document.getElementById('t5-hint').innerHTML = 'Hint: type <strong>' + step.hint + '</strong>';
+      showHint('t5-hint');
+    }
   }
 });
 
