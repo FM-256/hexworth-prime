@@ -2,1639 +2,185 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script src="../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../components/AchievementManager.js"></script>
+    <script src="../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOG-02: APT Tracker | Operator</title>
+    <link rel="stylesheet" href="../engine/operator.css">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background: #0a0c10;
-            color: rgba(255,255,255,0.85);
-            font-family: 'Courier New', monospace;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* CRT scanlines */
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(0,0,0,0.1) 0px,
-                rgba(0,0,0,0.1) 1px,
-                transparent 1px,
-                transparent 3px
-            );
-            pointer-events: none;
-            z-index: 9000;
-        }
-
-        /* ─── Header ─── */
-        .mission-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 20px;
-            background: #0e1018;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
-            height: 44px;
-            flex-shrink: 0;
-        }
-        .mission-header-back {
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.4);
-            text-decoration: none;
-            letter-spacing: 0.08em;
-            transition: color 0.2s;
-        }
-        .mission-header-back:hover { color: #39ff14; }
-        .mission-header-title {
-            font-size: 0.7rem;
-            letter-spacing: 0.15em;
-            color: #39ff14;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        .mission-header-status {
-            font-size: 0.6rem;
-            letter-spacing: 0.12em;
-            color: rgba(57, 255, 20, 0.4);
-            text-transform: uppercase;
-        }
-
-        /* ─── Objectives Bar ─── */
-        .obj-bar {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 7px 20px;
-            background: #0c0e14;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            overflow-x: auto;
-            flex-shrink: 0;
-        }
-        .obj-label {
-            font-size: 0.55rem;
-            letter-spacing: 0.15em;
-            color: rgba(57, 255, 20, 0.3);
-            text-transform: uppercase;
-            white-space: nowrap;
-            margin-right: 4px;
-        }
-        .obj-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.6rem;
-            color: rgba(255, 255, 255, 0.25);
-            letter-spacing: 0.04em;
-            white-space: nowrap;
-            transition: color 0.3s;
-        }
-        .obj-item.complete { color: #39ff14; }
-        .obj-check {
-            width: 13px;
-            height: 13px;
-            border-radius: 3px;
-            border: 1px solid rgba(57, 255, 20, 0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.55rem;
-            flex-shrink: 0;
-            transition: all 0.3s;
-        }
-        .obj-item.complete .obj-check {
-            background: rgba(57, 255, 20, 0.15);
-            border-color: #39ff14;
-            color: #39ff14;
-        }
-
-        /* ─── Split Layout ─── */
-        .mission-layout {
-            display: flex;
-            height: calc(100vh - 44px - 30px);
-        }
-
-        /* ─── Map Panel (left 55%) ─── */
-        .map-panel {
-            flex: 0 0 55%;
-            position: relative;
-            overflow: hidden;
-            border-right: 1px solid rgba(57, 255, 20, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #090b0f;
-        }
-        .map-panel::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
-            background-size: 30px 30px;
-            pointer-events: none;
-        }
-
-        /* ─── Grid ─── */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(4, 1fr);
-            gap: 4px;
-            padding: 20px;
-            width: 100%;
-            height: 100%;
-            max-width: 600px;
-            max-height: 480px;
-        }
-
-        .grid-cell {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(57, 255, 20, 0.06);
-            border-radius: 4px;
-            position: relative;
-            transition: all 0.4s ease;
-            min-height: 0;
-            overflow: hidden;
-        }
-
-        /* Cell visibility states */
-        .grid-cell.vis-hidden {
-            background: rgba(57, 255, 20, 0.01);
-            border-color: rgba(57, 255, 20, 0.04);
-        }
-        .grid-cell.vis-revealed {
-            background: rgba(57, 255, 20, 0.05);
-            border-color: rgba(57, 255, 20, 0.15);
-        }
-        .grid-cell.vis-visited {
-            background: rgba(57, 255, 20, 0.09);
-            border-color: rgba(57, 255, 20, 0.25);
-        }
-        .grid-cell.current {
-            background: rgba(57, 255, 20, 0.14);
-            border-color: #39ff14;
-            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
-        }
-        .grid-cell.wall {
-            background: rgba(255, 255, 255, 0.015);
-            border-color: rgba(255, 255, 255, 0.03);
-        }
-        .grid-cell.empty-vis {
-            background: rgba(57, 255, 20, 0.03);
-        }
-
-        /* Firewall & target accent */
-        .grid-cell[data-type="firewall"]:not(.vis-hidden):not(.wall) {
-            border-left: 2px solid rgba(255, 68, 68, 0.4);
-        }
-        .grid-cell[data-type="firewall"].bypassed:not(.vis-hidden) {
-            border-left-color: rgba(57, 255, 20, 0.4);
-        }
-        .grid-cell[data-type="target"]:not(.vis-hidden):not(.wall) {
-            border-left: 2px solid rgba(255, 215, 0, 0.4);
-        }
-
-        /* Cell content */
-        .cell-icon {
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            transition: color 0.3s;
-        }
-        .cell-label {
-            font-size: 0.5rem;
-            letter-spacing: 0.06em;
-            margin-top: 2px;
-            transition: color 0.3s;
-            text-align: center;
-        }
-        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
-        .vis-hidden .cell-label { color: transparent; }
-        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
-        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
-        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
-        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
-        .current .cell-icon { color: #39ff14; }
-        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
-        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
-        .wall .cell-label { color: transparent; }
-
-        /* Agent dot */
-        .cell-agent {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #39ff14;
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            animation: agentPulse 2s ease-in-out infinite;
-            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
-        }
-        @keyframes agentPulse {
-            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
-            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
-        }
-
-        /* Cell reveal animation */
-        @keyframes cellReveal {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .grid-cell.just-revealed {
-            animation: cellReveal 0.4s ease-out;
-        }
-
-        /* ─── Terminal Panel (right 45%) ─── */
-        .term-panel {
-            flex: 0 0 45%;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            background: #080a0e;
-        }
-        .term-bar {
-            padding: 7px 14px;
-            background: #0c0e14;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
-        }
-        .term-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: rgba(57, 255, 20, 0.3);
-        }
-        .term-bar-label {
-            font-size: 0.55rem;
-            color: rgba(57, 255, 20, 0.35);
-            letter-spacing: 0.1em;
-            margin-left: 6px;
-        }
-        .term-output {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 14px;
-            font-size: 0.78rem;
-            line-height: 1.65;
-        }
-        .term-output::-webkit-scrollbar { width: 4px; }
-        .term-output::-webkit-scrollbar-track { background: transparent; }
-        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
-
-        /* Terminal line types */
-        .term-line { word-break: break-word; }
-        .term-system { color: rgba(57, 255, 20, 0.3); }
-        .term-info { color: rgba(57, 255, 20, 0.65); }
-        .term-success { color: #39ff14; font-weight: 600; }
-        .term-error { color: #ff4444; }
-        .term-warning { color: #ffaa00; }
-        .term-node-info { color: #00ccff; }
-        .term-heading { color: #39ff14; font-weight: 700; }
-        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
-
-        /* Terminal input */
-        .term-input-row {
-            display: flex;
-            align-items: center;
-            padding: 8px 14px;
-            border-top: 1px solid rgba(57, 255, 20, 0.1);
-            background: #0a0c12;
-            flex-shrink: 0;
-        }
-        .term-prompt-text {
-            color: #39ff14;
-            font-size: 0.78rem;
-            white-space: nowrap;
-            margin-right: 8px;
-        }
-        .term-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #76ff03;
-            font-family: 'Courier New', monospace;
-            font-size: 0.78rem;
-            caret-color: #39ff14;
-        }
-
-        /* ─── Mission Complete Overlay ─── */
-        .mission-complete {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.88);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 8000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.6s;
-        }
-        .mission-complete.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .mc-card {
-            background: #0e1018;
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            border-radius: 8px;
-            padding: 36px 40px;
-            text-align: center;
-            max-width: 380px;
-            width: 90%;
-        }
-        .mc-badge {
-            font-size: 0.55rem;
-            letter-spacing: 0.2em;
-            color: rgba(57, 255, 20, 0.5);
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-        .mc-title {
-            font-size: 1.3rem;
-            color: #39ff14;
-            letter-spacing: 0.2em;
-            margin-bottom: 6px;
-            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
-        }
-        .mc-subtitle {
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.35);
-            margin-bottom: 28px;
-        }
-        .mc-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 28px;
-        }
-        .mc-stat-value {
-            font-size: 1.5rem;
-            color: #39ff14;
-            font-weight: 700;
-        }
-        .mc-stat-label {
-            font-size: 0.55rem;
-            color: rgba(255,255,255,0.25);
-            letter-spacing: 0.08em;
-            margin-top: 3px;
-            text-transform: uppercase;
-        }
-        .mc-btn {
-            display: inline-block;
-            padding: 10px 28px;
-            background: rgba(57, 255, 20, 0.1);
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            border-radius: 4px;
-            color: #39ff14;
-            font-family: 'Courier New', monospace;
-            font-size: 0.7rem;
-            letter-spacing: 0.12em;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .mc-btn:hover {
-            background: rgba(57, 255, 20, 0.2);
-            border-color: #39ff14;
-            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
-        }
-
-        /* ─── Mobile ─── */
-        @media (max-width: 768px) {
-            .mission-layout {
-                flex-direction: column;
-            }
-            .map-panel {
-                flex: 0 0 42%;
-                border-right: none;
-                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            }
-            .term-panel {
-                flex: 1;
-            }
-            .obj-bar { gap: 10px; padding: 6px 12px; }
-            .obj-item { font-size: 0.5rem; }
-            .obj-label { font-size: 0.5rem; }
-            .grid-container { padding: 10px; max-height: none; }
-        }
-        @media (max-width: 480px) {
-            .mission-header { padding: 8px 12px; height: 38px; }
-            .mission-header-title { font-size: 0.6rem; }
-            .mission-layout { height: calc(100vh - 38px - 26px); }
-            .cell-label { display: none; }
-            .cell-icon { font-size: 0.7rem; }
-            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
-            .mc-card { padding: 24px; }
-        }
+        .editor-panel { display: none !important; }
+        .term-panel { flex:0 0 45%; display:flex; flex-direction:column; background:#080a0e; height:100%; }
+        .term-bar { display:flex; align-items:center; gap:6px; padding:8px 14px; background:#0e1018; border-bottom:1px solid rgba(57,255,20,0.1); }
+        .term-dot { width:8px; height:8px; border-radius:50%; background:rgba(57,255,20,0.3); }
+        .term-bar-label { font-size:0.55rem; letter-spacing:0.12em; color:rgba(57,255,20,0.25); margin-left:6px; }
+        .term-output { flex:1; overflow-y:auto; padding:10px 14px; font-size:0.72rem; line-height:1.55; }
+        .term-output::-webkit-scrollbar { width:4px; }
+        .term-output::-webkit-scrollbar-thumb { background:rgba(57,255,20,0.15); border-radius:2px; }
+        .term-input-row { display:flex; align-items:center; gap:8px; padding:8px 14px; border-top:1px solid rgba(57,255,20,0.1); }
+        .term-prompt-text { color:rgba(57,255,20,0.5); font-size:0.72rem; letter-spacing:0.04em; white-space:nowrap; }
+        .term-input { flex:1; background:transparent; border:none; outline:none; color:#76ff03; font-family:'Courier New',monospace; font-size:0.72rem; caret-color:#39ff14; }
+        .term-line { word-break:break-word; }
+        .term-system { color:rgba(57,255,20,0.3); } .term-info { color:rgba(57,255,20,0.65); }
+        .term-success { color:#39ff14; font-weight:600; } .term-error { color:#ff4444; }
+        .term-warning { color:#ffaa00; } .term-node-info { color:#00ccff; }
+        .term-heading { color:#39ff14; font-weight:700; } .term-prompt-echo { color:rgba(57,255,20,0.4); }
+        @media (max-width:768px) { .term-panel { flex:1; } }
     </style>
 </head>
 <body>
+    <div id="operator-root"></div>
+    <script src="../engine/OperatorEngine.js"></script>
+    <script src="../engine/AgentBridge.js"></script>
+    <script src="../configs/log-analysis-02.config.js"></script>
+    <script>
+    (function() {
+        var CONFIG = LOG_ANALYSIS_02_CONFIG;
+        var engine = OperatorEngine.init(CONFIG);
+        var state  = engine.getState();
 
-    <!-- Header -->
-    <div class="mission-header">
-        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
-        <div class="mission-header-title">LOG-02 / APT TRACKER</div>
-        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
-    </div>
+        // Custom state
+        if (!state.examinedSources) state.examinedSources = new Set();
+        if (!state.lateralNodes)    state.lateralNodes = new Set();
+        if (!state.correlations)    state.correlations = [];
+        if (typeof state.initialAccessFound === 'undefined')     state.initialAccessFound = false;
+        if (typeof state.lateralMovementMapped === 'undefined')  state.lateralMovementMapped = false;
+        if (typeof state.exfilChannelDetected === 'undefined')   state.exfilChannelDetected = false;
+        if (typeof state.killChainBuilt === 'undefined')         state.killChainBuilt = false;
+        state.commandHistory = state.commandHistory || []; state.historyIndex = -1;
 
-    <!-- Objectives bar -->
-    <div class="obj-bar">
-        <span class="obj-label">OBJ</span>
-        <div class="obj-item" id="obj-0">
-            <span class="obj-check"></span> Find initial access
-        </div>
-        <div class="obj-item" id="obj-1">
-            <span class="obj-check"></span> Map lateral movement
-        </div>
-        <div class="obj-item" id="obj-2">
-            <span class="obj-check"></span> Detect exfil channel
-        </div>
-        <div class="obj-item" id="obj-3">
-            <span class="obj-check"></span> Build kill chain
-        </div>
-    </div>
+        // Inject terminal
+        var ep=document.querySelector('.editor-panel'); if(ep) ep.style.display='none';
+        var layout=document.querySelector('.mission-layout'), tp=document.createElement('div'); tp.className='term-panel';
+        tp.innerHTML='<div class="term-bar"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><span class="term-bar-label">OPERATOR TERMINAL</span></div><div class="term-output" id="term-output"></div><div class="term-input-row"><span class="term-prompt-text">'+CONFIG.prompt+'</span><input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus></div>';
+        layout.appendChild(tp);
+        var termOutput=document.getElementById('term-output'), termInput=document.getElementById('term-input');
 
-    <!-- Split layout -->
-    <div class="mission-layout">
-        <!-- Left: SIEM Map -->
-        <div class="map-panel">
-            <div class="grid-container" id="grid-container"></div>
-        </div>
+        function printLine(t,type) { var l=document.createElement('div'); l.className='term-line term-'+(type||'system'); l.textContent=t; termOutput.appendChild(l); while(termOutput.children.length>200) termOutput.removeChild(termOutput.firstChild); termOutput.scrollTop=termOutput.scrollHeight; }
+        function currentNodeType() { return CONFIG.grid.cells[state.position.row][state.position.col]; }
+        function resolveSource(input) { return CONFIG.sourceAliases[input.toLowerCase()]||null; }
 
-        <!-- Right: Terminal -->
-        <div class="term-panel" id="term-panel">
-            <div class="term-bar">
-                <div class="term-dot"></div>
-                <div class="term-dot"></div>
-                <div class="term-dot"></div>
-                <span class="term-bar-label">OPERATOR TERMINAL</span>
-            </div>
-            <div class="term-output" id="term-output"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-text">analyst@siem:~$</span>
-                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
-            </div>
-        </div>
-    </div>
+        function cmdHelp() { printLine('','system'); printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550','heading'); printLine('  scan / move <dir> / examine / correlate <s1> <s2>','info'); printLine('  query <filter> / enrich <ioc> / timeline / status / help / clear','info'); }
 
-    <!-- Mission Complete Overlay -->
-    <div class="mission-complete" id="mission-complete">
-        <div class="mc-card">
-            <div class="mc-badge">MISSION COMPLETE</div>
-            <div class="mc-title">APT TRACKER</div>
-            <div class="mc-subtitle">Kill chain reconstructed. APT-PHANTOM mapped.</div>
-            <div class="mc-stats">
-                <div>
-                    <div class="mc-stat-value" id="stat-nodes">0</div>
-                    <div class="mc-stat-label">Sources</div>
-                </div>
-                <div>
-                    <div class="mc-stat-value" id="stat-commands">0</div>
-                    <div class="mc-stat-label">Commands</div>
-                </div>
-                <div>
-                    <div class="mc-stat-value" id="stat-time">0s</div>
-                    <div class="mc-stat-label">Time</div>
-                </div>
-            </div>
-            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
-        </div>
-    </div>
-
-<script>
-/* ═══════════════════════════════════════════════════════════
-   LOG-02: APT Tracker — Mission Engine
-   ═══════════════════════════════════════════════════════════ */
-
-// ─── Grid Map ───
-// Rows 0-3, Cols 0-4
-const GRID_MAP = [
-    ['proxy-logs',   'auth-logs',     'dns-logs',      'wall',          'wall'],
-    ['empty',        'endpoint-logs', 'empty',         'netflow-data',  'wall'],
-    ['wall',         'empty',         'dlp-alerts',    'empty',         'email-logs'],
-    ['wall',         'threat-intel',  'empty',         'empty',         'empty']
-];
-
-const ROWS = 4;
-const COLS = 5;
-
-// ─── Cell Info ───
-const CELL_INFO = {
-    'proxy-logs':     { label: 'PROXY LOGS',    abbr: 'PRX', ip: 'siem-01', desc: 'Web proxy logs — HTTP/HTTPS traffic records',              ports: ['N/A'], os: 'Squid Proxy 5.7' },
-    'auth-logs':      { label: 'AUTH LOGS',     abbr: 'ATH', ip: 'siem-01', desc: 'Authentication logs — AD, RADIUS, SSO events',             ports: ['N/A'], os: 'Splunk Forwarder' },
-    'dns-logs':       { label: 'DNS LOGS',      abbr: 'DNS', ip: 'siem-01', desc: 'DNS query/response logs — resolution records',             ports: ['N/A'], os: 'Bind 9.18' },
-    'endpoint-logs':  { label: 'ENDPOINT LOGS', abbr: 'EPT', ip: 'siem-01', desc: 'EDR telemetry — process execution, file changes',         ports: ['N/A'], os: 'CrowdStrike Agent' },
-    'netflow-data':   { label: 'NETFLOW',       abbr: 'NFD', ip: 'siem-01', desc: 'Network flow data — connection metadata',                  ports: ['N/A'], os: 'NetFlow v9 Collector' },
-    'dlp-alerts':     { label: 'DLP ALERTS',    abbr: 'DLP', ip: 'siem-01', desc: 'Data Loss Prevention alerts — exfiltration attempts',      ports: ['N/A'], os: 'Symantec DLP' },
-    'email-logs':     { label: 'EMAIL LOGS',    abbr: 'EML', ip: 'siem-01', desc: 'Email gateway logs — inbound/outbound messages',           ports: ['N/A'], os: 'Exchange Online' },
-    'threat-intel':   { label: 'THREAT INTEL',  abbr: 'TIP', ip: 'siem-01', desc: 'Threat intelligence platform — IOC database',              ports: ['N/A'], os: 'MISP 2.4' }
-};
-
-// ─── Game State ───
-let STATE = {
-    position: { col: 0, row: 0 },
-    visibility: {},
-    objectives: [false, false, false, false],
-    nodesDiscovered: new Set(),
-    commandCount: 0,
-    commandHistory: [],
-    historyIndex: -1,
-    startTime: Date.now(),
-    completed: false,
-    // Mission-specific state
-    examinedSources: new Set(),
-    initialAccessFound: false,
-    lateralMovementMapped: false,
-    exfilChannelDetected: false,
-    killChainBuilt: false,
-    correlations: [],
-    lateralNodes: new Set()
-};
-
-// ─── Objective labels ───
-const OBJ_LABELS = [
-    'INITIAL ACCESS FOUND — phishing vector identified',
-    'LATERAL MOVEMENT MAPPED — adversary path through network traced',
-    'EXFIL CHANNEL DETECTED — data theft method confirmed',
-    'KILL CHAIN BUILT — complete APT timeline reconstructed'
-];
-
-// ═══ Grid Rendering ═══
-
-function buildGrid() {
-    var container = document.getElementById('grid-container');
-    container.innerHTML = '';
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var cell = document.createElement('div');
-            cell.className = 'grid-cell';
-            cell.dataset.col = c;
-            cell.dataset.row = r;
-            cell.dataset.type = GRID_MAP[r][c];
-
-            var icon = document.createElement('div');
-            icon.className = 'cell-icon';
-
-            var label = document.createElement('div');
-            label.className = 'cell-label';
-
-            var agent = document.createElement('div');
-            agent.className = 'cell-agent';
-            agent.style.display = 'none';
-
-            cell.appendChild(icon);
-            cell.appendChild(label);
-            cell.appendChild(agent);
-            container.appendChild(cell);
+        function cmdScan() {
+            var col=state.position.col,row=state.position.row,ct=currentNodeType();
+            printLine('Scanning area...','system'); printLine('','system');
+            if(ct!=='empty'&&ct!=='wall'){var c=CONFIG.nodes[ct]; printLine('Current: '+c.label+' ('+c.ip+')','heading'); printLine(c.desc,'info'); printLine('Platform: '+c.os,'node-info');}
+            else printLine('Current: Clear path','heading');
+            printLine('','system'); printLine('Adjacent:','heading');
+            var dirs=[{name:'North',dc:0,dr:-1},{name:'South',dc:0,dr:1},{name:'East',dc:1,dr:0},{name:'West',dc:-1,dr:0}];
+            for(var i=0;i<dirs.length;i++){var d=dirs[i],nc=col+d.dc,nr=row+d.dr;if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('  '+d.name+': [edge of SIEM]','system');continue;}var type=CONFIG.grid.cells[nr][nc];if(type==='wall'){printLine('  '+d.name+': [no data path]','system');continue;}var key=nc+','+nr;if(!state.visibility[key]||state.visibility[key]==='hidden')state.visibility[key]='revealed';if(type==='empty')printLine('  '+d.name+': Clear path','info');else{var info=CONFIG.nodes[type];printLine('  '+d.name+': '+info.label+' -- '+info.desc,'node-info');}}
+            engine.updateGrid(); engine.saveState();
         }
-    }
-}
 
-function updateGrid() {
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var cell = document.querySelector('.grid-cell[data-col="' + c + '"][data-row="' + r + '"]');
-            if (!cell) continue;
-
-            var type = GRID_MAP[r][c];
-            var key = c + ',' + r;
-            var vis = STATE.visibility[key] || 'hidden';
-            var isCurrent = STATE.position.col === c && STATE.position.row === r;
-
-            // Reset classes
-            cell.className = 'grid-cell';
-            cell.dataset.col = c;
-            cell.dataset.row = r;
-            cell.dataset.type = type;
-
-            if (type === 'wall') {
-                cell.classList.add('wall');
-            } else if (isCurrent) {
-                cell.classList.add('current');
-            } else {
-                cell.classList.add('vis-' + vis);
-                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
-            }
-
-            var iconEl = cell.querySelector('.cell-icon');
-            var labelEl = cell.querySelector('.cell-label');
-            var agentEl = cell.querySelector('.cell-agent');
-
-            if (type === 'wall') {
-                iconEl.textContent = '';
-                labelEl.textContent = '';
-            } else if (vis === 'hidden' && !isCurrent) {
-                iconEl.textContent = '?';
-                labelEl.textContent = '';
-            } else if (type === 'empty') {
-                iconEl.textContent = '\u00B7';
-                labelEl.textContent = '';
-            } else {
-                var info = CELL_INFO[type];
-                iconEl.textContent = info.abbr;
-                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
-            }
-
-            agentEl.style.display = isCurrent ? 'block' : 'none';
+        function cmdMove(args) {
+            if(!args.length){printLine('Usage: move <direction>','error');return;}
+            var dirMap={'north':[0,-1],'n':[0,-1],'south':[0,1],'s':[0,1],'east':[1,0],'e':[1,0],'west':[-1,0],'w':[-1,0]};
+            var dir=args[0].toLowerCase();if(!dirMap[dir]){printLine('Unknown direction.','error');return;}
+            var d=dirMap[dir],nc=state.position.col+d[0],nr=state.position.row+d[1];
+            if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('Edge of SIEM.','error');return;}
+            var ct=CONFIG.grid.cells[nr][nc];if(ct==='wall'){printLine('No data path.','error');return;}
+            state.position={col:nc,row:nr};state.visibility[nc+','+nr]='visited';
+            if(ct!=='empty')state.nodesDiscovered.add(ct);
+            engine.revealAdjacent(nc,nr);
+            var dn={n:'north',s:'south',e:'east',w:'west'}[dir]||dir;
+            if(ct==='empty')printLine('Moving '+dn+'... Clear path.','system');
+            else{var info=CONFIG.nodes[ct];printLine('Moving '+dn+'... '+info.label,'success');printLine(info.desc,'info');printLine('Type "examine" to read.','system');}
+            engine.checkObjectives();engine.updateGrid();engine.saveState();
         }
-    }
-}
 
-// ═══ Fog of War ═══
+        function cmdExamine() {
+            var type=currentNodeType();
+            if(type==='empty'||type==='wall'){printLine('Nothing to examine here.','error');return;}
+            printLine('','system');
+            var examineData = {
+                'proxy-logs':    [[' [02/15 09:14] jsmith -> docs.google.com (200)','info'],['[02/15 09:22] jsmith -> update-service.cloudfront.net (200)  <- [SUSPICIOUS]','warning'],['[02/20 11:30] jsmith -> megaupload-cdn.com/upload (POST 50MB)  <- [EXFIL?]','warning']],
+                'auth-logs':     [['[02/15 09:10] jsmith -- logon (WKS-042)','info'],['[02/15 09:25] jsmith -- privilege escalation -> local admin  <- [ALERT]','warning'],['[02/16 02:14] jsmith -> svc_admin -- credential harvesting  <- [ALERT]','warning'],['[02/18 08:00] svc_admin -- logon (DB-PROD-01)  <- [LATERAL]','warning'],['[02/18 08:05] svc_admin -- logon (FILE-SRV-01)  <- [LATERAL]','warning']],
+                'dns-logs':      [['[02/15 09:22] WKS-042 -> update-service.cloudfront.net -> 185.44.xx.xx','info'],['[02/17 03:00] WKS-042 -> a3f8b2.dns-tunnel.xyz (TXT)  <- [DNS TUNNEL]','warning'],['[02/20 10:00] DB-PROD-01 -> megaupload-cdn.com  <- [EXFIL PREP]','warning']],
+                'endpoint-logs': [['[02/15 09:23] WKS-042: powershell.exe -enc [base64] -> beacon.dll','info'],['[02/15 09:25] WKS-042: mimikatz.exe -- credential dump  <- [ALERT]','warning'],['[02/18 08:02] DB-PROD-01: psexec.exe lateral movement  <- [LATERAL]','warning']],
+                'netflow-data':  [['[02/15-02/20] WKS-042 -> 185.44.xx.xx:443 (persistent beacon)','info'],['[02/17 03:00] WKS-042 -> dns-tunnel.xyz:53 (4.2MB via DNS)','warning'],['[02/20 11:30] DB-PROD-01 -> megaupload-cdn.com:443 (50MB)  <- [EXFIL]','warning']],
+                'dlp-alerts':    [['[02/20 11:28] ALERT: Sensitive data staging on DB-PROD-01','warning'],['  File: customer_records_2024.csv.gz (50MB PII)','info'],['  Destination: megaupload-cdn.com  <- [EXFIL CONFIRMED]','warning']],
+                'email-logs':    [['[02/15 08:55] INBOUND: hr-benefits@update-service.com -> jsmith@corp','info'],['  Subject: "Benefits Update -- Action Required"','info'],['  Attachment: Benefits_2024.xlsm (macro-enabled)  <- [PHISHING]','warning'],['[02/15 09:05] jsmith opened attachment (macro executed)','warning']],
+                'threat-intel':  [['IOC Match: 185.44.xx.xx -- APT-PHANTOM (nation-state)','warning'],['IOC Match: dns-tunnel.xyz -- known C2','warning'],['IOC Match: megaupload-cdn.com -- exfil staging','warning'],['TTP: T1566.001 -> T1003 -> T1021.002 -> T1048.003','node-info']]
+            };
+            var lines = examineData[type];
+            if(!lines){printLine('No data.','error');return;}
+            printLine('=== '+CONFIG.nodes[type].label+' ===','heading');
+            for(var i=0;i<lines.length;i++) printLine(lines[i][0],lines[i][1]);
+            state.examinedSources.add(type);
+            if(type==='auth-logs'||type==='endpoint-logs'||type==='netflow-data') state.lateralNodes.add(type);
+            if(type==='email-logs'&&!state.initialAccessFound){state.initialAccessFound=true;printLine('','system');printLine('[!] INITIAL ACCESS: Phishing email with macro','success');}
+            printLine('','system'); printLine('[+] '+CONFIG.nodes[type].label+' examined. ('+state.examinedSources.size+'/8)','info');
+            engine.checkObjectives(); engine.saveState();
+        }
 
-function revealAdjacent(col, row) {
-    var dirs = [[0,-1],[0,1],[1,0],[-1,0]];
-    dirs.forEach(function(d) {
-        var nc = col + d[0];
-        var nr = row + d[1];
-        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
-        if (GRID_MAP[nr][nc] === 'wall') return;
-        var key = nc + ',' + nr;
-        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
-            STATE.visibility[key] = 'revealed';
-            var cell = document.querySelector('.grid-cell[data-col="' + nc + '"][data-row="' + nr + '"]');
-            if (cell) {
-                cell.classList.add('just-revealed');
-                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+        function cmdCorrelate(args) {
+            if(args.length<2){printLine('Usage: correlate <s1> <s2>','error');return;}
+            var s1=resolveSource(args[0]),s2=resolveSource(args[1]);
+            if(!s1){printLine('Unknown: '+args[0],'error');return;} if(!s2){printLine('Unknown: '+args[1],'error');return;}
+            if(!state.examinedSources.has(s1)){printLine('Not examined: '+s1,'error');return;}
+            if(!state.examinedSources.has(s2)){printLine('Not examined: '+s2,'error');return;}
+            var pk=[s1,s2].sort().join(':');
+            printLine('','system'); printLine('Cross-referencing '+CONFIG.nodes[s1].label+' x '+CONFIG.nodes[s2].label+'...','heading');
+            // Key correlations
+            if(pk==='auth-logs:endpoint-logs') printLine('Lateral movement via credential abuse + psexec confirmed.','success');
+            else if(pk==='auth-logs:netflow-data') printLine('Lateral SMB movement confirmed via auth + flow.','success');
+            else if(pk==='dlp-alerts:netflow-data') printLine('EXFIL CONFIRMED: 50MB PII to megaupload-cdn.com.','warning');
+            else if(pk==='dns-logs:proxy-logs') printLine('C2 domain chain + exfil prep confirmed.','success');
+            else if(pk==='endpoint-logs:netflow-data') printLine('RAT beacon communications pattern identified.','success');
+            else if(pk==='email-logs:endpoint-logs') printLine('Phishing to execution chain confirmed.','success');
+            else printLine('Patterns noted in correlation database.','info');
+            if(state.correlations.indexOf(pk)===-1) state.correlations.push(pk);
+            // Check lateral
+            if(!state.lateralMovementMapped){var lp=0;for(var i=0;i<state.correlations.length;i++){var pp=state.correlations[i].split(':');if(state.lateralNodes.has(pp[0])||state.lateralNodes.has(pp[1]))lp++;}if(lp>=3)state.lateralMovementMapped=true;}
+            // Check exfil
+            if(!state.exfilChannelDetected){for(var j=0;j<state.correlations.length;j++){var pp2=state.correlations[j].split(':');if(pp2.indexOf('dlp-alerts')!==-1||pp2.indexOf('netflow-data')!==-1){state.exfilChannelDetected=true;printLine('','system');printLine('[!] EXFIL CHANNEL DETECTED','success');break;}}}
+            printLine('[+] Correlations: '+state.correlations.length,'info');
+            engine.checkObjectives(); engine.saveState();
+        }
+
+        function cmdTimeline() {
+            if(!state.initialAccessFound||!state.lateralMovementMapped||!state.exfilChannelDetected){printLine('Insufficient findings. Complete access/lateral/exfil objectives first.','error');return;}
+            printLine('','system'); printLine('=== APT-PHANTOM KILL CHAIN ===','heading');
+            printLine('[02/15 08:55] Initial Access: Phishing email -> jsmith','info');
+            printLine('[02/15 09:23] Execution: Macro -> PowerShell -> beacon.dll','info');
+            printLine('[02/15 09:25] Credential Access: mimikatz -> svc_admin hash','warning');
+            printLine('[02/18 08:00] Lateral Movement: svc_admin -> DB-PROD-01/FILE-SRV','warning');
+            printLine('[02/20 11:30] Exfiltration: 50MB PII -> megaupload-cdn.com','warning');
+            printLine('','system'); printLine('[!] KILL CHAIN COMPLETE','success');
+            if(!state.killChainBuilt){state.killChainBuilt=true;engine.checkObjectives();}
+            engine.saveState();
+        }
+
+        function cmdStatus() { printLine('','system'); printLine('[STATUS] Sources: '+state.nodesDiscovered.size+' | Examined: '+state.examinedSources.size+' | Correlations: '+state.correlations.length,'info'); var done=0;for(var i=0;i<state.objectives.length;i++)if(state.objectives[i])done++;printLine('[STATUS] Objectives: '+done+'/'+CONFIG.objectives.length,'info'); }
+
+        function dispatch(raw) {
+            state.commandCount=(state.commandCount||0)+1;
+            var parts=raw.trim().split(/\s+/),cmd=parts[0].toLowerCase(),args=parts.slice(1);
+            printLine(CONFIG.prompt+' '+raw,'prompt-echo');
+            switch(cmd){
+                case 'help':cmdHelp();break; case 'scan':cmdScan();break;
+                case 'move':case 'cd':cmdMove(args);break; case 'examine':cmdExamine();break;
+                case 'correlate':cmdCorrelate(args);break; case 'timeline':cmdTimeline();break;
+                case 'status':cmdStatus();break; case 'clear':termOutput.innerHTML='';break;
+                case 'query':printLine('Query requires 2+ examined sources. Use examine first.','system');break;
+                case 'enrich':printLine('Navigate to threat-intel and examine for IOC data.','system');break;
+                default:printLine('Unknown command: '+cmd+'. Type "help".','error');
             }
         }
-    });
-}
 
-// ═══ Terminal Output ═══
-
-function printLine(text, type) {
-    var output = document.getElementById('term-output');
-    var line = document.createElement('div');
-    line.className = 'term-line term-' + (type || 'system');
-    line.textContent = text;
-    output.appendChild(line);
-    while (output.children.length > 200) {
-        output.removeChild(output.firstChild);
-    }
-    output.scrollTop = output.scrollHeight;
-}
-
-// ═══ Node Resolution ═══
-
-function resolveNode(query) {
-    var q = query.toLowerCase();
-    var exact = [];
-    var partial = [];
-
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var type = GRID_MAP[r][c];
-            if (type === 'empty' || type === 'wall') continue;
-            var info = CELL_INFO[type];
-            var vis = STATE.visibility[c + ',' + r] || 'hidden';
-            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
-
-            if (q === type || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) {
-                exact.push(entry);
-            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
-                partial.push(entry);
-            }
-        }
-    }
-
-    var results = exact.length > 0 ? exact : partial;
-
-    if (results.length === 1) return results[0];
-    if (results.length > 1) {
-        printLine('Multiple matches. Be more specific:', 'warning');
-        results.forEach(function(m) {
-            printLine('  ' + m.info.label + ' (' + m.info.ip + ')', 'info');
+        termInput.addEventListener('keydown', function(e) {
+            if(e.key==='Enter'){var v=termInput.value.trim();if(!v)return;state.commandHistory.push(v);state.historyIndex=state.commandHistory.length;termInput.value='';dispatch(v);}
+            else if(e.key==='ArrowUp'){e.preventDefault();if(state.historyIndex>0){state.historyIndex--;termInput.value=state.commandHistory[state.historyIndex];}}
+            else if(e.key==='ArrowDown'){e.preventDefault();if(state.historyIndex<state.commandHistory.length-1){state.historyIndex++;termInput.value=state.commandHistory[state.historyIndex];}else{state.historyIndex=state.commandHistory.length;termInput.value='';}}
         });
-        return null;
-    }
-    return null;
-}
 
-// ═══ Helper: Get current node type ═══
-
-function currentNodeType() {
-    return GRID_MAP[STATE.position.row][STATE.position.col];
-}
-
-// ═══ Command Handlers ═══
-
-function cmdHelp() {
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
-    printLine('  scan                    Survey area, reveal adjacent log sources', 'info');
-    printLine('  move <dir>              Move analyst (north/south/east/west or n/s/e/w)', 'info');
-    printLine('  examine                 Deep-read the current log source', 'info');
-    printLine('  correlate <src> <src>   Cross-reference two examined log sources', 'info');
-    printLine('  query <filter>          Filter logs by user, IP, or date (needs 2+ examined)', 'info');
-    printLine('  enrich <ioc>            IOC lookup (must be at threat-intel node)', 'info');
-    printLine('  timeline                Build full kill chain (requires all prereqs)', 'info');
-    printLine('  status                  Show analyst position and objectives', 'info');
-    printLine('  help                    Show this reference', 'info');
-    printLine('  clear                   Clear terminal output', 'info');
-    printLine('', 'system');
-    printLine('Sources: proxy-logs, auth-logs, dns-logs, endpoint-logs,', 'system');
-    printLine('         netflow-data, dlp-alerts, email-logs, threat-intel', 'system');
-}
-
-function cmdScan() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-
-    printLine('Scanning area...', 'system');
-    printLine('', 'system');
-
-    if (cellType !== 'empty' && cellType !== 'wall') {
-        var cur = CELL_INFO[cellType];
-        printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
-        printLine(cur.desc, 'info');
-        printLine('OS/Platform: ' + cur.os, 'node-info');
-    } else {
-        printLine('Current: Clear path (no log source)', 'heading');
-    }
-
-    printLine('', 'system');
-    printLine('Adjacent:', 'heading');
-
-    var dirs = [
-        { name: 'North', dc: 0, dr: -1 },
-        { name: 'South', dc: 0, dr: 1 },
-        { name: 'East',  dc: 1, dr: 0 },
-        { name: 'West',  dc: -1, dr: 0 }
-    ];
-
-    dirs.forEach(function(d) {
-        var nc = col + d.dc;
-        var nr = row + d.dr;
-        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
-            printLine('  ' + d.name + ': [edge of SIEM]', 'system');
-            return;
-        }
-        var type = GRID_MAP[nr][nc];
-        if (type === 'wall') {
-            printLine('  ' + d.name + ': [no data path]', 'system');
-            return;
-        }
-        var key = nc + ',' + nr;
-        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
-            STATE.visibility[key] = 'revealed';
-        }
-        if (type === 'empty') {
-            printLine('  ' + d.name + ': Clear path', 'info');
-        } else {
-            var info = CELL_INFO[type];
-            printLine('  ' + d.name + ': ' + info.label + ' — ' + info.desc, 'node-info');
-        }
-    });
-
-    updateGrid();
-    saveState();
-}
-
-function cmdMove(args) {
-    if (!args.length) {
-        printLine('Usage: move <direction>', 'error');
-        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
-        return;
-    }
-
-    var dirMap = {
-        'north': [0,-1], 'n': [0,-1],
-        'south': [0,1],  's': [0,1],
-        'east':  [1,0],  'e': [1,0],
-        'west':  [-1,0], 'w': [-1,0]
-    };
-
-    var dir = args[0].toLowerCase();
-    if (!dirMap[dir]) {
-        printLine('Unknown direction: ' + args[0], 'error');
-        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
-        return;
-    }
-
-    var d = dirMap[dir];
-    var newCol = STATE.position.col + d[0];
-    var newRow = STATE.position.row + d[1];
-
-    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
-        printLine('Edge of SIEM. Cannot move ' + dir + '.', 'error');
-        return;
-    }
-
-    var cellType = GRID_MAP[newRow][newCol];
-
-    if (cellType === 'wall') {
-        printLine('No data path ' + dir + '. Route blocked.', 'error');
-        return;
-    }
-
-    STATE.position = { col: newCol, row: newRow };
-    STATE.visibility[newCol + ',' + newRow] = 'visited';
-
-    if (cellType !== 'empty') {
-        STATE.nodesDiscovered.add(cellType);
-    }
-
-    revealAdjacent(newCol, newRow);
-
-    var dirFull = { n: 'north', s: 'south', e: 'east', w: 'west' };
-    var dirName = dirFull[dir] || dir;
-    if (cellType === 'empty') {
-        printLine('Moving ' + dirName + '... Clear path.', 'system');
-    } else {
-        var info = CELL_INFO[cellType];
-        printLine('Moving ' + dirName + '... ' + info.label, 'success');
-        printLine(info.desc, 'info');
-        printLine('Platform: ' + info.os, 'node-info');
-        printLine('Type "examine" to read this log source.', 'system');
-    }
-
-    checkObjectives();
-    updateGrid();
-    saveState();
-}
-
-// ─── Examine: deep-read current log source ───
-
-function cmdExamine() {
-    var type = currentNodeType();
-
-    if (type === 'empty' || type === 'wall') {
-        printLine('Nothing to examine here. Move to a log source node.', 'error');
-        return;
-    }
-
-    printLine('', 'system');
-
-    switch (type) {
-
-        case 'proxy-logs':
-            printLine('=== PROXY LOG ANALYSIS ===', 'heading');
-            printLine('[02/15 09:14] jsmith → docs.google.com (200)', 'info');
-            printLine('[02/15 09:22] jsmith → update-service.cloudfront.net (200)  <- [SUSPICIOUS]', 'warning');
-            printLine('[02/18 14:05] svc_admin → pastebin.com/raw/x8Kd3 (200)  <- [SUSPICIOUS]', 'warning');
-            printLine('[02/20 11:30] jsmith → megaupload-cdn.com/upload (POST 50MB)  <- [EXFIL?]', 'warning');
-            STATE.examinedSources.add('proxy-logs');
-            break;
-
-        case 'auth-logs':
-            printLine('=== AUTHENTICATION LOG ===', 'heading');
-            printLine('[02/15 09:10] jsmith — logon (workstation WKS-042)', 'info');
-            printLine('[02/15 09:25] jsmith — privilege escalation → local admin  <- [ALERT]', 'warning');
-            printLine('[02/16 02:14] jsmith → svc_admin — credential harvesting  <- [ALERT]', 'warning');
-            printLine('[02/18 08:00] svc_admin — logon (server DB-PROD-01)  <- [LATERAL]', 'warning');
-            printLine('[02/18 08:05] svc_admin — logon (server FILE-SRV-01)  <- [LATERAL]', 'warning');
-            STATE.examinedSources.add('auth-logs');
-            STATE.lateralNodes.add('auth-logs');
-            break;
-
-        case 'dns-logs':
-            printLine('=== DNS QUERY LOG ===', 'heading');
-            printLine('[02/15 09:22] WKS-042 → update-service.cloudfront.net (A) → 185.44.xx.xx', 'info');
-            printLine('[02/17 03:00] WKS-042 → a3f8b2.dns-tunnel.xyz (TXT)  <- [SUSPICIOUS]', 'warning');
-            printLine('[02/17 03:01] WKS-042 → b7c4d1.dns-tunnel.xyz (TXT)  <- [DNS TUNNEL]', 'warning');
-            printLine('[02/20 10:00] DB-PROD-01 → megaupload-cdn.com (A)  <- [EXFIL PREP]', 'warning');
-            STATE.examinedSources.add('dns-logs');
-            break;
-
-        case 'endpoint-logs':
-            printLine('=== ENDPOINT TELEMETRY ===', 'heading');
-            printLine('[02/15 09:23] WKS-042: powershell.exe -enc [base64] → dropped beacon.dll', 'info');
-            printLine('[02/15 09:25] WKS-042: mimikatz.exe — credential dump  <- [ALERT]', 'warning');
-            printLine('[02/16 02:14] WKS-042: secretsdump → svc_admin hash extracted', 'warning');
-            printLine('[02/18 08:02] DB-PROD-01: psexec.exe lateral movement  <- [LATERAL]', 'warning');
-            STATE.examinedSources.add('endpoint-logs');
-            STATE.lateralNodes.add('endpoint-logs');
-            break;
-
-        case 'netflow-data':
-            printLine('=== NETFLOW RECORDS ===', 'heading');
-            printLine('[02/15-02/20] WKS-042 → 185.44.xx.xx:443 (persistent, 30min beacon)', 'info');
-            printLine('[02/17 03:00] WKS-042 → dns-tunnel.xyz:53 (4.2MB outbound via DNS)', 'warning');
-            printLine('[02/18 08:00] WKS-042 → DB-PROD-01:445 (lateral SMB)', 'warning');
-            printLine('[02/20 11:30] DB-PROD-01 → megaupload-cdn.com:443 (50MB upload)  <- [EXFIL]', 'warning');
-            STATE.examinedSources.add('netflow-data');
-            STATE.lateralNodes.add('netflow-data');
-            break;
-
-        case 'dlp-alerts':
-            printLine('=== DLP ALERTS ===', 'heading');
-            printLine('[02/20 11:28] ALERT: Sensitive data staging on DB-PROD-01', 'warning');
-            printLine('  File: customer_records_2024.csv.gz (50MB compressed)', 'info');
-            printLine('  Classification: PII — SSN, financial records', 'info');
-            printLine('  Destination: megaupload-cdn.com  <- [EXFIL CONFIRMED]', 'warning');
-            printLine('[02/20 11:30] ALERT: Large outbound transfer blocked (partial)', 'warning');
-            STATE.examinedSources.add('dlp-alerts');
-            break;
-
-        case 'email-logs':
-            printLine('=== EMAIL LOG ===', 'heading');
-            printLine('[02/15 08:55] INBOUND: hr-benefits@update-service.com → jsmith@corp', 'info');
-            printLine('  Subject: "Benefits Update — Action Required"', 'info');
-            printLine('  Attachment: Benefits_2024.xlsm (macro-enabled)  <- [PHISHING]', 'warning');
-            printLine('[02/15 09:05] jsmith opened attachment (macro executed)', 'warning');
-            STATE.examinedSources.add('email-logs');
-            if (!STATE.initialAccessFound) {
-                STATE.initialAccessFound = true;
-                printLine('', 'system');
-                printLine('[!] INITIAL ACCESS: Phishing email with weaponized Excel macro', 'success');
-            }
-            break;
-
-        case 'threat-intel':
-            printLine('=== THREAT INTELLIGENCE ===', 'heading');
-            printLine('IOC Match: 185.44.xx.xx — APT-PHANTOM (nation-state, espionage)', 'warning');
-            printLine('IOC Match: dns-tunnel.xyz — known C2 infrastructure', 'warning');
-            printLine('IOC Match: megaupload-cdn.com — exfiltration staging site', 'warning');
-            printLine('IOC Match: beacon.dll (SHA256: a3f8b2...) — PHANTOM RAT v2.1', 'warning');
-            printLine('TTP: T1566.001 → T1003 → T1021.002 → T1048.003', 'node-info');
-            STATE.examinedSources.add('threat-intel');
-            break;
-
-        default:
-            printLine('No examination handler for this node.', 'error');
-            return;
-    }
-
-    printLine('', 'system');
-    printLine('[+] ' + CELL_INFO[type].label + ' examined. (' + STATE.examinedSources.size + '/8 sources)', 'info');
-
-    checkObjectives();
-    saveState();
-}
-
-// ─── Correlate: cross-reference two log sources ───
-
-function cmdCorrelate(args) {
-    if (args.length < 2) {
-        printLine('Usage: correlate <source1> <source2>', 'error');
-        printLine('Example: correlate auth endpoint', 'system');
-        return;
-    }
-
-    // Resolve source names from fuzzy input
-    var src1 = resolveSourceName(args[0]);
-    var src2 = resolveSourceName(args[1]);
-
-    if (!src1) {
-        printLine('Unknown source: ' + args[0], 'error');
-        printLine('Sources: proxy, auth, dns, endpoint, netflow, dlp, email, threat', 'system');
-        return;
-    }
-    if (!src2) {
-        printLine('Unknown source: ' + args[1], 'error');
-        return;
-    }
-    if (src1 === src2) {
-        printLine('Cannot correlate a source with itself.', 'error');
-        return;
-    }
-
-    if (!STATE.examinedSources.has(src1)) {
-        printLine('Source not examined: ' + CELL_INFO[src1].label, 'error');
-        printLine('Navigate to that node and use "examine" first.', 'system');
-        return;
-    }
-    if (!STATE.examinedSources.has(src2)) {
-        printLine('Source not examined: ' + CELL_INFO[src2].label, 'error');
-        printLine('Navigate to that node and use "examine" first.', 'system');
-        return;
-    }
-
-    // Build correlation key (sorted to avoid duplicates)
-    var pairKey = [src1, src2].sort().join(':');
-    var alreadyDone = STATE.correlations.indexOf(pairKey) !== -1;
-
-    printLine('', 'system');
-    printLine('Cross-referencing ' + CELL_INFO[src1].label + ' x ' + CELL_INFO[src2].label + '...', 'heading');
-    printLine('', 'system');
-
-    // Produce context-sensitive correlation output
-    var output = getCorrelationOutput(src1, src2);
-    output.forEach(function(line) { printLine(line.text, line.type); });
-
-    if (!alreadyDone) {
-        STATE.correlations.push(pairKey);
-    }
-
-    // Check if lateral movement picture is clear (3+ distinct pairs involving lateral sources)
-    if (!STATE.lateralMovementMapped) {
-        var lateralPairs = STATE.correlations.filter(function(pair) {
-            var parts = pair.split(':');
-            return (STATE.lateralNodes.has(parts[0]) || STATE.lateralNodes.has(parts[1]));
-        });
-        if (lateralPairs.length >= 3) {
-            STATE.lateralMovementMapped = true;
-        }
-    }
-
-    // Check if exfil channel detected
-    if (!STATE.exfilChannelDetected) {
-        var exfilSources = ['dlp-alerts', 'netflow-data'];
-        var hasExfil = STATE.correlations.some(function(pair) {
-            var parts = pair.split(':');
-            return (exfilSources.indexOf(parts[0]) !== -1 || exfilSources.indexOf(parts[1]) !== -1);
-        });
-        if (hasExfil) {
-            STATE.exfilChannelDetected = true;
-            printLine('', 'system');
-            printLine('[!] EXFIL CHANNEL DETECTED — cross-reference confirms data theft pathway', 'success');
-        }
-    }
-
-    printLine('', 'system');
-    printLine('[+] Correlation recorded. Total cross-references: ' + STATE.correlations.length, 'info');
-
-    checkObjectives();
-    saveState();
-}
-
-// ─── Build correlation output based on source pair ───
-
-function getCorrelationOutput(src1, src2) {
-    var pair = [src1, src2].sort().join(':');
-    var lines = [];
-
-    // auth + endpoint
-    if (pair === 'auth-logs:endpoint-logs') {
-        lines.push({ text: 'Match: jsmith credential escalation (02/15 09:25) correlates with', type: 'info' });
-        lines.push({ text: '       mimikatz.exe execution on WKS-042 (02/15 09:25).', type: 'info' });
-        lines.push({ text: 'Match: svc_admin lateral logon (02/18 08:00) correlates with', type: 'info' });
-        lines.push({ text: '       psexec.exe execution on DB-PROD-01 (02/18 08:02).', type: 'warning' });
-        lines.push({ text: 'Lateral movement vector confirmed via credential abuse + remote exec.', type: 'success' });
-    }
-    // auth + netflow
-    else if (pair === 'auth-logs:netflow-data') {
-        lines.push({ text: 'Match: svc_admin logon to DB-PROD-01 (02/18 08:00) correlates with', type: 'info' });
-        lines.push({ text: '       SMB flow WKS-042 → DB-PROD-01:445 (02/18 08:00).', type: 'info' });
-        lines.push({ text: 'Lateral SMB movement confirmed via authentication + flow data.', type: 'success' });
-    }
-    // proxy + dns
-    else if (pair === 'dns-logs:proxy-logs') {
-        lines.push({ text: 'Match: update-service.cloudfront.net proxy access (02/15 09:22) resolves', type: 'info' });
-        lines.push({ text: '       to 185.44.xx.xx via DNS (02/15 09:22).', type: 'info' });
-        lines.push({ text: 'Match: megaupload-cdn.com proxy POST (02/20 11:30) pre-resolved', type: 'info' });
-        lines.push({ text: '       by DB-PROD-01 DNS query (02/20 10:00).', type: 'warning' });
-        lines.push({ text: 'C2 domain resolution chain and exfil prep confirmed.', type: 'success' });
-    }
-    // netflow + dlp
-    else if (pair === 'dlp-alerts:netflow-data') {
-        lines.push({ text: 'Match: 50MB upload flow DB-PROD-01 → megaupload-cdn.com:443 (02/20 11:30)', type: 'info' });
-        lines.push({ text: '       matches DLP staging alert — customer_records_2024.csv.gz.', type: 'info' });
-        lines.push({ text: 'EXFIL CONFIRMED: 50MB PII archive transferred to external staging site.', type: 'warning' });
-    }
-    // endpoint + netflow
-    else if (pair === 'endpoint-logs:netflow-data') {
-        lines.push({ text: 'Match: beacon.dll drop (02/15 09:23) correlates with persistent C2 beacon', type: 'info' });
-        lines.push({ text: '       WKS-042 → 185.44.xx.xx:443 starting 02/15.', type: 'info' });
-        lines.push({ text: 'RAT beacon communications pattern identified.', type: 'success' });
-    }
-    // proxy + threat-intel
-    else if (pair === 'proxy-logs:threat-intel') {
-        lines.push({ text: 'Match: megaupload-cdn.com proxy access correlates with', type: 'info' });
-        lines.push({ text: '       TIP classification as exfiltration staging site.', type: 'warning' });
-        lines.push({ text: 'Match: update-service.cloudfront.net resolves to 185.44.xx.xx', type: 'info' });
-        lines.push({ text: '       — APT-PHANTOM C2 node per threat intel.', type: 'warning' });
-    }
-    // dns + netflow
-    else if (pair === 'dns-logs:netflow-data') {
-        lines.push({ text: 'Match: DNS TXT queries to dns-tunnel.xyz (02/17 03:00)', type: 'info' });
-        lines.push({ text: '       correlate with 4.2MB outbound DNS flow (02/17 03:00).', type: 'warning' });
-        lines.push({ text: 'DNS tunneling exfil channel confirmed — data embedded in DNS TXT records.', type: 'success' });
-    }
-    // email + endpoint
-    else if (pair === 'email-logs:endpoint-logs') {
-        lines.push({ text: 'Match: phishing attachment Benefits_2024.xlsm opened (02/15 09:05)', type: 'info' });
-        lines.push({ text: '       correlates with powershell.exe -enc execution (02/15 09:23)', type: 'info' });
-        lines.push({ text: '       → beacon.dll dropped on WKS-042.', type: 'warning' });
-        lines.push({ text: 'Initial access to execution chain confirmed via email + EDR.', type: 'success' });
-    }
-    // email + proxy
-    else if (pair === 'email-logs:proxy-logs') {
-        lines.push({ text: 'Match: phishing sender domain update-service.com (02/15 08:55)', type: 'info' });
-        lines.push({ text: '       matches proxy access to update-service.cloudfront.net (02/15 09:22).', type: 'warning' });
-        lines.push({ text: 'Same threat actor infrastructure used for phishing + C2 delivery.', type: 'success' });
-    }
-    // generic fallback
-    else {
-        lines.push({ text: 'Cross-reference analysis complete.', type: 'info' });
-        lines.push({ text: 'Overlapping timeframes and host identifiers noted.', type: 'info' });
-        lines.push({ text: 'Patterns recorded in correlation database.', type: 'info' });
-    }
-
-    return lines;
-}
-
-// ─── Resolve fuzzy source name to canonical key ───
-
-function resolveSourceName(input) {
-    var q = input.toLowerCase();
-    var mapping = {
-        'proxy': 'proxy-logs',
-        'proxy-logs': 'proxy-logs',
-        'prx': 'proxy-logs',
-        'auth': 'auth-logs',
-        'auth-logs': 'auth-logs',
-        'ath': 'auth-logs',
-        'dns': 'dns-logs',
-        'dns-logs': 'dns-logs',
-        'endpoint': 'endpoint-logs',
-        'endpoint-logs': 'endpoint-logs',
-        'ept': 'endpoint-logs',
-        'netflow': 'netflow-data',
-        'netflow-data': 'netflow-data',
-        'nfd': 'netflow-data',
-        'flow': 'netflow-data',
-        'dlp': 'dlp-alerts',
-        'dlp-alerts': 'dlp-alerts',
-        'email': 'email-logs',
-        'email-logs': 'email-logs',
-        'eml': 'email-logs',
-        'threat': 'threat-intel',
-        'threat-intel': 'threat-intel',
-        'tip': 'threat-intel',
-        'intel': 'threat-intel'
-    };
-    return mapping[q] || null;
-}
-
-// ─── Query: filter examined logs by criteria ───
-
-function cmdQuery(args) {
-    if (!args.length) {
-        printLine('Usage: query <filter>', 'error');
-        printLine('Examples: query jsmith, query 185.44, query 02/18', 'system');
-        return;
-    }
-
-    if (STATE.examinedSources.size < 2) {
-        printLine('Insufficient data. Examine at least 2 log sources first.', 'error');
-        return;
-    }
-
-    var filter = args.join(' ').toLowerCase();
-    printLine('', 'system');
-    printLine('=== CROSS-SOURCE QUERY: "' + args.join(' ') + '" ===', 'heading');
-    printLine('Searching ' + STATE.examinedSources.size + ' examined sources...', 'system');
-    printLine('', 'system');
-
-    var results = [];
-
-    // jsmith events
-    if (filter === 'jsmith') {
-        if (STATE.examinedSources.has('email-logs'))    results.push({ src: 'EMAIL',    text: '[02/15 08:55] jsmith — received phishing email from update-service.com' });
-        if (STATE.examinedSources.has('email-logs'))    results.push({ src: 'EMAIL',    text: '[02/15 09:05] jsmith — opened Benefits_2024.xlsm attachment' });
-        if (STATE.examinedSources.has('proxy-logs'))    results.push({ src: 'PROXY',    text: '[02/15 09:22] jsmith — GET update-service.cloudfront.net (200)' });
-        if (STATE.examinedSources.has('auth-logs'))     results.push({ src: 'AUTH',     text: '[02/15 09:25] jsmith — escalated to local admin via exploit' });
-        if (STATE.examinedSources.has('auth-logs'))     results.push({ src: 'AUTH',     text: '[02/16 02:14] jsmith — harvested svc_admin credentials' });
-        if (STATE.examinedSources.has('proxy-logs'))    results.push({ src: 'PROXY',    text: '[02/20 11:30] jsmith — POST megaupload-cdn.com 50MB' });
-    }
-    // 185.44 IOC
-    else if (filter.indexOf('185.44') !== -1) {
-        if (STATE.examinedSources.has('dns-logs'))      results.push({ src: 'DNS',      text: '[02/15 09:22] update-service.cloudfront.net resolved to 185.44.xx.xx' });
-        if (STATE.examinedSources.has('netflow-data'))  results.push({ src: 'NETFLOW',  text: '[02/15-02/20] WKS-042 persistent beacon to 185.44.xx.xx:443' });
-        if (STATE.examinedSources.has('threat-intel'))  results.push({ src: 'THREAT',   text: '185.44.xx.xx — APT-PHANTOM C2 node, confidence: HIGH' });
-    }
-    // 02/18 date filter
-    else if (filter.indexOf('02/18') !== -1) {
-        if (STATE.examinedSources.has('auth-logs'))     results.push({ src: 'AUTH',     text: '[02/18 08:00] svc_admin — logon server DB-PROD-01' });
-        if (STATE.examinedSources.has('auth-logs'))     results.push({ src: 'AUTH',     text: '[02/18 08:05] svc_admin — logon server FILE-SRV-01' });
-        if (STATE.examinedSources.has('endpoint-logs')) results.push({ src: 'ENDPOINT', text: '[02/18 08:02] DB-PROD-01: psexec.exe lateral movement' });
-        if (STATE.examinedSources.has('netflow-data'))  results.push({ src: 'NETFLOW',  text: '[02/18 08:00] WKS-042 → DB-PROD-01:445 (lateral SMB)' });
-        if (STATE.examinedSources.has('proxy-logs'))    results.push({ src: 'PROXY',    text: '[02/18 14:05] svc_admin — GET pastebin.com/raw/x8Kd3' });
-    }
-    // svc_admin
-    else if (filter === 'svc_admin') {
-        if (STATE.examinedSources.has('auth-logs'))     results.push({ src: 'AUTH',     text: '[02/16 02:14] svc_admin hash extracted by credential dump' });
-        if (STATE.examinedSources.has('auth-logs'))     results.push({ src: 'AUTH',     text: '[02/18 08:00] svc_admin — logon DB-PROD-01' });
-        if (STATE.examinedSources.has('auth-logs'))     results.push({ src: 'AUTH',     text: '[02/18 08:05] svc_admin — logon FILE-SRV-01' });
-        if (STATE.examinedSources.has('proxy-logs'))    results.push({ src: 'PROXY',    text: '[02/18 14:05] svc_admin — GET pastebin.com (C2 staging check)' });
-    }
-    // megaupload / exfil
-    else if (filter.indexOf('megaupload') !== -1 || filter === 'exfil') {
-        if (STATE.examinedSources.has('proxy-logs'))    results.push({ src: 'PROXY',    text: '[02/20 11:30] POST megaupload-cdn.com 50MB upload' });
-        if (STATE.examinedSources.has('dns-logs'))      results.push({ src: 'DNS',      text: '[02/20 10:00] DB-PROD-01 DNS query for megaupload-cdn.com' });
-        if (STATE.examinedSources.has('netflow-data'))  results.push({ src: 'NETFLOW',  text: '[02/20 11:30] 50MB flow DB-PROD-01 → megaupload-cdn.com:443' });
-        if (STATE.examinedSources.has('dlp-alerts'))    results.push({ src: 'DLP',      text: '[02/20 11:28] DLP ALERT: customer_records_2024.csv.gz staged for exfil' });
-    }
-    // generic
-    else {
-        results.push({ src: 'SYS', text: 'No structured results for "' + args.join(' ') + '".' });
-        results.push({ src: 'SYS', text: 'Try: jsmith, 185.44, 02/18, svc_admin, megaupload' });
-    }
-
-    if (results.length) {
-        results.forEach(function(r) {
-            printLine('[' + r.src + '] ' + r.text, 'node-info');
-        });
-    }
-
-    printLine('', 'system');
-    printLine('[+] Query complete. ' + results.length + ' result(s) found.', 'info');
-}
-
-// ─── Enrich: IOC lookup (threat-intel node only) ───
-
-function cmdEnrich(args) {
-    var type = currentNodeType();
-    if (type !== 'threat-intel') {
-        printLine('enrich: must be at THREAT INTEL node.', 'error');
-        printLine('Navigate to threat-intel and try again.', 'system');
-        return;
-    }
-    if (!args.length) {
-        printLine('Usage: enrich <ioc>', 'error');
-        printLine('Examples: enrich 185.44, enrich beacon.dll, enrich dns-tunnel.xyz', 'system');
-        return;
-    }
-
-    var ioc = args.join(' ').toLowerCase();
-    printLine('', 'system');
-    printLine('=== IOC ENRICHMENT: ' + args.join(' ') + ' ===', 'heading');
-
-    if (ioc.indexOf('185.44') !== -1) {
-        printLine('Type: IPv4 Address', 'info');
-        printLine('Attribution: APT-PHANTOM (nation-state actor, espionage motive)', 'warning');
-        printLine('Infrastructure: Known C2 server, rotated every 90 days', 'info');
-        printLine('First seen: 2025-09-12 | Last seen: 2026-02-20', 'info');
-        printLine('ASN: AS12345 (bulletproof hosting provider)', 'warning');
-        printLine('Associated malware: PHANTOM RAT v2.1, PHANTOM LOADER', 'warning');
-        printLine('Confidence: HIGH', 'success');
-    } else if (ioc.indexOf('beacon.dll') !== -1 || ioc.indexOf('a3f8b2') !== -1) {
-        printLine('Type: Malware Sample', 'info');
-        printLine('Family: PHANTOM RAT v2.1', 'warning');
-        printLine('SHA256: a3f8b2c4d9e1f7320a45bc8de23f10a9b34c56d7e89f01a2b3c4d5e6f7080910', 'node-info');
-        printLine('Capabilities: C2 beaconing, keylogging, file exfil, lateral movement', 'warning');
-        printLine('Anti-analysis: Process hollowing, AMSI bypass, encrypted comms (TLS 1.3)', 'info');
-        printLine('Confidence: HIGH', 'success');
-    } else if (ioc.indexOf('dns-tunnel') !== -1) {
-        printLine('Type: Domain (C2 Infrastructure)', 'info');
-        printLine('Classification: DNS Tunneling C2', 'warning');
-        printLine('Registrar: Namecheap (privacy-protected)', 'info');
-        printLine('Registered: 2026-02-01 (newly registered — DGA pattern)', 'warning');
-        printLine('Protocol: DNS TXT records used to exfiltrate data 64 bytes at a time', 'info');
-        printLine('Confidence: HIGH', 'success');
-    } else if (ioc.indexOf('megaupload') !== -1) {
-        printLine('Type: Domain (Exfiltration Staging)', 'info');
-        printLine('Classification: Attacker-controlled file hosting', 'warning');
-        printLine('Used for: Final exfiltration of collected PII archives', 'info');
-        printLine('Pattern: Consistent with APT-PHANTOM stage-3 exfil TTPs', 'warning');
-        printLine('Confidence: HIGH', 'success');
-    } else {
-        printLine('No threat intelligence found for: ' + args.join(' '), 'info');
-        printLine('Try: 185.44, beacon.dll, dns-tunnel.xyz, megaupload-cdn.com', 'system');
-    }
-    printLine('', 'system');
-}
-
-// ─── Timeline: build full kill chain ───
-
-function cmdTimeline() {
-    var missing = [];
-
-    if (STATE.examinedSources.size < 5) {
-        missing.push('Examine at least 5 log sources (' + STATE.examinedSources.size + '/5 done)');
-    }
-    if (!STATE.initialAccessFound) {
-        missing.push('Initial access not found — examine email-logs');
-    }
-    if (!STATE.lateralMovementMapped) {
-        missing.push('Lateral movement not mapped — correlate auth, endpoint, and netflow sources');
-    }
-    if (!STATE.exfilChannelDetected) {
-        missing.push('Exfil channel not detected — correlate dlp-alerts or netflow-data with other sources');
-    }
-
-    if (missing.length) {
-        printLine('Cannot build timeline. Missing prerequisites:', 'error');
-        missing.forEach(function(m) { printLine('  - ' + m, 'warning'); });
-        return;
-    }
-
-    printLine('', 'system');
-    printLine('=== APT KILL CHAIN TIMELINE ===', 'heading');
-    printLine('', 'system');
-    printLine('[02/15 08:55] INITIAL ACCESS — Phishing email to jsmith', 'warning');
-    printLine('[02/15 09:05] EXECUTION      — Macro drops beacon.dll (PHANTOM RAT)', 'warning');
-    printLine('[02/15 09:25] PRIV ESCALATION — mimikatz credential dump', 'warning');
-    printLine('[02/16 02:14] CRED ACCESS    — svc_admin hash extracted', 'warning');
-    printLine('[02/17 03:00] C2 CHANNEL     — DNS tunneling to dns-tunnel.xyz', 'warning');
-    printLine('[02/18 08:00] LATERAL MOVE   — svc_admin → DB-PROD-01, FILE-SRV-01', 'warning');
-    printLine('[02/20 11:28] STAGING        — customer_records_2024.csv.gz on DB-PROD-01', 'warning');
-    printLine('[02/20 11:30] EXFILTRATION   — 50MB to megaupload-cdn.com', 'warning');
-    printLine('', 'system');
-    printLine('KILL CHAIN COMPLETE — APT-PHANTOM campaign fully mapped.', 'success');
-    printLine('', 'system');
-    printLine('Actor: APT-PHANTOM (nation-state, espionage)', 'node-info');
-    printLine('Duration: 5 days (02/15 — 02/20)', 'node-info');
-    printLine('Impact: 50MB PII archive (SSN + financial records) exfiltrated', 'node-info');
-
-    if (!STATE.killChainBuilt) {
-        STATE.killChainBuilt = true;
-    }
-
-    checkObjectives();
-    saveState();
-}
-
-function cmdStatus() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Clear path';
-
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 ANALYST STATUS \u2550\u2550\u2550', 'heading');
-    printLine('Position: (' + col + ',' + row + ') — ' + posLabel, 'info');
-    printLine('Sources examined: ' + STATE.examinedSources.size + ' / 8', 'info');
-    printLine('Correlations: ' + STATE.correlations.length, 'info');
-    printLine('Commands used: ' + STATE.commandCount, 'info');
-    printLine('', 'system');
-    printLine('Investigation flags:', 'heading');
-    printLine((STATE.initialAccessFound    ? ' [X] ' : ' [ ] ') + 'Initial access identified', STATE.initialAccessFound    ? 'success' : 'system');
-    printLine((STATE.lateralMovementMapped ? ' [X] ' : ' [ ] ') + 'Lateral movement mapped',   STATE.lateralMovementMapped ? 'success' : 'system');
-    printLine((STATE.exfilChannelDetected  ? ' [X] ' : ' [ ] ') + 'Exfil channel detected',    STATE.exfilChannelDetected  ? 'success' : 'system');
-    printLine((STATE.killChainBuilt        ? ' [X] ' : ' [ ] ') + 'Kill chain built',          STATE.killChainBuilt        ? 'success' : 'system');
-}
-
-// ═══ Utility ═══
-
-function padRight(str, len) {
-    while (str.length < len) str += ' ';
-    return str;
-}
-
-// ═══ Objectives ═══
-
-function checkObjectives() {
-    var prev = STATE.objectives.slice();
-
-    STATE.objectives[0] = STATE.initialAccessFound;
-    STATE.objectives[1] = STATE.lateralMovementMapped;
-    STATE.objectives[2] = STATE.exfilChannelDetected;
-    STATE.objectives[3] = STATE.killChainBuilt;
-
-    STATE.objectives.forEach(function(done, i) {
-        if (done && !prev[i]) {
-            printLine('', 'system');
-            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
-        }
-    });
-
-    updateObjectivesUI();
-
-    if (STATE.objectives.every(Boolean) && !STATE.completed) {
-        STATE.completed = true;
-        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
-
-        var stats = {
-            completed: true,
-            time: elapsed,
-            commands: STATE.commandCount,
-            sourcesExamined: STATE.examinedSources.size,
-            timestamp: Date.now()
-        };
-        try {
-            localStorage.setItem('hexworth_operator_loganalysis02', JSON.stringify(stats));
-            localStorage.removeItem('hexworth_operator_loganalysis02_save');
-        } catch (e) {}
-
-        printLine('', 'system');
-        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
-        printLine('Mission LOG-02 accomplished. APT-PHANTOM campaign neutralized.', 'success');
-
-        document.getElementById('header-status').textContent = 'COMPLETE';
-        document.getElementById('header-status').style.color = '#39ff14';
-
-        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
-    }
-}
-
-function updateObjectivesUI() {
-    STATE.objectives.forEach(function(done, i) {
-        var el = document.getElementById('obj-' + i);
-        if (!el) return;
-        var check = el.querySelector('.obj-check');
-        if (done) {
-            el.classList.add('complete');
-            check.textContent = '\u2713';
-        } else {
-            el.classList.remove('complete');
-            check.textContent = '';
-        }
-    });
-}
-
-function showMissionComplete(elapsed) {
-    var mins = Math.floor(elapsed / 60);
-    var secs = elapsed % 60;
-    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
-
-    document.getElementById('stat-nodes').textContent = STATE.examinedSources.size;
-    document.getElementById('stat-commands').textContent = STATE.commandCount;
-    document.getElementById('stat-time').textContent = timeStr;
-
-    document.getElementById('mission-complete').classList.add('visible');
-}
-
-// ═══ Save / Load ═══
-
-function saveState() {
-    try {
-        var data = {
-            position: STATE.position,
-            visibility: STATE.visibility,
-            objectives: STATE.objectives,
-            nodesDiscovered: Array.from(STATE.nodesDiscovered),
-            commandCount: STATE.commandCount,
-            startTime: STATE.startTime,
-            examinedSources: Array.from(STATE.examinedSources),
-            initialAccessFound: STATE.initialAccessFound,
-            lateralMovementMapped: STATE.lateralMovementMapped,
-            exfilChannelDetected: STATE.exfilChannelDetected,
-            killChainBuilt: STATE.killChainBuilt,
-            correlations: STATE.correlations,
-            lateralNodes: Array.from(STATE.lateralNodes)
-        };
-        localStorage.setItem('hexworth_operator_loganalysis02_save', JSON.stringify(data));
-    } catch (e) {}
-}
-
-function loadState() {
-    try {
-        var saved = localStorage.getItem('hexworth_operator_loganalysis02_save');
-        if (!saved) return false;
-        var data = JSON.parse(saved);
-        STATE.position = data.position;
-        STATE.visibility = data.visibility;
-        STATE.objectives = data.objectives;
-        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
-        STATE.commandCount = data.commandCount;
-        STATE.startTime = data.startTime;
-        STATE.examinedSources = new Set(data.examinedSources || []);
-        STATE.initialAccessFound = data.initialAccessFound || false;
-        STATE.lateralMovementMapped = data.lateralMovementMapped || false;
-        STATE.exfilChannelDetected = data.exfilChannelDetected || false;
-        STATE.killChainBuilt = data.killChainBuilt || false;
-        STATE.correlations = data.correlations || [];
-        STATE.lateralNodes = new Set(data.lateralNodes || []);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-function resetState() {
-    STATE = {
-        position: { col: 0, row: 0 },
-        visibility: {},
-        objectives: [false, false, false, false],
-        nodesDiscovered: new Set(),
-        commandCount: 0,
-        commandHistory: [],
-        historyIndex: -1,
-        startTime: Date.now(),
-        completed: false,
-        examinedSources: new Set(),
-        initialAccessFound: false,
-        lateralMovementMapped: false,
-        exfilChannelDetected: false,
-        killChainBuilt: false,
-        correlations: [],
-        lateralNodes: new Set()
-    };
-    // Starting cell
-    STATE.visibility['0,0'] = 'visited';
-    STATE.nodesDiscovered.add('proxy-logs');
-    revealAdjacent(0, 0);
-}
-
-// ═══ Command Parser ═══
-
-function executeCommand(input) {
-    STATE.commandCount++;
-
-    printLine('analyst@siem:~$ ' + input, 'prompt-echo');
-
-    var parts = input.trim().split(/\s+/);
-    var cmd = parts[0].toLowerCase();
-    var args = parts.slice(1);
-
-    switch (cmd) {
-        case 'scan':      cmdScan(); break;
-        case 'move':      cmdMove(args); break;
-        case 'examine':   cmdExamine(); break;
-        case 'correlate': cmdCorrelate(args); break;
-        case 'query':     cmdQuery(args); break;
-        case 'enrich':    cmdEnrich(args); break;
-        case 'timeline':  cmdTimeline(); break;
-        case 'status':    cmdStatus(); break;
-        case 'help':      cmdHelp(); break;
-        case 'clear':
-            document.getElementById('term-output').innerHTML = '';
-            break;
-        default:
-            printLine('Unknown command: ' + cmd, 'error');
-            printLine('Type "help" for available commands.', 'system');
-    }
-}
-
-// ═══ Terminal Input ═══
-
-function setupInput() {
-    var input = document.getElementById('term-input');
-
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            var cmd = this.value.trim();
-            if (cmd) {
-                STATE.commandHistory.push(cmd);
-                STATE.historyIndex = STATE.commandHistory.length;
-                executeCommand(cmd);
-            }
-            this.value = '';
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (STATE.historyIndex > 0) {
-                STATE.historyIndex--;
-                this.value = STATE.commandHistory[STATE.historyIndex];
-            }
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
-                STATE.historyIndex++;
-                this.value = STATE.commandHistory[STATE.historyIndex];
-            } else {
-                STATE.historyIndex = STATE.commandHistory.length;
-                this.value = '';
-            }
-        }
-    });
-
-    document.getElementById('term-panel').addEventListener('click', function(e) {
-        if (e.target.tagName !== 'INPUT') input.focus();
-    });
-}
-
-// ═══ Mission Briefing ═══
-
-function showBriefing() {
-    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
-    printLine('\u2551  MISSION: LOG-02 \u2014 APT TRACKER             \u2551', 'heading');
-    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
-    printLine('\u2551  Advanced persistent threat detected.       \u2551', 'heading');
-    printLine('\u2551  Weeks of activity across multiple systems.  \u2551', 'heading');
-    printLine('\u2551  Correlate log sources.                      \u2551', 'heading');
-    printLine('\u2551  From initial access to exfil \u2014 map it all. \u2551', 'heading');
-    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
-    printLine('', 'system');
-    printLine('[SYS] Analyst online at PROXY LOGS', 'success');
-    printLine('[SYS] Type "help" for command reference', 'info');
-    printLine('[SYS] Type "scan" to survey adjacent log sources', 'info');
-    printLine('[SYS] Use "examine" to read log data at your current node', 'info');
-    printLine('', 'system');
-}
-
-// ═══ Init ═══
-
-function init() {
-    buildGrid();
-    setupInput();
-
-    var restored = loadState();
-    if (restored && !STATE.completed) {
-        printLine('[SYS] Session restored from save.', 'system');
-        printLine('[SYS] Type "status" to review investigation progress.', 'info');
-        printLine('', 'system');
-    } else {
-        resetState();
-        showBriefing();
-    }
-
-    updateGrid();
-    updateObjectivesUI();
-    document.getElementById('term-input').focus();
-}
-
-document.addEventListener('DOMContentLoaded', init);
-</script>
-
+        printLine('OPERATOR // LOG-02: APT TRACKER','heading');
+        printLine('Track APT-PHANTOM across SIEM telemetry.','system');
+        printLine('Type "help" for commands, "scan" to survey.','system'); printLine('','system');
+        termInput.focus();
+    })();
+    </script>
 </body>
 </html>

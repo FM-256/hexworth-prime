@@ -502,7 +502,65 @@
         }
 
         // ============================================================
-        //  8. status()
+        //  8. decrypt(target) -- decrypt ransomware-encrypted nodes
+        // ============================================================
+
+        async function decrypt(target) {
+            tick();
+            var state = S();
+            var res   = resolveObstacle(engine, target, 'decrypt', 'DECRYPT');
+            if (!res) return null;
+            if (res.cleared) return { status: 'already_cleared' };
+
+            var node = res.node;
+            var gate = res.gate;
+            var info = node.info;
+            var vuln = info.vuln || 'CVE-UNKNOWN';
+
+            engine.printLine('[DECRYPT] Decrypting ' + info.label + ' (' + info.ip + ')...', 'system');
+            engine.printLine('[DECRYPT] ' + vuln + ': ' + (info.vulnDesc || 'Weak encryption key recovered'), 'warning');
+            engine.printLine('[DECRYPT] Ransomware neutralized. Node recovered.', 'success');
+
+            state[gate.flag] = true;
+
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
+            await engine.delay(150);
+            return { status: 'decrypted', vuln: vuln };
+        }
+
+        // ============================================================
+        //  9. patch(target) -- patch corrupted firmware segments
+        // ============================================================
+
+        async function patch(target) {
+            tick();
+            var state = S();
+            var res   = resolveObstacle(engine, target, 'patch', 'PATCH');
+            if (!res) return null;
+            if (res.cleared) return { status: 'already_cleared' };
+
+            var node = res.node;
+            var gate = res.gate;
+            var info = node.info;
+            var vuln = info.vuln || 'CVE-UNKNOWN';
+
+            engine.printLine('[PATCH] Patching ' + info.label + ' (' + info.ip + ')...', 'system');
+            engine.printLine('[PATCH] ' + vuln + ': ' + (info.vulnDesc || 'Firmware integrity bypass'), 'warning');
+            engine.printLine('[PATCH] Firmware restored. Segment online.', 'success');
+
+            state[gate.flag] = true;
+
+            engine.checkObjectives();
+            engine.updateGrid();
+            engine.saveState();
+            await engine.delay(150);
+            return { status: 'patched', vuln: vuln };
+        }
+
+        // ============================================================
+        //  10. status()
         // ============================================================
 
         async function status() {
@@ -560,6 +618,8 @@
             nmap:    nmap,
             exploit: exploit,
             spoof:   spoof,
+            decrypt: decrypt,
+            patch:   patch,
             status:  status
         };
 

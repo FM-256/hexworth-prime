@@ -934,7 +934,106 @@
     }
 
     // ----------------------------------------------------------------
-    //  11. INIT — Entry Point
+    //  10b. TERMINAL UI (for terminal-mode missions)
+    // ----------------------------------------------------------------
+
+    function buildTerminal(container, config) {
+        var promptText = config.prompt || config.promptText || 'operator:~$';
+
+        // Terminal bar (decorative dots + label)
+        var termBar = document.createElement('div');
+        termBar.className = 'term-bar';
+
+        for (var d = 0; d < 3; d++) {
+            var dot = document.createElement('div');
+            dot.className = 'term-dot';
+            termBar.appendChild(dot);
+        }
+
+        var barLabel = document.createElement('span');
+        barLabel.className = 'term-bar-label';
+        barLabel.textContent = 'OPERATOR TERMINAL';
+        termBar.appendChild(barLabel);
+
+        // Output area
+        var termOutput = document.createElement('div');
+        termOutput.className = 'term-output';
+        termOutput.id = 'term-output';
+
+        // Input row
+        var inputRow = document.createElement('div');
+        inputRow.className = 'term-input-row';
+
+        var promptEl = document.createElement('span');
+        promptEl.className = 'term-prompt-text';
+        promptEl.textContent = promptText;
+
+        var termInput = document.createElement('input');
+        termInput.type = 'text';
+        termInput.className = 'term-input';
+        termInput.id = 'term-input';
+        termInput.autocomplete = 'off';
+        termInput.spellcheck = false;
+
+        inputRow.appendChild(promptEl);
+        inputRow.appendChild(termInput);
+
+        container.appendChild(termBar);
+        container.appendChild(termOutput);
+        container.appendChild(inputRow);
+
+        // Cache references
+        _els.outputConsole = termOutput;
+
+        // Command history
+        var commandHistory = [];
+        var historyIndex = -1;
+        var _onCommand = null;
+
+        // Input handling
+        termInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var cmd = this.value.trim();
+                if (cmd) {
+                    commandHistory.push(cmd);
+                    historyIndex = commandHistory.length;
+                    // Echo command
+                    printLine(promptText + ' ' + cmd, 'prompt-echo');
+                    if (_onCommand) _onCommand(cmd);
+                }
+                this.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    this.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    this.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    this.value = '';
+                }
+            }
+        });
+
+        // Click anywhere in terminal to focus input
+        container.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'INPUT') termInput.focus();
+        });
+
+        return {
+            onCommand: function(cb) { _onCommand = cb; },
+            focus: function() { termInput.focus(); },
+            clearOutput: function() { termOutput.innerHTML = ''; }
+        };
+    }
+
+    // ----------------------------------------------------------------
+    //  11. INIT -- Entry Point
     // ----------------------------------------------------------------
 
     function init(config) {
@@ -950,8 +1049,18 @@
         // Build the grid
         buildGrid(config, layout.gridContainer);
 
-        // Build editor UI
-        var editor = buildEditor(layout.editorPanel);
+        // Build editor or terminal UI based on inputMode
+        var isTerminal = (config.inputMode === 'terminal');
+        var editor = null;
+        var terminal = null;
+
+        if (isTerminal) {
+            // Terminal mode: apply term-panel class for styling
+            layout.editorPanel.classList.add('term-panel');
+            terminal = buildTerminal(layout.editorPanel, config);
+        } else {
+            editor = buildEditor(layout.editorPanel);
+        }
 
         // Attempt to load saved state, or create fresh
         var restored = loadState(config);
@@ -965,7 +1074,21 @@
         updateGrid(_state, config);
         updateObjectivesUI(_state, config);
         updateIntegrityUI(_state, config);
-        editor.focus();
+
+        if (editor) editor.focus();
+        if (terminal) terminal.focus();
+
+        // Show briefing for terminal mode on fresh start
+        if (isTerminal && !restored && config.briefing) {
+            var briefing = config.briefing;
+            for (var b = 0; b < briefing.length; b++) {
+                if (typeof briefing[b] === 'string') {
+                    printLine(briefing[b], 'info');
+                } else {
+                    printLine(briefing[b].text, briefing[b].type || 'system');
+                }
+            }
+        }
 
         // ---- Engine interface for AgentBridge ----
 
@@ -1007,7 +1130,8 @@
                 saveState(_state, _config);
             },
             resetMission: function() {
-                editor.clearOutput();
+                if (editor) editor.clearOutput();
+                if (terminal) terminal.clearOutput();
                 clearSaveState(_config);
                 _state = resetState(_config);
                 updateGrid(_state, _config);
@@ -1020,20 +1144,36 @@
                 if (_els.missionComplete) {
                     _els.missionComplete.classList.remove('visible');
                 }
+                // Re-show briefing on reset
+                if (isTerminal && config.briefing) {
+                    var brief = config.briefing;
+                    for (var i = 0; i < brief.length; i++) {
+                        if (typeof brief[i] === 'string') {
+                            printLine(brief[i], 'info');
+                        } else {
+                            printLine(brief[i].text, brief[i].type || 'system');
+                        }
+                    }
+                }
             },
 
-            // Editor
+            // Editor (null for terminal mode)
             editor: editor,
+
+            // Terminal (null for editor mode)
+            terminal: terminal,
 
             // Utility
             delay: delay,
             padRight: padRight
         };
 
-        // Wire editor callbacks
-        editor.onReset(function() {
-            engineAPI.resetMission();
-        });
+        // Wire reset callbacks
+        if (editor) {
+            editor.onReset(function() {
+                engineAPI.resetMission();
+            });
+        }
 
         return engineAPI;
     }
@@ -1058,6 +1198,7 @@
         resetState:      resetState,
         showMissionComplete: showMissionComplete,
         buildEditor:     buildEditor,
+        buildTerminal:   buildTerminal,
         delay:           delay
     };
 
