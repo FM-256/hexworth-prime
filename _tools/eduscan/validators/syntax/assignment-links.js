@@ -314,8 +314,10 @@ class AssignmentLinkValidator {
         // Check each PATH_HOUSE_MAP entry
         for (const [mapPathId, houseFolder] of Object.entries(pathHouseMap)) {
             // ASGN-004: Does the house directory exist?
+            // Some sections are top-level (arctic, signal, projects, arena) not under houses/
             const houseDirPath = path.resolve(this.rootPath, 'houses', houseFolder);
-            if (!fs.existsSync(houseDirPath)) {
+            const topLevelPath = path.resolve(this.rootPath, houseFolder);
+            if (!fs.existsSync(houseDirPath) && !fs.existsSync(topLevelPath)) {
                 issues.push({
                     code: 'ASGN-004',
                     severity: 'high',

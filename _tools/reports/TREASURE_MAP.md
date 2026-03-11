@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-03-11 2:39:53 AM
+                    Scanned: 2026-03-11 4:23:36 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,18 +10,18 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 2312 |
-| Directories | 583 |
-| Content Files | 2312 |
-| Scan Duration | 293ms |
+| Files Scanned | 2336 |
+| Directories | 587 |
+| Content Files | 2336 |
+| Scan Duration | 284ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 996 |
-| html | 627 |
-| lab | 394 |
+| presentation | 1014 |
+| html | 630 |
+| lab | 397 |
 | quiz | 241 |
 | applet | 54 |
 
@@ -32,7 +32,7 @@
 | Total Modules | 1709 |
 | Available | 1697 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 79 |
+| Undeclared Files (CAT-002) | 100 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 67 |
-| Warning | 450 |
+| Warning | 458 |
 | Info | 309 |
-| **Total** | **7242** |
+| **Total** | **5405** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1681 |
+| Ready | 1702 |
 | Not Ready | 4 |
-| Unknown | 627 |
+| Unknown | 630 |
 
 
 ## FILE HIERARCHY
@@ -64,6 +64,8 @@
 ├── 📁 admin
 │   ├── 📄 audit-tool.html
 │   └── 📁 scripts
+├── 📁 announcements
+│   └── 📍 index.html
 ├── 📁 arctic
 │   ├── 📁 districts
 │   │   ├── 📁 advanced-topics
@@ -139,7 +141,9 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 a8-forgotten-upload
 │   │   │   └── 📍 index.html
-│   │   └── 📁 a9-rusted-lock
+│   │   ├── 📁 a9-rusted-lock
+│   │   │   └── 📍 index.html
+│   │   └── 📁 pr7-red-vs-blue
 │   │       └── 📍 index.html
 │   ├── 📁 engine
 │   └── 📍 index.html
@@ -479,6 +483,13 @@
 │   ├── 🏠 ccna [house:ccna]
 │   │   └── 📍 index.html
 │   ├── 🏠 cloud [house:cloud]
+│   │   ├── 📁 api
+│   │   │   ├── 📊 cloud-api-002.presentation.html
+│   │   │   ├── 📊 cloud-api-003.presentation.html
+│   │   │   ├── 📊 cloud-api-004.presentation.html
+│   │   │   ├── 📊 cloud-api-005.presentation.html
+│   │   │   ├── 🔬 cloud-api-006.lab.html
+│   │   │   └── 📊 cloud-api-007.presentation.html
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 architecture [applets]
 │   │   │   │   └── 📄 cloud-architecture-designer.applet.html
@@ -1526,7 +1537,8 @@
 │   │   │   ├── 📄 forge-dont-brick-the-pc.html
 │   │   │   ├── 📄 forge-fsck.html
 │   │   │   ├── 📄 forge-rack-stack.applet.html
-│   │   │   └── 📄 forge-raid-calculator.applet.html
+│   │   │   ├── 📄 forge-raid-calculator.applet.html
+│   │   │   └── 📄 forge-root-access.applet.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 forge-admin-tools.lab.html
@@ -2590,6 +2602,7 @@
 │   │   │   ├── 📄 shield-dr-malware.applet.html
 │   │   │   ├── 📄 shield-exploit-flap.html
 │   │   │   ├── 📄 shield-incident-response.html
+│   │   │   ├── 📄 shield-life-force.applet.html
 │   │   │   ├── 🔬 shield-malware-zoo.lab.html
 │   │   │   ├── 📄 shield-social-engineer.html
 │   │   │   ├── 📄 shield-sql-injection-defense.html
@@ -2651,6 +2664,16 @@
 │   │   ├── 📁 reviews
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-feh-review.html
+│   │   ├── 📁 security-101
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📊 shield-sec101-m01.presentation.html
+│   │   │   ├── 📊 shield-sec101-m02.presentation.html
+│   │   │   ├── 📊 shield-sec101-m03.presentation.html
+│   │   │   ├── 📊 shield-sec101-m04.presentation.html
+│   │   │   ├── 📊 shield-sec101-m05.presentation.html
+│   │   │   ├── 📊 shield-sec101-m06.presentation.html
+│   │   │   ├── 📊 shield-sec101-m07.presentation.html
+│   │   │   └── 📊 shield-sec101-m08.presentation.html
 │   │   ├── 📁 speaker-notes
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 shield-aaa-flow.tool.html
@@ -2739,15 +2762,19 @@
 │       ├── 📁 presentations [presentations]
 │       │   ├── 📊 web-arp.presentation.html
 │       │   ├── 📊 web-cables.presentation.html
+│       │   ├── 📊 web-cloud-networking.presentation.html
 │       │   ├── 📊 web-devices.presentation.html
 │       │   ├── 📊 web-dhcp.presentation.html
 │       │   ├── 📊 web-dns.presentation.html
 │       │   ├── 📊 web-eigrp.presentation.html
 │       │   ├── 📊 web-etherchannel.presentation.html
 │       │   ├── 📊 web-fhrp.presentation.html
+│       │   ├── 🔬 web-high-availability.presentation.html
 │       │   ├── 📊 web-ipv6.presentation.html
 │       │   ├── 📊 web-nat.presentation.html
 │       │   ├── 📊 web-network-essentials.presentation.html
+│       │   ├── 📊 web-network-monitoring.presentation.html
+│       │   ├── 📊 web-network-security.presentation.html
 │       │   ├── 📊 web-ntp.presentation.html
 │       │   ├── 📊 web-osi-deep-dive.presentation.html
 │       │   ├── 📊 web-osi-model.presentation.html
@@ -2761,6 +2788,7 @@
 │       │   ├── 📊 web-topologies.presentation.html
 │       │   ├── 📊 web-troubleshooting.presentation.html
 │       │   ├── 📊 web-vlan.presentation.html
+│       │   ├── 📊 web-wan-technologies.presentation.html
 │       │   ├── 📊 web-wireless-architecture.presentation.html
 │       │   └── 📊 web-wireless.presentation.html
 │       ├── 📁 quizzes [quizzes]
@@ -3006,6 +3034,12 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| cloud-api-002.presentation | lab | ✓ | 0 |
+| cloud-api-003.presentation | presentation | ✓ | 0 |
+| cloud-api-004.presentation | lab | ✓ | 0 |
+| cloud-api-005.presentation | lab | ✓ | 0 |
+| cloud-api-006.lab | presentation | ✓ | 0 |
+| cloud-api-007.presentation | presentation | ✓ | 0 |
 | cloud-architecture-designer.applet | presentation | ✓ | 0 |
 | cloud-comparison.applet | presentation | ✓ | 0 |
 | cloud-provider-comparison.applet | presentation | ✓ | 0 |
@@ -3623,6 +3657,7 @@
 | forge-chip-match.applet | presentation | ✓ | 0 |
 | forge-rack-stack.applet | applet | ✓ | 1 |
 | forge-raid-calculator.applet | presentation | ✓ | 0 |
+| forge-root-access.applet | presentation | ✓ | 0 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-control-panel.lab | lab | ✓ | 0 |
 | forge-hardware-essentials.lab | lab | ✓ | 0 |
@@ -4298,6 +4333,7 @@
 | shield-contra.applet | presentation | ✓ | 0 |
 | shield-debugger.applet | applet | ✓ | 1 |
 | shield-dr-malware.applet | applet | ✓ | 1 |
+| shield-life-force.applet | presentation | ✓ | 0 |
 | shield-malware-zoo.lab | lab | ✓ | 0 |
 | shield-threat-runner.applet | presentation | ✓ | 0 |
 | shield-threat-swarm.applet | applet | ✓ | 1 |
@@ -4343,6 +4379,14 @@
 | shield-network-security | quiz | ✓ | 0 |
 | shield-security-fundamentals | quiz | ✓ | 0 |
 | shield-threats | quiz | ✓ | 0 |
+| shield-sec101-m01.presentation | presentation | ✓ | 0 |
+| shield-sec101-m02.presentation | presentation | ✓ | 0 |
+| shield-sec101-m03.presentation | presentation | ✓ | 0 |
+| shield-sec101-m04.presentation | presentation | ✓ | 0 |
+| shield-sec101-m05.presentation | presentation | ✓ | 0 |
+| shield-sec101-m06.presentation | presentation | ✓ | 0 |
+| shield-sec101-m07.presentation | presentation | ✓ | 0 |
+| shield-sec101-m08.presentation | presentation | ✓ | 0 |
 | shield-aaa-flow.tool | presentation | ✓ | 0 |
 | shield-bia.tool | presentation | ✓ | 0 |
 | shield-crisc-risk.tool | presentation | ✓ | 0 |
@@ -4642,15 +4686,19 @@
 | web-ip-addressing-ch7-10.module | presentation | ✓ | 0 |
 | web-arp.presentation | presentation | ✓ | 0 |
 | web-cables.presentation | presentation | ✓ | 0 |
+| web-cloud-networking.presentation | presentation | ✓ | 0 |
 | web-devices.presentation | presentation | ✓ | 0 |
 | web-dhcp.presentation | presentation | ✓ | 0 |
 | web-dns.presentation | presentation | ✓ | 0 |
 | web-eigrp.presentation | presentation | ✓ | 0 |
 | web-etherchannel.presentation | presentation | ✓ | 0 |
 | web-fhrp.presentation | presentation | ✓ | 0 |
+| web-high-availability.presentation | presentation | ✓ | 0 |
 | web-ipv6.presentation | presentation | ✓ | 0 |
 | web-nat.presentation | presentation | ✓ | 0 |
 | web-network-essentials.presentation | presentation | ✓ | 0 |
+| web-network-monitoring.presentation | presentation | ✓ | 0 |
+| web-network-security.presentation | presentation | ✓ | 0 |
 | web-ntp.presentation | presentation | ✓ | 0 |
 | web-osi-deep-dive.presentation | presentation | ✓ | 0 |
 | web-osi-model.presentation | presentation | ✓ | 0 |
@@ -4664,6 +4712,7 @@
 | web-topologies.presentation | presentation | ✓ | 0 |
 | web-troubleshooting.presentation | presentation | ✓ | 0 |
 | web-vlan.presentation | presentation | ✓ | 0 |
+| web-wan-technologies.presentation | presentation | ✓ | 0 |
 | web-wireless-architecture.presentation | presentation | ✓ | 0 |
 | web-wireless.presentation | presentation | ✓ | 0 |
 | web-networking-ch7-10 | quiz | ✓ | 0 |
@@ -4979,7 +5028,7 @@
   File: `operator/missions/windows-cmd-01.mission.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
 
-### WARNING (450)
+### WARNING (458)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
@@ -5455,6 +5504,30 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/ai/tools/ai-tokenizer.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-api-002.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-api-003.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-api-004.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-api-005.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-api-006.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-api-007.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6118,6 +6191,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/games/forge-root-access.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-100/labs/forge-md100-m01-sim.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -6687,6 +6764,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/games/shield-debugger.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/shield-life-force.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -8014,7 +8095,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (445)
+### Unregistered Content (453)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8137,6 +8218,12 @@
 | houses/ai/tools/ai-llm-comparison.tool.html | presentation | ai |
 | houses/ai/tools/ai-prompt-tester.tool.html | presentation | ai |
 | houses/ai/tools/ai-tokenizer.tool.html | applet | ai |
+| houses/cloud/api/cloud-api-002.presentation.html | lab | cloud |
+| houses/cloud/api/cloud-api-003.presentation.html | presentation | cloud |
+| houses/cloud/api/cloud-api-004.presentation.html | lab | cloud |
+| houses/cloud/api/cloud-api-005.presentation.html | lab | cloud |
+| houses/cloud/api/cloud-api-006.lab.html | presentation | cloud |
+| houses/cloud/api/cloud-api-007.presentation.html | presentation | cloud |
 | houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
 | houses/code/devops/sections/ansible/do-82-ansible-fundamentals.html | presentation | code |
 | houses/code/devops/sections/ansible/do-83-automation-landscape.html | presentation | code |
@@ -8299,6 +8386,7 @@
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html | quiz | forge |
+| houses/forge/games/forge-root-access.applet.html | presentation | forge |
 | houses/forge/md-100/labs/forge-md100-m01-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m02-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m03-sim.lab.html | lab | forge |
@@ -8442,6 +8530,7 @@
 | houses/script/modules/databases/script-db-35-capstone.lab.html | lab | script |
 | houses/shield/games/shield-contra.applet.html | presentation | shield |
 | houses/shield/games/shield-debugger.applet.html | applet | shield |
+| houses/shield/games/shield-life-force.applet.html | presentation | shield |
 | houses/shield/games/shield-threatdex.applet.html | presentation | shield |
 | houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
 | houses/web/games/web-dns-resolver-race.applet.html | presentation | web |
