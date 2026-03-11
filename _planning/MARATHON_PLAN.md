@@ -497,9 +497,9 @@
 ## Wave 19: Final QC & Deploy
 *Single agent — validation and ship*
 
-- [ ] Run `npm run scan` — full EduScan, fix any CRITICAL/HIGH issues
-- [ ] Run `npm run scan:test` — signature tests must pass
-- [ ] Run `npm run scan:archive` — save baseline
+- [x] Run `npm run scan` — full EduScan, fix any CRITICAL/HIGH issues
+- [x] Run `npm run scan:test` — signature tests must pass (40/40)
+- [x] Run `npm run scan:archive` — save baseline
 - [ ] Commit all remaining changes
 - [ ] `git push`
 - [ ] `npx firebase deploy --only hosting`
