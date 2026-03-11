@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Bounty Simulation - NovaTech Corp | Dark Arts Vault</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        /* -- Reset & Base ------------------------------------------------- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0508; font-family: 'Courier New', monospace; color: #a080b0; }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(147, 51, 234, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(88, 28, 135, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* -- Header / HUD ------------------------------------------------ */
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 50px;
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; z-index: 100;
+        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .back-link {
+            color: #7c3aed; text-decoration: none; font-size: 0.82rem;
+            padding: 5px 10px; border-radius: 5px; border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .back-link:hover { background: rgba(147, 51, 234, 0.12); border-color: rgba(147, 51, 234, 0.3); color: #a855f7; }
+        .header-title { font-size: 0.95rem; color: #c4a0d8; font-family: Georgia, serif; }
+        .header-badge {
+            background: rgba(147, 51, 234, 0.2); color: #c084fc;
+            padding: 2px 8px; border-radius: 12px; font-size: 0.65rem;
+            text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+        .hud { display: flex; gap: 16px; align-items: center; }
+        .hud-item { text-align: center; }
+        .hud-label { font-size: 0.55rem; color: #6a4a7a; letter-spacing: 0.15em; text-transform: uppercase; }
+        .hud-value { font-size: 1.1rem; color: #a855f7; }
+        .hud-value.bounty { color: #22c55e; }
+        .hud-value.rep { color: #f59e0b; }
+
+        /* -- Main Area --------------------------------------------------- */
+        .main-area { margin-top: 50px; max-width: 900px; margin-left: auto; margin-right: auto; padding: 20px; position: relative; z-index: 1; }
+
+        /* -- Phase Tracker ----------------------------------------------- */
+        .phase-tracker { display: flex; gap: 4px; justify-content: center; margin: 20px 0; }
+        .phase-pip {
+            flex: 1; max-width: 160px; height: 36px;
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; color: #6a4a7a; transition: all 0.2s ease;
+        }
+        .phase-pip.done { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.4); color: #4ade80; }
+        .phase-pip.current { background: rgba(147, 51, 234, 0.15); border-color: rgba(147, 51, 234, 0.4); color: #a855f7; }
+        .phase-pip.locked { opacity: 0.35; }
+
+        /* -- Screens ----------------------------------------------------- */
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        /* -- Intro Screen ------------------------------------------------ */
+        .intro-box {
+            background: rgba(15, 8, 25, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 30px; text-align: center; margin-top: 40px;
+        }
+        .intro-box h2 { color: #c4a0d8; font-size: 1.2rem; margin-bottom: 12px; font-family: Georgia, serif; }
+        .intro-box p { font-size: 0.82rem; color: #7a5a8a; line-height: 1.6; margin-bottom: 16px; }
+
+        /* -- Buttons ----------------------------------------------------- */
+        .btn {
+            background: rgba(147, 51, 234, 0.3); border: 1px solid rgba(147, 51, 234, 0.4);
+            color: #c084fc; padding: 10px 24px; border-radius: 6px; cursor: pointer;
+            font-family: 'Courier New', monospace; font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .btn:hover { background: rgba(147, 51, 234, 0.5); color: #e9d5ff; }
+        .btn:disabled { opacity: 0.3; cursor: default; }
+        .btn.btn-green { background: rgba(34, 197, 94, 0.3); border-color: rgba(34, 197, 94, 0.4); color: #86efac; }
+        .btn.btn-green:hover { background: rgba(34, 197, 94, 0.5); color: #bbf7d0; }
+
+        /* -- Scope Panel ------------------------------------------------- */
+        .scope-panel {
+            background: rgba(10, 5, 20, 0.8); border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 8px; padding: 24px; margin: 20px 0; text-align: left;
+        }
+        .scope-panel h3 { color: #c4a0d8; font-size: 1rem; margin-bottom: 16px; font-family: Georgia, serif; }
+        .scope-section { margin-bottom: 16px; }
+        .scope-section h4 { color: #a855f7; font-size: 0.82rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+        .scope-list { list-style: none; padding-left: 16px; }
+        .scope-list li { font-size: 0.8rem; line-height: 1.8; color: #8a6a9a; }
+        .scope-list li.in-scope { color: #4ade80; }
+        .scope-list li.in-scope::before { content: '[+] '; color: #22c55e; }
+        .scope-list li.out-scope { color: #ef4444; }
+        .scope-list li.out-scope::before { content: '[-] '; color: #dc2626; }
+        .scope-rewards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+        .reward-row { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 4px 8px; border-radius: 4px; }
+        .reward-row.critical { background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
+        .reward-row.high { background: rgba(249, 115, 22, 0.1); color: #fdba74; }
+        .reward-row.medium { background: rgba(234, 179, 8, 0.1); color: #fde68a; }
+        .reward-row.low { background: rgba(59, 130, 246, 0.1); color: #93c5fd; }
+        .scope-rules { font-size: 0.75rem; color: #6a4a7a; line-height: 1.8; padding-left: 16px; }
+        .scope-rules li::before { content: '> '; color: #7c3aed; }
+
+        /* -- Terminal ---------------------------------------------------- */
+        .terminal {
+            background: #050208; border: 1px solid rgba(100, 60, 130, 0.25);
+            border-radius: 8px; overflow: hidden; margin: 20px 0;
+        }
+        .terminal-bar {
+            background: rgba(20, 10, 35, 0.9); padding: 6px 12px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .terminal-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .terminal-dot.r { background: #ef4444; }
+        .terminal-dot.y { background: #f59e0b; }
+        .terminal-dot.g { background: #22c55e; }
+        .terminal-title { font-size: 0.7rem; color: #6a4a7a; margin-left: 8px; }
+        .terminal-body {
+            padding: 12px; min-height: 300px; max-height: 420px; overflow-y: auto;
+            font-size: 0.78rem; line-height: 1.6;
+        }
+        .terminal-body::-webkit-scrollbar { width: 6px; }
+        .terminal-body::-webkit-scrollbar-track { background: transparent; }
+        .terminal-body::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.3); border-radius: 3px; }
+        .terminal-line { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; }
+        .terminal-line.cmd { color: #a855f7; }
+        .terminal-line.output { color: #7a5a8a; }
+        .terminal-line.success { color: #4ade80; }
+        .terminal-line.error { color: #ef4444; }
+        .terminal-line.warning { color: #f59e0b; }
+        .terminal-input-line {
+            display: flex; align-items: center; gap: 0; margin-top: 4px;
+        }
+        .terminal-prompt { color: #22c55e; white-space: nowrap; font-size: 0.78rem; }
+        .terminal-input {
+            background: transparent; border: none; outline: none;
+            color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.78rem;
+            flex: 1; caret-color: #a855f7;
+        }
+        .terminal-input::placeholder { color: rgba(100, 60, 130, 0.4); }
+
+        /* -- Recon Status ------------------------------------------------ */
+        .recon-status {
+            background: rgba(15, 8, 25, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 6px; padding: 12px 16px; margin: 12px 0;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .recon-count { font-size: 0.78rem; color: #7a5a8a; }
+        .recon-count span { color: #a855f7; }
+
+        /* -- Browser Chrome ---------------------------------------------- */
+        .sim-browser {
+            background: #0d0610; border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 8px; overflow: hidden; margin: 16px 0;
+        }
+        .browser-bar {
+            background: rgba(20, 10, 35, 0.9); padding: 8px 12px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .browser-dots { display: flex; gap: 4px; }
+        .browser-url {
+            flex: 1; background: rgba(5, 2, 15, 0.8); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 4px; padding: 4px 10px; color: #6a4a7a; font-size: 0.72rem;
+            font-family: 'Courier New', monospace;
+        }
+        .browser-body { padding: 16px; min-height: 200px; }
+
+        /* -- Target Page Styles ------------------------------------------ */
+        .target-page h3 { color: #c4a0d8; font-size: 0.95rem; margin-bottom: 12px; font-family: Georgia, serif; }
+        .target-form { margin: 12px 0; }
+        .target-input {
+            background: rgba(5, 2, 15, 0.8); border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 4px; padding: 8px 12px; color: #c4a0d8;
+            font-family: 'Courier New', monospace; font-size: 0.8rem; width: 100%;
+            margin-bottom: 8px; outline: none;
+        }
+        .target-input:focus { border-color: rgba(147, 51, 234, 0.5); }
+        .target-btn {
+            background: rgba(59, 130, 246, 0.3); border: 1px solid rgba(59, 130, 246, 0.4);
+            color: #93c5fd; padding: 6px 16px; border-radius: 4px; cursor: pointer;
+            font-family: 'Courier New', monospace; font-size: 0.78rem;
+            transition: all 0.2s ease;
+        }
+        .target-btn:hover { background: rgba(59, 130, 246, 0.5); }
+        .target-result {
+            margin-top: 10px; padding: 10px; border-radius: 4px;
+            font-size: 0.78rem; line-height: 1.5; display: none;
+        }
+        .target-result.show { display: block; }
+        .target-result.success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: #86efac; }
+        .target-result.error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .target-result.info { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); color: #93c5fd; }
+
+        /* -- Vulnerability Cards ----------------------------------------- */
+        .vuln-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 16px 0; }
+        .vuln-card {
+            background: rgba(15, 8, 25, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 6px; padding: 14px; transition: all 0.2s ease;
+        }
+        .vuln-card.found { border-color: rgba(34, 197, 94, 0.3); background: rgba(34, 197, 94, 0.05); }
+        .vuln-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .vuln-card-title { font-size: 0.82rem; color: #c4a0d8; }
+        .vuln-card-status { font-size: 0.68rem; padding: 2px 8px; border-radius: 10px; }
+        .vuln-card-status.unfound { background: rgba(100, 60, 130, 0.15); color: #6a4a7a; }
+        .vuln-card-status.found { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .vuln-card-status.reported { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+
+        /* -- Hunting Targets --------------------------------------------- */
+        .hunt-tabs { display: flex; gap: 4px; margin: 16px 0 0 0; flex-wrap: wrap; }
+        .hunt-tab {
+            padding: 6px 14px; border-radius: 4px 4px 0 0;
+            font-size: 0.72rem; cursor: pointer; border: 1px solid rgba(100, 60, 130, 0.2);
+            border-bottom: none; color: #6a4a7a; background: rgba(10, 5, 20, 0.5);
+            transition: all 0.15s ease;
+        }
+        .hunt-tab.active { background: rgba(147, 51, 234, 0.15); color: #a855f7; border-color: rgba(147, 51, 234, 0.3); }
+        .hunt-tab.found { color: #4ade80; border-color: rgba(34, 197, 94, 0.3); }
+        .hunt-target { display: none; }
+        .hunt-target.active { display: block; }
+
+        /* -- Profile / IDOR --------------------------------------------- */
+        .profile-card {
+            background: rgba(10, 5, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 6px; padding: 16px; margin: 10px 0;
+        }
+        .profile-field { display: flex; gap: 12px; margin-bottom: 6px; font-size: 0.78rem; }
+        .profile-label { color: #6a4a7a; min-width: 100px; }
+        .profile-value { color: #c4a0d8; }
+
+        /* -- Source View ------------------------------------------------- */
+        .source-view {
+            background: rgba(5, 2, 15, 0.9); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 4px; padding: 12px; font-size: 0.72rem;
+            line-height: 1.6; color: #6a4a7a; overflow-x: auto;
+            max-height: 250px; overflow-y: auto; display: none;
+        }
+        .source-view.show { display: block; }
+        .source-comment { color: #4a7a4a; }
+        .source-tag { color: #7a5a8a; }
+        .source-attr { color: #c4a0d8; }
+        .source-highlight { color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 0 2px; }
+
+        /* -- Report Form ------------------------------------------------- */
+        .report-form {
+            background: rgba(15, 8, 25, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; margin: 16px 0;
+        }
+        .report-form h3 { color: #c4a0d8; font-size: 0.95rem; margin-bottom: 14px; font-family: Georgia, serif; }
+        .form-group { margin-bottom: 12px; }
+        .form-label { font-size: 0.72rem; color: #6a4a7a; margin-bottom: 4px; display: block; text-transform: uppercase; letter-spacing: 0.1em; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; background: rgba(5, 2, 15, 0.8); border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 4px; padding: 8px 12px; color: #c4a0d8;
+            font-family: 'Courier New', monospace; font-size: 0.78rem; outline: none;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: rgba(147, 51, 234, 0.5); }
+        .form-select { cursor: pointer; }
+        .form-select option { background: #0a0508; color: #c4a0d8; }
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .form-feedback { font-size: 0.75rem; margin-top: 6px; padding: 6px 10px; border-radius: 4px; display: none; }
+        .form-feedback.show { display: block; }
+        .form-feedback.warn { background: rgba(245, 158, 11, 0.1); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.2); }
+        .form-feedback.ok { background: rgba(34, 197, 94, 0.1); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.2); }
+
+        /* -- Results / Payout -------------------------------------------- */
+        .results-panel {
+            background: rgba(15, 8, 25, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 24px; margin: 20px 0;
+        }
+        .results-panel h2 { color: #c4a0d8; font-size: 1.1rem; margin-bottom: 16px; font-family: Georgia, serif; text-align: center; }
+        .result-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 0.78rem;
+        }
+        .result-row.accepted { background: rgba(34, 197, 94, 0.08); color: #86efac; }
+        .result-row.duplicate { background: rgba(245, 158, 11, 0.08); color: #fde68a; }
+        .result-row.oos { background: rgba(239, 68, 68, 0.08); color: #fca5a5; }
+        .result-row.info { background: rgba(59, 130, 246, 0.08); color: #93c5fd; }
+        .result-status { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; }
+        .result-bounty { font-weight: bold; }
+        .total-bounty {
+            text-align: center; margin-top: 20px; padding: 16px;
+            background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 6px;
+        }
+        .total-bounty-amount { font-size: 1.6rem; color: #4ade80; }
+        .total-bounty-label { font-size: 0.72rem; color: #6a4a7a; margin-top: 4px; }
+        .rep-score { text-align: center; margin-top: 12px; }
+        .rep-score-value { font-size: 1.2rem; color: #f59e0b; }
+
+        /* -- Alert Overlay ----------------------------------------------- */
+        .alert-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.7); z-index: 200;
+            justify-content: center; align-items: center;
+        }
+        .alert-overlay.show { display: flex; }
+        .alert-box {
+            background: #0d0610; border: 2px solid rgba(245, 158, 11, 0.5);
+            border-radius: 8px; padding: 24px; max-width: 400px; text-align: center;
+        }
+        .alert-box h3 { color: #fde68a; font-size: 0.95rem; margin-bottom: 10px; }
+        .alert-box p { color: #8a6a9a; font-size: 0.78rem; line-height: 1.5; margin-bottom: 14px; }
+
+        /* -- XSS visual -------------------------------------------------- */
+        .xss-alert {
+            display: none; background: rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.5);
+            border-radius: 6px; padding: 14px; margin: 10px 0; text-align: center;
+        }
+        .xss-alert.show { display: block; animation: xssFlash 0.3s ease 3; }
+        .xss-alert-title { color: #ef4444; font-size: 0.88rem; margin-bottom: 4px; }
+        .xss-alert-body { color: #fca5a5; font-size: 0.75rem; }
+        @keyframes xssFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* -- Redirect visual --------------------------------------------- */
+        .redirect-visual {
+            display: none; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 6px; padding: 14px; margin: 10px 0;
+        }
+        .redirect-visual.show { display: block; }
+
+        /* -- Success flash ----------------------------------------------- */
+        .vuln-found-flash {
+            display: none; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 6px; padding: 12px; margin: 10px 0; text-align: center;
+            animation: foundPulse 0.5s ease;
+        }
+        .vuln-found-flash.show { display: block; }
+        @keyframes foundPulse { 0% { transform: scale(0.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* -- Section headers --------------------------------------------- */
+        .section-header { color: #c4a0d8; font-size: 0.95rem; margin: 20px 0 12px 0; font-family: Georgia, serif; }
+        .section-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; margin-bottom: 14px; }
+
+        /* -- Scrollbar --------------------------------------------------- */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.3); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- == Header / HUD ================================================= -->
+<div class="header">
+    <div class="header-left">
+        <a href="../index.html" class="back-link">&lt; Bug Hunting</a>
+        <span class="header-title">NovaTech Corp - Bug Bounty Sim</span>
+        <span class="header-badge">Lab</span>
+    </div>
+    <div class="hud">
+        <div class="hud-item">
+            <div class="hud-label">Bounty</div>
+            <div class="hud-value bounty" id="hudBounty">$0</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Vulns</div>
+            <div class="hud-value" id="hudVulns">0/7</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Reports</div>
+            <div class="hud-value" id="hudReports">0</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Rep</div>
+            <div class="hud-value rep" id="hudRep">0</div>
+        </div>
+    </div>
+</div>
+
+<!-- == Phase Tracker ================================================ -->
+<div class="main-area">
+    <div class="phase-tracker" id="phaseTracker">
+        <div class="phase-pip" data-phase="0">1. Scope</div>
+        <div class="phase-pip" data-phase="1">2. Recon</div>
+        <div class="phase-pip" data-phase="2">3. Hunting</div>
+        <div class="phase-pip" data-phase="3">4. Reporting</div>
+        <div class="phase-pip" data-phase="4">5. Payout</div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- SCREEN: Intro                                                  -->
+    <!-- ============================================================= -->
+    <div class="screen active" id="screenIntro">
+        <div class="intro-box">
+            <h2>Bug Bounty Simulation</h2>
+            <p>You have been invited to NovaTech Corp's private bug bounty program. Your objective: discover vulnerabilities, document them professionally, and earn bounties based on severity and report quality.</p>
+            <p style="color: #6a4a7a; font-size: 0.75rem; margin-bottom: 20px;">This simulation covers the full bug bounty lifecycle -- from scope review through payout. Seven vulnerabilities are planted across NovaTech's attack surface.</p>
+            <button class="btn" onclick="startSim()">Accept Invitation</button>
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- SCREEN: Phase 1 - Scope Review                                 -->
+    <!-- ============================================================= -->
+    <div class="screen" id="screenScope">
+        <h2 class="section-header">Phase 1: Scope Review</h2>
+        <p class="section-desc">Before hunting, review the program policy carefully. Understanding scope prevents wasted effort and policy violations.</p>
+
+        <div class="scope-panel">
+            <h3>NovaTech Corp Bug Bounty Program</h3>
+            <div style="border-bottom: 1px solid rgba(100, 60, 130, 0.15); margin-bottom: 16px; padding-bottom: 4px; color: #6a4a7a; font-size: 0.7rem;">Program ID: NT-BBP-2026 | Status: Active | Response SLA: 48h</div>
+
+            <div class="scope-section">
+                <h4>In Scope</h4>
+                <ul class="scope-list">
+                    <li class="in-scope">*.novatech.com (web applications)</li>
+                    <li class="in-scope">api.novatech.com (REST API)</li>
+                    <li class="in-scope">mobile.novatech.com (mobile web)</li>
+                    <li class="in-scope">app.novatech.com (primary application)</li>
+                </ul>
+            </div>
+
+            <div class="scope-section">
+                <h4>Out of Scope</h4>
+                <ul class="scope-list">
+                    <li class="out-scope">blog.novatech.com (third-party CMS)</li>
+                    <li class="out-scope">status.novatech.com (monitoring page)</li>
+                    <li class="out-scope">Physical / social engineering attacks</li>
+                    <li class="out-scope">DoS / DDoS attacks</li>
+                    <li class="out-scope">Automated scanning without prior approval</li>
+                </ul>
+            </div>
+
+            <div class="scope-section">
+                <h4>Reward Table</h4>
+                <div class="scope-rewards">
+                    <div class="reward-row critical"><span>Critical</span><span>$5,000 - $15,000</span></div>
+                    <div class="reward-row high"><span>High</span><span>$2,000 - $5,000</span></div>
+                    <div class="reward-row medium"><span>Medium</span><span>$500 - $2,000</span></div>
+                    <div class="reward-row low"><span>Low</span><span>$100 - $500</span></div>
+                </div>
+            </div>
+
+            <div class="scope-section">
+                <h4>Rules of Engagement</h4>
+                <ul class="scope-rules">
+                    <li>No automated scanning without prior approval</li>
+                    <li>Do not access other users' data beyond proof-of-concept</li>
+                    <li>Report within 24 hours of discovery</li>
+                    <li>90-day coordinated disclosure timeline</li>
+                    <li>One report per vulnerability -- do not chain unrelated issues</li>
+                    <li>Testing accounts available: testuser / testpass123</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn" onclick="goToRecon()">I Understand the Scope -- Begin Recon</button>
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- SCREEN: Phase 2 - Recon                                        -->
+    <!-- ============================================================= -->
+    <div class="screen" id="screenRecon">
+        <h2 class="section-header">Phase 2: Reconnaissance</h2>
+        <p class="section-desc">Use the terminal to enumerate NovaTech's attack surface. Discover subdomains, open ports, and exposed files. Type <span style="color: #a855f7;">help</span> for available commands.</p>
+
+        <div class="recon-status">
+            <div class="recon-count">Commands executed: <span id="reconCount">0</span></div>
+            <div class="recon-count">Findings: <span id="reconFindings">0</span></div>
+            <button class="btn btn-green" id="reconAdvanceBtn" style="display: none;" onclick="goToHunting()">Proceed to Hunting &gt;&gt;</button>
+        </div>
+
+        <div class="terminal">
+            <div class="terminal-bar">
+                <div class="terminal-dot r"></div>
+                <div class="terminal-dot y"></div>
+                <div class="terminal-dot g"></div>
+                <span class="terminal-title">recon@bounty-hunter:~</span>
+            </div>
+            <div class="terminal-body" id="terminalBody">
+                <div class="terminal-line output">[*] Connected to NovaTech recon environment</div>
+                <div class="terminal-line output">[*] Target: novatech.com</div>
+                <div class="terminal-line output">[*] Type 'help' for available commands</div>
+                <div class="terminal-line output">&nbsp;</div>
+            </div>
+            <div style="padding: 4px 12px 8px 12px;">
+                <div class="terminal-input-line">
+                    <span class="terminal-prompt">hunter@recon:~$ </span>
+                    <input type="text" class="terminal-input" id="terminalInput" placeholder="Enter command..." autocomplete="off" spellcheck="false">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- SCREEN: Phase 3 - Hunting                                      -->
+    <!-- ============================================================= -->
+    <div class="screen" id="screenHunting">
+        <h2 class="section-header">Phase 3: Vulnerability Hunting</h2>
+        <p class="section-desc">Interact with NovaTech's simulated targets to discover vulnerabilities. Each target is a simulated page -- look for common web security issues.</p>
+
+        <div class="vuln-grid" id="vulnStatusGrid"></div>
+
+        <div class="hunt-tabs" id="huntTabs"></div>
+
+        <!-- Target 1: .env Exposure (auto-populated from recon) -->
+        <div class="hunt-target" id="target0">
+            <div class="sim-browser">
+                <div class="browser-bar">
+                    <div class="browser-dots">
+                        <div class="terminal-dot r"></div>
+                        <div class="terminal-dot y"></div>
+                        <div class="terminal-dot g"></div>
+                    </div>
+                    <div class="browser-url">http://app.novatech.com/.env</div>
+                </div>
+                <div class="browser-body">
+                    <div class="target-page">
+                        <div id="envExposureContent">
+                            <p style="color: #7a5a8a; font-size: 0.8rem;">This file was discovered during recon. The .env file contains sensitive configuration data exposed to the public internet.</p>
+                            <div style="background: rgba(5, 2, 15, 0.9); padding: 12px; border-radius: 4px; margin: 10px 0; font-size: 0.75rem; line-height: 1.8;">
+                                <span style="color: #6a4a7a;">DB_HOST=</span><span style="color: #fca5a5;">prod-db.novatech.internal</span><br>
+                                <span style="color: #6a4a7a;">DB_USER=</span><span style="color: #fca5a5;">novatech_admin</span><br>
+                                <span style="color: #6a4a7a;">DB_PASS=</span><span style="color: #fca5a5;">N0v4T3ch_Pr0d_2026!</span><br>
+                                <span style="color: #6a4a7a;">REDIS_URL=</span><span style="color: #fca5a5;">redis://cache.novatech.internal:6379</span><br>
+                                <span style="color: #6a4a7a;">JWT_SECRET=</span><span style="color: #fca5a5;">super_secret_jwt_key_do_not_share</span><br>
+                                <span style="color: #6a4a7a;">STRIPE_KEY=</span><span style="color: #fca5a5;">rk_test_novatech_4f9c2a8b7d</span><br>
+                                <span style="color: #6a4a7a;">AWS_ACCESS_KEY=</span><span style="color: #fca5a5;">AKIAIOSFODNN7EXAMPLE</span>
+                            </div>
+                            <button class="btn" id="envReportBtn" onclick="reportVuln(0)">Report This Finding</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target 2: SQL Injection -->
+        <div class="hunt-target" id="target1">
+            <div class="sim-browser">
+                <div class="browser-bar">
+                    <div class="browser-dots">
+                        <div class="terminal-dot r"></div>
+                        <div class="terminal-dot y"></div>
+                        <div class="terminal-dot g"></div>
+                    </div>
+                    <div class="browser-url">https://app.novatech.com/login</div>
+                </div>
+                <div class="browser-body">
+                    <div class="target-page">
+                        <h3>NovaTech Login</h3>
+                        <p style="font-size: 0.78rem; color: #7a5a8a; margin-bottom: 12px;">Test the login form for injection vulnerabilities.</p>
+                        <div class="target-form">
+                            <input type="text" class="target-input" id="sqliUser" placeholder="Username">
+                            <input type="password" class="target-input" id="sqliPass" placeholder="Password">
+                            <button class="target-btn" onclick="testSqli()">Login</button>
+                        </div>
+                        <div class="target-result" id="sqliResult"></div>
+                        <div class="vuln-found-flash" id="sqliFound">
+                            <span style="color: #4ade80;">VULNERABILITY FOUND: SQL Injection</span><br>
+                            <span style="font-size: 0.72rem; color: #86efac;">Authentication bypass via unsanitized input</span>
+                        </div>
+                        <button class="btn" id="sqliReportBtn" style="display: none; margin-top: 10px;" onclick="reportVuln(1)">Report This Finding</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target 3: IDOR -->
+        <div class="hunt-target" id="target2">
+            <div class="sim-browser">
+                <div class="browser-bar">
+                    <div class="browser-dots">
+                        <div class="terminal-dot r"></div>
+                        <div class="terminal-dot y"></div>
+                        <div class="terminal-dot g"></div>
+                    </div>
+                    <div class="browser-url" id="idorUrl">https://app.novatech.com/profile?user_id=1001</div>
+                </div>
+                <div class="browser-body">
+                    <div class="target-page">
+                        <h3>User Profile</h3>
+                        <p style="font-size: 0.78rem; color: #7a5a8a; margin-bottom: 12px;">You are logged in as testuser (ID: 1001). Try accessing other user profiles by changing the user_id parameter.</p>
+                        <div class="target-form" style="display: flex; gap: 8px; align-items: center;">
+                            <span style="font-size: 0.78rem; color: #6a4a7a;">user_id=</span>
+                            <input type="text" class="target-input" id="idorInput" value="1001" style="width: 120px; margin: 0;">
+                            <button class="target-btn" onclick="testIdor()">Load Profile</button>
+                        </div>
+                        <div class="profile-card" id="idorProfile">
+                            <div class="profile-field"><span class="profile-label">Name:</span><span class="profile-value" id="idorName">Test User</span></div>
+                            <div class="profile-field"><span class="profile-label">Email:</span><span class="profile-value" id="idorEmail">testuser@novatech.com</span></div>
+                            <div class="profile-field"><span class="profile-label">Role:</span><span class="profile-value" id="idorRole">Standard User</span></div>
+                            <div class="profile-field"><span class="profile-label">Phone:</span><span class="profile-value" id="idorPhone">555-0101</span></div>
+                            <div class="profile-field"><span class="profile-label">SSN (last 4):</span><span class="profile-value" id="idorSSN">****</span></div>
+                        </div>
+                        <div class="vuln-found-flash" id="idorFound">
+                            <span style="color: #4ade80;">VULNERABILITY FOUND: Insecure Direct Object Reference</span><br>
+                            <span style="font-size: 0.72rem; color: #86efac;">Unauthorized access to other users' PII</span>
+                        </div>
+                        <button class="btn" id="idorReportBtn" style="display: none; margin-top: 10px;" onclick="reportVuln(2)">Report This Finding</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target 4: XSS -->
+        <div class="hunt-target" id="target3">
+            <div class="sim-browser">
+                <div class="browser-bar">
+                    <div class="browser-dots">
+                        <div class="terminal-dot r"></div>
+                        <div class="terminal-dot y"></div>
+                        <div class="terminal-dot g"></div>
+                    </div>
+                    <div class="browser-url">https://app.novatech.com/search</div>
+                </div>
+                <div class="browser-body">
+                    <div class="target-page">
+                        <h3>NovaTech Product Search</h3>
+                        <p style="font-size: 0.78rem; color: #7a5a8a; margin-bottom: 12px;">Search for products. Test whether user input is properly sanitized in the output.</p>
+                        <div class="target-form" style="display: flex; gap: 8px;">
+                            <input type="text" class="target-input" id="xssInput" placeholder="Search products..." style="margin: 0;">
+                            <button class="target-btn" onclick="testXss()">Search</button>
+                        </div>
+                        <div class="target-result info" id="xssResult"></div>
+                        <div class="xss-alert" id="xssAlert">
+                            <div class="xss-alert-title">JavaScript Alert Triggered!</div>
+                            <div class="xss-alert-body">alert(1) -- XSS payload executed in browser context</div>
+                        </div>
+                        <div class="vuln-found-flash" id="xssFound">
+                            <span style="color: #4ade80;">VULNERABILITY FOUND: Reflected Cross-Site Scripting</span><br>
+                            <span style="font-size: 0.72rem; color: #86efac;">User input reflected without sanitization</span>
+                        </div>
+                        <button class="btn" id="xssReportBtn" style="display: none; margin-top: 10px;" onclick="reportVuln(3)">Report This Finding</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target 5: No Rate Limiting -->
+        <div class="hunt-target" id="target4">
+            <div class="sim-browser">
+                <div class="browser-bar">
+                    <div class="browser-dots">
+                        <div class="terminal-dot r"></div>
+                        <div class="terminal-dot y"></div>
+                        <div class="terminal-dot g"></div>
+                    </div>
+                    <div class="browser-url">https://app.novatech.com/login (brute-force test)</div>
+                </div>
+                <div class="browser-body">
+                    <div class="target-page">
+                        <h3>Authentication Rate Limiting Test</h3>
+                        <p style="font-size: 0.78rem; color: #7a5a8a; margin-bottom: 12px;">Test whether the login endpoint enforces rate limiting or account lockout. Click the button to simulate rapid login attempts with invalid credentials.</p>
+                        <div class="target-form">
+                            <button class="target-btn" id="rateTestBtn" onclick="testRateLimit()">Send 10 Rapid Login Attempts</button>
+                        </div>
+                        <div id="rateAttempts" style="margin-top: 10px; font-size: 0.72rem;"></div>
+                        <div class="vuln-found-flash" id="rateFound">
+                            <span style="color: #4ade80;">VULNERABILITY FOUND: Missing Rate Limiting</span><br>
+                            <span style="font-size: 0.72rem; color: #86efac;">No account lockout or rate limiting on authentication endpoint</span>
+                        </div>
+                        <button class="btn" id="rateReportBtn" style="display: none; margin-top: 10px;" onclick="reportVuln(4)">Report This Finding</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target 6: API Key in Source -->
+        <div class="hunt-target" id="target5">
+            <div class="sim-browser">
+                <div class="browser-bar">
+                    <div class="browser-dots">
+                        <div class="terminal-dot r"></div>
+                        <div class="terminal-dot y"></div>
+                        <div class="terminal-dot g"></div>
+                    </div>
+                    <div class="browser-url">https://app.novatech.com/dashboard</div>
+                </div>
+                <div class="browser-body">
+                    <div class="target-page">
+                        <h3>NovaTech Dashboard</h3>
+                        <p style="font-size: 0.78rem; color: #7a5a8a; margin-bottom: 12px;">The dashboard page loads normally. Check the page source for any sensitive data left in HTML comments or embedded scripts.</p>
+                        <div style="background: rgba(10, 5, 20, 0.6); padding: 16px; border-radius: 6px; margin: 10px 0;">
+                            <div style="color: #c4a0d8; font-size: 0.82rem; margin-bottom: 8px;">Welcome back, Test User</div>
+                            <div style="color: #6a4a7a; font-size: 0.75rem;">Last login: 2026-03-10 14:32 UTC</div>
+                            <div style="color: #6a4a7a; font-size: 0.75rem;">Active sessions: 1</div>
+                        </div>
+                        <button class="target-btn" onclick="toggleSource()">View Page Source</button>
+                        <div class="source-view" id="sourceView">
+                            <span class="source-tag">&lt;!DOCTYPE html&gt;</span><br>
+                            <span class="source-tag">&lt;html&gt;</span><br>
+                            <span class="source-tag">&lt;head&gt;</span><br>
+                            &nbsp;&nbsp;<span class="source-tag">&lt;title&gt;</span><span class="source-attr">NovaTech Dashboard</span><span class="source-tag">&lt;/title&gt;</span><br>
+                            &nbsp;&nbsp;<span class="source-tag">&lt;link</span> <span class="source-attr">rel="stylesheet" href="/css/app.css"</span><span class="source-tag">&gt;</span><br>
+                            <span class="source-tag">&lt;/head&gt;</span><br>
+                            <span class="source-tag">&lt;body&gt;</span><br>
+                            &nbsp;&nbsp;<span class="source-comment">&lt;!-- Dashboard v2.4.1 --&gt;</span><br>
+                            &nbsp;&nbsp;<span class="source-comment">&lt;!-- TODO: remove before production --&gt;</span><br>
+                            &nbsp;&nbsp;<span class="source-comment source-highlight">&lt;!-- NOVATECH_API_KEY=ntk_live_4f9c2a8b7d3e1f0096ab --&gt;</span><br>
+                            &nbsp;&nbsp;<span class="source-comment source-highlight">&lt;!-- ADMIN_PANEL: /admin?token=adm_7x9k2mf4 --&gt;</span><br>
+                            &nbsp;&nbsp;<span class="source-tag">&lt;div</span> <span class="source-attr">id="app"</span><span class="source-tag">&gt;</span><br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;<span class="source-tag">&lt;script</span> <span class="source-attr">src="/js/dashboard.min.js"</span><span class="source-tag">&gt;&lt;/script&gt;</span><br>
+                            &nbsp;&nbsp;<span class="source-tag">&lt;/div&gt;</span><br>
+                            <span class="source-tag">&lt;/body&gt;</span><br>
+                            <span class="source-tag">&lt;/html&gt;</span>
+                        </div>
+                        <div class="vuln-found-flash" id="sourceFound">
+                            <span style="color: #4ade80;">VULNERABILITY FOUND: API Key in Page Source</span><br>
+                            <span style="font-size: 0.72rem; color: #86efac;">Sensitive credentials exposed in HTML comments</span>
+                        </div>
+                        <button class="btn" id="sourceReportBtn" style="display: none; margin-top: 10px;" onclick="reportVuln(5)">Report This Finding</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target 7: Open Redirect -->
+        <div class="hunt-target" id="target6">
+            <div class="sim-browser">
+                <div class="browser-bar">
+                    <div class="browser-dots">
+                        <div class="terminal-dot r"></div>
+                        <div class="terminal-dot y"></div>
+                        <div class="terminal-dot g"></div>
+                    </div>
+                    <div class="browser-url" id="redirectUrl">https://app.novatech.com/auth/callback?redirect=/dashboard</div>
+                </div>
+                <div class="browser-body">
+                    <div class="target-page">
+                        <h3>OAuth Callback Handler</h3>
+                        <p style="font-size: 0.78rem; color: #7a5a8a; margin-bottom: 12px;">This endpoint handles post-authentication redirects. The <span style="color: #a855f7;">redirect</span> parameter controls where users are sent after login. Test whether it validates the redirect target.</p>
+                        <div class="target-form" style="display: flex; gap: 8px; align-items: center;">
+                            <span style="font-size: 0.78rem; color: #6a4a7a;">redirect=</span>
+                            <input type="text" class="target-input" id="redirectInput" value="/dashboard" style="margin: 0;">
+                            <button class="target-btn" onclick="testRedirect()">Follow Redirect</button>
+                        </div>
+                        <div class="target-result" id="redirectResult"></div>
+                        <div class="redirect-visual" id="redirectVisual">
+                            <div style="color: #f59e0b; font-size: 0.82rem; margin-bottom: 6px;">Open Redirect Confirmed</div>
+                            <div style="color: #fde68a; font-size: 0.72rem;" id="redirectTarget"></div>
+                        </div>
+                        <div class="vuln-found-flash" id="redirectFound">
+                            <span style="color: #4ade80;">VULNERABILITY FOUND: Open Redirect</span><br>
+                            <span style="font-size: 0.72rem; color: #86efac;">Unvalidated redirect allows phishing attacks</span>
+                        </div>
+                        <button class="btn" id="redirectReportBtn" style="display: none; margin-top: 10px;" onclick="reportVuln(6)">Report This Finding</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn btn-green" id="huntAdvanceBtn" style="display: none;" onclick="goToReporting()">Proceed to Reporting &gt;&gt;</button>
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- SCREEN: Phase 4 - Reporting                                    -->
+    <!-- ============================================================= -->
+    <div class="screen" id="screenReporting">
+        <h2 class="section-header">Phase 4: Vulnerability Reporting</h2>
+        <p class="section-desc">Write professional vulnerability reports for each finding. Accurate severity classification and clear reproduction steps are critical for acceptance.</p>
+
+        <div id="reportFormsContainer"></div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn btn-green" id="submitAllBtn" onclick="submitAllReports()">Submit All Reports</button>
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- SCREEN: Phase 5 - Payout                                       -->
+    <!-- ============================================================= -->
+    <div class="screen" id="screenPayout">
+        <h2 class="section-header">Phase 5: Triage Results</h2>
+        <p class="section-desc">NovaTech's security team has reviewed your submissions. Here are the triage results and bounty awards.</p>
+
+        <div class="results-panel" id="payoutResults"></div>
+    </div>
+
+</div>
+
+<!-- == Alert Overlay ================================================ -->
+<div class="alert-overlay" id="alertOverlay">
+    <div class="alert-box">
+        <h3 id="alertTitle">Notice</h3>
+        <p id="alertText"></p>
+        <button class="btn" onclick="closeAlert()">OK</button>
+    </div>
+</div>
+
+<script>
+/* -- Vulnerability Definitions ---------------------------------------- */
+var VULNS = [
+    {
+        id: 0,
+        title: 'Exposed Environment File',
+        category: 'Information Disclosure',
+        correctSeverity: 'Medium',
+        bounty: 1000,
+        tabLabel: '.env File',
+        triageStatus: 'accepted',
+        triageNote: 'Confirmed. Environment file with database credentials publicly accessible. Remediated immediately.'
+    },
+    {
+        id: 1,
+        title: 'SQL Injection on Login',
+        category: 'Injection',
+        correctSeverity: 'Critical',
+        bounty: 10000,
+        tabLabel: 'SQL Injection',
+        triageStatus: 'accepted',
+        triageNote: 'Confirmed critical. Authentication bypass via SQL injection in login form. Emergency patch deployed.'
+    },
+    {
+        id: 2,
+        title: 'IDOR on User Profiles',
+        category: 'Broken Access Control',
+        correctSeverity: 'High',
+        bounty: 3000,
+        tabLabel: 'IDOR',
+        triageStatus: 'accepted',
+        triageNote: 'Confirmed. Horizontal privilege escalation exposing PII. Authorization checks added to profile endpoint.'
+    },
+    {
+        id: 3,
+        title: 'Reflected XSS in Search',
+        category: 'Cross-Site Scripting',
+        correctSeverity: 'Medium',
+        bounty: 1500,
+        tabLabel: 'XSS',
+        triageStatus: 'accepted',
+        triageNote: 'Confirmed. Reflected XSS in search parameter. Output encoding applied.'
+    },
+    {
+        id: 4,
+        title: 'Missing Rate Limiting',
+        category: 'Broken Authentication',
+        correctSeverity: 'Medium',
+        bounty: 800,
+        tabLabel: 'Rate Limit',
+        triageStatus: 'accepted',
+        triageNote: 'Confirmed. No rate limiting on login endpoint. Account lockout and exponential backoff implemented.'
+    },
+    {
+        id: 5,
+        title: 'API Key in Page Source',
+        category: 'Information Disclosure',
+        correctSeverity: 'Low',
+        bounty: 300,
+        tabLabel: 'API Key',
+        triageStatus: 'accepted',
+        triageNote: 'Confirmed. API key and admin panel URL exposed in HTML comments. Credentials rotated and comments removed.'
+    },
+    {
+        id: 6,
+        title: 'Open Redirect',
+        category: 'Unvalidated Redirects',
+        correctSeverity: 'Low',
+        bounty: 200,
+        tabLabel: 'Redirect',
+        triageStatus: 'accepted',
+        triageNote: 'Confirmed. Open redirect in OAuth callback. Allowlist validation added for redirect parameter.'
+    }
+];
+
+/* -- Game State ------------------------------------------------------- */
+var state = {
+    phase: -1,
+    vulnsFound: [],
+    vulnsReported: [],
+    reports: {},
+    reconCommands: 0,
+    reconFindings: 0,
+    bountyEarned: 0,
+    reputation: 0,
+    envFoundInRecon: false,
+    sourceViewed: false,
+    commandHistory: [],
+    historyIndex: -1
+};
+
+/* -- IDOR Profile Data ------------------------------------------------ */
+var PROFILES = {
+    '1001': { name: 'Test User', email: 'testuser@novatech.com', role: 'Standard User', phone: '555-0101', ssn: '****' },
+    '1002': { name: 'Sarah Chen', email: 'sarah.chen@novatech.com', role: 'Engineering Lead', phone: '555-0234', ssn: '7891' },
+    '1003': { name: 'Marcus Johnson', email: 'm.johnson@personal.net', role: 'Finance Manager', phone: '555-0456', ssn: '3456' },
+    '1004': { name: 'Admin Root', email: 'admin@novatech.com', role: 'System Administrator', phone: '555-0001', ssn: '0000' }
+};
+
+/* -- Terminal Command Map --------------------------------------------- */
+var COMMANDS = {
+    'help': function() {
+        return {
+            type: 'output',
+            lines: [
+                'Available commands:',
+                '  subfinder -d <domain>         Enumerate subdomains',
+                '  nmap -sV <target>             Port scan with version detection',
+                '  httpx -list subs.txt ...       Check HTTP status of targets',
+                '  ffuf -w common.txt -u <url>    Directory/file fuzzing',
+                '  curl <url>                     Fetch URL contents',
+                '  nuclei -t <template> -target   Vulnerability scanning',
+                '  whois <domain>                 Domain registration info',
+                '  dig <domain>                   DNS lookup',
+                '  clear                          Clear terminal',
+                '  help                           Show this help'
+            ]
+        };
+    },
+    'clear': function() {
+        return { type: 'clear' };
+    }
+};
+
+function processCommand(raw) {
+    var cmd = raw.trim().toLowerCase();
+    if (!cmd) return null;
+
+    state.commandHistory.push(raw.trim());
+    state.historyIndex = state.commandHistory.length;
+
+    /* Exact match */
+    if (COMMANDS[cmd]) return COMMANDS[cmd]();
+
+    /* Parametric matching */
+    if (cmd.indexOf('subfinder') === 0 && cmd.indexOf('novatech') !== -1) {
+        state.reconCommands++;
+        return {
+            type: 'output',
+            lines: [
+                '[INF] Enumerating subdomains for novatech.com',
+                '[INF] Found 7 subdomains',
+                '',
+                'www.novatech.com',
+                'app.novatech.com',
+                'api.novatech.com',
+                'staging.novatech.com',
+                'admin.novatech.com',
+                'mobile.novatech.com',
+                'blog.novatech.com'
+            ]
+        };
+    }
+
+    if (cmd.indexOf('nmap') === 0 && (cmd.indexOf('app.novatech') !== -1 || cmd.indexOf('novatech') !== -1)) {
+        state.reconCommands++;
+        var target = 'app.novatech.com';
+        if (cmd.indexOf('api.novatech') !== -1) target = 'api.novatech.com';
+        if (cmd.indexOf('admin.novatech') !== -1) target = 'admin.novatech.com';
+        if (cmd.indexOf('staging.novatech') !== -1) target = 'staging.novatech.com';
+
+        var ports = [
+            'PORT     STATE  SERVICE       VERSION',
+            '80/tcp   open   http          nginx 1.21.6',
+            '443/tcp  open   https         nginx 1.21.6'
+        ];
+        if (target === 'app.novatech.com') {
+            ports.push('8080/tcp open   http-proxy    Node.js Express 4.18');
+        } else if (target === 'api.novatech.com') {
+            ports.push('3000/tcp open   http          Node.js Express 4.18');
+            ports.push('5432/tcp filtered postgresql');
+        } else if (target === 'admin.novatech.com') {
+            ports.push('8443/tcp open   https         Apache Tomcat 9.0');
+        }
+
+        return {
+            type: 'output',
+            lines: [
+                'Starting Nmap scan against ' + target,
+                'Nmap scan report for ' + target,
+                'Host is up (0.023s latency)',
+                ''
+            ].concat(ports).concat(['', 'Service detection performed.'])
+        };
+    }
+
+    if (cmd.indexOf('httpx') === 0) {
+        state.reconCommands++;
+        return {
+            type: 'output',
+            lines: [
+                'https://www.novatech.com [200] [NovaTech - Innovation First]',
+                'https://app.novatech.com [200] [NovaTech App]',
+                'https://api.novatech.com [200] [NovaTech API v2]',
+                'https://staging.novatech.com [403] [403 Forbidden]',
+                'https://admin.novatech.com [401] [Authentication Required]',
+                'https://mobile.novatech.com [200] [NovaTech Mobile]',
+                'https://blog.novatech.com [200] [NovaTech Blog - WordPress]'
+            ]
+        };
+    }
+
+    if (cmd.indexOf('ffuf') === 0 && cmd.indexOf('novatech') !== -1) {
+        state.reconCommands++;
+        var isFinding = true;
+        state.reconFindings++;
+        return {
+            type: 'mixed',
+            lines: [
+                { text: '[Status: 200, Size: 1234] /login', cls: 'output' },
+                { text: '[Status: 200, Size: 5678] /api', cls: 'output' },
+                { text: '[Status: 302, Size: 0]    /dashboard', cls: 'output' },
+                { text: '[Status: 200, Size: 4521] /uploads', cls: 'output' },
+                { text: '[Status: 403, Size: 162]  /admin', cls: 'warning' },
+                { text: '[Status: 403, Size: 162]  /backup', cls: 'warning' },
+                { text: '[Status: 200, Size: 892]  /.env      << EXPOSED!', cls: 'success' },
+                { text: '[Status: 200, Size: 3201] /robots.txt', cls: 'output' },
+                { text: '', cls: 'output' },
+                { text: '8 results found. .env file publicly accessible!', cls: 'success' }
+            ]
+        };
+    }
+
+    if (cmd.indexOf('curl') === 0 && cmd.indexOf('.env') !== -1) {
+        state.reconCommands++;
+        state.reconFindings++;
+        state.envFoundInRecon = true;
+        discoverVuln(0);
+        return {
+            type: 'mixed',
+            lines: [
+                { text: 'DB_HOST=prod-db.novatech.internal', cls: 'success' },
+                { text: 'DB_USER=novatech_admin', cls: 'success' },
+                { text: 'DB_PASS=N0v4T3ch_Pr0d_2026!', cls: 'success' },
+                { text: 'REDIS_URL=redis://cache.novatech.internal:6379', cls: 'success' },
+                { text: 'JWT_SECRET=super_secret_jwt_key_do_not_share', cls: 'success' },
+                { text: 'STRIPE_KEY=rk_test_novatech_4f9c2a8b7d', cls: 'success' },
+                { text: 'AWS_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE', cls: 'success' },
+                { text: '', cls: 'output' },
+                { text: '[!] CRITICAL: .env file exposed with production credentials!', cls: 'error' }
+            ]
+        };
+    }
+
+    if (cmd.indexOf('curl') === 0 && cmd.indexOf('novatech') !== -1) {
+        state.reconCommands++;
+        return {
+            type: 'output',
+            lines: [
+                '<html>',
+                '<head><title>NovaTech App</title></head>',
+                '<body>',
+                '  <div id="app">Loading...</div>',
+                '  <script src="/js/app.min.js"></script>',
+                '</body>',
+                '</html>'
+            ]
+        };
+    }
+
+    if (cmd.indexOf('nuclei') === 0 && cmd.indexOf('novatech') !== -1) {
+        state.reconCommands++;
+        state.reconFindings++;
+        return {
+            type: 'mixed',
+            lines: [
+                { text: '[INF] Running nuclei scan against app.novatech.com', cls: 'output' },
+                { text: '[INF] Templates loaded: 847', cls: 'output' },
+                { text: '', cls: 'output' },
+                { text: '[env-file] [http] [medium] http://app.novatech.com/.env', cls: 'warning' },
+                { text: '[git-config] [http] [low] http://app.novatech.com/.git/config', cls: 'warning' },
+                { text: '[x-powered-by] [http] [info] Express detected', cls: 'output' },
+                { text: '[missing-csp] [http] [info] No Content-Security-Policy header', cls: 'output' },
+                { text: '[missing-hsts] [http] [low] Strict-Transport-Security not set', cls: 'output' },
+                { text: '', cls: 'output' },
+                { text: 'Scan complete. 5 findings detected.', cls: 'success' }
+            ]
+        };
+    }
+
+    if (cmd.indexOf('whois') === 0 && cmd.indexOf('novatech') !== -1) {
+        state.reconCommands++;
+        return {
+            type: 'output',
+            lines: [
+                'Domain Name: novatech.com',
+                'Registrar: GoDaddy',
+                'Created: 2019-03-15',
+                'Expires: 2027-03-15',
+                'Registrant: NovaTech Corp',
+                'Admin Email: domains@novatech.com',
+                'Name Server: ns1.cloudflare.com',
+                'Name Server: ns2.cloudflare.com'
+            ]
+        };
+    }
+
+    if (cmd.indexOf('dig') === 0 && cmd.indexOf('novatech') !== -1) {
+        state.reconCommands++;
+        return {
+            type: 'output',
+            lines: [
+                ';; ANSWER SECTION:',
+                'novatech.com.    300  IN  A     104.26.10.42',
+                'novatech.com.    300  IN  A     104.26.11.42',
+                '',
+                ';; AUTHORITY SECTION:',
+                'novatech.com.    1800 IN  NS    ns1.cloudflare.com.',
+                'novatech.com.    1800 IN  NS    ns2.cloudflare.com.'
+            ]
+        };
+    }
+
+    /* Unrecognized */
+    return {
+        type: 'error',
+        lines: ['Command not found: ' + raw.trim().split(' ')[0], 'Type "help" for available commands.']
+    };
+}
+
+/* -- DOM Helpers ------------------------------------------------------ */
+function el(id) { return document.getElementById(id); }
+
+function updateHUD() {
+    el('hudBounty').textContent = '$' + state.bountyEarned.toLocaleString();
+    el('hudVulns').textContent = state.vulnsFound.length + '/7';
+    el('hudReports').textContent = state.vulnsReported.length;
+    el('hudRep').textContent = state.reputation;
+}
+
+function updatePhaseTracker() {
+    var pips = document.querySelectorAll('.phase-pip');
+    for (var i = 0; i < pips.length; i++) {
+        var p = parseInt(pips[i].getAttribute('data-phase'));
+        pips[i].className = 'phase-pip';
+        if (p < state.phase) pips[i].classList.add('done');
+        else if (p === state.phase) pips[i].classList.add('current');
+        else pips[i].classList.add('locked');
+    }
+}
+
+function showScreen(id) {
+    var screens = document.querySelectorAll('.screen');
+    for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
+    el(id).classList.add('active');
+    window.scrollTo(0, 0);
+}
+
+function showAlert(title, text) {
+    el('alertTitle').textContent = title;
+    el('alertText').textContent = text;
+    el('alertOverlay').classList.add('show');
+}
+function closeAlert() { el('alertOverlay').classList.remove('show'); }
+
+/* -- Phase Navigation ------------------------------------------------- */
+function startSim() {
+    state.phase = 0;
+    updatePhaseTracker();
+    showScreen('screenScope');
+}
+
+function goToRecon() {
+    state.phase = 1;
+    updatePhaseTracker();
+    showScreen('screenRecon');
+    setTimeout(function() { el('terminalInput').focus(); }, 200);
+}
+
+function goToHunting() {
+    state.phase = 2;
+    updatePhaseTracker();
+    buildHuntingUI();
+    showScreen('screenHunting');
+}
+
+function goToReporting() {
+    if (state.vulnsFound.length === 0) {
+        showAlert('No Findings', 'You need to discover at least one vulnerability before submitting reports.');
+        return;
+    }
+    state.phase = 3;
+    updatePhaseTracker();
+    buildReportForms();
+    showScreen('screenReporting');
+}
+
+function goToPayout() {
+    state.phase = 4;
+    updatePhaseTracker();
+    buildPayoutResults();
+    showScreen('screenPayout');
+}
+
+/* -- Terminal --------------------------------------------------------- */
+var termBody = null;
+var termInput = null;
+
+function initTerminal() {
+    termBody = el('terminalBody');
+    termInput = el('terminalInput');
+
+    termInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            var cmd = termInput.value;
+            termInput.value = '';
+            executeCommand(cmd);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                termInput.value = state.commandHistory[state.historyIndex] || '';
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (state.historyIndex < state.commandHistory.length - 1) {
+                state.historyIndex++;
+                termInput.value = state.commandHistory[state.historyIndex] || '';
+            } else {
+                state.historyIndex = state.commandHistory.length;
+                termInput.value = '';
+            }
+        }
+    });
+}
+
+function addTermLine(text, cls) {
+    var div = document.createElement('div');
+    div.className = 'terminal-line ' + (cls || 'output');
+    div.textContent = text;
+    termBody.appendChild(div);
+    termBody.scrollTop = termBody.scrollHeight;
+}
+
+function executeCommand(raw) {
+    /* Echo the command */
+    addTermLine('hunter@recon:~$ ' + raw, 'cmd');
+
+    var result = processCommand(raw);
+    if (!result) return;
+
+    if (result.type === 'clear') {
+        termBody.innerHTML = '';
+        updateReconStatus();
+        return;
+    }
+
+    if (result.type === 'mixed') {
+        for (var i = 0; i < result.lines.length; i++) {
+            addTermLine(result.lines[i].text, result.lines[i].cls);
+        }
+    } else {
+        var cls = result.type === 'error' ? 'error' : 'output';
+        for (var j = 0; j < result.lines.length; j++) {
+            addTermLine(result.lines[j], cls);
+        }
+    }
+    addTermLine('', 'output');
+
+    updateReconStatus();
+}
+
+function updateReconStatus() {
+    el('reconCount').textContent = state.reconCommands;
+    el('reconFindings').textContent = state.reconFindings;
+
+    if (state.reconCommands >= 3) {
+        el('reconAdvanceBtn').style.display = '';
+    }
+}
+
+/* -- Hunting UI ------------------------------------------------------- */
+function buildHuntingUI() {
+    /* Build tabs */
+    var tabsHtml = '';
+    var statusHtml = '';
+    for (var i = 0; i < VULNS.length; i++) {
+        var v = VULNS[i];
+        var found = state.vulnsFound.indexOf(i) !== -1;
+        var reported = state.vulnsReported.indexOf(i) !== -1;
+
+        tabsHtml += '<div class="hunt-tab' + (i === 0 ? ' active' : '') + (found ? ' found' : '') + '" data-target="' + i + '" onclick="switchTarget(' + i + ')">' + v.tabLabel + '</div>';
+
+        statusHtml += '<div class="vuln-card' + (found ? ' found' : '') + '" id="vulnCard' + i + '">' +
+            '<div class="vuln-card-header">' +
+            '<span class="vuln-card-title">' + v.title + '</span>' +
+            '<span class="vuln-card-status ' + (reported ? 'reported' : (found ? 'found' : 'unfound')) + '">' +
+            (reported ? 'Reported' : (found ? 'Found' : 'Not Found')) +
+            '</span>' +
+            '</div>' +
+            '<div style="font-size:0.72rem; color:#6a4a7a;">' + v.category + '</div>' +
+            '</div>';
+    }
+    el('huntTabs').innerHTML = tabsHtml;
+    el('vulnStatusGrid').innerHTML = statusHtml;
+
+    /* Show first target */
+    switchTarget(0);
+
+    /* If .env was found in recon, auto-mark it */
+    if (state.envFoundInRecon && state.vulnsFound.indexOf(0) !== -1) {
+        el('envReportBtn').style.display = '';
+    }
+}
+
+function switchTarget(idx) {
+    /* Update tabs */
+    var tabs = document.querySelectorAll('.hunt-tab');
+    for (var t = 0; t < tabs.length; t++) tabs[t].classList.remove('active');
+    tabs[idx].classList.add('active');
+
+    /* Show target */
+    var targets = document.querySelectorAll('.hunt-target');
+    for (var g = 0; g < targets.length; g++) targets[g].classList.remove('active');
+    el('target' + idx).classList.add('active');
+}
+
+function discoverVuln(idx) {
+    if (state.vulnsFound.indexOf(idx) !== -1) return;
+    state.vulnsFound.push(idx);
+    updateHUD();
+
+    /* Update hunting UI if it is built */
+    var card = el('vulnCard' + idx);
+    if (card) {
+        card.classList.add('found');
+        card.querySelector('.vuln-card-status').className = 'vuln-card-status found';
+        card.querySelector('.vuln-card-status').textContent = 'Found';
+    }
+    var tab = document.querySelector('.hunt-tab[data-target="' + idx + '"]');
+    if (tab) tab.classList.add('found');
+
+    /* Show advance button if 2+ vulns found */
+    if (state.vulnsFound.length >= 2) {
+        var btn = el('huntAdvanceBtn');
+        if (btn) btn.style.display = '';
+    }
+}
+
+/* -- Vulnerability Tests ---------------------------------------------- */
+
+/* SQL Injection */
+function testSqli() {
+    var user = el('sqliUser').value.trim();
+    var pass = el('sqliPass').value.trim();
+    var result = el('sqliResult');
+
+    /* Check for SQL injection patterns */
+    var sqliPatterns = ["' or", "' or 1=1", "1=1", "or 1=1", "' --", "admin'--", "union select", "' or '1'='1", "or true", "' or true"];
+    var isSqli = false;
+    var inputLower = (user + ' ' + pass).toLowerCase();
+    for (var i = 0; i < sqliPatterns.length; i++) {
+        if (inputLower.indexOf(sqliPatterns[i]) !== -1) {
+            isSqli = true;
+            break;
+        }
+    }
+
+    if (isSqli) {
+        result.className = 'target-result success show';
+        result.innerHTML = '<div style="color: #4ade80;">Welcome, admin!</div><div style="font-size:0.72rem; color:#86efac; margin-top:4px;">Logged in as: administrator (uid: 1)</div><div style="font-size:0.72rem; color:#86efac;">Session: adm_7x9k2mf4p3</div>';
+        el('sqliFound').classList.add('show');
+        el('sqliReportBtn').style.display = '';
+        discoverVuln(1);
+    } else if (user === 'testuser' && pass === 'testpass123') {
+        result.className = 'target-result info show';
+        result.innerHTML = 'Login successful (standard user). No vulnerability here with valid credentials -- try injection techniques.';
+    } else {
+        result.className = 'target-result error show';
+        result.innerHTML = 'Invalid username or password. Try common injection payloads.';
+    }
+}
+
+/* IDOR */
+function testIdor() {
+    var uid = el('idorInput').value.trim();
+    var profile = PROFILES[uid];
+    var urlBar = el('idorUrl');
+
+    urlBar.textContent = 'https://app.novatech.com/profile?user_id=' + uid;
+
+    if (!profile) {
+        el('idorName').textContent = '--';
+        el('idorEmail').textContent = '--';
+        el('idorRole').textContent = '--';
+        el('idorPhone').textContent = '--';
+        el('idorSSN').textContent = '--';
+        return;
+    }
+
+    el('idorName').textContent = profile.name;
+    el('idorEmail').textContent = profile.email;
+    el('idorRole').textContent = profile.role;
+    el('idorPhone').textContent = profile.phone;
+    el('idorSSN').textContent = profile.ssn;
+
+    if (uid !== '1001') {
+        el('idorFound').classList.add('show');
+        el('idorReportBtn').style.display = '';
+        discoverVuln(2);
+    }
+}
+
+/* XSS */
+function testXss() {
+    var input = el('xssInput').value.trim();
+    var result = el('xssResult');
+
+    var xssPatterns = ['<script', 'alert(', 'onerror', 'onload', 'javascript:', '<img', '<svg', 'prompt(', 'confirm('];
+    var isXss = false;
+    var inputLower = input.toLowerCase();
+    for (var i = 0; i < xssPatterns.length; i++) {
+        if (inputLower.indexOf(xssPatterns[i]) !== -1) {
+            isXss = true;
+            break;
+        }
+    }
+
+    if (isXss) {
+        result.className = 'target-result info show';
+        result.innerHTML = 'Search results for: <span style="color: #fca5a5;">' + escapeHtml(input) + '</span><br><span style="font-size:0.72rem; color:#6a4a7a;">The server reflected your input without sanitization.</span>';
+        el('xssAlert').classList.add('show');
+        el('xssFound').classList.add('show');
+        el('xssReportBtn').style.display = '';
+        discoverVuln(3);
+    } else if (input) {
+        result.className = 'target-result info show';
+        result.innerHTML = 'Search results for: "' + escapeHtml(input) + '"<br><span style="font-size:0.72rem; color:#6a4a7a;">No products found. Try searching for something that tests input handling.</span>';
+    }
+}
+
+/* Rate Limiting */
+function testRateLimit() {
+    var container = el('rateAttempts');
+    var btn = el('rateTestBtn');
+    btn.disabled = true;
+    container.innerHTML = '';
+
+    var attempt = 0;
+    var interval = setInterval(function() {
+        attempt++;
+        var line = document.createElement('div');
+        line.style.marginBottom = '2px';
+
+        if (attempt <= 10) {
+            line.innerHTML = '<span style="color: #ef4444;">Attempt ' + attempt + '/10:</span> <span style="color: #fca5a5;">401 Invalid credentials</span> <span style="color: #6a4a7a;">(no lockout, no delay)</span>';
+            container.appendChild(line);
+        }
+
+        if (attempt === 10) {
+            clearInterval(interval);
+            var summary = document.createElement('div');
+            summary.style.marginTop = '8px';
+            summary.innerHTML = '<span style="color: #f59e0b;">Result: 10 failed attempts with no rate limiting, no CAPTCHA, no account lockout.</span>';
+            container.appendChild(summary);
+
+            el('rateFound').classList.add('show');
+            el('rateReportBtn').style.display = '';
+            btn.disabled = false;
+            discoverVuln(4);
+        }
+    }, 200);
+}
+
+/* Source Code View */
+function toggleSource() {
+    var sv = el('sourceView');
+    sv.classList.toggle('show');
+
+    if (sv.classList.contains('show') && !state.sourceViewed) {
+        state.sourceViewed = true;
+        /* Auto-discover after a short delay (simulating the "aha" moment) */
+        setTimeout(function() {
+            el('sourceFound').classList.add('show');
+            el('sourceReportBtn').style.display = '';
+            discoverVuln(5);
+        }, 1500);
+    }
+}
+
+/* Open Redirect */
+function testRedirect() {
+    var target = el('redirectInput').value.trim();
+    var result = el('redirectResult');
+    var urlBar = el('redirectUrl');
+
+    urlBar.textContent = 'https://app.novatech.com/auth/callback?redirect=' + target;
+
+    /* Check if it is an external URL */
+    var isExternal = target.indexOf('http') === 0 || target.indexOf('//') === 0 || target.indexOf('.com') !== -1 || target.indexOf('.io') !== -1 || target.indexOf('.net') !== -1;
+
+    if (isExternal) {
+        result.className = 'target-result show';
+        result.style.display = 'none';
+        el('redirectVisual').classList.add('show');
+        el('redirectTarget').textContent = 'User redirected to: ' + target + ' -- an attacker could replace this with a phishing page that mimics NovaTech login.';
+        el('redirectFound').classList.add('show');
+        el('redirectReportBtn').style.display = '';
+        discoverVuln(6);
+    } else if (target === '/dashboard' || target.charAt(0) === '/') {
+        result.className = 'target-result info show';
+        result.innerHTML = 'Redirected to: ' + escapeHtml(target) + '<br><span style="font-size:0.72rem; color:#6a4a7a;">Internal redirect -- this is expected behavior. Try an external URL to test for open redirect.</span>';
+    } else {
+        result.className = 'target-result info show';
+        result.innerHTML = 'Redirected to: ' + escapeHtml(target) + '<br><span style="font-size:0.72rem; color:#6a4a7a;">Try using a full external URL like https://evil.com</span>';
+    }
+}
+
+/* -- Report Finding (from hunting phase) ------------------------------ */
+function reportVuln(idx) {
+    if (state.vulnsFound.indexOf(idx) === -1) {
+        discoverVuln(idx);
+    }
+    /* Mark in UI */
+    var card = el('vulnCard' + idx);
+    if (card) {
+        card.querySelector('.vuln-card-status').className = 'vuln-card-status reported';
+        card.querySelector('.vuln-card-status').textContent = 'Reported';
+    }
+
+    /* Show advance button */
+    el('huntAdvanceBtn').style.display = '';
+
+    showAlert('Finding Noted', 'Vulnerability "' + VULNS[idx].title + '" has been flagged for reporting. Proceed to Phase 4 when ready to write formal reports.');
+}
+
+/* -- Report Forms ----------------------------------------------------- */
+function buildReportForms() {
+    var container = el('reportFormsContainer');
+    var html = '';
+
+    for (var i = 0; i < state.vulnsFound.length; i++) {
+        var idx = state.vulnsFound[i];
+        var v = VULNS[idx];
+
+        html += '<div class="report-form" id="reportForm' + idx + '">' +
+            '<h3>Report #' + (i + 1) + ': ' + v.title + '</h3>' +
+            '<div style="font-size:0.72rem; color:#6a4a7a; margin-bottom:12px;">Category: ' + v.category + '</div>' +
+
+            '<div class="form-group">' +
+            '<label class="form-label">Title</label>' +
+            '<input type="text" class="form-input" id="reportTitle' + idx + '" value="' + v.title + '">' +
+            '</div>' +
+
+            '<div class="form-group">' +
+            '<label class="form-label">Severity</label>' +
+            '<select class="form-select" id="reportSev' + idx + '">' +
+            '<option value="">-- Select Severity --</option>' +
+            '<option value="Critical">Critical</option>' +
+            '<option value="High">High</option>' +
+            '<option value="Medium">Medium</option>' +
+            '<option value="Low">Low</option>' +
+            '<option value="Informational">Informational</option>' +
+            '</select>' +
+            '<div class="form-feedback" id="sevFeedback' + idx + '"></div>' +
+            '</div>' +
+
+            '<div class="form-group">' +
+            '<label class="form-label">Description</label>' +
+            '<textarea class="form-textarea" id="reportDesc' + idx + '" placeholder="Describe the vulnerability and its context..."></textarea>' +
+            '</div>' +
+
+            '<div class="form-group">' +
+            '<label class="form-label">Steps to Reproduce</label>' +
+            '<textarea class="form-textarea" id="reportSteps' + idx + '" placeholder="1. Navigate to...\n2. Enter...\n3. Observe..."></textarea>' +
+            '</div>' +
+
+            '<div class="form-group">' +
+            '<label class="form-label">Impact</label>' +
+            '<textarea class="form-textarea" id="reportImpact' + idx + '" placeholder="Describe the potential impact if exploited..."></textarea>' +
+            '</div>' +
+
+            '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+/* -- Submit Reports --------------------------------------------------- */
+function submitAllReports() {
+    var allValid = true;
+    var sevCorrect = 0;
+    var sevTotal = 0;
+    state.vulnsReported = [];
+
+    for (var i = 0; i < state.vulnsFound.length; i++) {
+        var idx = state.vulnsFound[i];
+        var v = VULNS[idx];
+        var sev = el('reportSev' + idx).value;
+        var desc = el('reportDesc' + idx).value.trim();
+        var steps = el('reportSteps' + idx).value.trim();
+        var impact = el('reportImpact' + idx).value.trim();
+        var feedback = el('sevFeedback' + idx);
+
+        /* Validate severity */
+        if (!sev) {
+            feedback.className = 'form-feedback warn show';
+            feedback.textContent = 'Please select a severity level.';
+            allValid = false;
+            continue;
+        }
+
+        /* Validate some content in description */
+        if (desc.length < 10) {
+            feedback.className = 'form-feedback warn show';
+            feedback.textContent = 'Description too short. Provide meaningful context.';
+            allValid = false;
+            continue;
+        }
+
+        sevTotal++;
+
+        /* Check severity accuracy */
+        if (sev === v.correctSeverity) {
+            feedback.className = 'form-feedback ok show';
+            feedback.textContent = 'Severity classification: Correct.';
+            sevCorrect++;
+        } else {
+            /* Accept adjacent severities with warning */
+            var sevMap = { 'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1, 'Informational': 0 };
+            var diff = Math.abs((sevMap[sev] || 0) - (sevMap[v.correctSeverity] || 0));
+            if (diff <= 1) {
+                feedback.className = 'form-feedback warn show';
+                feedback.textContent = 'Severity is close but not exact. Expected: ' + v.correctSeverity + '. Accepted with reduced reputation.';
+                sevCorrect += 0.5;
+            } else {
+                feedback.className = 'form-feedback warn show';
+                feedback.textContent = 'Incorrect severity. Expected: ' + v.correctSeverity + '. This affects your reputation score.';
+            }
+        }
+
+        state.reports[idx] = {
+            title: el('reportTitle' + idx).value,
+            severity: sev,
+            correctSeverity: v.correctSeverity,
+            description: desc,
+            steps: steps,
+            impact: impact
+        };
+        state.vulnsReported.push(idx);
+    }
+
+    if (!allValid) {
+        showAlert('Incomplete Reports', 'Some reports are missing required fields. Please fill in severity and description for all findings.');
+        return;
+    }
+
+    /* Calculate reputation from severity accuracy */
+    if (sevTotal > 0) {
+        state.reputation = Math.round((sevCorrect / sevTotal) * 100);
+    }
+
+    updateHUD();
+    goToPayout();
+}
+
+/* -- Payout Results --------------------------------------------------- */
+function buildPayoutResults() {
+    var container = el('payoutResults');
+    var html = '<h2>NovaTech Corp -- Triage Report</h2>';
+    html += '<div style="text-align: center; font-size: 0.72rem; color: #6a4a7a; margin-bottom: 20px;">Security Team Review Complete</div>';
+
+    var totalBounty = 0;
+
+    for (var i = 0; i < state.vulnsReported.length; i++) {
+        var idx = state.vulnsReported[i];
+        var v = VULNS[idx];
+        var report = state.reports[idx];
+
+        var statusClass = v.triageStatus === 'accepted' ? 'accepted' : (v.triageStatus === 'duplicate' ? 'duplicate' : 'info');
+        var bountyAmount = v.triageStatus === 'accepted' ? v.bounty : 0;
+
+        /* Adjust bounty based on severity accuracy */
+        if (report && report.severity !== v.correctSeverity) {
+            bountyAmount = Math.round(bountyAmount * 0.7);
+        }
+
+        totalBounty += bountyAmount;
+
+        html += '<div class="result-row ' + statusClass + '">' +
+            '<div>' +
+            '<div style="font-size: 0.82rem;">' + v.title + '</div>' +
+            '<div style="font-size: 0.68rem; opacity: 0.7; margin-top: 2px;">' + v.triageNote + '</div>' +
+            '</div>' +
+            '<div style="text-align: right;">' +
+            '<div class="result-bounty">$' + bountyAmount.toLocaleString() + '</div>' +
+            '<div style="font-size: 0.68rem; opacity: 0.7;">' + v.triageStatus.toUpperCase() + '</div>' +
+            '</div>' +
+            '</div>';
+    }
+
+    /* Unreported vulns */
+    for (var j = 0; j < VULNS.length; j++) {
+        if (state.vulnsReported.indexOf(j) === -1) {
+            html += '<div class="result-row" style="background: rgba(100, 60, 130, 0.05); color: #6a4a7a;">' +
+                '<div>' +
+                '<div style="font-size: 0.82rem;">' + VULNS[j].title + '</div>' +
+                '<div style="font-size: 0.68rem; opacity: 0.5; margin-top: 2px;">Not discovered or not reported</div>' +
+                '</div>' +
+                '<div style="text-align: right;">' +
+                '<div class="result-bounty">--</div>' +
+                '<div style="font-size: 0.68rem; opacity: 0.5;">MISSED</div>' +
+                '</div>' +
+                '</div>';
+        }
+    }
+
+    state.bountyEarned = totalBounty;
+
+    html += '<div class="total-bounty">' +
+        '<div class="total-bounty-amount">$' + totalBounty.toLocaleString() + '</div>' +
+        '<div class="total-bounty-label">Total Bounty Earned</div>' +
+        '</div>';
+
+    html += '<div class="rep-score">' +
+        '<div class="rep-score-value">Reputation: ' + state.reputation + '/100</div>' +
+        '<div style="font-size: 0.72rem; color: #6a4a7a; margin-top: 4px;">Based on severity classification accuracy</div>' +
+        '</div>';
+
+    /* Summary stats */
+    html += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px; text-align: center;">' +
+        '<div style="background: rgba(10, 5, 20, 0.5); padding: 12px; border-radius: 6px;">' +
+        '<div style="font-size: 1.1rem; color: #a855f7;">' + state.vulnsFound.length + '/7</div>' +
+        '<div style="font-size: 0.65rem; color: #6a4a7a;">Vulnerabilities Found</div>' +
+        '</div>' +
+        '<div style="background: rgba(10, 5, 20, 0.5); padding: 12px; border-radius: 6px;">' +
+        '<div style="font-size: 1.1rem; color: #a855f7;">' + state.vulnsReported.length + '</div>' +
+        '<div style="font-size: 0.65rem; color: #6a4a7a;">Reports Submitted</div>' +
+        '</div>' +
+        '<div style="background: rgba(10, 5, 20, 0.5); padding: 12px; border-radius: 6px;">' +
+        '<div style="font-size: 1.1rem; color: #a855f7;">' + state.vulnsReported.length + '</div>' +
+        '<div style="font-size: 0.65rem; color: #6a4a7a;">Accepted</div>' +
+        '</div>' +
+        '</div>';
+
+    /* Action buttons */
+    html += '<div style="text-align: center; margin-top: 24px; display: flex; gap: 12px; justify-content: center;">' +
+        '<button class="btn" onclick="restartSim()">Try Again</button>' +
+        '<a href="../index.html" class="btn" style="text-decoration: none; display: inline-block;">Return to Bug Hunting Hub</a>' +
+        '</div>';
+
+    container.innerHTML = html;
+
+    updateHUD();
+
+    /* -- Completion & Achievements ------------------------------------ */
+    try {
+        if (typeof ModuleProgress !== 'undefined' && state.vulnsFound.length >= 5) {
+            ModuleProgress.complete('dark-arts', 'bh-lab-bounty-sim', { returnUrl: '../index.html' });
+        }
+    } catch (e) { /* non-fatal */ }
+
+    try {
+        if (typeof AchievementManager !== 'undefined' && state.vulnsFound.length === 7) {
+            AchievementManager.unlock('bug_bounty_hunter');
+        }
+    } catch (e) { /* non-fatal */ }
+}
+
+/* -- Restart ---------------------------------------------------------- */
+function restartSim() {
+    state.phase = -1;
+    state.vulnsFound = [];
+    state.vulnsReported = [];
+    state.reports = {};
+    state.reconCommands = 0;
+    state.reconFindings = 0;
+    state.bountyEarned = 0;
+    state.reputation = 0;
+    state.envFoundInRecon = false;
+    state.sourceViewed = false;
+    state.commandHistory = [];
+    state.historyIndex = -1;
+
+    /* Reset hunting UIs */
+    var flashEls = document.querySelectorAll('.vuln-found-flash, .xss-alert, .redirect-visual');
+    for (var i = 0; i < flashEls.length; i++) flashEls[i].classList.remove('show');
+    var resultEls = document.querySelectorAll('.target-result');
+    for (var j = 0; j < resultEls.length; j++) { resultEls[j].classList.remove('show'); resultEls[j].style.display = ''; }
+    var reportBtns = document.querySelectorAll('[id$="ReportBtn"]');
+    for (var k = 0; k < reportBtns.length; k++) reportBtns[k].style.display = 'none';
+    el('reconAdvanceBtn').style.display = 'none';
+    el('huntAdvanceBtn').style.display = 'none';
+    el('sourceView').classList.remove('show');
+
+    /* Reset terminal */
+    var tb = el('terminalBody');
+    tb.innerHTML = '<div class="terminal-line output">[*] Connected to NovaTech recon environment</div>' +
+        '<div class="terminal-line output">[*] Target: novatech.com</div>' +
+        '<div class="terminal-line output">[*] Type \'help\' for available commands</div>' +
+        '<div class="terminal-line output">&nbsp;</div>';
+
+    /* Reset rate limit test */
+    el('rateAttempts').innerHTML = '';
+    el('rateTestBtn').disabled = false;
+
+    /* Reset IDOR */
+    el('idorInput').value = '1001';
+    el('idorUrl').textContent = 'https://app.novatech.com/profile?user_id=1001';
+    testIdorReset();
+
+    /* Reset forms */
+    el('sqliUser').value = '';
+    el('sqliPass').value = '';
+    el('xssInput').value = '';
+    el('redirectInput').value = '/dashboard';
+    el('redirectUrl').textContent = 'https://app.novatech.com/auth/callback?redirect=/dashboard';
+
+    updateHUD();
+    updatePhaseTracker();
+    showScreen('screenIntro');
+}
+
+function testIdorReset() {
+    el('idorName').textContent = 'Test User';
+    el('idorEmail').textContent = 'testuser@novatech.com';
+    el('idorRole').textContent = 'Standard User';
+    el('idorPhone').textContent = '555-0101';
+    el('idorSSN').textContent = '****';
+}
+
+/* -- Utility ---------------------------------------------------------- */
+function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+/* -- Init ------------------------------------------------------------- */
+updateHUD();
+updatePhaseTracker();
+initTerminal();
+</script>
+
+<script src="../../../../components/FirebaseAuth.js"></script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

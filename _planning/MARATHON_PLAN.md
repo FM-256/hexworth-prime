@@ -468,13 +468,13 @@
 
 ## Wave 18: Bug Bounty Simulation Platform (2-3 Parallel Agents)
 
-- [ ] **BH-AI-7a** — Bug Bounty Process Modules
+- [x] **BH-AI-7a** — Bug Bounty Process Modules
   - `bh-mod-bounty-process.html` — The bug bounty lifecycle: recon, scope analysis, hunting, reporting, payout
   - `bh-mod-recon-tools.html` — Recon toolchain: subfinder, amass, httpx, nuclei, recon-ng (simulated CLI)
   - `bh-mod-vuln-reporting.html` — Professional vulnerability report writing (Summary, Steps to Reproduce, Impact, PoC, Mitigation)
   - `bh-mod-bounty-economics.html` — Severity tiers, payout ranges, platform comparison (HackerOne vs Bugcrowd)
 
-- [ ] **BH-AI-7b** — Simulated Bug Bounty Program
+- [x] **BH-AI-7b** — Simulated Bug Bounty Program
   - `bh-lab-bounty-sim.html` — Full simulated bounty program:
     - Company: "NovaTech Corp" (fictional target)
     - Scope definition panel (allowed targets, out-of-scope assets, rules of engagement)
@@ -484,7 +484,7 @@
   - Multiple target assets: web app, API, mobile endpoint
   - 5+ plantable vulnerabilities across the simulated scope
 
-- [ ] **BH-AI-7c** — AI Bug Bounty Specialization Track
+- [x] **BH-AI-7c** — AI Bug Bounty Specialization Track
   - `bh-mod-ai-bounty.html` — AI-specific bug bounty: LLM exploitation, AI guardrail bypass, prompt injection, AI data leaks
   - Position Hexworth as THE platform for AI bug bounty training
   - Map to emerging AI bug bounty programs (OpenAI, Anthropic, Google)

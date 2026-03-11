@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Bounty Economics - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px; }
+
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li::before { content: none; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .inline-code { font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(40, 20, 60, 0.3); padding: 1px 6px; border-radius: 3px; font-size: 0.88rem; }
+        .numbered-list { list-style: none; padding-left: 0; margin-bottom: 16px; counter-reset: step-counter; }
+        .numbered-list li { counter-increment: step-counter; position: relative; padding-left: 36px; margin-bottom: 12px; }
+        .numbered-list li::before { content: counter(step-counter, decimal-leading-zero); position: absolute; left: 0; color: #9333ea; font-family: 'Courier New', monospace; font-size: 0.8rem; font-weight: bold; }
+
+        blockquote { border-left: 3px solid rgba(147, 51, 234, 0.4); padding: 16px 24px; margin: 24px 0; background: rgba(15, 8, 20, 0.5); border-radius: 0 8px 8px 0; font-style: italic; color: #9a7aaa; font-size: 0.95rem; line-height: 1.7; }
+        blockquote cite { display: block; margin-top: 10px; font-style: normal; font-size: 0.78rem; color: #6a4a7a; letter-spacing: 0.1em; }
+
+        /* Payout visualizer */
+        .payout-viz { margin: 28px 0; }
+        .payout-row { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+        .payout-label { width: 80px; font-size: 0.82rem; color: #c4a0d8; text-align: right; font-family: 'Courier New', monospace; flex-shrink: 0; }
+        .payout-bar-track { flex: 1; height: 32px; background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 4px; position: relative; overflow: hidden; }
+        .payout-bar { height: 100%; border-radius: 3px; position: relative; transition: width 1s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
+        .payout-bar span { font-size: 0.72rem; color: rgba(255, 255, 255, 0.85); font-family: 'Courier New', monospace; white-space: nowrap; }
+        .payout-range { font-size: 0.75rem; color: #6a4a7a; min-width: 120px; }
+        .payout-legend { display: flex; gap: 20px; margin-top: 12px; flex-wrap: wrap; }
+        .payout-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #8a6a9a; }
+        .payout-legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+        /* Platform comparison */
+        .platform-toggle { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+        .platform-btn { padding: 8px 18px; background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; color: #8a6a9a; font-size: 0.8rem; font-family: 'Georgia', serif; cursor: pointer; transition: all 0.2s ease; }
+        .platform-btn:hover, .platform-btn.active { background: rgba(147, 51, 234, 0.2); border-color: #9333ea; color: #c4a0d8; }
+        .platform-detail { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 8px; padding: 24px; min-height: 150px; }
+        .platform-name { font-size: 1.2rem; color: #c4a0d8; margin-bottom: 6px; }
+        .platform-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.1em; margin-bottom: 16px; }
+        .platform-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .platform-stat { text-align: center; padding: 12px; background: rgba(5, 2, 10, 0.4); border-radius: 6px; }
+        .platform-stat-val { font-size: 1.3rem; color: #c4a0d8; font-family: 'Courier New', monospace; }
+        .platform-stat-label { font-size: 0.68rem; color: #6a4a7a; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+        .platform-pros, .platform-cons { margin-top: 12px; }
+        .platform-pros-title, .platform-cons-title { font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+        .platform-pros-title { color: #22c55e; }
+        .platform-cons-title { color: #ef4444; }
+        .platform-list { font-size: 0.85rem; color: #9a7aaa; line-height: 1.6; padding-left: 16px; }
+
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-item::before { content: none; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .payout-row { flex-direction: column; align-items: stretch; }
+            .payout-label { text-align: left; width: auto; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Bounty Economics</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon"><img src="/assets/images/icons/icon-money.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+        <h1 class="intro-title">Bug Bounty Economics</h1>
+        <div class="intro-meta">Bug Hunting &bull; Economics &bull; The Business Side</div>
+        <p class="intro-subtitle">
+            Bug bounty hunting is a market. Companies buy security findings, researchers sell them,
+            and platforms take a cut for brokering the transaction. Understanding the economics &mdash;
+            payout structures, platform dynamics, career progression, and return on investment &mdash;
+            determines whether bug bounty is a hobby, a side income, or a full-time career.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Market Analysis</div>
+            <div class="stat-pill">Payout Tiers</div>
+            <div class="stat-pill">Platform Comparison</div>
+            <div class="stat-pill">Career Strategy</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: The Market -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            The Market
+        </h2>
+        <div class="section-body">
+            <p>
+                The global bug bounty market has grown from a niche activity to a billion-dollar
+                industry. HackerOne alone has facilitated over $300 million in bounties paid to
+                researchers as of 2024. The market continues to grow as organizations recognize
+                that crowdsourced security testing provides coverage that internal teams cannot
+                achieve alone.
+            </p>
+
+            <h3>Market Growth Drivers</h3>
+
+            <ul>
+                <li><strong style="color: #c4a0d8;">Regulatory pressure</strong> &mdash; GDPR, PCI DSS, and SOC 2 require demonstrated security testing. Bug bounties satisfy auditors.</li>
+                <li><strong style="color: #c4a0d8;">Cloud migration</strong> &mdash; every organization now has internet-facing attack surface that traditional pentests do not continuously cover.</li>
+                <li><strong style="color: #c4a0d8;">Cost efficiency</strong> &mdash; companies pay only for valid findings, unlike pentests which cost flat rates regardless of results.</li>
+                <li><strong style="color: #c4a0d8;">Talent shortage</strong> &mdash; there are not enough internal security engineers. Bug bounties tap a global workforce of specialists.</li>
+                <li><strong style="color: #c4a0d8;">Public sector adoption</strong> &mdash; DOD, DHS, GSA, and international governments now run active bounty programs.</li>
+            </ul>
+
+            <h3>Who Pays the Most?</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Sector</th>
+                        <th>Typical Max Bounty</th>
+                        <th>Notable Programs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Big Tech</td>
+                        <td>$100,000 &ndash; $250,000+</td>
+                        <td>Google ($250K for Android RCE), Apple ($200K), Microsoft ($100K)</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Crypto / DeFi</td>
+                        <td>$100,000 &ndash; $10,000,000</td>
+                        <td>Immunefi programs; Wormhole paid $10M for a bridge vulnerability</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Financial Services</td>
+                        <td>$10,000 &ndash; $50,000</td>
+                        <td>PayPal, Coinbase, Goldman Sachs</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">E-Commerce</td>
+                        <td>$5,000 &ndash; $25,000</td>
+                        <td>Shopify, Amazon, eBay</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">SaaS / Enterprise</td>
+                        <td>$2,000 &ndash; $15,000</td>
+                        <td>Slack, Atlassian, Salesforce, Dropbox</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Government</td>
+                        <td>$500 &ndash; $5,000</td>
+                        <td>DOD (Hack the Pentagon), Singapore GovTech, EU bug bounties</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Startups</td>
+                        <td>$100 &ndash; $2,000</td>
+                        <td>Most HackerOne/Bugcrowd programs with smaller budgets</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">The Crypto Exception</div>
+                    <div class="callout-text">
+                        Cryptocurrency and DeFi protocols pay the highest bounties in the industry
+                        because a single smart contract vulnerability can drain millions in minutes.
+                        The Wormhole bridge paid $10 million for a critical finding. However, these
+                        programs require deep blockchain expertise and the competition is intense.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Severity & Payouts -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Severity &amp; Payouts
+        </h2>
+        <div class="section-body">
+            <p>
+                Payouts scale with severity. A critical vulnerability pays 10-50x more than a low.
+                The payout visualizer below shows the typical ranges across different program tiers.
+                The bars represent the range from minimum to maximum typical payout.
+            </p>
+
+            <h3>Payout Range Visualizer</h3>
+
+            <div class="payout-viz" id="payoutViz">
+                <div class="payout-legend">
+                    <div class="payout-legend-item"><div class="payout-legend-dot" style="background:#ef4444;"></div> Critical</div>
+                    <div class="payout-legend-item"><div class="payout-legend-dot" style="background:#f97316;"></div> High</div>
+                    <div class="payout-legend-item"><div class="payout-legend-dot" style="background:#eab308;"></div> Medium</div>
+                    <div class="payout-legend-item"><div class="payout-legend-dot" style="background:#22c55e;"></div> Low</div>
+                </div>
+                <!-- Populated by JS -->
+            </div>
+
+            <h3>What Determines the Payout?</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">CVSS Score</div>
+                    <div class="concept-card-body">
+                        The base severity metric. Most programs map CVSS ranges directly to payout tiers.
+                        A 9.0+ is critical, 7.0-8.9 is high, and so on. Your CVSS justification in the
+                        report influences the final assessment.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Business Impact</div>
+                    <div class="concept-card-body">
+                        A medium-severity bug in a payment system may pay more than a high in a marketing
+                        page. Programs that use custom severity matrices factor in asset criticality,
+                        data sensitivity, and blast radius.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Report Quality</div>
+                    <div class="concept-card-body">
+                        Some programs explicitly award bonuses for exceptional reports. Clear
+                        reproduction steps, impact analysis, and remediation guidance reduce the
+                        company's internal triage cost &mdash; and they reward that efficiency.
+                    </div>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Researcher Reputation</div>
+                    <div class="concept-card-body">
+                        Top-ranked researchers on platforms receive invitations to private programs
+                        with higher payouts and less competition. Your public reputation score
+                        compounds over time &mdash; consistent quality submissions build your brand.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Platform Comparison -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-compass.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Platform Comparison
+        </h2>
+        <div class="section-body">
+            <p>
+                The major platforms each serve different niches in the bug bounty ecosystem.
+                Click each platform below to see detailed stats and analysis.
+            </p>
+
+            <div class="platform-toggle" id="platformToggle">
+                <button class="platform-btn active" data-platform="0">HackerOne</button>
+                <button class="platform-btn" data-platform="1">Bugcrowd</button>
+                <button class="platform-btn" data-platform="2">Intigriti</button>
+                <button class="platform-btn" data-platform="3">YesWeHack</button>
+            </div>
+
+            <div class="platform-detail" id="platformDetail">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Multi-Platform Strategy</div>
+                    <div class="callout-text">
+                        Most successful researchers maintain active profiles on 2-3 platforms.
+                        HackerOne and Bugcrowd combined cover the majority of available programs.
+                        Intigriti and YesWeHack offer European programs with less researcher
+                        competition. Start on one platform, build reputation, then expand.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Career Path -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Career Path
+        </h2>
+        <div class="section-body">
+            <p>
+                Bug bounty hunting follows a predictable progression curve. The first bug is the
+                hardest. After that, each finding builds skills, pattern recognition, and reputation
+                that compound into faster, higher-value discoveries.
+            </p>
+
+            <h3>The Progression Ladder</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color: #c4a0d8;">Beginner (0-6 months)</strong> &mdash; Focus on learning one vulnerability class deeply (XSS, IDOR, or open redirect). Target programs with responsive triage and wide scope. Expect $0-500 per month. The goal is learning, not earning.</li>
+                <li><strong style="color: #c4a0d8;">Intermediate (6-18 months)</strong> &mdash; Expand to 3-5 vulnerability classes. Build recon automation. Start finding medium and high severity bugs. Expect $500-3,000 per month. Private program invitations begin arriving.</li>
+                <li><strong style="color: #c4a0d8;">Advanced (18-36 months)</strong> &mdash; Specialize in a niche (mobile, API, cloud, or a specific vulnerability class like SSRF). Write custom tools. Expect $3,000-10,000 per month. Multiple private program invitations.</li>
+                <li><strong style="color: #c4a0d8;">Expert (3+ years)</strong> &mdash; Full-time viable. Deep specialization, original research, possibly conference talks or published CVEs. Expect $10,000-50,000+ per month for top performers. Platform leadership boards.</li>
+            </ol>
+
+            <h3>Specialization Areas</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-mobile.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Mobile Security</div>
+                    <div class="concept-card-body">
+                        iOS and Android application testing. Fewer competitors because the barrier
+                        to entry is higher (requires device setup, proxy configuration, and
+                        decompilation skills). Pays well due to lower supply of researchers.
+                    </div>
+                    <span class="concept-tag">Low Competition</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">API Security</div>
+                    <div class="concept-card-body">
+                        REST, GraphQL, and gRPC testing. APIs are the backbone of modern applications
+                        and frequently contain authorization flaws, injection vulnerabilities, and
+                        business logic bugs that web UI testing misses entirely.
+                    </div>
+                    <span class="concept-tag">High Demand</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-satellite.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Cloud Security</div>
+                    <div class="concept-card-body">
+                        AWS, Azure, and GCP misconfigurations. Cloud-specific attacks (SSRF to
+                        metadata, S3 bucket misconfig, IAM privilege escalation) require specialized
+                        knowledge that most web-focused hunters lack.
+                    </div>
+                    <span class="concept-tag">Growing Field</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Smart Contracts</div>
+                    <div class="concept-card-body">
+                        Solidity, Rust, and Move audit for DeFi protocols. The highest-paying
+                        niche by far ($10K-$10M bounties) but requires deep understanding of
+                        blockchain internals, economic attack vectors, and formal verification.
+                    </div>
+                    <span class="concept-tag">Highest Payouts</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div class="callout-content">
+                    <div class="callout-title">Survivorship Bias</div>
+                    <div class="callout-text">
+                        The researchers who make headlines with six-figure earnings represent the top
+                        0.1%. The median bug bounty hunter earns significantly less. Platform leaderboards
+                        show the winners, not the thousands of researchers who submitted reports that
+                        were rejected as duplicates, out of scope, or informational. Plan accordingly.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Tax & Legal -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-institution.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Tax &amp; Legal
+        </h2>
+        <div class="section-body">
+            <p>
+                Bug bounty income is taxable. In the United States, you are an independent contractor.
+                Platforms issue 1099-MISC forms for earnings over $600. If you are outside the US,
+                your local tax laws apply &mdash; but the income is still reportable.
+            </p>
+
+            <h3>US Tax Obligations</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Self-Employment Tax</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span> Bug bounty income is self-employment income</li>
+                        <li><span class="li-marker">&#9654;</span> Subject to 15.3% self-employment tax (Social Security + Medicare)</li>
+                        <li><span class="li-marker">&#9654;</span> Plus federal and state income tax on top</li>
+                        <li><span class="li-marker">&#9654;</span> Quarterly estimated tax payments required if owing $1,000+</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Deductible Expenses</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span> Burp Suite license, cloud VPS costs</li>
+                        <li><span class="li-marker">&#9654;</span> Conference attendance and training materials</li>
+                        <li><span class="li-marker">&#9654;</span> Hardware (laptop, mobile devices for testing)</li>
+                        <li><span class="li-marker">&#9654;</span> Internet service (business portion)</li>
+                        <li><span class="li-marker">&#9654;</span> Home office deduction (if dedicated space)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Safe Harbor Policies</h3>
+
+            <p>
+                Safe harbor protections vary significantly across programs and jurisdictions. The
+                strongest protections explicitly state that the company will not pursue legal action
+                against researchers who comply with the program policy. Weaker protections merely
+                say the company "supports" responsible disclosure without committing to non-prosecution.
+            </p>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div class="callout-content">
+                    <div class="callout-title">International Considerations</div>
+                    <div class="callout-text">
+                        Bug bounty payments may be subject to withholding tax depending on your country
+                        and the platform's jurisdiction. Some countries (e.g., India, Brazil) require
+                        platform-side withholding. Researchers in sanctioned countries may be unable to
+                        receive payments through major platforms. Consult a tax professional familiar
+                        with international contractor income if you earn more than $5,000 annually.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Top Earners -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Top Earners
+        </h2>
+        <div class="section-body">
+            <p>
+                Studying how top researchers operate reveals patterns that separate consistent earners
+                from occasional bounty winners. These anonymized case studies are composites drawn
+                from public interviews, blog posts, and platform profiles.
+            </p>
+
+            <h3>Case Studies</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Profile</th>
+                        <th>Strategy</th>
+                        <th>Key Insight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">The Specialist</td>
+                        <td>Focuses exclusively on SSRF across 50+ programs. Automated recon pipeline finds SSRF-vulnerable patterns in hours. Earns $200K+/year from a single vulnerability class.</td>
+                        <td>"Depth beats breadth. I know SSRF better than anyone, so I find what others miss."</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">The Deep Diver</td>
+                        <td>Hunts on 3 programs only. Knows the codebase, the team, the deployment schedule. First to test every new feature. Reports 2-3 critical bugs per quarter at premium payouts.</td>
+                        <td>"When you know a target this well, new attack surface glows."</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">The Automator</td>
+                        <td>Built a custom recon-to-triage pipeline that runs 24/7 across 200 programs. Finds low-hanging fruit at scale. Volume strategy: 50+ reports per month, mostly medium severity.</td>
+                        <td>"One high is nice. Fifty mediums pay the mortgage."</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">The Researcher</td>
+                        <td>Publishes original research on novel attack techniques. Gets invited to exclusive private programs. Conference speaker. Finds bugs nobody else knows how to look for.</td>
+                        <td>"The best bugs come from techniques that do not have names yet."</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <blockquote>
+                "There is no single path to success in bug bounty. The common thread is not skill
+                or intelligence &mdash; it is consistency. The researchers who earn the most are the
+                ones who show up every day, systematically improve their methodology, and treat
+                rejection as data, not failure."
+                <cite>&mdash; Composite from top-20 HackerOne researcher interviews</cite>
+            </blockquote>
+        </div>
+    </div>
+
+    <!-- Section 7: ROI Analysis -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-chart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            ROI Analysis
+        </h2>
+        <div class="section-body">
+            <p>
+                Before committing significant time to bug bounty, understand the economics.
+                Unlike a salaried position, bug bounty has highly variable income with no
+                guaranteed floor. Honest ROI analysis prevents burnout and unrealistic expectations.
+            </p>
+
+            <h3>Time Investment vs. Expected Returns</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Level</th>
+                        <th>Hours/Week</th>
+                        <th>Monthly Range</th>
+                        <th>Effective Hourly</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Beginner</td>
+                        <td>10-15</td>
+                        <td>$0 &ndash; $500</td>
+                        <td>$0 &ndash; $8</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Intermediate</td>
+                        <td>15-25</td>
+                        <td>$500 &ndash; $3,000</td>
+                        <td>$5 &ndash; $30</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Advanced</td>
+                        <td>25-40</td>
+                        <td>$3,000 &ndash; $10,000</td>
+                        <td>$18 &ndash; $60</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Expert</td>
+                        <td>30-50</td>
+                        <td>$10,000 &ndash; $50,000+</td>
+                        <td>$50 &ndash; $250+</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>The Specialization Premium</h3>
+
+            <p>
+                Generalists find more bugs in total, but specialists earn more per bug.
+                Deep expertise in a niche area (mobile, API, cloud, smart contracts) means
+                you find higher-severity issues that other researchers miss. The trade-off:
+                specialists are less flexible when program scope changes or their niche
+                becomes saturated.
+            </p>
+
+            <h3>When Bug Bounty Makes Sense</h3>
+
+            <div class="two-col">
+                <div class="col-card" style="border-color: rgba(22, 163, 74, 0.3);">
+                    <h3><span class="li-marker" style="color: #22c55e;">&#10003;</span> Good Fit If</h3>
+                    <ul>
+                        <li><span class="li-marker" style="color: #22c55e;">&#9654;</span> You have 10+ hours per week to dedicate consistently</li>
+                        <li><span class="li-marker" style="color: #22c55e;">&#9654;</span> You enjoy self-directed learning and problem solving</li>
+                        <li><span class="li-marker" style="color: #22c55e;">&#9654;</span> You can handle weeks of zero income without stress</li>
+                        <li><span class="li-marker" style="color: #22c55e;">&#9654;</span> You have other income to cover living expenses initially</li>
+                        <li><span class="li-marker" style="color: #22c55e;">&#9654;</span> You want to build practical security skills with real targets</li>
+                    </ul>
+                </div>
+                <div class="col-card" style="border-color: rgba(220, 38, 38, 0.3);">
+                    <h3><span class="li-marker" style="color: #ef4444;">&#10007;</span> Poor Fit If</h3>
+                    <ul>
+                        <li><span class="li-marker" style="color: #ef4444;">&#9654;</span> You need predictable income this month</li>
+                        <li><span class="li-marker" style="color: #ef4444;">&#9654;</span> You expect quick returns for time invested</li>
+                        <li><span class="li-marker" style="color: #ef4444;">&#9654;</span> You are discouraged by duplicate reports and rejections</li>
+                        <li><span class="li-marker" style="color: #ef4444;">&#9654;</span> You prefer structured tasks over open-ended exploration</li>
+                        <li><span class="li-marker" style="color: #ef4444;">&#9654;</span> You do not enjoy writing detailed technical reports</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">The Real ROI</div>
+                    <div class="callout-text">
+                        Even if the direct income is modest, bug bounty hunting builds a portfolio
+                        of demonstrated security skills that commands premium salaries in penetration
+                        testing, application security, and security engineering roles. A HackerOne
+                        profile with 50 valid findings is worth more than any certification when
+                        applying for security positions.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <img src="/assets/images/icons/icon-speech.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    A startup offers a bug bounty with maximum payout of $500 for critical vulnerabilities. Is this program worth your time? What factors would you consider beyond the dollar amount when evaluating whether to invest hours in a low-payout program?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    Compare the career trajectory of a full-time bug bounty hunter versus a penetration tester at a consulting firm. Consider income stability, skill development, networking, and long-term career options. At what point might someone switch from one path to the other?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    The DeFi sector pays the highest bounties but also has the highest barrier to entry. Design a 6-month learning plan that would prepare a web application security researcher to begin hunting smart contract vulnerabilities. What skills transfer, and what is entirely new?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the global bug bounty market and growth drivers, severity-based
+                payout structures across program tiers, platform comparison and multi-platform
+                strategy, career progression from beginner to expert, tax obligations and legal
+                considerations, top earner strategies, and return on investment analysis.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress
+    function updateScrollProgress() {
+        var scrollTop = window.scrollY;
+        var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        var pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in
+    function initSectionAnimations() {
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+        document.querySelectorAll('.section').forEach(function(s) { observer.observe(s); });
+    }
+
+    // Payout visualizer
+    function initPayoutViz() {
+        var container = document.getElementById('payoutViz');
+        var data = [
+            { label: 'Critical', color: '#ef4444', ranges: [
+                { name: 'Startup', min: 500, max: 2000 },
+                { name: 'Mid-Tier', min: 5000, max: 15000 },
+                { name: 'Top-Tier', min: 15000, max: 100000 }
+            ]},
+            { label: 'High', color: '#f97316', ranges: [
+                { name: 'Startup', min: 200, max: 1000 },
+                { name: 'Mid-Tier', min: 2000, max: 7500 },
+                { name: 'Top-Tier', min: 7500, max: 30000 }
+            ]},
+            { label: 'Medium', color: '#eab308', ranges: [
+                { name: 'Startup', min: 50, max: 500 },
+                { name: 'Mid-Tier', min: 500, max: 2000 },
+                { name: 'Top-Tier', min: 2000, max: 10000 }
+            ]},
+            { label: 'Low', color: '#22c55e', ranges: [
+                { name: 'Startup', min: 25, max: 100 },
+                { name: 'Mid-Tier', min: 100, max: 500 },
+                { name: 'Top-Tier', min: 500, max: 2000 }
+            ]}
+        ];
+
+        var maxVal = 100000;
+        var html = '';
+
+        data.forEach(function(tier) {
+            tier.ranges.forEach(function(range, idx) {
+                var startPct = (range.min / maxVal) * 100;
+                var widthPct = ((range.max - range.min) / maxVal) * 100;
+                var label = idx === 0 ? tier.label : '';
+                html += '<div class="payout-row">';
+                html += '<div class="payout-label">' + label + '</div>';
+                html += '<div class="payout-bar-track">';
+                html += '<div class="payout-bar" style="margin-left:' + startPct + '%;width:' + widthPct + '%;background:' + tier.color + ';opacity:' + (0.5 + idx * 0.2) + ';">';
+                html += '<span>$' + range.max.toLocaleString() + '</span>';
+                html += '</div></div>';
+                html += '<div class="payout-range">' + range.name + '</div>';
+                html += '</div>';
+            });
+        });
+
+        // Insert after the legend
+        var legend = container.querySelector('.payout-legend');
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        container.appendChild(wrapper);
+    }
+
+    // Platform comparison
+    var platforms = [
+        {
+            name: 'HackerOne',
+            meta: 'Founded 2012 | San Francisco, CA | Largest platform',
+            stats: [
+                { val: '$300M+', label: 'Total Paid' },
+                { val: '3,000+', label: 'Programs' },
+                { val: '1M+', label: 'Researchers' },
+                { val: '24h', label: 'Avg Triage' }
+            ],
+            pros: 'Largest program inventory. Best for beginners (many public programs). Strong safe harbor policies. Transparent reputation system. Most private program invitations.',
+            cons: 'Highest researcher competition. Duplicate rates can be frustrating. Platform fee reduces company budgets. Some programs have slow response times despite platform targets.'
+        },
+        {
+            name: 'Bugcrowd',
+            meta: 'Founded 2012 | San Francisco, CA | Managed model',
+            stats: [
+                { val: '$50M+', label: 'Total Paid' },
+                { val: '1,000+', label: 'Programs' },
+                { val: '500K+', label: 'Researchers' },
+                { val: '48h', label: 'Avg Triage' }
+            ],
+            pros: 'Managed triage (Bugcrowd staff validates before sending to company). Curated researcher pools for private programs. Strong in enterprise and government sectors. Good educational resources.',
+            cons: 'Fewer public programs than HackerOne. Managed triage can be a bottleneck. Lower total payouts. Reputation system less transparent.'
+        },
+        {
+            name: 'Intigriti',
+            meta: 'Founded 2016 | Antwerp, Belgium | European focus',
+            stats: [
+                { val: '$15M+', label: 'Total Paid' },
+                { val: '200+', label: 'Programs' },
+                { val: '100K+', label: 'Researchers' },
+                { val: '48h', label: 'Avg Triage' }
+            ],
+            pros: 'Strong European program inventory. Less researcher competition (smaller pool). Good payouts relative to competition level. GDPR-compliant infrastructure. Triage quality is consistent.',
+            cons: 'Smaller program inventory overall. Fewer US-based programs. Less brand recognition outside Europe. Fewer educational resources than larger platforms.'
+        },
+        {
+            name: 'YesWeHack',
+            meta: 'Founded 2015 | Paris, France | European alternative',
+            stats: [
+                { val: '$10M+', label: 'Total Paid' },
+                { val: '300+', label: 'Programs' },
+                { val: '50K+', label: 'Researchers' },
+                { val: '72h', label: 'Avg Triage' }
+            ],
+            pros: 'Strong in French and European markets. Government programs (French ANSSI). Built-in training platform (DOJO). Less competition per program. Growing rapidly.',
+            cons: 'Smallest researcher pool limits network effects. Fewer top-tier tech company programs. Triage times can be longer. International payment processing can be slow.'
+        }
+    ];
+
+    function renderPlatform(idx) {
+        var p = platforms[idx];
+        var html = '<div class="platform-name">' + p.name + '</div>';
+        html += '<div class="platform-meta">' + p.meta + '</div>';
+        html += '<div class="platform-stats">';
+        p.stats.forEach(function(s) {
+            html += '<div class="platform-stat"><div class="platform-stat-val">' + s.val + '</div><div class="platform-stat-label">' + s.label + '</div></div>';
+        });
+        html += '</div>';
+        html += '<div class="platform-pros"><div class="platform-pros-title">Strengths</div><div class="platform-list">' + p.pros + '</div></div>';
+        html += '<div class="platform-cons"><div class="platform-cons-title">Weaknesses</div><div class="platform-list">' + p.cons + '</div></div>';
+        document.getElementById('platformDetail').innerHTML = html;
+    }
+
+    function initPlatforms() {
+        var buttons = document.querySelectorAll('#platformToggle .platform-btn');
+        buttons.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var idx = parseInt(this.getAttribute('data-platform'));
+                buttons.forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                renderPlatform(idx);
+            });
+        });
+        renderPlatform(0);
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-bounty-economics', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initSectionAnimations();
+        initPayoutViz();
+        initPlatforms();
+    });
+</script>
+
+</body>
+</html>

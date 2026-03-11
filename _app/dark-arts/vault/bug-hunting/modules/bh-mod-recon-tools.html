@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recon Toolchain - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #9333ea, #a855f7); z-index: 200; transition: width 0.1s linear; width: 0%; }
+        .module-header { background: rgba(10, 5, 15, 0.95); border-bottom: 1px solid rgba(100, 60, 130, 0.2); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { background: rgba(80, 40, 100, 0.2); border: 1px solid rgba(100, 60, 130, 0.3); color: #9a7aaa; padding: 7px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.3s ease; font-family: 'Georgia', serif; }
+        .back-btn:hover { background: rgba(100, 60, 130, 0.3); border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8; }
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+        .progress-bar-mini { width: 120px; height: 4px; background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden; }
+        .progress-bar-mini .fill { height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7); width: 0%; transition: width 0.5s ease; }
+        .module-content { max-width: 1100px; margin: 0 auto; padding: 40px; position: relative; z-index: 10; }
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3)); }
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+        .stat-pill { padding: 8px 18px; background: rgba(60, 30, 80, 0.15); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em; }
+        .section { margin-bottom: 80px; opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px; }
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+        .section-body h3 { color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px; }
+
+        .standards-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem; }
+        .standards-table th { background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px; text-align: left; font-weight: normal; letter-spacing: 0.1em; font-size: 0.78rem; text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2); }
+        .standards-table td { padding: 12px 16px; color: #9a7aaa; border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top; }
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 28px 0; }
+        .concept-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; transition: all 0.3s ease; }
+        .concept-card:hover { transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+        .concept-tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: rgba(80, 40, 100, 0.3); border-radius: 12px; font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        .callout { border-radius: 8px; padding: 20px 24px; margin: 24px 0; display: flex; gap: 16px; align-items: flex-start; }
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .code-block { background: rgba(5, 2, 10, 0.8); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 6px; padding: 16px 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 0.84rem; color: #b090c0; overflow-x: auto; line-height: 1.6; white-space: pre-wrap; }
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+        .tool-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; transition: all 0.3s ease; }
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .tool-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; font-family: 'Courier New', monospace; }
+        .tool-role { font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .col-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px; }
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li::before { content: none; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .inline-code { font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(40, 20, 60, 0.3); padding: 1px 6px; border-radius: 3px; font-size: 0.88rem; }
+
+        /* Terminal simulation */
+        .terminal { background: #0c0c0c; border: 1px solid #333; border-radius: 8px; margin: 20px 0; overflow: hidden; }
+        .terminal-header { background: #1a1a1a; padding: 8px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333; }
+        .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .terminal-dot.red { background: #ff5f56; }
+        .terminal-dot.yellow { background: #ffbd2e; }
+        .terminal-dot.green { background: #27c93f; }
+        .terminal-title { font-size: 0.72rem; color: #666; font-family: 'Courier New', monospace; margin-left: 8px; }
+        .terminal-body { padding: 16px 20px; font-family: 'Courier New', monospace; font-size: 0.82rem; line-height: 1.6; overflow-x: auto; }
+        .terminal-body .prompt { color: #27c93f; }
+        .terminal-body .cmd { color: #e0e0e0; }
+        .terminal-body .output { color: #888; }
+        .terminal-body .highlight { color: #fbbf24; }
+        .terminal-body .success { color: #86efac; }
+        .terminal-body .error { color: #ef4444; }
+        .terminal-body .info { color: #60a5fa; }
+        .terminal-body .dim { color: #555; }
+
+        /* Filterable table */
+        .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .filter-btn { padding: 6px 14px; background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 16px; color: #8a6a9a; font-size: 0.75rem; font-family: 'Georgia', serif; cursor: pointer; transition: all 0.2s ease; letter-spacing: 0.05em; }
+        .filter-btn:hover, .filter-btn.active { background: rgba(147, 51, 234, 0.2); border-color: #9333ea; color: #c4a0d8; }
+
+        .discussion-section { background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0; }
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-item::before { content: none; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+
+        .completion-section { text-align: center; padding: 60px 40px; background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4)); border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px; }
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+        .completion-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px; background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px; color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3); }
+        .completion-btn:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px); }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .tool-grid { grid-template-columns: 1fr; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; Recon Toolchain</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon"><img src="/assets/images/icons/icon-terminal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+        <h1 class="intro-title">Recon Toolchain</h1>
+        <div class="intro-meta">Bug Hunting &bull; Recon Tools &bull; Hands-On Reference</div>
+        <p class="intro-subtitle">
+            Reconnaissance tools are the instruments of attack surface discovery. This module provides
+            a hands-on reference for the essential tools in a bug bounty hunter's arsenal &mdash; from
+            passive OSINT gathering through active scanning, content discovery, and automated vulnerability
+            detection. Each tool section includes simulated terminal output showing real-world usage patterns.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Passive OSINT</div>
+            <div class="stat-pill">Active Scanning</div>
+            <div class="stat-pill">Content Discovery</div>
+            <div class="stat-pill">Automation</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Passive Recon -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-eye.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Passive Reconnaissance
+        </h2>
+        <div class="section-body">
+            <p>
+                Passive recon gathers intelligence without sending a single packet to the target.
+                You are querying third-party databases, search engines, and public records &mdash;
+                sources that have already indexed the target's infrastructure. The target has no way
+                to detect passive reconnaissance because you never interact with their systems directly.
+            </p>
+
+            <h3>Subdomain Enumeration</h3>
+
+            <p>
+                Subdomain discovery is the foundation of web application recon. Every subdomain is a
+                potential entry point. Tools like subfinder and amass query dozens of passive sources
+                simultaneously &mdash; certificate transparency logs, DNS datasets, search engines,
+                and web archives.
+            </p>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">subfinder &mdash; passive subdomain enumeration</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">subfinder -d target.com -silent</span>
+<span class="output">www.target.com
+api.target.com
+staging.target.com
+dev.target.com
+mail.target.com
+cdn.target.com
+admin.target.com
+docs.target.com
+beta.target.com
+internal-api.target.com
+legacy.target.com
+jenkins.target.com</span>
+<span class="dim">[INF] Found 12 subdomains for target.com in 4.2s</span>
+                </div>
+            </div>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">amass &mdash; comprehensive OSINT enumeration</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">amass enum -passive -d target.com -o amass-results.txt</span>
+<span class="dim">[*] Querying data sources: AlienVault, BufferOver, CertSpotter, Crtsh,</span>
+<span class="dim">     DNSdumpster, HackerTarget, Riddler, Shodan, Spyse, Sublist3r,</span>
+<span class="dim">     ThreatCrowd, VirusTotal, Wayback</span>
+<span class="output">target.com
+www.target.com
+api.target.com
+staging.target.com
+dev.target.com
+mail.target.com
+old.target.com
+vpn.target.com
+sso.target.com
+grafana.target.com
+prometheus.target.com
+k8s-dashboard.target.com</span>
+<span class="success">[+] 15 names discovered - amass-results.txt</span>
+                </div>
+            </div>
+
+            <h3>Certificate Transparency</h3>
+
+            <p>
+                Certificate Transparency (CT) logs are a public record of every SSL/TLS certificate
+                issued. When an organization requests a certificate for
+                <span class="inline-code">staging.internal.target.com</span>, that hostname becomes
+                publicly discoverable through CT log search &mdash; even if DNS for that host is
+                restricted. This is one of the richest sources for subdomain discovery.
+            </p>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">crt.sh query via curl</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">curl -s "https://crt.sh/?q=%25.target.com&output=json" | jq -r '.[].name_value' | sort -u</span>
+<span class="output">*.target.com
+api.target.com
+cdn.target.com
+dev-api.target.com
+internal.target.com
+mail.target.com
+payments.target.com
+staging-api.target.com
+staging.target.com
+vpn.target.com
+www.target.com</span>
+                </div>
+            </div>
+
+            <h3>WHOIS &amp; DNS Intelligence</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">WHOIS Records</div>
+                    <div class="concept-card-body">
+                        Domain registration data reveals registrar, creation date, name servers, and
+                        sometimes registrant contact details. Historical WHOIS (via DomainTools or
+                        SecurityTrails) shows ownership changes and previous DNS configurations.
+                    </div>
+                    <span class="concept-tag">Passive</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-network.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Reverse DNS</div>
+                    <div class="concept-card-body">
+                        Given an IP address, reverse DNS lookups reveal all hostnames pointing to it.
+                        This uncovers shared hosting relationships and internal naming conventions
+                        that forward DNS queries would never expose.
+                    </div>
+                    <span class="concept-tag">Low Noise</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-clock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Wayback Machine</div>
+                    <div class="concept-card-body">
+                        The Internet Archive's Wayback Machine stores historical snapshots of web pages.
+                        Archived pages may contain old endpoints, deprecated APIs, leaked credentials
+                        in JavaScript files, and removed functionality that still exists server-side.
+                    </div>
+                    <span class="concept-tag">Historical</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="concept-card-title">Google Dorking</div>
+                    <div class="concept-card-body">
+                        Advanced search operators extract targeted intelligence from Google's index.
+                        <span class="inline-code">site:target.com filetype:pdf</span> finds documents,
+                        <span class="inline-code">inurl:admin</span> finds admin panels,
+                        <span class="inline-code">intitle:"index of"</span> finds directory listings.
+                    </div>
+                    <span class="concept-tag">OSINT</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Active Recon -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Active Reconnaissance
+        </h2>
+        <div class="section-body">
+            <p>
+                Active recon involves direct interaction with the target &mdash; sending packets,
+                probing ports, and requesting resources. This is detectable by the target's security
+                monitoring, so technique selection and scan intensity matter. The goal is thorough
+                coverage without triggering automated defenses that block your IP.
+            </p>
+
+            <h3>Port Scanning with Nmap</h3>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">nmap &mdash; service version detection</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">nmap -sV --top-ports 1000 -T3 target.com</span>
+<span class="dim">Starting Nmap 7.94 ( https://nmap.org )</span>
+<span class="output">PORT     STATE  SERVICE        VERSION</span>
+<span class="success">22/tcp   open   ssh            OpenSSH 8.9p1 Ubuntu</span>
+<span class="success">80/tcp   open   http           nginx 1.22.1</span>
+<span class="success">443/tcp  open   ssl/http       nginx 1.22.1</span>
+<span class="success">3000/tcp open   http           Grafana</span>
+<span class="highlight">8080/tcp open   http           Jetty 9.4.51</span>
+<span class="highlight">9200/tcp open   http           Elasticsearch 7.17.9</span>
+<span class="dim">Nmap done: 1 IP address (1 host up) scanned in 28.4s</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div class="callout-content">
+                    <div class="callout-title">Scan Intensity</div>
+                    <div class="callout-text">
+                        Use Nmap timing templates T2 or T3 for bug bounty targets. T4 and T5 are too
+                        aggressive for internet-facing systems &mdash; they trigger IDS alerts and WAF
+                        blocks. Some programs explicitly prohibit port scanning. Always verify the
+                        program policy before running active scans.
+                    </div>
+                </div>
+            </div>
+
+            <h3>HTTP Probing with httpx</h3>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">httpx &mdash; web probing with tech detection</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">cat subdomains.txt | httpx -silent -status-code -title -tech-detect -web-server</span>
+<span class="success">https://www.target.com [200] [Target Corp] [nginx] [React,webpack]</span>
+<span class="success">https://api.target.com [200] [] [nginx] [Express]</span>
+<span class="highlight">https://staging.target.com [403] [403 Forbidden] [nginx]</span>
+<span class="success">https://docs.target.com [200] [Documentation] [nginx] [Hugo]</span>
+<span class="error">https://admin.target.com [401] [Login Required] [Apache] [PHP,WordPress]</span>
+<span class="highlight">http://jenkins.target.com:8080 [200] [Jenkins] [Jetty] [Jenkins]</span>
+<span class="highlight">http://grafana.target.com:3000 [200] [Grafana] [Grafana]</span>
+<span class="info">[INF] 7 results from 12 hosts</span>
+                </div>
+            </div>
+
+            <p>
+                The httpx output immediately reveals interesting targets: a Jenkins server on port 8080,
+                a Grafana dashboard on port 3000, a WordPress admin panel returning 401, and a staging
+                server returning 403 (worth probing for access bypass). This is why HTTP probing is
+                essential before manual testing &mdash; it triages your entire subdomain list in seconds.
+            </p>
+        </div>
+    </div>
+
+    <!-- Section 3: Content Discovery -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Content Discovery
+        </h2>
+        <div class="section-body">
+            <p>
+                Content discovery goes beyond what is linked in the application's UI. Hidden directories,
+                backup files, configuration endpoints, and debug pages are invisible to normal users
+                but discoverable through systematic enumeration. These forgotten assets are where
+                critical vulnerabilities hide.
+            </p>
+
+            <h3>Directory Enumeration with ffuf</h3>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">ffuf &mdash; fast web fuzzer</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">ffuf -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt \
+  -u https://target.com/FUZZ -mc 200,301,302,403 -o results.json</span>
+
+<span class="dim">        /'___\  /'___\           /'___\
+       /\ \__/ /\ \__/  __  __  /\ \__/
+       \ \ ,__\\ \ ,__\/\ \/\ \ \ \ ,__\
+        \ \ \_/ \ \ \_/\ \ \_\ \ \ \ \_/
+         \ \_\   \ \_\  \ \____/  \ \_\
+          \/_/    \/_/   \/___/    \/_/
+
+       v2.1.0</span>
+
+<span class="success">[Status: 200, Size: 14832, Words: 672] - /api</span>
+<span class="success">[Status: 301, Size: 0, Words: 0]     - /admin -> /admin/</span>
+<span class="highlight">[Status: 403, Size: 548, Words: 14]  - /server-status</span>
+<span class="success">[Status: 200, Size: 892, Words: 28]   - /robots.txt</span>
+<span class="highlight">[Status: 200, Size: 2104, Words: 56]  - /backup</span>
+<span class="success">[Status: 301, Size: 0, Words: 0]     - /docs -> /docs/</span>
+<span class="highlight">[Status: 200, Size: 4521, Words: 140] - /.env</span>
+<span class="error">[Status: 200, Size: 9244, Words: 312] - /debug</span>
+
+<span class="dim">:: Progress: [30000/30000] :: Job [1/1] :: 142 req/sec :: Errors: 0 ::</span>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                <div class="callout-content">
+                    <div class="callout-title">Critical Findings in This Output</div>
+                    <div class="callout-text">
+                        The <span class="inline-code">/.env</span> file likely contains environment variables
+                        including database credentials, API keys, and secret keys. The <span class="inline-code">/debug</span>
+                        endpoint may expose stack traces, internal paths, and configuration details. The
+                        <span class="inline-code">/backup</span> directory could contain source code or
+                        database dumps. Each of these is a potentially high or critical severity finding.
+                    </div>
+                </div>
+            </div>
+
+            <h3>Vulnerability Scanning with Nuclei</h3>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">nuclei &mdash; template-based vulnerability scanner</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">nuclei -target https://target.com -t cves/ -t exposures/ -t misconfigurations/ -severity critical,high</span>
+
+<span class="dim">[INF] Templates loaded: 4892 | Workflows: 0</span>
+<span class="dim">[INF] Targets loaded: 1</span>
+
+<span class="error">[critical] [CVE-2023-44487] [http] https://target.com</span>
+<span class="error">  -> HTTP/2 Rapid Reset Attack (DoS potential)</span>
+
+<span class="highlight">[high] [exposed-env-file] [http] https://target.com/.env</span>
+<span class="highlight">  -> Environment file with credentials exposed</span>
+
+<span class="highlight">[high] [git-config-exposure] [http] https://target.com/.git/config</span>
+<span class="highlight">  -> Git configuration file accessible</span>
+
+<span class="info">[medium] [missing-csp] [http] https://target.com</span>
+<span class="info">  -> Content-Security-Policy header not set</span>
+
+<span class="dim">[INF] Scan completed in 2m14s | 4 results found</span>
+                </div>
+            </div>
+
+            <h3>Parameter Discovery</h3>
+
+            <p>
+                Beyond directory enumeration, parameter discovery finds hidden query parameters and
+                form fields that the application processes but does not expose in its UI. Tools like
+                Arjun and ParamSpider automate this process.
+            </p>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">arjun &mdash; parameter discovery</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">arjun -u https://target.com/api/users -m GET</span>
+<span class="dim">[*] Probing the target for stability</span>
+<span class="dim">[*] Analysing HTTP response for parameter hints</span>
+<span class="dim">[*] Testing with 2588 parameters from default wordlist</span>
+<span class="success">[+] id        (reflected in response body)</span>
+<span class="success">[+] user      (reflected in response body)</span>
+<span class="highlight">[+] admin     (different response size: 4821 vs 2104)</span>
+<span class="success">[+] format    (reflected in response body)</span>
+<span class="highlight">[+] debug     (different response size: 8912 vs 2104)</span>
+<span class="dim">[*] Parameters found: 5</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Automated Scanning -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-robot.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Automated Scanning
+        </h2>
+        <div class="section-body">
+            <p>
+                Automation multiplies your effectiveness. While you manually test one application,
+                automated scanners can probe hundreds of subdomains for known vulnerabilities,
+                misconfigurations, and exposed services. The key is using automation for breadth
+                and manual testing for depth.
+            </p>
+
+            <h3>Nuclei Template Categories</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Templates</th>
+                        <th>Use Case</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">cves/</td>
+                        <td>2000+ CVE detection templates</td>
+                        <td>Known vulnerability scanning; first pass on any new target</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">exposures/</td>
+                        <td>Sensitive file and config detection</td>
+                        <td>Environment files, backups, source code, API keys in JS</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">misconfigurations/</td>
+                        <td>Server and service misconfigs</td>
+                        <td>Open redirects, CORS, directory listing, debug endpoints</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">technologies/</td>
+                        <td>Tech stack fingerprinting</td>
+                        <td>Identify frameworks, CMS, WAFs, load balancers</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">takeovers/</td>
+                        <td>Subdomain takeover detection</td>
+                        <td>Dangling DNS records pointing to unclaimed cloud services</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">default-logins/</td>
+                        <td>Default credential checks</td>
+                        <td>Admin panels, databases, management consoles with factory creds</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Custom Nuclei Templates</h3>
+
+            <p>
+                Writing custom templates for recurring patterns is what separates tool users from
+                tool builders. If you find a vulnerability pattern in one target, write a template
+                and scan every target in your pipeline for the same issue.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># custom-debug-endpoint.yaml</span>
+<span class="kw">id</span>: <span class="str">custom-debug-endpoint</span>
+<span class="kw">info</span>:
+  <span class="kw">name</span>: <span class="str">Debug Endpoint Exposure</span>
+  <span class="kw">severity</span>: <span class="flag">high</span>
+  <span class="kw">description</span>: <span class="str">Application debug endpoint accessible without authentication</span>
+
+<span class="kw">http</span>:
+  - <span class="kw">method</span>: <span class="str">GET</span>
+    <span class="kw">path</span>:
+      - <span class="str">"{{BaseURL}}/debug"</span>
+      - <span class="str">"{{BaseURL}}/_debug"</span>
+      - <span class="str">"{{BaseURL}}/api/debug"</span>
+    <span class="kw">matchers-condition</span>: <span class="str">and</span>
+    <span class="kw">matchers</span>:
+      - <span class="kw">type</span>: <span class="str">status</span>
+        <span class="kw">status</span>:
+          - <span class="str">200</span>
+      - <span class="kw">type</span>: <span class="str">word</span>
+        <span class="kw">words</span>:
+          - <span class="str">"stack trace"</span>
+          - <span class="str">"environment"</span>
+          - <span class="str">"debug info"</span>
+        <span class="kw">condition</span>: <span class="str">or</span>
+</div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Template Sharing</div>
+                    <div class="callout-text">
+                        The Nuclei community maintains thousands of templates in the
+                        nuclei-templates repository. Contributing your own templates earns
+                        recognition and helps the community. Keep your competitive-advantage
+                        templates private; share generic detection patterns publicly.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Tool Comparison Matrix -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Tool Comparison Matrix
+        </h2>
+        <div class="section-body">
+            <p>
+                Different tools serve different purposes. Use the filters below to narrow the
+                comparison by category. Understanding each tool's strengths, limitations, and
+                noise level helps you build an efficient pipeline.
+            </p>
+
+            <div class="filter-bar" id="toolFilters">
+                <button class="filter-btn active" data-filter="all">All Tools</button>
+                <button class="filter-btn" data-filter="recon">Recon</button>
+                <button class="filter-btn" data-filter="scanning">Scanning</button>
+                <button class="filter-btn" data-filter="discovery">Discovery</button>
+                <button class="filter-btn" data-filter="fingerprint">Fingerprint</button>
+            </div>
+
+            <table class="standards-table" id="toolTable">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Purpose</th>
+                        <th>Speed</th>
+                        <th>Noise Level</th>
+                        <th>Learning Curve</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr data-category="recon">
+                        <td class="std-name">subfinder</td>
+                        <td>Passive subdomain enumeration</td>
+                        <td style="color: #86efac;">Fast</td>
+                        <td style="color: #86efac;">Zero (passive)</td>
+                        <td style="color: #86efac;">Low</td>
+                    </tr>
+                    <tr data-category="recon">
+                        <td class="std-name">amass</td>
+                        <td>Comprehensive OSINT enumeration</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                        <td style="color: #86efac;">Low (passive mode)</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                    </tr>
+                    <tr data-category="scanning">
+                        <td class="std-name">nmap</td>
+                        <td>Port scanning, service detection</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                        <td style="color: #ef4444;">High (active)</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                    </tr>
+                    <tr data-category="scanning">
+                        <td class="std-name">masscan</td>
+                        <td>Fast TCP port scanning at scale</td>
+                        <td style="color: #86efac;">Very Fast</td>
+                        <td style="color: #ef4444;">Very High</td>
+                        <td style="color: #86efac;">Low</td>
+                    </tr>
+                    <tr data-category="scanning">
+                        <td class="std-name">httpx</td>
+                        <td>HTTP probing, tech detection</td>
+                        <td style="color: #86efac;">Fast</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                        <td style="color: #86efac;">Low</td>
+                    </tr>
+                    <tr data-category="discovery">
+                        <td class="std-name">ffuf</td>
+                        <td>Directory and parameter fuzzing</td>
+                        <td style="color: #86efac;">Very Fast</td>
+                        <td style="color: #ef4444;">High</td>
+                        <td style="color: #86efac;">Low</td>
+                    </tr>
+                    <tr data-category="discovery">
+                        <td class="std-name">nuclei</td>
+                        <td>Template-based vuln scanning</td>
+                        <td style="color: #86efac;">Fast</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                    </tr>
+                    <tr data-category="discovery">
+                        <td class="std-name">arjun</td>
+                        <td>Hidden parameter discovery</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                        <td style="color: #86efac;">Low</td>
+                    </tr>
+                    <tr data-category="fingerprint">
+                        <td class="std-name">Wappalyzer</td>
+                        <td>Browser-based tech fingerprinting</td>
+                        <td style="color: #86efac;">Instant</td>
+                        <td style="color: #86efac;">Zero (passive)</td>
+                        <td style="color: #86efac;">Low</td>
+                    </tr>
+                    <tr data-category="fingerprint">
+                        <td class="std-name">WhatWeb</td>
+                        <td>CLI tech fingerprinting</td>
+                        <td style="color: #86efac;">Fast</td>
+                        <td style="color: #fbbf24;">Low-Medium</td>
+                        <td style="color: #86efac;">Low</td>
+                    </tr>
+                    <tr data-category="recon">
+                        <td class="std-name">Shodan</td>
+                        <td>Internet-wide device search</td>
+                        <td style="color: #86efac;">Instant (indexed)</td>
+                        <td style="color: #86efac;">Zero (passive)</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                    </tr>
+                    <tr data-category="recon">
+                        <td class="std-name">Censys</td>
+                        <td>Internet-wide host and cert search</td>
+                        <td style="color: #86efac;">Instant (indexed)</td>
+                        <td style="color: #86efac;">Zero (passive)</td>
+                        <td style="color: #fbbf24;">Medium</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 6: Building Your Toolkit -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+            Building Your Toolkit
+        </h2>
+        <div class="section-body">
+            <p>
+                A professional recon setup requires a dedicated environment. Running tools from your
+                personal laptop works for learning, but serious hunting demands a VPS with proper
+                networking, tool management, and output organization.
+            </p>
+
+            <h3>Recommended VPS Setup</h3>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-title">VPS initial setup</span>
+                </div>
+                <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">sudo apt update && sudo apt install -y golang python3-pip git jq</span>
+
+<span class="comment"># Install Go-based tools</span>
+<span class="prompt">$</span> <span class="cmd">go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest</span>
+<span class="prompt">$</span> <span class="cmd">go install github.com/projectdiscovery/httpx/cmd/httpx@latest</span>
+<span class="prompt">$</span> <span class="cmd">go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest</span>
+<span class="prompt">$</span> <span class="cmd">go install github.com/ffuf/ffuf/v2@latest</span>
+<span class="prompt">$</span> <span class="cmd">go install github.com/tomnomnom/anew@latest</span>
+
+<span class="comment"># Install Python tools</span>
+<span class="prompt">$</span> <span class="cmd">pip3 install arjun</span>
+
+<span class="comment"># Download wordlists</span>
+<span class="prompt">$</span> <span class="cmd">git clone https://github.com/danielmiessler/SecLists.git ~/wordlists</span>
+
+<span class="comment"># Update Nuclei templates</span>
+<span class="prompt">$</span> <span class="cmd">nuclei -update-templates</span>
+<span class="success">[INF] Templates updated successfully (4892 templates)</span>
+                </div>
+            </div>
+
+            <h3>Directory Organization</h3>
+
+            <div class="code-block">
+<span class="comment"># Recommended directory structure per target</span>
+~/bounties/
+  target-name/
+    recon/
+      subdomains/        <span class="comment"># Raw subdomain lists from each tool</span>
+      dns/               <span class="comment"># DNS resolution results</span>
+      ports/             <span class="comment"># Nmap/masscan output</span>
+      screenshots/       <span class="comment"># gowitness/aquatone galleries</span>
+    scans/
+      nuclei/            <span class="comment"># Nuclei scan results</span>
+      ffuf/              <span class="comment"># Directory enumeration output</span>
+    findings/
+      vuln-001/          <span class="comment"># One folder per finding</span>
+        request.txt      <span class="comment"># Raw HTTP request</span>
+        response.txt     <span class="comment"># Raw HTTP response</span>
+        screenshots/     <span class="comment"># Visual evidence</span>
+        notes.md         <span class="comment"># Reproduction steps draft</span>
+    notes.md             <span class="comment"># Target-specific observations</span>
+</div>
+
+            <h3>Proxy Configuration</h3>
+
+            <p>
+                Route all active testing through Burp Suite or a similar intercepting proxy. This
+                captures every request and response for documentation. Configure your browser and
+                CLI tools to use the proxy &mdash; nothing should touch the target without being logged.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>Essential CLI Tools</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">subfinder</strong> &mdash; subdomain discovery</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">httpx</strong> &mdash; HTTP probing</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">nuclei</strong> &mdash; vulnerability scanning</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">ffuf</strong> &mdash; web fuzzing</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">nmap</strong> &mdash; port scanning</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">jq</strong> &mdash; JSON processing</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">anew</strong> &mdash; deduplication</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>GUI / Web Tools</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">Burp Suite</strong> &mdash; intercepting proxy</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">Wappalyzer</strong> &mdash; browser tech detection</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">Shodan</strong> &mdash; internet-wide search</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">Censys</strong> &mdash; certificate search</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">crt.sh</strong> &mdash; CT log search</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">SecurityTrails</strong> &mdash; DNS history</li>
+                        <li><span class="li-marker">&#9654;</span> <strong style="color: #c4a0d8;">BuiltWith</strong> &mdash; tech stack history</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <img src="/assets/images/icons/icon-speech.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    Given a target with wildcard subdomain scope (*.example.com), design a complete recon pipeline that runs automatically. What tools do you chain together, in what order, and what output from each tool feeds into the next?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    You discover that a target has Elasticsearch exposed on port 9200 without authentication. The bug bounty scope says "web applications only." Is this in scope? How would you report it, and what evidence would you include?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Compare the trade-offs between running your own VPS for scanning versus using your local machine behind a VPN. Consider factors like scan speed, IP reputation, cost, and operational security.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered passive reconnaissance tools and OSINT techniques, active scanning
+                with Nmap and httpx, content discovery with ffuf and Nuclei, parameter discovery,
+                automated scanning with custom templates, the tool comparison matrix, and
+                professional toolkit setup.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress
+    function updateScrollProgress() {
+        var scrollTop = window.scrollY;
+        var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        var pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in
+    function initSectionAnimations() {
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+        document.querySelectorAll('.section').forEach(function(s) { observer.observe(s); });
+    }
+
+    // Tool comparison filter
+    function initToolFilter() {
+        var buttons = document.querySelectorAll('#toolFilters .filter-btn');
+        var rows = document.querySelectorAll('#toolTable tbody tr');
+
+        buttons.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var filter = this.getAttribute('data-filter');
+                buttons.forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+
+                rows.forEach(function(row) {
+                    if (filter === 'all' || row.getAttribute('data-category') === filter) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-recon-tools', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initSectionAnimations();
+        initToolFilter();
+    });
+</script>
+
+</body>
+</html>
