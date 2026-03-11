@@ -1024,6 +1024,193 @@ exports.sendHandlerMessage = onCall(cfOptions, async (request) => {
     return { success: true, messageId: msgRef.id };
 });
 
+// ─── SEC-1: Generic Challenge Validation ─────────────────────────
+
+/**
+ * validateChallenge — Server-side challenge validation for interactive labs.
+ * Supports: shopbot (AI Exploit Lab). Extensible to CLH, quizzes, etc.
+ *
+ * Client sends: { challengeId, levelId, userInput, conversation }
+ * Server returns: { blocked, success, feedback, points, explanation }
+ *
+ * The client NEVER sees the success/defense patterns or response text
+ * until the server decides to reveal them.
+ */
+exports.validateChallenge = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { challengeId, levelId, userInput, conversation } = request.data || {};
+
+    if (!challengeId || !levelId || !userInput) {
+        throw new HttpsError('invalid-argument', 'Missing challengeId, levelId, or userInput.');
+    }
+
+    if (typeof userInput !== 'string' || userInput.length > 2000) {
+        throw new HttpsError('invalid-argument', 'Input must be a string under 2000 characters.');
+    }
+
+    const uid = request.auth.uid;
+
+    // ── Rate limiting: 10 attempts per level per 60 seconds ──
+    const attemptsRef = db.collection(`users/${uid}/challenge_attempts`);
+    try {
+        const recentAttempts = await attemptsRef
+            .where('challengeId', '==', challengeId)
+            .where('levelId', '==', levelId)
+            .where('timestamp', '>', new Date(Date.now() - 60000))
+            .get();
+
+        if (recentAttempts.size >= 10) {
+            throw new HttpsError('resource-exhausted',
+                'Too many attempts. Wait 60 seconds before trying again.');
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn('Rate limit query failed (index may be building):', e.message);
+    }
+
+    // Log the attempt
+    attemptsRef.add({
+        challengeId,
+        levelId,
+        timestamp: FieldValue.serverTimestamp()
+    }).catch(e => console.warn('Attempt log failed:', e.message));
+
+    // ── Route to challenge handler ──
+    switch (challengeId) {
+        case 'shopbot':
+            return evaluateShopbot(levelId, userInput, conversation || []);
+        default:
+            throw new HttpsError('not-found', `Unknown challenge: ${challengeId}`);
+    }
+});
+
+/**
+ * Evaluate a ShopBot AI Exploit Lab submission.
+ * Reads level config from Firestore, runs defense/success checks server-side.
+ */
+async function evaluateShopbot(levelId, userInput, conversation) {
+    const levelNum = parseInt(levelId);
+    if (!levelNum || levelNum < 1 || levelNum > 8) {
+        throw new HttpsError('invalid-argument', 'Invalid ShopBot level.');
+    }
+
+    // Fetch level config from Firestore
+    const levelDoc = await db.doc(`challenge_registry/shopbot/levels/${levelNum}`).get();
+    if (!levelDoc.exists) {
+        throw new HttpsError('not-found', 'Level not found in challenge registry.');
+    }
+
+    const level = levelDoc.data();
+    const msg = userInput.toLowerCase();
+
+    // ── Defense check ──
+    const blocked = checkShopbotDefense(level, msg);
+    if (blocked) {
+        return {
+            blocked: true,
+            success: false,
+            feedback: blocked,
+            points: 0,
+            explanation: null
+        };
+    }
+
+    // ── Success check ──
+    // Build conversation context matching the client format
+    const conv = [...conversation, { role: 'user', content: userInput }];
+    const success = checkShopbotSuccess(level, msg, conv);
+
+    if (success) {
+        return {
+            blocked: false,
+            success: true,
+            feedback: level.successResponse,
+            points: level.points,
+            explanation: level.explanation
+        };
+    }
+
+    // No match — generic bot response (client picks one randomly)
+    return {
+        blocked: false,
+        success: false,
+        feedback: null,
+        points: 0,
+        explanation: null
+    };
+}
+
+/**
+ * Check if a message triggers the level's defense layer.
+ * Returns the block message or false.
+ */
+function checkShopbotDefense(level, msg) {
+    // Level 7: compound defense (requires + anyOf)
+    if (level.defenseCompound) {
+        const dc = level.defenseCompound;
+        const hasRequired = dc.requires.every(p => msg.includes(p));
+        const hasAny = dc.anyOf.some(p => msg.includes(p));
+        if (hasRequired && hasAny) return level.defenseResponse;
+        return false;
+    }
+
+    // Level 8: multiple defense rules
+    if (level.defenseRules && Array.isArray(level.defenseRules)) {
+        for (const rule of level.defenseRules) {
+            const hasPatterns = rule.patterns.some(p => msg.includes(p));
+            if (!hasPatterns) continue;
+
+            // If rule has requires/anyOf, check those too
+            if (rule.requires) {
+                if (!rule.requires.every(p => msg.includes(p))) continue;
+            }
+            if (rule.anyOf) {
+                if (!rule.anyOf.some(p => msg.includes(p))) continue;
+            }
+
+            return rule.response;
+        }
+        return false;
+    }
+
+    // Simple pattern defense (levels 1-6)
+    if (!level.defensePatterns || level.defensePatterns.length === 0) {
+        return false;
+    }
+
+    const checkMsg = level.defenseStripSpaces ? msg.replace(/\s+/g, '') : msg;
+    for (const pattern of level.defensePatterns) {
+        if (checkMsg.includes(pattern)) {
+            return level.defenseResponse;
+        }
+    }
+    return false;
+}
+
+/**
+ * Check if a message (or conversation) triggers success for this level.
+ * Returns true/false.
+ */
+function checkShopbotSuccess(level, msg, conversation) {
+    // Check string patterns
+    if (level.successPatterns && level.successPatterns.length > 0) {
+        for (const pattern of level.successPatterns) {
+            if (msg.includes(pattern)) return true;
+        }
+    }
+
+    // Check regex pattern (level 3 has a spaced-letter regex)
+    if (level.successRegex) {
+        const regex = new RegExp(level.successRegex);
+        if (regex.test(msg)) return true;
+    }
+
+    return false;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────
 
 /**
