@@ -11463,7 +11463,7 @@ const ContentRegistry = {
         'forge-root-access': {
             id: 'forge-root-access',
             title: 'Root Access',
-            description: 'Dig Dug-inspired arcade game — dig through system layers to quarantine malware',
+            description: 'Arcade digger game — dig through system layers to quarantine malware',
             house: 'forge',
             type: 'applet',
             difficulty: 'beginner',
