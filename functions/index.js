@@ -1257,6 +1257,159 @@ async function evaluateClhInsight(moduleId, userInput) {
     };
 }
 
+// ─── Challenge Leaderboard ────────────────────────────────────────
+
+/**
+ * submitChallengeScore — Record a player's score on a challenge leaderboard.
+ * Also updates per-level aggregate stats (success rate, attempt averages).
+ *
+ * Client sends: { challengeId, score, levelsCleared, totalLevels, attempts: {1: n, 2: n, ...} }
+ * Server writes: challenge_leaderboard/{challengeId}/scores/{uid}
+ *                challenge_leaderboard/{challengeId}/stats/level_{n}
+ */
+exports.submitChallengeScore = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const uid = request.auth.uid;
+    const { challengeId, score, levelsCleared, totalLevels, attempts } = request.data || {};
+
+    if (!challengeId || typeof score !== 'number' || typeof levelsCleared !== 'number') {
+        throw new HttpsError('invalid-argument', 'Missing or invalid challengeId, score, or levelsCleared.');
+    }
+
+    if (score < 0 || score > 10000 || levelsCleared < 0 || levelsCleared > 20) {
+        throw new HttpsError('invalid-argument', 'Score or levelsCleared out of range.');
+    }
+
+    // Rate limit: 1 submission per challenge per 30 seconds
+    const rateLimitRef = db.collection(`users/${uid}/score_submissions`);
+    try {
+        const recent = await rateLimitRef
+            .where('challengeId', '==', challengeId)
+            .where('timestamp', '>', new Date(Date.now() - 30000))
+            .get();
+        if (recent.size >= 1) {
+            throw new HttpsError('resource-exhausted', 'Score already submitted. Wait before resubmitting.');
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn('Score rate limit query failed:', e.message);
+    }
+
+    // Log rate limit entry
+    rateLimitRef.add({
+        challengeId,
+        timestamp: FieldValue.serverTimestamp()
+    }).catch(e => console.warn('Score rate limit log failed:', e.message));
+
+    // Fetch display name from user profile (if exists)
+    let displayName = 'Anonymous';
+    try {
+        const userDoc = await db.doc(`users/${uid}`).get();
+        if (userDoc.exists) {
+            const data = userDoc.data();
+            displayName = data.callsign || data.displayName || 'Anonymous';
+        }
+    } catch (e) {
+        console.warn('Failed to fetch user profile for leaderboard:', e.message);
+    }
+
+    const scoreRef = db.doc(`challenge_leaderboard/${challengeId}/scores/${uid}`);
+
+    // Only write if this score is better than the existing one
+    const existingDoc = await scoreRef.get();
+    if (existingDoc.exists && existingDoc.data().score >= score) {
+        return { submitted: false, reason: 'existing_score_higher' };
+    }
+
+    await scoreRef.set({
+        uid,
+        displayName,
+        score,
+        levelsCleared,
+        totalLevels: totalLevels || 8,
+        attempts: attempts || {},
+        timestamp: FieldValue.serverTimestamp()
+    });
+
+    // Update per-level stats
+    if (attempts && typeof attempts === 'object') {
+        const batch = db.batch();
+        for (const [levelId, attemptCount] of Object.entries(attempts)) {
+            const levelNum = parseInt(levelId);
+            if (!levelNum || levelNum < 1 || levelNum > 20) continue;
+
+            const statsRef = db.doc(`challenge_leaderboard/${challengeId}/stats/level_${levelNum}`);
+            // Use set with merge to handle first-time creation
+            batch.set(statsRef, {
+                totalAttempts: FieldValue.increment(attemptCount || 0),
+                totalSuccesses: FieldValue.increment(1),
+                lastUpdated: FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+        await batch.commit();
+    }
+
+    return { submitted: true };
+});
+
+/**
+ * getLeaderboard — Fetch top scores and per-level stats for a challenge.
+ * Client sends: { challengeId }
+ * Returns: { topScores: [...], levelStats: {...} }
+ */
+exports.getLeaderboard = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { challengeId } = request.data || {};
+    if (!challengeId) {
+        throw new HttpsError('invalid-argument', 'Missing challengeId.');
+    }
+
+    // Fetch top 20 scores
+    const scoresSnap = await db.collection(`challenge_leaderboard/${challengeId}/scores`)
+        .orderBy('score', 'desc')
+        .limit(20)
+        .get();
+
+    const topScores = [];
+    scoresSnap.forEach(doc => {
+        const d = doc.data();
+        topScores.push({
+            displayName: d.displayName || 'Anonymous',
+            score: d.score,
+            levelsCleared: d.levelsCleared,
+            totalLevels: d.totalLevels || 8,
+            timestamp: d.timestamp ? d.timestamp.toDate().toISOString() : null
+        });
+    });
+
+    // Fetch per-level stats
+    const statsSnap = await db.collection(`challenge_leaderboard/${challengeId}/stats`).get();
+    const levelStats = {};
+    statsSnap.forEach(doc => {
+        const d = doc.data();
+        const successRate = d.totalSuccesses > 0
+            ? Math.round((d.totalSuccesses / (d.totalSuccesses + (d.totalAttempts - d.totalSuccesses))) * 100)
+            : 0;
+        const avgAttempts = d.totalSuccesses > 0
+            ? Math.round(d.totalAttempts / d.totalSuccesses * 10) / 10
+            : 0;
+        levelStats[doc.id] = {
+            totalAttempts: d.totalAttempts || 0,
+            totalSuccesses: d.totalSuccesses || 0,
+            successRate,
+            avgAttempts
+        };
+    });
+
+    return { topScores, levelStats };
+});
+
 // ─── Helpers ─────────────────────────────────────────────────────
 
 /**

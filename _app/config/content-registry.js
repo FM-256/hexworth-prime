@@ -11460,6 +11460,22 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'forge-root-access': {
+            id: 'forge-root-access',
+            title: 'Root Access',
+            description: 'Dig Dug-inspired arcade game — dig through system layers to quarantine malware',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['malware', 'system-layers', 'arcade', 'troubleshooting'],
+            paths: ['aplus-core1'],
+            components: {
+                applet: 'houses/forge/games/forge-root-access.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'forge-bluetooth-pairing': {
             id: 'forge-bluetooth-pairing',
             title: 'Bluetooth Pairing',
@@ -12856,6 +12872,22 @@ const ContentRegistry = {
             paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/symmetric_vs_asymmetric/shield-crypto-symmetric-vs-asymmetric.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-life-force': {
+            id: 'shield-life-force',
+            title: 'Life Force',
+            description: 'Side-scrolling shmup — defend the network from incoming threats',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['network-defense', 'threats', 'arcade', 'soc'],
+            paths: ['security-plus'],
+            components: {
+                applet: 'houses/shield/games/shield-life-force.applet.html'
             },
             prerequisites: [],
             objectives: []

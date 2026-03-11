@@ -393,12 +393,139 @@
 - [x] Run `npm run scan` — full EduScan, fix any CRITICAL/HIGH issues
 - [x] Run `npm run scan:test` — signature tests must pass (40/40)
 - [x] Run `npm run scan:archive` — save baseline
+- [x] Commit all remaining changes
+- [x] `git push`
+- [x] `npx firebase deploy --only hosting`
+- [x] Update sprint backlog — mark all completed items
+
+**Final commit:** `chore: Marathon complete — deployed`
+
+---
+
+## Wave 15: AI Exploit Lab — Hints, Explanations & Pre-Briefs (SERIAL — same file)
+*All three touch `bh-lab-ai-exploit.html` — must serialize*
+
+- [x] **BH-AI-1** — Progressive Hint System
+  - Add 3 tiered hints per level with point deductions (-10, -20, -30)
+  - HUD shows hint cost before reveal, confirms before deducting
+  - Hint content stored server-side (validateChallenge CF), only hint text returned on request
+  - Pattern: HackTheBox-style progressive hints
+  - Files: `_app/dark-arts/vault/bug-hunting/labs/bh-lab-ai-exploit.html`, `functions/index.js`
+
+- [x] **BH-AI-2** — Post-Exploit Explanation Engine
+  - After each level exploit, show expandable "What You Learned" panel
+  - Content: Attack Technique, Why It Worked, Real-World Incidents (Bing prompt leak, Copilot jailbreak, etc.), Defense Strategies
+  - Map each level to OWASP LLM Top 10 category (LLM01-LLM10)
+  - Explanation data returned from server after successful exploit
+  - Files: `bh-lab-ai-exploit.html`, Cloud Function response expansion
+
+- [x] **BH-AI-3** — Micro-Lesson Pre-Brief Panel
+  - Before each level, show learning context card: what you're learning, OWASP LLM category, attack class
+  - "Begin Challenge" button gates the chat interface until brief is acknowledged
+  - Connects pedagogically: pre-brief → challenge → post-exploit explanation
+  - Files: `bh-lab-ai-exploit.html`
+
+**Commit message:** `feat: BH-AI-1/2/3 — progressive hints, post-exploit explanations, micro-lesson pre-briefs`
+
+---
+
+## Wave 16: AI Exploit Lab — System Logs & Architecture View (1 Agent)
+
+- [x] **BH-AI-4** — System Logs Viewer
+  - After level completion, "View AI Internal Logs" button reveals:
+    - System prompt sent to model
+    - User prompt (the attack)
+    - Defense evaluation chain (which filters triggered, which passed)
+    - Model output before/after filtering
+  - Teaches AI security architecture — students see how the LLM processes attacks
+  - Toggle panel, only available after level exploit (not during)
+  - Files: `bh-lab-ai-exploit.html`, Cloud Function returns log data on success
+
+**Commit message:** `feat: BH-AI-4 — system logs viewer for AI security architecture education`
+
+---
+
+## Wave 17: Leaderboard + Instructor Mode (2 Parallel Agents)
+
+- [x] **BH-AI-5** — Leaderboard + Attack Analytics
+  - Firestore leaderboard: top scores, fastest completions per level
+  - Track: most common exploit prompts, success patterns, bypass methods
+  - Leaderboard panel in lab UI (collapsible sidebar or tab)
+  - Anonymized by default, opt-in display names
+  - Attack analytics aggregation for research (PhD data collection)
+  - Files: `bh-lab-ai-exploit.html`, new Cloud Function for leaderboard CRUD, Firestore rules
+
+- [x] **BH-AI-6** — Instructor Mode
+  - Handler-gated instructor view panel (AccessGuard handler check)
+  - Shows: per-student progress across all 8 levels, attempts per level, common failure patterns, exploit success rate
+  - Class aggregate view with export
+  - Integrates with existing InstructorDashboard.js + ProgressManager pipeline
+  - Files: `handler-dashboard.html` (new AI exploit analytics panel), Firestore queries
+
+**Commit message:** `feat: BH-AI-5/6 — leaderboard, attack analytics, instructor mode`
+
+---
+
+## Wave 18: Bug Bounty Simulation Platform (2-3 Parallel Agents)
+
+- [ ] **BH-AI-7a** — Bug Bounty Process Modules
+  - `bh-mod-bounty-process.html` — The bug bounty lifecycle: recon, scope analysis, hunting, reporting, payout
+  - `bh-mod-recon-tools.html` — Recon toolchain: subfinder, amass, httpx, nuclei, recon-ng (simulated CLI)
+  - `bh-mod-vuln-reporting.html` — Professional vulnerability report writing (Summary, Steps to Reproduce, Impact, PoC, Mitigation)
+  - `bh-mod-bounty-economics.html` — Severity tiers, payout ranges, platform comparison (HackerOne vs Bugcrowd)
+
+- [ ] **BH-AI-7b** — Simulated Bug Bounty Program
+  - `bh-lab-bounty-sim.html` — Full simulated bounty program:
+    - Company: "NovaTech Corp" (fictional target)
+    - Scope definition panel (allowed targets, out-of-scope assets, rules of engagement)
+    - Simulated recon terminal (subdomain discovery, port scanning, directory enumeration)
+    - Vulnerability submission form with scoring rubric
+    - Bounty payout simulation based on finding severity
+  - Multiple target assets: web app, API, mobile endpoint
+  - 5+ plantable vulnerabilities across the simulated scope
+
+- [ ] **BH-AI-7c** — AI Bug Bounty Specialization Track
+  - `bh-mod-ai-bounty.html` — AI-specific bug bounty: LLM exploitation, AI guardrail bypass, prompt injection, AI data leaks
+  - Position Hexworth as THE platform for AI bug bounty training
+  - Map to emerging AI bug bounty programs (OpenAI, Anthropic, Google)
+  - Connect to existing `bh-lab-ai-exploit.html` as prerequisite
+
+**Commit message:** `feat: BH-AI-7 — bug bounty simulation platform, recon tools, AI bounty specialization`
+
+---
+
+## Wave 19: Final QC & Deploy
+*Single agent — validation and ship*
+
+- [ ] Run `npm run scan` — full EduScan, fix any CRITICAL/HIGH issues
+- [ ] Run `npm run scan:test` — signature tests must pass
+- [ ] Run `npm run scan:archive` — save baseline
 - [ ] Commit all remaining changes
 - [ ] `git push`
 - [ ] `npx firebase deploy --only hosting`
-- [ ] Update sprint backlog — mark all completed items
 
-**Final commit:** `chore: Marathon complete — deployed`
+**Final commit:** `chore: Marathon phase 2 complete — deployed`
+
+---
+
+## Wave 20: CAT-002 Cleanup — Register All Undeclared Files
+*99 files on disk not declared in ContentCatalog.js — register them all*
+
+**By house (agent allocation):**
+
+- [ ] **Agent 1 — Script CLH (34 files):** Register `script-clh-001` through `031` + course quiz/intro modules in ContentCatalog.js + content-registry.js
+- [ ] **Agent 2 — Script Database (35 files):** Register `script-db-01` through `35` (full SQL course) in ContentCatalog.js + content-registry.js
+- [ ] **Agent 3 — Shield (11 files):** Register `shield-sec101-m01` through `m08` presentations + `shield-contra`, `shield-threatdex` games in ContentCatalog.js + content-registry.js
+- [ ] **Agent 4 — Cloud + Web + Forge + Code (17 files):** Register `cloud-api-002` through `007`, `web-cloud-networking` through `web-wan-technologies` (5), `forge-aplus-core1-prep-round-{2,3,4}`, `forge-md100-midterm-sim`, `code-pye-capstone`, `code-pye-midterm` in ContentCatalog.js + content-registry.js
+- [ ] Run `npm run scan` — verify CAT-002 count drops to 0
+- [ ] Commit: `fix: Register 99 undeclared content files (CAT-002 cleanup)`
+
+**Rules:**
+- Read each file's `<title>` and first few lines for accurate description
+- Match existing catalog entry format exactly (house, id, title, description, icon, status, components, href, category)
+- href is relative to house basePath — NOT absolute
+- content-registry paths are relative to `_app/`
+- Serialize ContentCatalog.js edits — only one agent writes at a time (contention bottleneck)
 
 ---
 
@@ -420,11 +547,19 @@
 | 12 — API security & cloud | 4 parallel | API-4/5/6/7 (rate limit, OWASP, pentest, cloud) | 2-3 hrs |
 | 13 — Red vs Blue | 1 | PR-7 asymmetric arena box | 2-3 hrs |
 | 14 — Final QC & deploy | 1 | EduScan + git + firebase | 15 min |
+| 15 — AI hints/explanations/briefs | 1 serial | BH-AI-1/2/3 (same file) | 2-3 hrs |
+| 16 — System logs viewer | 1 | BH-AI-4 architecture education | 1-2 hrs |
+| 17 — Leaderboard + instructor | 2 parallel | BH-AI-5 leaderboard + BH-AI-6 instructor | 2-3 hrs |
+| 18 — Bug bounty sim platform | 2-3 parallel | 4 modules + bounty sim lab + AI track | 3-4 hrs |
+| 19 — Final QC & deploy | 1 | EduScan + git + firebase | 15 min |
+| 20 — CAT-002 cleanup | 4 parallel → serial | Register 99 undeclared files | 2-3 hrs |
 
-**Total: 14 waves, ~46 agents across all waves**
-**New content: 14 GH Actions modules + 6 API modules + 7 hub pages + 2 games + 1 asymmetric box + Security-101 course + universal completion stamps**
-**Engine: BoxEngine blue team extensions (AR-6)**
-**Quality: ~5,000+ EduScan findings resolved + accessibility audit**
+**Total: 20 waves, ~59 agents across all waves**
+**Phase 1 (Waves 1-14): 14 GH Actions modules + 6 API modules + 7 hub pages + 2 games + 1 asymmetric box + Security-101 course + universal stamps**
+**Phase 2 (Waves 15-19): AI exploit lab enhancements + bug bounty simulation platform**
+**Phase 3 (Wave 20): ContentCatalog registration for all marathon-created content**
+**Engine: BoxEngine blue team extensions (AR-6), AI exploit hint/explanation/logs system**
+**Quality: ~5,000+ EduScan findings resolved + accessibility audit + CAT-002 zero**
 
 ---
 
