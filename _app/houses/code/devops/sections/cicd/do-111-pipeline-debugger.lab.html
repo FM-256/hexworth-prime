@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Debugger Simulation - Code House - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-controls.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+            --green: #22c55e; --cyan: #06b6d4;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Lab layout */
+        .lab-container { display: flex; height: calc(100vh - 49px); overflow: hidden; }
+
+        /* Scenario sidebar */
+        .scenario-sidebar {
+            width: 240px; min-width: 240px; background: var(--bg-card); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        .scenario-sidebar-header {
+            padding: 16px; border-bottom: 1px solid var(--border);
+            font-size: 12px; font-weight: 700; color: var(--forge); text-transform: uppercase; letter-spacing: 1px;
+        }
+        .scenario-list { flex: 1; padding: 8px; }
+        .scenario-item {
+            padding: 10px 12px; border-radius: 6px; cursor: pointer; margin-bottom: 4px;
+            border: 1px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 10px;
+        }
+        .scenario-item:hover { background: rgba(255,255,255,0.03); }
+        .scenario-item.active { background: var(--forge-dim); border-color: rgba(59,130,246,0.3); }
+        .scenario-item.completed .scenario-status { background: var(--green); }
+        .scenario-item.failed .scenario-status { background: var(--red); }
+        .scenario-status {
+            width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0;
+        }
+        .scenario-item.active .scenario-status { background: var(--forge); }
+        .scenario-name { font-size: 13px; font-weight: 500; color: var(--text); }
+        .scenario-diff { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+        /* Main area */
+        .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Scenario info bar */
+        .scenario-info {
+            padding: 14px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0;
+        }
+        .scenario-title { font-size: 15px; font-weight: 700; color: #fff; }
+        .scenario-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+        .scenario-timer { font-size: 13px; color: var(--text-dim); font-family: 'Cascadia Code', 'Fira Code', monospace; min-width: 50px; text-align: right; }
+
+        /* Actions runner UI */
+        .runner-ui { flex: 1; display: flex; overflow: hidden; }
+
+        /* Job sidebar */
+        .job-sidebar {
+            width: 260px; min-width: 260px; background: rgba(13,17,23,0.95); border-right: 1px solid var(--border);
+            overflow-y: auto; padding: 0;
+        }
+        .job-sidebar-header {
+            padding: 12px 16px; font-size: 12px; color: var(--text-dim); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .workflow-name { font-weight: 700; color: var(--text); font-size: 13px; }
+        .workflow-trigger { font-size: 11px; color: var(--text-dim); }
+        .job-list { padding: 4px 0; }
+        .job-item {
+            padding: 8px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer;
+            transition: background 0.1s; font-size: 13px;
+        }
+        .job-item:hover { background: rgba(255,255,255,0.04); }
+        .job-item.active { background: rgba(59,130,246,0.1); border-left: 2px solid var(--forge); }
+        .job-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .job-icon svg { width: 16px; height: 16px; }
+        .job-name { color: var(--text); font-weight: 500; }
+        .job-time { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: 'Cascadia Code', monospace; }
+
+        /* Step log panel */
+        .log-panel { flex: 1; overflow-y: auto; background: var(--bg-code); font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 12px; line-height: 1.6; }
+        .step-group { border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .step-header {
+            padding: 8px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer;
+            transition: background 0.1s; user-select: none;
+        }
+        .step-header:hover { background: rgba(255,255,255,0.03); }
+        .step-chevron { color: var(--text-dim); font-size: 10px; transition: transform 0.15s; width: 12px; text-align: center; }
+        .step-group.expanded .step-chevron { transform: rotate(90deg); }
+        .step-icon { width: 14px; height: 14px; flex-shrink: 0; }
+        .step-icon svg { width: 14px; height: 14px; }
+        .step-name { color: var(--text); font-size: 12px; }
+        .step-duration { margin-left: auto; color: var(--text-dim); font-size: 11px; }
+        .step-logs { display: none; padding: 0; background: rgba(0,0,0,0.2); }
+        .step-group.expanded .step-logs { display: block; }
+        .log-line { padding: 1px 16px 1px 52px; white-space: pre-wrap; word-break: break-all; }
+        .log-line:hover { background: rgba(255,255,255,0.02); }
+        .log-ts { color: #484f58; margin-right: 8px; user-select: none; }
+        .log-green { color: #7ee787; }
+        .log-red { color: #ff7b72; }
+        .log-yellow { color: #e3b341; }
+        .log-blue { color: #79c0ff; }
+        .log-dim { color: #484f58; }
+        .log-white { color: #e6edf3; }
+        .log-bold { font-weight: 700; }
+        .log-error-line { background: rgba(248,81,73,0.08); }
+        .log-warn-line { background: rgba(227,179,65,0.05); }
+
+        /* Diagnosis panel */
+        .diagnosis-panel {
+            border-top: 1px solid var(--border); background: var(--bg-card); padding: 20px 24px;
+            flex-shrink: 0;
+        }
+        .diagnosis-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+        .diagnosis-prompt { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; }
+        .answer-options { display: flex; flex-direction: column; gap: 8px; }
+        .answer-btn {
+            text-align: left; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+            border-radius: 6px; color: var(--text); font-size: 13px; cursor: pointer; transition: all 0.15s;
+            font-family: inherit;
+        }
+        .answer-btn:hover:not(.selected):not(.disabled) { border-color: var(--forge); background: var(--forge-dim); }
+        .answer-btn.correct { border-color: var(--green); background: rgba(34,197,94,0.1); color: var(--green); }
+        .answer-btn.incorrect { border-color: var(--red); background: rgba(239,68,68,0.06); color: var(--red); opacity: 0.7; }
+        .answer-btn.disabled { cursor: default; opacity: 0.5; }
+        .answer-feedback { margin-top: 12px; padding: 12px 14px; border-radius: 6px; font-size: 13px; display: none; }
+        .answer-feedback.show { display: block; }
+        .answer-feedback.correct { background: rgba(34,197,94,0.08); border-left: 3px solid var(--green); color: var(--green); }
+        .answer-feedback.incorrect { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); color: #ff7b72; }
+        .next-btn {
+            margin-top: 14px; padding: 10px 24px; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff;
+            border: none; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; display: none;
+        }
+        .next-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px var(--forge-glow); }
+        .next-btn.show { display: inline-block; }
+
+        /* Results screen */
+        .results-screen { display: none; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 40px; text-align: center; }
+        .results-screen.show { display: flex; }
+        .results-title { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .results-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 32px; }
+        .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; max-width: 500px; width: 100%; }
+        .result-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px 16px; }
+        .result-value { font-size: 28px; font-weight: 800; color: var(--forge); }
+        .result-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+        .results-breakdown { max-width: 500px; width: 100%; text-align: left; margin-bottom: 24px; }
+        .breakdown-row {
+            display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px;
+            background: rgba(255,255,255,0.02); margin-bottom: 6px; font-size: 13px;
+        }
+        .breakdown-icon { width: 18px; display: flex; align-items: center; justify-content: center; }
+        .breakdown-name { flex: 1; color: var(--text); }
+        .breakdown-time { color: var(--text-dim); font-family: monospace; font-size: 12px; }
+        .complete-btn {
+            padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Spinner animation */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner-icon svg { animation: spin 1s linear infinite; }
+
+        /* Queued pulse */
+        @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+        .pulse-icon svg { animation: pulse 2s ease-in-out infinite; }
+
+        /* Intro screen */
+        .intro-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 40px; text-align: center; }
+        .intro-screen.hidden { display: none; }
+        .intro-icon { width: 64px; height: 64px; margin-bottom: 20px; }
+        .intro-title { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .intro-desc { font-size: 14px; color: var(--text-dim); max-width: 520px; margin-bottom: 24px; line-height: 1.7; }
+        .intro-features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 480px; margin-bottom: 28px; text-align: left; }
+        .intro-feature { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text-dim); }
+        .intro-feature-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--forge); flex-shrink: 0; margin-top: 6px; }
+        .start-btn {
+            padding: 14px 40px; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff;
+            border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .start-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .scenario-sidebar { width: 180px; min-width: 180px; }
+            .job-sidebar { width: 200px; min-width: 200px; }
+        }
+        @media (max-width: 700px) {
+            .lab-container { flex-direction: column; height: auto; }
+            .scenario-sidebar { width: 100%; min-width: 0; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); }
+            .scenario-list { display: flex; padding: 8px; gap: 4px; }
+            .scenario-item { white-space: nowrap; }
+            .runner-ui { flex-direction: column; }
+            .job-sidebar { width: 100%; min-width: 0; max-height: 160px; border-right: none; border-bottom: 1px solid var(--border); }
+            .intro-features { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-111</span>
+            <h1>Pipeline Debugger</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; CI/CD Pipelines</a>
+    </header>
+
+    <div class="lab-container">
+        <!-- Scenario Sidebar -->
+        <aside class="scenario-sidebar">
+            <div class="scenario-sidebar-header">Scenarios</div>
+            <div class="scenario-list" id="scenarioList"></div>
+        </aside>
+
+        <!-- Main Area -->
+        <div class="main-area" id="mainArea">
+            <!-- Intro Screen -->
+            <div class="intro-screen" id="introScreen">
+                <img class="intro-icon" src="../../../../../assets/images/icons/icon-controls.webp" alt="">
+                <div class="intro-title">Pipeline Debugger</div>
+                <p class="intro-desc">
+                    Broken builds are inevitable. What separates a junior from a senior engineer is how fast they can read a CI log,
+                    find the root cause, and apply the fix. In this lab you will diagnose 5 real-world GitHub Actions failures
+                    using a simulated run log viewer.
+                </p>
+                <div class="intro-features">
+                    <div class="intro-feature"><span class="intro-feature-dot"></span><span>5 realistic failure scenarios</span></div>
+                    <div class="intro-feature"><span class="intro-feature-dot"></span><span>Simulated Actions log UI</span></div>
+                    <div class="intro-feature"><span class="intro-feature-dot"></span><span>Progressive difficulty</span></div>
+                    <div class="intro-feature"><span class="intro-feature-dot"></span><span>Timed diagnosis scoring</span></div>
+                </div>
+                <button class="start-btn" onclick="startLab()">Begin Debugging</button>
+            </div>
+
+            <!-- Active Scenario UI (hidden until start) -->
+            <div id="activeUI" style="display:none; flex:1; display:none; flex-direction:column; overflow:hidden;">
+                <div class="scenario-info" id="scenarioInfo">
+                    <div>
+                        <div class="scenario-title" id="scenarioTitle"></div>
+                        <div class="scenario-desc" id="scenarioDesc"></div>
+                    </div>
+                    <div class="scenario-timer" id="scenarioTimer">0:00</div>
+                </div>
+                <div class="runner-ui">
+                    <aside class="job-sidebar" id="jobSidebar">
+                        <div class="job-sidebar-header">
+                            <div>
+                                <div class="workflow-name" id="workflowName"></div>
+                                <div class="workflow-trigger" id="workflowTrigger"></div>
+                            </div>
+                        </div>
+                        <div class="job-list" id="jobList"></div>
+                    </aside>
+                    <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                        <div class="log-panel" id="logPanel"></div>
+                        <div class="diagnosis-panel" id="diagnosisPanel">
+                            <div class="diagnosis-title">Root Cause Analysis</div>
+                            <div class="diagnosis-prompt" id="diagnosisPrompt"></div>
+                            <div class="answer-options" id="answerOptions"></div>
+                            <div class="answer-feedback" id="answerFeedback"></div>
+                            <button class="next-btn" id="nextBtn" onclick="nextScenario()">Next Scenario</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Screen -->
+            <div class="results-screen" id="resultsScreen">
+                <div class="results-title">Debugging Complete</div>
+                <div class="results-sub" id="resultsSub"></div>
+                <div class="results-grid" id="resultsGrid"></div>
+                <div class="results-breakdown" id="resultsBreakdown"></div>
+                <button class="complete-btn" onclick="completeModule()">Mark Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // --- SVG Icons ---
+    const ICONS = {
+        success: '<svg viewBox="0 0 16 16" fill="#22c55e"><path d="M8 16A8 8 0 108 0a8 8 0 000 16zm3.78-9.72a.75.75 0 00-1.06-1.06L6.75 9.19 5.28 7.72a.75.75 0 00-1.06 1.06l2 2a.75.75 0 001.06 0l4.5-4.5z"/></svg>',
+        failure: '<svg viewBox="0 0 16 16" fill="#ef4444"><path d="M2.343 13.657A8 8 0 1113.657 2.343 8 8 0 012.343 13.657zM6.03 4.97a.75.75 0 00-1.06 1.06L6.94 8 4.97 9.97a.75.75 0 101.06 1.06L8 9.06l1.97 1.97a.75.75 0 101.06-1.06L9.06 8l1.97-1.97a.75.75 0 10-1.06-1.06L8 6.94 6.03 4.97z"/></svg>',
+        cancelled: '<svg viewBox="0 0 16 16" fill="#8b949e"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zM1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0z"/><path d="M4.5 7.25h7a.75.75 0 010 1.5h-7a.75.75 0 010-1.5z"/></svg>',
+        skipped: '<svg viewBox="0 0 16 16" fill="#484f58"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zM1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0z"/><path d="M6.5 5.5l4 2.5-4 2.5z" fill="#484f58"/></svg>',
+        running: '<svg viewBox="0 0 16 16" fill="#f59e0b"><circle cx="8" cy="8" r="7" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="12 30" stroke-linecap="round"/></svg>',
+        queued: '<svg viewBox="0 0 16 16" fill="#8b949e"><circle cx="8" cy="8" r="6.5" fill="none" stroke="#8b949e" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="#8b949e"/></svg>',
+    };
+
+    function icon(type, extraClass) {
+        var cls = 'job-icon';
+        if (type === 'running') cls += ' spinner-icon';
+        if (type === 'queued') cls += ' pulse-icon';
+        if (extraClass) cls += ' ' + extraClass;
+        return '<span class="' + cls + '">' + ICONS[type] + '</span>';
+    }
+    function stepIcon(type) {
+        var cls = 'step-icon';
+        if (type === 'running') cls += ' spinner-icon';
+        if (type === 'queued') cls += ' pulse-icon';
+        return '<span class="' + cls + '">' + ICONS[type] + '</span>';
+    }
+
+    // --- Scenarios ---
+    var SCENARIOS = [
+        // 1: Missing Secret
+        {
+            title: 'Missing Secret',
+            desc: 'A deploy workflow fails with an authentication error. Find out why.',
+            difficulty: 'Beginner',
+            workflow: { name: 'deploy.yml', trigger: 'push to main' },
+            jobs: [
+                {
+                    name: 'build', status: 'success', time: '1m 22s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '2s', logs: [
+                            {ts:'00:01', text:'Current runner version: 2.311.0', cls:'log-dim'},
+                            {ts:'00:01', text:'Operating System: Ubuntu 22.04.3 LTS', cls:'log-dim'},
+                            {ts:'00:02', text:'Runner image: ubuntu-22.04-20240101', cls:'log-dim'},
+                        ]},
+                        { name: 'Checkout repository', status: 'success', dur: '3s', logs: [
+                            {ts:'00:03', text:'Syncing repository: acme-corp/web-app', cls:'log-white'},
+                            {ts:'00:04', text:'Setting up auth using https', cls:'log-dim'},
+                            {ts:'00:06', text:'Checked out revision abc1234', cls:'log-green'},
+                        ]},
+                        { name: 'Install dependencies', status: 'success', dur: '45s', logs: [
+                            {ts:'00:07', text:'npm ci', cls:'log-blue'},
+                            {ts:'00:30', text:'added 1,247 packages in 23s', cls:'log-green'},
+                        ]},
+                        { name: 'Run tests', status: 'success', dur: '18s', logs: [
+                            {ts:'00:48', text:'> jest --ci --coverage', cls:'log-blue'},
+                            {ts:'01:04', text:'Tests:       42 passed, 42 total', cls:'log-green'},
+                            {ts:'01:05', text:'Coverage:    87.3%', cls:'log-green'},
+                        ]},
+                        { name: 'Build application', status: 'success', dur: '14s', logs: [
+                            {ts:'01:06', text:'> next build', cls:'log-blue'},
+                            {ts:'01:18', text:'Compiled successfully', cls:'log-green'},
+                            {ts:'01:20', text:'Build output: .next/', cls:'log-dim'},
+                        ]},
+                    ]
+                },
+                {
+                    name: 'deploy', status: 'failure', time: '0m 8s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '2s', logs: [
+                            {ts:'01:22', text:'Current runner version: 2.311.0', cls:'log-dim'},
+                        ]},
+                        { name: 'Download build artifact', status: 'success', dur: '3s', logs: [
+                            {ts:'01:24', text:'Downloading artifact: build-output', cls:'log-white'},
+                            {ts:'01:26', text:'Artifact downloaded successfully (14.2 MB)', cls:'log-green'},
+                        ]},
+                        { name: 'Deploy to production', status: 'failure', dur: '3s', logs: [
+                            {ts:'01:27', text:'Deploying to AWS S3...', cls:'log-blue'},
+                            {ts:'01:27', text:'AWS_ACCESS_KEY_ID: ***', cls:'log-dim'},
+                            {ts:'01:27', text:'AWS_SECRET_ACCESS_KEY: ', cls:'log-dim'},
+                            {ts:'01:28', text:'', cls:'log-white'},
+                            {ts:'01:28', text:'fatal error: An error occurred (AuthFailure) when calling the PutObject operation:', cls:'log-red', error:true},
+                            {ts:'01:28', text:'  AWS was not able to validate the provided access credentials', cls:'log-red', error:true},
+                            {ts:'01:29', text:'', cls:'log-white'},
+                            {ts:'01:29', text:'Error: The deployment step failed with exit code 255.', cls:'log-red', error:true},
+                            {ts:'01:30', text:'Hint: Verify that repository secrets AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are set correctly.', cls:'log-yellow', warn:true},
+                        ]},
+                        { name: 'Post cleanup', status: 'skipped', dur: '-', logs: [] },
+                    ]
+                },
+            ],
+            question: 'What is the root cause of this deployment failure?',
+            options: [
+                'The build output directory is incorrect',
+                'AWS_SECRET_ACCESS_KEY is empty -- the secret is not configured in repository settings',
+                'The S3 bucket does not exist',
+                'The runner does not have network access to AWS',
+            ],
+            correct: 1,
+            explanation: 'The log shows AWS_SECRET_ACCESS_KEY is blank (no masked value). The secret was never added to the repository\'s Settings > Secrets > Actions. The API returns AuthFailure because the credentials are incomplete.',
+        },
+        // 2: Cache miss
+        {
+            title: 'Cache Key Mismatch',
+            desc: 'Builds are slow. The dependency cache never hits. Investigate the logs.',
+            difficulty: 'Beginner',
+            workflow: { name: 'ci.yml', trigger: 'pull_request #247' },
+            jobs: [
+                {
+                    name: 'test', status: 'success', time: '4m 51s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '2s', logs: [
+                            {ts:'00:01', text:'Current runner version: 2.311.0', cls:'log-dim'},
+                            {ts:'00:01', text:'Operating System: Ubuntu 22.04.3 LTS', cls:'log-dim'},
+                        ]},
+                        { name: 'Checkout repository', status: 'success', dur: '4s', logs: [
+                            {ts:'00:03', text:'Syncing repository: acme-corp/web-app', cls:'log-white'},
+                            {ts:'00:06', text:'Checked out revision def5678 (refs/pull/247/merge)', cls:'log-green'},
+                        ]},
+                        { name: 'Cache node_modules', status: 'success', dur: '1s', logs: [
+                            {ts:'00:07', text:'Cache action v3', cls:'log-dim'},
+                            {ts:'00:07', text:'Search key: node-cache-Linux-npm-${{ hashFiles(\'package.json\') }}', cls:'log-white'},
+                            {ts:'00:07', text:'Resolved key: node-cache-Linux-npm-a1b2c3d4e5f6', cls:'log-white'},
+                            {ts:'00:08', text:'Cache not found for key: node-cache-Linux-npm-a1b2c3d4e5f6', cls:'log-yellow', warn:true},
+                            {ts:'00:08', text:'Searched restore keys: (none configured)', cls:'log-dim'},
+                            {ts:'00:08', text:'', cls:'log-white'},
+                            {ts:'00:08', text:'Cache miss. No restore-keys provided to fall back on.', cls:'log-yellow', warn:true},
+                        ]},
+                        { name: 'Install dependencies', status: 'success', dur: '3m 42s', logs: [
+                            {ts:'00:09', text:'npm ci', cls:'log-blue'},
+                            {ts:'00:09', text:'npm warn old lockfile', cls:'log-yellow', warn:true},
+                            {ts:'00:09', text:'The package-lock.json file was generated with an older version of npm.', cls:'log-yellow', warn:true},
+                            {ts:'03:50', text:'added 1,247 packages in 221s', cls:'log-green'},
+                            {ts:'03:51', text:'', cls:'log-white'},
+                            {ts:'03:51', text:'Note: Full install took 3m 42s. With cache this would take ~8s.', cls:'log-yellow', warn:true},
+                        ]},
+                        { name: 'Run tests', status: 'success', dur: '52s', logs: [
+                            {ts:'03:52', text:'> jest --ci', cls:'log-blue'},
+                            {ts:'04:44', text:'Tests:       42 passed, 42 total', cls:'log-green'},
+                        ]},
+                        { name: 'Save cache', status: 'success', dur: '12s', logs: [
+                            {ts:'04:45', text:'Cache saved with key: node-cache-Linux-npm-a1b2c3d4e5f6', cls:'log-green'},
+                            {ts:'04:45', text:'Cache size: 187 MB', cls:'log-dim'},
+                            {ts:'04:46', text:'', cls:'log-white'},
+                            {ts:'04:46', text:'Warning: Cache key uses hashFiles(\'package.json\') but lockfile is package-lock.json.', cls:'log-yellow', warn:true},
+                            {ts:'04:46', text:'The hash changes every time package.json metadata (version, description) changes,', cls:'log-yellow', warn:true},
+                            {ts:'04:46', text:'not just when dependencies change. Consider using hashFiles(\'**/package-lock.json\').', cls:'log-yellow', warn:true},
+                        ]},
+                    ]
+                },
+            ],
+            question: 'Why does the cache miss on every run even though dependencies haven\'t changed?',
+            options: [
+                'The cache action version is too old and incompatible',
+                'The cache key hashes package.json instead of package-lock.json, so any metadata change invalidates it',
+                'node_modules is too large to be cached by GitHub Actions',
+                'The runner OS changed between runs, changing the cache key prefix',
+            ],
+            correct: 1,
+            explanation: 'The cache key uses hashFiles(\'package.json\') which includes version bumps, description edits, and script changes -- not just dependency changes. Switching to hashFiles(\'**/package-lock.json\') ensures the cache only busts when actual dependencies change. The logs even warn about this explicitly.',
+        },
+        // 3: Matrix failure
+        {
+            title: 'Matrix Job Failure',
+            desc: 'A cross-platform matrix build passes on Ubuntu but fails on Windows. Find the platform-specific bug.',
+            difficulty: 'Intermediate',
+            workflow: { name: 'cross-platform.yml', trigger: 'push to feature/path-handling' },
+            jobs: [
+                {
+                    name: 'test (ubuntu-latest, 18)', status: 'success', time: '1m 34s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '3s', logs: [
+                            {ts:'00:01', text:'Current runner version: 2.311.0', cls:'log-dim'},
+                            {ts:'00:02', text:'Operating System: Ubuntu 22.04.3 LTS', cls:'log-dim'},
+                            {ts:'00:03', text:'Runner image: ubuntu-22.04-20240101', cls:'log-dim'},
+                        ]},
+                        { name: 'Checkout', status: 'success', dur: '2s', logs: [
+                            {ts:'00:05', text:'Checked out revision 9f8e7d6', cls:'log-green'},
+                        ]},
+                        { name: 'Setup Node.js 18', status: 'success', dur: '8s', logs: [
+                            {ts:'00:06', text:'Resolved Node.js 18.19.0', cls:'log-green'},
+                        ]},
+                        { name: 'Install & Test', status: 'success', dur: '1m 20s', logs: [
+                            {ts:'00:14', text:'npm ci && npm test', cls:'log-blue'},
+                            {ts:'00:40', text:'added 892 packages in 26s', cls:'log-green'},
+                            {ts:'00:41', text:'', cls:'log-white'},
+                            {ts:'00:41', text:'> mocha --recursive', cls:'log-blue'},
+                            {ts:'00:42', text:'  File Utils', cls:'log-white'},
+                            {ts:'00:42', text:'    resolveConfigPath()', cls:'log-white'},
+                            {ts:'00:42', text:'      [PASS] resolves relative path: src/config/app.json', cls:'log-green'},
+                            {ts:'00:42', text:'      [PASS] resolves nested path: src/modules/auth/config.json', cls:'log-green'},
+                            {ts:'00:42', text:'      [PASS] handles path with spaces: src/my configs/app.json', cls:'log-green'},
+                            {ts:'01:32', text:'', cls:'log-white'},
+                            {ts:'01:32', text:'  18 passing (51s)', cls:'log-green'},
+                            {ts:'01:32', text:'  0 failing', cls:'log-green'},
+                        ]},
+                    ]
+                },
+                {
+                    name: 'test (windows-latest, 18)', status: 'failure', time: '1m 48s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '5s', logs: [
+                            {ts:'00:01', text:'Current runner version: 2.311.0', cls:'log-dim'},
+                            {ts:'00:03', text:'Operating System: Microsoft Windows Server 2022', cls:'log-dim'},
+                            {ts:'00:05', text:'Runner image: windows-2022-20240101', cls:'log-dim'},
+                        ]},
+                        { name: 'Checkout', status: 'success', dur: '4s', logs: [
+                            {ts:'00:06', text:'Checked out revision 9f8e7d6', cls:'log-green'},
+                        ]},
+                        { name: 'Setup Node.js 18', status: 'success', dur: '12s', logs: [
+                            {ts:'00:10', text:'Resolved Node.js 18.19.0', cls:'log-green'},
+                        ]},
+                        { name: 'Install & Test', status: 'failure', dur: '1m 26s', logs: [
+                            {ts:'00:22', text:'npm ci && npm test', cls:'log-blue'},
+                            {ts:'00:54', text:'added 892 packages in 32s', cls:'log-green'},
+                            {ts:'00:55', text:'', cls:'log-white'},
+                            {ts:'00:55', text:'> mocha --recursive', cls:'log-blue'},
+                            {ts:'00:56', text:'  File Utils', cls:'log-white'},
+                            {ts:'00:56', text:'    resolveConfigPath()', cls:'log-white'},
+                            {ts:'00:56', text:'      [PASS] resolves relative path: src\\config\\app.json', cls:'log-green'},
+                            {ts:'00:56', text:'      [FAIL] resolves nested path', cls:'log-red', error:true},
+                            {ts:'00:56', text:'', cls:'log-white'},
+                            {ts:'00:56', text:'      AssertionError: expected \'src\\\\modules\\\\auth\\\\config.json\'', cls:'log-red', error:true},
+                            {ts:'00:56', text:'        to equal \'src/modules/auth/config.json\'', cls:'log-red', error:true},
+                            {ts:'00:57', text:'', cls:'log-white'},
+                            {ts:'00:57', text:'        at Context.<anonymous> (test/file-utils.test.js:24:18)', cls:'log-dim'},
+                            {ts:'00:57', text:'', cls:'log-white'},
+                            {ts:'00:57', text:'      [FAIL] handles path with spaces', cls:'log-red', error:true},
+                            {ts:'00:57', text:'      AssertionError: expected \'src\\\\my configs\\\\app.json\'', cls:'log-red', error:true},
+                            {ts:'00:57', text:'        to equal \'src/my configs/app.json\'', cls:'log-red', error:true},
+                            {ts:'01:46', text:'', cls:'log-white'},
+                            {ts:'01:46', text:'  16 passing (51s)', cls:'log-white'},
+                            {ts:'01:46', text:'  2 failing', cls:'log-red', error:true},
+                        ]},
+                    ]
+                },
+                {
+                    name: 'test (ubuntu-latest, 20)', status: 'success', time: '1m 28s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '3s', logs: [
+                            {ts:'00:01', text:'Operating System: Ubuntu 22.04.3 LTS', cls:'log-dim'},
+                        ]},
+                        { name: 'Install & Test', status: 'success', dur: '1m 22s', logs: [
+                            {ts:'00:06', text:'18 passing, 0 failing', cls:'log-green'},
+                        ]},
+                    ]
+                },
+                {
+                    name: 'test (windows-latest, 20)', status: 'failure', time: '1m 52s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '5s', logs: [
+                            {ts:'00:01', text:'Operating System: Microsoft Windows Server 2022', cls:'log-dim'},
+                        ]},
+                        { name: 'Install & Test', status: 'failure', dur: '1m 44s', logs: [
+                            {ts:'00:08', text:'2 failing — same path separator assertion errors', cls:'log-red', error:true},
+                        ]},
+                    ]
+                },
+            ],
+            question: 'What causes the Windows matrix jobs to fail while Ubuntu passes?',
+            options: [
+                'Node.js 18 has a known bug on Windows Server 2022',
+                'The test assertions hardcode forward slashes, but path.resolve() returns backslashes on Windows',
+                'The Windows runner is missing a required system dependency',
+                'npm ci installs different package versions on Windows due to platform-specific locks',
+            ],
+            correct: 1,
+            explanation: 'The assertion expects "src/modules/auth/config.json" but Windows path.resolve() returns backslashes: "src\\modules\\auth\\config.json". The fix is to normalize paths in the code (e.g., path.posix.join or .split(path.sep).join("/")) or update tests to compare using path.normalize().',
+        },
+        // 4: Concurrency conflict
+        {
+            title: 'Concurrency Conflict',
+            desc: 'A deploy workflow was canceled mid-run. A developer reports their push "disappeared." Investigate.',
+            difficulty: 'Intermediate',
+            workflow: { name: 'deploy-staging.yml', trigger: 'push to staging' },
+            jobs: [
+                {
+                    name: 'build', status: 'success', time: '1m 10s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '2s', logs: [
+                            {ts:'00:01', text:'Current runner version: 2.311.0', cls:'log-dim'},
+                        ]},
+                        { name: 'Checkout', status: 'success', dur: '3s', logs: [
+                            {ts:'00:03', text:'Checked out revision aaa1111 (push by @dev-alice, 14:32:01)', cls:'log-green'},
+                        ]},
+                        { name: 'Build', status: 'success', dur: '1m 5s', logs: [
+                            {ts:'00:06', text:'npm run build', cls:'log-blue'},
+                            {ts:'01:10', text:'Build completed successfully.', cls:'log-green'},
+                        ]},
+                    ]
+                },
+                {
+                    name: 'deploy-staging', status: 'cancelled', time: '0m 22s',
+                    steps: [
+                        { name: 'Set up job', status: 'success', dur: '2s', logs: [
+                            {ts:'01:12', text:'Current runner version: 2.311.0', cls:'log-dim'},
+                        ]},
+                        { name: 'Download artifact', status: 'success', dur: '4s', logs: [
+                            {ts:'01:14', text:'Downloading build artifact...', cls:'log-white'},
+                            {ts:'01:17', text:'Downloaded 14.8 MB', cls:'log-green'},
+                        ]},
+                        { name: 'Deploy to staging', status: 'cancelled', dur: '16s', logs: [
+                            {ts:'01:18', text:'Deploying to staging environment...', cls:'log-blue'},
+                            {ts:'01:22', text:'Uploading files: 34/128 (27%)...', cls:'log-white'},
+                            {ts:'01:28', text:'Uploading files: 89/128 (70%)...', cls:'log-white'},
+                            {ts:'01:34', text:'', cls:'log-white'},
+                            {ts:'01:34', text:'The workflow run was cancelled.', cls:'log-yellow', warn:true},
+                            {ts:'01:34', text:'', cls:'log-white'},
+                            {ts:'01:34', text:'Reason: A newer run of this workflow (run #482) was triggered by push aaa2222', cls:'log-yellow', warn:true},
+                            {ts:'01:34', text:'        (@dev-bob, 14:32:45) to the same branch.', cls:'log-yellow', warn:true},
+                            {ts:'01:34', text:'', cls:'log-white'},
+                            {ts:'01:34', text:'Concurrency group: staging-deploy', cls:'log-dim'},
+                            {ts:'01:34', text:'cancel-in-progress: true', cls:'log-dim'},
+                            {ts:'01:34', text:'', cls:'log-white'},
+                            {ts:'01:34', text:'Warning: Deployment was interrupted at 70% completion.', cls:'log-red', error:true},
+                            {ts:'01:34', text:'Staging environment may be in a partial/inconsistent state.', cls:'log-red', error:true},
+                        ]},
+                        { name: 'Post cleanup', status: 'skipped', dur: '-', logs: [] },
+                    ]
+                },
+            ],
+            question: 'Why was this workflow run cancelled, and what is the operational risk?',
+            options: [
+                'A branch protection rule blocked the deployment after a failed review',
+                'The runner timed out after exceeding the maximum execution time',
+                'A newer push to the same branch triggered a new run, and concurrency cancel-in-progress terminated this one mid-deploy',
+                'GitHub Actions experienced a platform outage during the run',
+            ],
+            correct: 2,
+            explanation: 'The workflow uses concurrency group "staging-deploy" with cancel-in-progress: true. When @dev-bob pushed 44 seconds after @dev-alice, the newer run (#482) automatically cancelled run #481. The deploy was at 70% -- staging is now in an inconsistent state. The fix: either set cancel-in-progress: false (queue instead of cancel) or add atomic rollback in the deploy step.',
+        },
+        // 5: Self-hosted runner offline
+        {
+            title: 'Self-Hosted Runner Offline',
+            desc: 'A workflow has been stuck in "Queued" for 12 minutes. No jobs have started. Diagnose the infrastructure issue.',
+            difficulty: 'Advanced',
+            workflow: { name: 'security-scan.yml', trigger: 'schedule (cron: daily 2am)' },
+            jobs: [
+                {
+                    name: 'vulnerability-scan', status: 'queued', time: 'Queued 12m 34s',
+                    steps: [
+                        { name: 'Waiting for a runner to pick up this job...', status: 'queued', dur: '12m 34s', logs: [
+                            {ts:'00:00', text:'Requested labels: self-hosted, linux, security-scanner', cls:'log-white'},
+                            {ts:'00:00', text:'Job defined at: .github/workflows/security-scan.yml:14', cls:'log-dim'},
+                            {ts:'00:00', text:'', cls:'log-white'},
+                            {ts:'00:00', text:'Waiting for a self-hosted runner matching [self-hosted, linux, security-scanner]...', cls:'log-yellow', warn:true},
+                            {ts:'00:01', text:'', cls:'log-white'},
+                            {ts:'00:01', text:'There are no registered runners matching all specified labels.', cls:'log-red', error:true},
+                            {ts:'00:01', text:'', cls:'log-white'},
+                            {ts:'00:01', text:'Registered runners for this repository:', cls:'log-white'},
+                            {ts:'00:01', text:'  runner-prod-01    labels: [self-hosted, linux, production]     Status: Online', cls:'log-dim'},
+                            {ts:'00:01', text:'  runner-prod-02    labels: [self-hosted, linux, production]     Status: Online', cls:'log-dim'},
+                            {ts:'00:01', text:'  runner-sec-01     labels: [self-hosted, linux, security-scanner]  Status: Offline', cls:'log-red', error:true},
+                            {ts:'00:01', text:'', cls:'log-white'},
+                            {ts:'02:00', text:'Still waiting... (2 minutes elapsed)', cls:'log-dim'},
+                            {ts:'05:00', text:'Still waiting... (5 minutes elapsed)', cls:'log-dim'},
+                            {ts:'10:00', text:'Still waiting... (10 minutes elapsed)', cls:'log-yellow', warn:true},
+                            {ts:'10:00', text:'', cls:'log-white'},
+                            {ts:'10:00', text:'Hint: The only runner with label "security-scanner" (runner-sec-01) is offline.', cls:'log-yellow', warn:true},
+                            {ts:'10:00', text:'Last heartbeat from runner-sec-01: 2026-03-10T19:43:22Z (over 6 hours ago)', cls:'log-yellow', warn:true},
+                            {ts:'10:00', text:'', cls:'log-white'},
+                            {ts:'12:00', text:'Consider: (1) Restart the runner service on the host machine', cls:'log-dim'},
+                            {ts:'12:00', text:'          (2) Add the security-scanner label to an online runner', cls:'log-dim'},
+                            {ts:'12:00', text:'          (3) Check if the runner VM/container was shut down', cls:'log-dim'},
+                        ]},
+                    ]
+                },
+                {
+                    name: 'report', status: 'skipped', time: '-',
+                    steps: [
+                        { name: 'Skipped (depends on vulnerability-scan)', status: 'skipped', dur: '-', logs: [
+                            {ts:'--:--', text:'This job was skipped because its dependency "vulnerability-scan" did not complete.', cls:'log-dim'},
+                        ]},
+                    ]
+                },
+            ],
+            question: 'Why is this workflow stuck in "Queued" and what should be done?',
+            options: [
+                'GitHub Actions has exhausted the repository\'s monthly free minutes',
+                'The workflow YAML has a syntax error preventing job execution',
+                'The only self-hosted runner with the "security-scanner" label is offline, and no other runner matches all required labels',
+                'The cron schedule expression is invalid and the job was never properly triggered',
+            ],
+            correct: 2,
+            explanation: 'The job requires labels [self-hosted, linux, security-scanner]. The only runner with "security-scanner" (runner-sec-01) has been offline for 6+ hours. The prod runners are online but lack the security-scanner label. Fix options: restart runner-sec-01, add the label to a prod runner, or use a GitHub-hosted runner with runs-on: ubuntu-latest for the scan step.',
+        },
+    ];
+
+    // --- State ---
+    var state = {
+        currentScenario: -1,
+        started: false,
+        results: [],       // {correct: bool, timeSeconds: int}
+        timerInterval: null,
+        timerStart: 0,
+        answered: false,
+    };
+
+    // --- Render scenario list ---
+    function renderScenarioList() {
+        var html = '';
+        for (var i = 0; i < SCENARIOS.length; i++) {
+            var s = SCENARIOS[i];
+            var cls = 'scenario-item';
+            if (i === state.currentScenario) cls += ' active';
+            if (state.results[i]) cls += state.results[i].correct ? ' completed' : ' failed';
+            html += '<div class="' + cls + '" onclick="selectScenario(' + i + ')">';
+            html += '<span class="scenario-status"></span>';
+            html += '<div><div class="scenario-name">' + s.title + '</div>';
+            html += '<div class="scenario-diff">' + s.difficulty + '</div></div>';
+            html += '</div>';
+        }
+        document.getElementById('scenarioList').innerHTML = html;
+    }
+
+    // --- Render jobs ---
+    function renderJobs(scenario) {
+        var html = '';
+        for (var j = 0; j < scenario.jobs.length; j++) {
+            var job = scenario.jobs[j];
+            var cls = 'job-item';
+            if (j === 0) cls += ' active';
+            html += '<div class="' + cls + '" data-job="' + j + '" onclick="selectJob(' + j + ')">';
+            html += icon(job.status);
+            html += '<span class="job-name">' + escHtml(job.name) + '</span>';
+            html += '<span class="job-time">' + escHtml(job.time) + '</span>';
+            html += '</div>';
+        }
+        document.getElementById('jobList').innerHTML = html;
+    }
+
+    // --- Render step logs ---
+    function renderSteps(job) {
+        var html = '';
+        for (var s = 0; s < job.steps.length; s++) {
+            var step = job.steps[s];
+            var expanded = (step.status === 'failure' || step.status === 'queued') ? ' expanded' : '';
+            html += '<div class="step-group' + expanded + '" onclick="toggleStep(this)">';
+            html += '<div class="step-header">';
+            html += '<span class="step-chevron">&#9654;</span>';
+            html += stepIcon(step.status);
+            html += '<span class="step-name">' + escHtml(step.name) + '</span>';
+            html += '<span class="step-duration">' + escHtml(step.dur) + '</span>';
+            html += '</div>';
+            html += '<div class="step-logs">';
+            for (var l = 0; l < step.logs.length; l++) {
+                var line = step.logs[l];
+                var lineCls = 'log-line';
+                if (line.error) lineCls += ' log-error-line';
+                if (line.warn) lineCls += ' log-warn-line';
+                html += '<div class="' + lineCls + '">';
+                html += '<span class="log-ts">' + escHtml(line.ts) + '</span>';
+                html += '<span class="' + (line.cls || 'log-white') + '">' + escHtml(line.text) + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+        document.getElementById('logPanel').innerHTML = html;
+    }
+
+    function toggleStep(el) {
+        el.classList.toggle('expanded');
+    }
+
+    function selectJob(idx) {
+        var items = document.querySelectorAll('.job-item');
+        items.forEach(function(el) { el.classList.remove('active'); });
+        items[idx].classList.add('active');
+        var scenario = SCENARIOS[state.currentScenario];
+        renderSteps(scenario.jobs[idx]);
+    }
+
+    // --- Select scenario ---
+    function selectScenario(idx) {
+        if (!state.started) return;
+        if (idx !== state.currentScenario && !state.results[idx] && idx !== findNextUnanswered()) return;
+        loadScenario(idx);
+    }
+
+    function findNextUnanswered() {
+        for (var i = 0; i < SCENARIOS.length; i++) {
+            if (!state.results[i]) return i;
+        }
+        return -1;
+    }
+
+    function loadScenario(idx) {
+        state.currentScenario = idx;
+        state.answered = false;
+        var s = SCENARIOS[idx];
+
+        document.getElementById('scenarioTitle').textContent = 'Scenario ' + (idx + 1) + ': ' + s.title;
+        document.getElementById('scenarioDesc').textContent = s.desc;
+        document.getElementById('workflowName').textContent = s.workflow.name;
+        document.getElementById('workflowTrigger').textContent = s.workflow.trigger;
+
+        renderScenarioList();
+        renderJobs(s);
+
+        // Auto-select the failing/interesting job
+        var failIdx = 0;
+        for (var j = 0; j < s.jobs.length; j++) {
+            if (s.jobs[j].status === 'failure' || s.jobs[j].status === 'cancelled' || s.jobs[j].status === 'queued') {
+                failIdx = j; break;
+            }
+        }
+        selectJob(failIdx);
+
+        // Diagnosis
+        renderDiagnosis(s, idx);
+
+        // Timer
+        startTimer();
+    }
+
+    function renderDiagnosis(s, idx) {
+        document.getElementById('diagnosisPrompt').textContent = s.question;
+        var html = '';
+        for (var i = 0; i < s.options.length; i++) {
+            var disabled = state.results[idx] ? ' disabled' : '';
+            var cls = 'answer-btn';
+            if (state.results[idx]) {
+                cls += ' disabled';
+                if (i === s.correct) cls += ' correct';
+                if (state.results[idx].selected === i && !state.results[idx].correct) cls += ' incorrect';
+            }
+            html += '<button class="' + cls + '" data-idx="' + i + '"' + disabled + ' onclick="submitAnswer(' + i + ')">' + escHtml(s.options[i]) + '</button>';
+        }
+        document.getElementById('answerOptions').innerHTML = html;
+
+        var fb = document.getElementById('answerFeedback');
+        if (state.results[idx]) {
+            fb.textContent = s.explanation;
+            fb.className = 'answer-feedback show ' + (state.results[idx].correct ? 'correct' : 'incorrect');
+            document.getElementById('nextBtn').classList.add('show');
+            stopTimer();
+        } else {
+            fb.className = 'answer-feedback';
+            fb.textContent = '';
+            document.getElementById('nextBtn').classList.remove('show');
+        }
+    }
+
+    function submitAnswer(idx) {
+        if (state.answered || state.results[state.currentScenario]) return;
+        state.answered = true;
+        stopTimer();
+
+        var s = SCENARIOS[state.currentScenario];
+        var correct = idx === s.correct;
+        var elapsed = Math.round((Date.now() - state.timerStart) / 1000);
+        state.results[state.currentScenario] = { correct: correct, timeSeconds: elapsed, selected: idx };
+
+        // Highlight answers
+        var btns = document.querySelectorAll('.answer-btn');
+        btns.forEach(function(btn) {
+            btn.classList.add('disabled');
+            var bIdx = parseInt(btn.getAttribute('data-idx'));
+            if (bIdx === s.correct) btn.classList.add('correct');
+            if (bIdx === idx && !correct) btn.classList.add('incorrect');
+        });
+
+        // Feedback
+        var fb = document.getElementById('answerFeedback');
+        fb.textContent = s.explanation;
+        fb.className = 'answer-feedback show ' + (correct ? 'correct' : 'incorrect');
+
+        // Next button
+        document.getElementById('nextBtn').classList.add('show');
+        var next = findNextUnanswered();
+        if (next === -1) {
+            document.getElementById('nextBtn').textContent = 'View Results';
+        }
+
+        renderScenarioList();
+    }
+
+    function nextScenario() {
+        var next = findNextUnanswered();
+        if (next === -1) {
+            showResults();
+        } else {
+            loadScenario(next);
+        }
+    }
+
+    // --- Timer ---
+    function startTimer() {
+        stopTimer();
+        if (state.results[state.currentScenario]) return;
+        state.timerStart = Date.now();
+        state.timerInterval = setInterval(function() {
+            var elapsed = Math.round((Date.now() - state.timerStart) / 1000);
+            var m = Math.floor(elapsed / 60);
+            var s = elapsed % 60;
+            document.getElementById('scenarioTimer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+        }, 200);
+    }
+
+    function stopTimer() {
+        if (state.timerInterval) {
+            clearInterval(state.timerInterval);
+            state.timerInterval = null;
+        }
+    }
+
+    // --- Results ---
+    function showResults() {
+        stopTimer();
+        document.getElementById('activeUI').style.display = 'none';
+        var rs = document.getElementById('resultsScreen');
+        rs.classList.add('show');
+
+        var correctCount = 0;
+        var totalTime = 0;
+        for (var i = 0; i < state.results.length; i++) {
+            if (state.results[i] && state.results[i].correct) correctCount++;
+            if (state.results[i]) totalTime += state.results[i].timeSeconds;
+        }
+
+        var pct = Math.round((correctCount / SCENARIOS.length) * 100);
+        var grade = pct >= 80 ? 'Excellent' : pct >= 60 ? 'Good' : 'Needs Practice';
+        document.getElementById('resultsSub').textContent = grade + ' -- You diagnosed ' + correctCount + ' of ' + SCENARIOS.length + ' pipeline failures correctly.';
+
+        var avgTime = Math.round(totalTime / SCENARIOS.length);
+        document.getElementById('resultsGrid').innerHTML =
+            '<div class="result-card"><div class="result-value">' + correctCount + '/' + SCENARIOS.length + '</div><div class="result-label">Correct</div></div>' +
+            '<div class="result-card"><div class="result-value">' + pct + '%</div><div class="result-label">Accuracy</div></div>' +
+            '<div class="result-card"><div class="result-value">' + formatTime(totalTime) + '</div><div class="result-label">Total Time</div></div>';
+
+        var bhtml = '';
+        for (var i = 0; i < SCENARIOS.length; i++) {
+            var r = state.results[i];
+            var s = SCENARIOS[i];
+            var icn = r && r.correct ? ICONS.success : ICONS.failure;
+            bhtml += '<div class="breakdown-row">';
+            bhtml += '<span class="breakdown-icon">' + icn + '</span>';
+            bhtml += '<span class="breakdown-name">' + escHtml(s.title) + '</span>';
+            bhtml += '<span class="breakdown-time">' + (r ? formatTime(r.timeSeconds) : '--') + '</span>';
+            bhtml += '</div>';
+        }
+        document.getElementById('resultsBreakdown').innerHTML = bhtml;
+    }
+
+    function formatTime(sec) {
+        var m = Math.floor(sec / 60);
+        var s = sec % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    // --- Start lab ---
+    function startLab() {
+        state.started = true;
+        document.getElementById('introScreen').classList.add('hidden');
+        var ui = document.getElementById('activeUI');
+        ui.style.display = 'flex';
+        ui.style.flexDirection = 'column';
+        ui.style.flex = '1';
+        renderScenarioList();
+        loadScenario(0);
+    }
+
+    // --- Complete module ---
+    function completeModule() {
+        try {
+            var progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            progress['do-111'] = Date.now();
+            localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+        } catch(e) {}
+
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'do-111-pipeline-debugger', { returnToDashboard: false });
+        }
+
+        var btn = document.querySelector('.complete-btn');
+        btn.textContent = 'Completed!';
+        btn.style.background = 'rgba(59,130,246,0.2)';
+        btn.style.color = '#3b82f6';
+        btn.style.cursor = 'default';
+    }
+
+    // --- Util ---
+    function escHtml(str) {
+        var d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    // Check if already completed
+    try {
+        var p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+        if (p['do-111']) {
+            document.addEventListener('DOMContentLoaded', function() {
+                var btn = document.querySelector('.complete-btn');
+                if (btn) {
+                    btn.textContent = 'Completed!';
+                    btn.style.background = 'rgba(59,130,246,0.2)';
+                    btn.style.color = '#3b82f6';
+                }
+            });
+        }
+    } catch(e) {}
+
+    // Init scenario list
+    renderScenarioList();
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

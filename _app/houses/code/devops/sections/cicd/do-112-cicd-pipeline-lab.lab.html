@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CI/CD Pipeline Lab: Build, Test, Deploy - Code House - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../../../../assets/images/icons/icon-controls.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forge: #3b82f6; --forge-dim: rgba(59, 130, 246, 0.12); --forge-glow: rgba(59, 130, 246, 0.3);
+            --bg: #0a0a0f; --bg-card: #12121a; --bg-code: #0d1117;
+            --text: #e0e0e0; --text-dim: #8b949e; --border: rgba(255,255,255,0.08);
+            --blue: #3b82f6; --orange: #f59e0b; --red: #ef4444; --purple: #8b5cf6;
+            --green: #22c55e; --cyan: #06b6d4;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.7; }
+
+        /* Header */
+        .header {
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px; background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge { font-size: 11px; padding: 3px 10px; border-radius: 4px; background: var(--forge-dim); color: var(--forge); font-weight: 700; letter-spacing: 1px; }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--forge); font-weight: 600; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); transition: all 0.2s; }
+        .back-link:hover { background: var(--forge-dim); }
+
+        /* Content */
+        .content { max-width: 900px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 40px 0 32px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 600px; margin: 0 auto; }
+        .hero-meta { display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Objectives */
+        .objectives { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 36px; }
+        .objectives h3 { font-size: 13px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 5px 0; font-size: 14px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+        .objectives li::before { content: '\25B8'; color: var(--forge); font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+
+        /* Progress tracker */
+        .progress-tracker {
+            display: flex; align-items: center; gap: 0; margin-bottom: 36px;
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px;
+        }
+        .progress-step {
+            display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim);
+            cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .progress-step:hover { background: rgba(255,255,255,0.04); }
+        .progress-step.active { color: var(--forge); font-weight: 600; }
+        .progress-step.completed { color: var(--green); }
+        .progress-indicator {
+            width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; flex-shrink: 0;
+        }
+        .progress-step.active .progress-indicator { border-color: var(--forge); color: var(--forge); }
+        .progress-step.completed .progress-indicator { border-color: var(--green); background: var(--green); color: #0a0a0f; }
+        .progress-connector { flex: 1; height: 2px; background: var(--border); min-width: 12px; }
+        .progress-connector.completed { background: var(--green); }
+
+        /* Phase panels */
+        .phase-panel { display: none; }
+        .phase-panel.active { display: block; }
+
+        .phase-header {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 24px; margin-bottom: 20px;
+        }
+        .phase-number { font-size: 11px; color: var(--forge); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 6px; }
+        .phase-header h3 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .phase-header p { font-size: 14px; color: var(--text-dim); margin: 0; }
+
+        /* What we're adding */
+        .adding-list {
+            background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.15);
+            border-radius: 8px; padding: 16px 20px; margin-bottom: 20px;
+        }
+        .adding-list h4 { font-size: 12px; color: var(--forge); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .adding-list ul { list-style: none; }
+        .adding-list li { font-size: 13px; color: var(--text-dim); padding: 3px 0; }
+        .adding-list li::before { content: '+'; color: var(--green); font-weight: 700; margin-right: 8px; font-family: monospace; }
+
+        /* YAML editor */
+        .editor-container {
+            background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px;
+            margin-bottom: 16px; overflow: hidden;
+        }
+        .editor-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border);
+        }
+        .editor-filename { font-size: 12px; color: var(--text-dim); font-family: 'Cascadia Code', 'Fira Code', monospace; }
+        .editor-status { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 3px; }
+        .editor-status.pending { color: var(--orange); background: rgba(245,158,11,0.1); }
+        .editor-status.passed { color: var(--green); background: rgba(34,197,94,0.1); }
+        .editor-status.failed { color: var(--red); background: rgba(239,68,68,0.1); }
+        .yaml-editor {
+            width: 100%; min-height: 280px; padding: 14px 16px; border: none; resize: vertical;
+            background: transparent; color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 13px; line-height: 1.6; tab-size: 2; outline: none;
+        }
+
+        /* Buttons */
+        .action-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn {
+            padding: 10px 22px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+        }
+        .btn-validate { background: var(--forge); color: #fff; }
+        .btn-validate:hover { background: #2563eb; transform: translateY(-1px); }
+        .btn-validate:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .btn-hint { background: rgba(245,158,11,0.12); color: var(--orange); border: 1px solid rgba(245,158,11,0.25); }
+        .btn-hint:hover { background: rgba(245,158,11,0.2); }
+        .btn-reset { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+        .btn-reset:hover { background: rgba(239,68,68,0.18); }
+        .btn-next { background: linear-gradient(135deg, var(--green), #16a34a); color: #fff; }
+        .btn-next:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(34,197,94,0.3); }
+        .btn-next:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
+
+        /* Terminal output */
+        .terminal {
+            background: #000; border: 1px solid var(--border); border-radius: 8px;
+            margin-bottom: 20px; overflow: hidden; display: none;
+        }
+        .terminal.visible { display: block; }
+        .terminal-header {
+            display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+            background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--border);
+        }
+        .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .terminal-dot.r { background: #ff5f57; }
+        .terminal-dot.y { background: #febc2e; }
+        .terminal-dot.g { background: #28c840; }
+        .terminal-title { font-size: 11px; color: var(--text-dim); margin-left: 8px; font-family: monospace; }
+        .terminal-body {
+            padding: 14px 16px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 12px; line-height: 1.7; color: #ccc; max-height: 400px; overflow-y: auto;
+        }
+        .terminal-body .t-green { color: #7ee787; }
+        .terminal-body .t-blue { color: #79c0ff; }
+        .terminal-body .t-yellow { color: #ffa657; }
+        .terminal-body .t-red { color: #ff7b72; }
+        .terminal-body .t-dim { color: #6e7681; }
+        .terminal-body .t-cyan { color: #56d4dd; }
+        .terminal-body .t-bold { font-weight: 700; color: #fff; }
+
+        /* Validation feedback */
+        .validation-feedback {
+            border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; display: none;
+        }
+        .validation-feedback.visible { display: block; }
+        .validation-feedback.success { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); color: var(--green); }
+        .validation-feedback.error { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: var(--red); }
+        .validation-feedback h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+        .validation-feedback ul { list-style: none; margin-top: 6px; }
+        .validation-feedback li { padding: 2px 0; font-size: 12px; }
+        .validation-feedback li::before { content: '\2022'; margin-right: 8px; }
+
+        /* Callouts */
+        .callout { border-radius: 8px; padding: 16px 18px; margin: 16px 0; font-size: 13px; }
+        .callout-title { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .callout p { margin-bottom: 0; }
+        .callout-info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-warning { background: rgba(245,158,11,0.08); border-left: 3px solid var(--orange); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-success { background: rgba(34,197,94,0.08); border-left: 3px solid var(--green); }
+        .callout-success .callout-title { color: var(--green); }
+
+        /* Full pipeline review */
+        .pipeline-review {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 24px; margin: 24px 0;
+        }
+        .pipeline-review h3 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+        .pipeline-review pre {
+            background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px;
+            padding: 16px; overflow-x: auto; font-size: 12px; line-height: 1.6;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; color: #e6edf3;
+            max-height: 600px; overflow-y: auto;
+        }
+
+        /* Complete section */
+        .complete-section { text-align: center; padding: 40px 0 20px; border-top: 1px solid var(--border); margin-top: 48px; display: none; }
+        .complete-section.visible { display: block; }
+        .complete-btn { padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, var(--forge), #2563eb); color: #fff; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--forge-glow); }
+
+        /* Hint panel */
+        .hint-panel {
+            background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2);
+            border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; display: none;
+        }
+        .hint-panel.visible { display: block; }
+        .hint-panel h4 { font-size: 12px; color: var(--orange); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .hint-panel p { font-size: 13px; color: var(--text-dim); margin: 0; }
+        .hint-panel code { background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #79c0ff; }
+
+        /* Code inline */
+        code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #79c0ff; font-family: 'Cascadia Code', 'Fira Code', monospace; }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 24px; }
+            .progress-tracker { flex-wrap: wrap; gap: 4px; }
+            .progress-connector { display: none; }
+            .yaml-editor { min-height: 200px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">DO-112</span>
+            <h1>CI/CD Pipeline Lab</h1>
+        </div>
+        <a href="index.html" class="back-link">&larr; CI/CD Pipelines</a>
+    </header>
+
+    <main class="content">
+        <!-- Hero -->
+        <div class="hero">
+            <img class="hero-icon" src="../../../../../assets/images/icons/icon-controls.webp" alt="">
+            <h2>CI/CD Pipeline Lab</h2>
+            <p class="hero-sub">Build, Test, Deploy &mdash; Construct a production-grade GitHub Actions pipeline step by step. Write real workflow YAML, validate each phase, and watch simulated runs confirm your work.</p>
+            <div class="hero-meta">
+                <span><img src="../../../../../assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> ~45 min</span>
+                <span><img src="../../../../../assets/images/icons/icon-books.webp" alt="" width="14" height="14"> Hands-on Lab</span>
+                <span><img src="../../../../../assets/images/icons/icon-controls.webp" alt="" width="14" height="14"> Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Write a GitHub Actions workflow YAML file from scratch with proper structure</li>
+                <li>Configure checkout, Node.js setup, linting, and unit test steps</li>
+                <li>Add build artifacts and upload them for downstream jobs</li>
+                <li>Implement deployment jobs with environment protection and OIDC authentication</li>
+                <li>Add notification steps that report pipeline status via webhooks</li>
+            </ul>
+        </div>
+
+        <!-- Progress Tracker -->
+        <div class="progress-tracker" id="progressTracker">
+            <div class="progress-step active" data-phase="1" onclick="goToPhase(1)">
+                <div class="progress-indicator">1</div>
+                <span>Scaffold</span>
+            </div>
+            <div class="progress-connector" id="conn-1"></div>
+            <div class="progress-step" data-phase="2" onclick="goToPhase(2)">
+                <div class="progress-indicator">2</div>
+                <span>Test</span>
+            </div>
+            <div class="progress-connector" id="conn-2"></div>
+            <div class="progress-step" data-phase="3" onclick="goToPhase(3)">
+                <div class="progress-indicator">3</div>
+                <span>Build</span>
+            </div>
+            <div class="progress-connector" id="conn-3"></div>
+            <div class="progress-step" data-phase="4" onclick="goToPhase(4)">
+                <div class="progress-indicator">4</div>
+                <span>Deploy</span>
+            </div>
+            <div class="progress-connector" id="conn-4"></div>
+            <div class="progress-step" data-phase="5" onclick="goToPhase(5)">
+                <div class="progress-indicator">5</div>
+                <span>Notify</span>
+            </div>
+        </div>
+
+        <!-- ==================== PHASE 1 ==================== -->
+        <div class="phase-panel active" id="phase-1">
+            <div class="phase-header">
+                <div class="phase-number">Phase 1 of 5</div>
+                <h3>Scaffold the Workflow</h3>
+                <p>Create the workflow file with the trigger, job definition, and initial steps: checkout the code and set up Node.js.</p>
+            </div>
+
+            <div class="adding-list">
+                <h4>What You Are Adding</h4>
+                <ul>
+                    <li>Workflow name and <code>on</code> trigger (push to main, pull_request)</li>
+                    <li>A <code>ci</code> job running on <code>ubuntu-latest</code></li>
+                    <li><code>actions/checkout@v4</code> step</li>
+                    <li><code>actions/setup-node@v4</code> with Node 20</li>
+                    <li><code>npm ci</code> to install dependencies</li>
+                </ul>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Tip</div>
+                <p>YAML indentation matters. Use 2 spaces per level. The <code>on</code> key defines when the workflow fires. Jobs contain steps, and each step uses either <code>run</code> (shell command) or <code>uses</code> (action reference).</p>
+            </div>
+
+            <div class="editor-container">
+                <div class="editor-header">
+                    <span class="editor-filename">.github/workflows/ci-cd.yml</span>
+                    <span class="editor-status pending" id="status-1">Pending</span>
+                </div>
+                <textarea class="yaml-editor" id="editor-1" spellcheck="false" placeholder="# Write your workflow YAML here...
+# Start with the 'name' key, then 'on' triggers, then 'jobs'...">name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+  pull_request:
+    branches:
+
+jobs:
+  ci:
+    runs-on:
+    steps:
+</textarea>
+            </div>
+
+            <div class="hint-panel" id="hint-1">
+                <h4>Hint</h4>
+                <p>Your trigger branches should include <code>[ main ]</code>. The job needs <code>runs-on: ubuntu-latest</code>. Steps need <code>- uses: actions/checkout@v4</code>, then <code>- uses: actions/setup-node@v4</code> with a <code>with: node-version: '20'</code> block, then <code>- run: npm ci</code>.</p>
+            </div>
+
+            <div class="action-bar">
+                <button class="btn btn-validate" onclick="validatePhase(1)">Validate Phase 1</button>
+                <button class="btn btn-hint" onclick="toggleHint(1)">Show Hint</button>
+                <button class="btn btn-reset" onclick="resetPhase(1)">Reset</button>
+                <button class="btn btn-next" id="next-1" onclick="goToPhase(2)" disabled>Next Phase &rarr;</button>
+            </div>
+
+            <div class="validation-feedback" id="feedback-1"></div>
+
+            <div class="terminal" id="terminal-1">
+                <div class="terminal-header">
+                    <div class="terminal-dot r"></div>
+                    <div class="terminal-dot y"></div>
+                    <div class="terminal-dot g"></div>
+                    <span class="terminal-title">GitHub Actions -- ci-cd.yml run #1</span>
+                </div>
+                <div class="terminal-body" id="terminal-body-1"></div>
+            </div>
+        </div>
+
+        <!-- ==================== PHASE 2 ==================== -->
+        <div class="phase-panel" id="phase-2">
+            <div class="phase-header">
+                <div class="phase-number">Phase 2 of 5</div>
+                <h3>Add Linting and Tests</h3>
+                <p>Extend the CI job with ESLint for code quality and Jest for unit testing with coverage reporting.</p>
+            </div>
+
+            <div class="adding-list">
+                <h4>What You Are Adding</h4>
+                <ul>
+                    <li>Lint step: <code>npx eslint .</code></li>
+                    <li>Test step: <code>npx jest --coverage</code></li>
+                    <li>Upload coverage report as artifact</li>
+                </ul>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Tip</div>
+                <p>Add new steps after <code>npm ci</code>. Lint first, then test. For coverage upload, use <code>actions/upload-artifact@v4</code> targeting the <code>coverage/</code> directory. Give the artifact a descriptive name like <code>coverage-report</code>.</p>
+            </div>
+
+            <div class="editor-container">
+                <div class="editor-header">
+                    <span class="editor-filename">.github/workflows/ci-cd.yml (ci job steps continued)</span>
+                    <span class="editor-status pending" id="status-2">Pending</span>
+                </div>
+                <textarea class="yaml-editor" id="editor-2" spellcheck="false" placeholder="# Add lint, test, and coverage upload steps...
+# These go after the 'npm ci' step in the ci job.">      - name: Lint
+        run:
+
+      - name: Run Tests
+        run:
+
+      - name: Upload Coverage
+        uses:
+        with:
+          name:
+          path:
+</textarea>
+            </div>
+
+            <div class="hint-panel" id="hint-2">
+                <h4>Hint</h4>
+                <p>Lint step: <code>run: npx eslint .</code>. Test step: <code>run: npx jest --coverage</code>. Upload artifact: <code>uses: actions/upload-artifact@v4</code> with <code>name: coverage-report</code> and <code>path: coverage/</code>.</p>
+            </div>
+
+            <div class="action-bar">
+                <button class="btn btn-validate" onclick="validatePhase(2)">Validate Phase 2</button>
+                <button class="btn btn-hint" onclick="toggleHint(2)">Show Hint</button>
+                <button class="btn btn-reset" onclick="resetPhase(2)">Reset</button>
+                <button class="btn btn-next" id="next-2" onclick="goToPhase(3)" disabled>Next Phase &rarr;</button>
+            </div>
+
+            <div class="validation-feedback" id="feedback-2"></div>
+
+            <div class="terminal" id="terminal-2">
+                <div class="terminal-header">
+                    <div class="terminal-dot r"></div>
+                    <div class="terminal-dot y"></div>
+                    <div class="terminal-dot g"></div>
+                    <span class="terminal-title">GitHub Actions -- ci-cd.yml run #2</span>
+                </div>
+                <div class="terminal-body" id="terminal-body-2"></div>
+            </div>
+        </div>
+
+        <!-- ==================== PHASE 3 ==================== -->
+        <div class="phase-panel" id="phase-3">
+            <div class="phase-header">
+                <div class="phase-number">Phase 3 of 5</div>
+                <h3>Build and Upload Artifacts</h3>
+                <p>Add a production build step and upload the build output as a downloadable artifact for the deployment job.</p>
+            </div>
+
+            <div class="adding-list">
+                <h4>What You Are Adding</h4>
+                <ul>
+                    <li>Build step: <code>npm run build</code></li>
+                    <li>Upload build artifact using <code>actions/upload-artifact@v4</code></li>
+                    <li>Artifact named <code>build-output</code> from the <code>dist/</code> directory</li>
+                </ul>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Tip</div>
+                <p>The build step produces files in <code>dist/</code>. Upload them so the deploy job (in Phase 4) can download and use them. This is how you pass files between jobs in different runners.</p>
+            </div>
+
+            <div class="editor-container">
+                <div class="editor-header">
+                    <span class="editor-filename">.github/workflows/ci-cd.yml (build steps)</span>
+                    <span class="editor-status pending" id="status-3">Pending</span>
+                </div>
+                <textarea class="yaml-editor" id="editor-3" spellcheck="false" placeholder="# Add build and artifact upload steps...">      - name: Build
+        run:
+
+      - name: Upload Build Artifact
+        uses:
+        with:
+          name:
+          path:
+</textarea>
+            </div>
+
+            <div class="hint-panel" id="hint-3">
+                <h4>Hint</h4>
+                <p>Build step: <code>run: npm run build</code>. Upload: <code>uses: actions/upload-artifact@v4</code> with <code>name: build-output</code> and <code>path: dist/</code>.</p>
+            </div>
+
+            <div class="action-bar">
+                <button class="btn btn-validate" onclick="validatePhase(3)">Validate Phase 3</button>
+                <button class="btn btn-hint" onclick="toggleHint(3)">Show Hint</button>
+                <button class="btn btn-reset" onclick="resetPhase(3)">Reset</button>
+                <button class="btn btn-next" id="next-3" onclick="goToPhase(4)" disabled>Next Phase &rarr;</button>
+            </div>
+
+            <div class="validation-feedback" id="feedback-3"></div>
+
+            <div class="terminal" id="terminal-3">
+                <div class="terminal-header">
+                    <div class="terminal-dot r"></div>
+                    <div class="terminal-dot y"></div>
+                    <div class="terminal-dot g"></div>
+                    <span class="terminal-title">GitHub Actions -- ci-cd.yml run #3</span>
+                </div>
+                <div class="terminal-body" id="terminal-body-3"></div>
+            </div>
+        </div>
+
+        <!-- ==================== PHASE 4 ==================== -->
+        <div class="phase-panel" id="phase-4">
+            <div class="phase-header">
+                <div class="phase-number">Phase 4 of 5</div>
+                <h3>Deployment Job</h3>
+                <p>Add a separate deploy job that depends on CI, uses environment protection rules, downloads the build artifact, and deploys with OIDC authentication.</p>
+            </div>
+
+            <div class="adding-list">
+                <h4>What You Are Adding</h4>
+                <ul>
+                    <li>New <code>deploy</code> job with <code>needs: ci</code></li>
+                    <li>Conditional: only runs on push to main (<code>if</code> expression)</li>
+                    <li>Environment: <code>production</code></li>
+                    <li>OIDC permissions: <code>id-token: write</code></li>
+                    <li>Download artifact and deploy step</li>
+                </ul>
+            </div>
+
+            <div class="callout callout-warning">
+                <div class="callout-title">Important</div>
+                <p>The deploy job is a separate job, not steps in the CI job. It uses <code>needs: ci</code> to wait for CI to pass. The <code>environment: production</code> key enables GitHub's environment protection rules (approvals, wait timers). OIDC via <code>id-token: write</code> replaces long-lived secrets.</p>
+            </div>
+
+            <div class="editor-container">
+                <div class="editor-header">
+                    <span class="editor-filename">.github/workflows/ci-cd.yml (deploy job)</span>
+                    <span class="editor-status pending" id="status-4">Pending</span>
+                </div>
+                <textarea class="yaml-editor" id="editor-4" spellcheck="false" placeholder="# Write the deploy job...
+# Remember: this is a new job at the same level as 'ci'">  deploy:
+    needs:
+    if:
+    runs-on:
+    environment:
+    permissions:
+      id-token:
+      contents:
+    steps:
+</textarea>
+            </div>
+
+            <div class="hint-panel" id="hint-4">
+                <h4>Hint</h4>
+                <p>Key fields: <code>needs: ci</code>, <code>if: github.ref == 'refs/heads/main' && github.event_name == 'push'</code>, <code>runs-on: ubuntu-latest</code>, <code>environment: production</code>. Permissions: <code>id-token: write</code> and <code>contents: read</code>. Steps: <code>actions/download-artifact@v4</code> with <code>name: build-output</code>, then a deploy run step like <code>echo "Deploying to production..."</code>.</p>
+            </div>
+
+            <div class="action-bar">
+                <button class="btn btn-validate" onclick="validatePhase(4)">Validate Phase 4</button>
+                <button class="btn btn-hint" onclick="toggleHint(4)">Show Hint</button>
+                <button class="btn btn-reset" onclick="resetPhase(4)">Reset</button>
+                <button class="btn btn-next" id="next-4" onclick="goToPhase(5)" disabled>Next Phase &rarr;</button>
+            </div>
+
+            <div class="validation-feedback" id="feedback-4"></div>
+
+            <div class="terminal" id="terminal-4">
+                <div class="terminal-header">
+                    <div class="terminal-dot r"></div>
+                    <div class="terminal-dot y"></div>
+                    <div class="terminal-dot g"></div>
+                    <span class="terminal-title">GitHub Actions -- ci-cd.yml run #4</span>
+                </div>
+                <div class="terminal-body" id="terminal-body-4"></div>
+            </div>
+        </div>
+
+        <!-- ==================== PHASE 5 ==================== -->
+        <div class="phase-panel" id="phase-5">
+            <div class="phase-header">
+                <div class="phase-number">Phase 5 of 5</div>
+                <h3>Notification Step</h3>
+                <p>Add a Slack notification step to the deploy job that reports success or failure using a webhook.</p>
+            </div>
+
+            <div class="adding-list">
+                <h4>What You Are Adding</h4>
+                <ul>
+                    <li>Notification step using <code>if: always()</code> so it runs on success or failure</li>
+                    <li>Slack webhook via <code>curl</code> POST request</li>
+                    <li>Dynamic message using <code>${{ job.status }}</code></li>
+                    <li>Webhook URL from secrets: <code>${{ secrets.SLACK_WEBHOOK_URL }}</code></li>
+                </ul>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-title">Tip</div>
+                <p>The <code>if: always()</code> condition ensures the notification fires even if a previous step failed. Use <code>curl</code> to POST a JSON payload to the Slack webhook URL. Reference <code>${{ job.status }}</code> in the message body to indicate pass/fail.</p>
+            </div>
+
+            <div class="editor-container">
+                <div class="editor-header">
+                    <span class="editor-filename">.github/workflows/ci-cd.yml (notification step)</span>
+                    <span class="editor-status pending" id="status-5">Pending</span>
+                </div>
+                <textarea class="yaml-editor" id="editor-5" spellcheck="false" placeholder="# Add the notification step to the deploy job...">      - name: Notify Slack
+        if:
+        run: |
+</textarea>
+            </div>
+
+            <div class="hint-panel" id="hint-5">
+                <h4>Hint</h4>
+                <p>Use <code>if: always()</code>. The run command should be a <code>curl</code> POST: <code>curl -X POST -H 'Content-type: application/json' --data '{"text":"Deploy ${{ job.status }} for ${{ github.repository }}"}' ${{ secrets.SLACK_WEBHOOK_URL }}</code></p>
+            </div>
+
+            <div class="action-bar">
+                <button class="btn btn-validate" onclick="validatePhase(5)">Validate Phase 5</button>
+                <button class="btn btn-hint" onclick="toggleHint(5)">Show Hint</button>
+                <button class="btn btn-reset" onclick="resetPhase(5)">Reset</button>
+            </div>
+
+            <div class="validation-feedback" id="feedback-5"></div>
+
+            <div class="terminal" id="terminal-5">
+                <div class="terminal-header">
+                    <div class="terminal-dot r"></div>
+                    <div class="terminal-dot y"></div>
+                    <div class="terminal-dot g"></div>
+                    <span class="terminal-title">GitHub Actions -- ci-cd.yml full pipeline run</span>
+                </div>
+                <div class="terminal-body" id="terminal-body-5"></div>
+            </div>
+
+            <!-- Full Pipeline Review -->
+            <div class="pipeline-review" id="pipelineReview" style="display:none;">
+                <h3>Complete Pipeline Review</h3>
+                <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">Here is the full workflow you built across all 5 phases. This is a production-grade CI/CD pipeline with build, test, deploy, and notification stages.</p>
+                <pre id="fullPipelineCode"></pre>
+            </div>
+        </div>
+
+        <!-- Completion -->
+        <div class="complete-section" id="completeSection">
+            <p style="font-size: 15px; color: var(--text-dim); margin-bottom: 20px;">All 5 phases validated. You built a complete CI/CD pipeline from scratch.</p>
+            <button class="complete-btn" onclick="completeModule()">Mark Lab Complete</button>
+        </div>
+    </main>
+
+    <script>
+        // ===== State =====
+        const phaseState = { 1: false, 2: false, 3: false, 4: false, 5: false };
+        let currentPhase = 1;
+
+        // ===== Starter YAML for resets =====
+        const starterYaml = {
+            1: 'name: CI/CD Pipeline\n\non:\n  push:\n    branches:\n  pull_request:\n    branches:\n\njobs:\n  ci:\n    runs-on:\n    steps:\n',
+            2: '      - name: Lint\n        run:\n\n      - name: Run Tests\n        run:\n\n      - name: Upload Coverage\n        uses:\n        with:\n          name:\n          path:\n',
+            3: '      - name: Build\n        run:\n\n      - name: Upload Build Artifact\n        uses:\n        with:\n          name:\n          path:\n',
+            4: '  deploy:\n    needs:\n    if:\n    runs-on:\n    environment:\n    permissions:\n      id-token:\n      contents:\n    steps:\n',
+            5: '      - name: Notify Slack\n        if:\n        run: |\n'
+        };
+
+        // ===== Validation rules =====
+        const validationRules = {
+            1: [
+                { pattern: /name:\s*.+/i, msg: 'Workflow name defined', fail: 'Missing workflow name' },
+                { pattern: /on:/,         msg: 'Trigger block present', fail: 'Missing "on:" trigger block' },
+                { pattern: /push:/,       msg: 'Push trigger configured', fail: 'Missing push trigger' },
+                { pattern: /branches:\s*\[?\s*main\s*\]?/i, msg: 'Main branch targeted', fail: 'Push trigger should target "main" branch' },
+                { pattern: /pull_request:/i, msg: 'Pull request trigger configured', fail: 'Missing pull_request trigger' },
+                { pattern: /runs-on:\s*ubuntu-latest/i, msg: 'Runner set to ubuntu-latest', fail: 'Job should run on ubuntu-latest' },
+                { pattern: /uses:\s*actions\/checkout@v\d/i, msg: 'Checkout action included', fail: 'Missing actions/checkout step' },
+                { pattern: /uses:\s*actions\/setup-node@v\d/i, msg: 'Setup Node action included', fail: 'Missing actions/setup-node step' },
+                { pattern: /node-version:\s*['"]?20['"]?/i, msg: 'Node 20 configured', fail: 'Set node-version to 20' },
+                { pattern: /npm\s+ci/i, msg: 'npm ci step present', fail: 'Missing "npm ci" install step' }
+            ],
+            2: [
+                { pattern: /eslint/i, msg: 'ESLint lint step present', fail: 'Missing ESLint lint step (npx eslint .)' },
+                { pattern: /jest\s+--coverage/i, msg: 'Jest tests with coverage', fail: 'Missing Jest test step with --coverage flag' },
+                { pattern: /upload-artifact@v\d/i, msg: 'Upload artifact action used', fail: 'Missing actions/upload-artifact step' },
+                { pattern: /name:\s*coverage[-_]?report/i, msg: 'Coverage artifact named', fail: 'Name the artifact "coverage-report"' },
+                { pattern: /path:\s*coverage\//i, msg: 'Coverage path set', fail: 'Set artifact path to coverage/' }
+            ],
+            3: [
+                { pattern: /npm\s+run\s+build/i, msg: 'Build step present', fail: 'Missing "npm run build" step' },
+                { pattern: /upload-artifact@v\d/i, msg: 'Upload artifact action used', fail: 'Missing actions/upload-artifact step' },
+                { pattern: /name:\s*build[-_]?output/i, msg: 'Build artifact named', fail: 'Name the artifact "build-output"' },
+                { pattern: /path:\s*dist\//i, msg: 'Dist path configured', fail: 'Set artifact path to dist/' }
+            ],
+            4: [
+                { pattern: /deploy:/i, msg: 'Deploy job defined', fail: 'Missing deploy job definition' },
+                { pattern: /needs:\s*ci/i, msg: 'Depends on CI job', fail: 'Deploy must depend on ci job (needs: ci)' },
+                { pattern: /if:.*github\.ref\s*==\s*'refs\/heads\/main'/i, msg: 'Conditional on main branch', fail: 'Add "if" condition to only deploy from main branch' },
+                { pattern: /runs-on:\s*ubuntu-latest/i, msg: 'Runner configured', fail: 'Deploy job needs runs-on: ubuntu-latest' },
+                { pattern: /environment:\s*production/i, msg: 'Production environment set', fail: 'Set environment to "production"' },
+                { pattern: /id-token:\s*write/i, msg: 'OIDC permission configured', fail: 'Set id-token permission to "write" for OIDC' },
+                { pattern: /contents:\s*read/i, msg: 'Contents permission set', fail: 'Set contents permission to "read"' },
+                { pattern: /download-artifact@v\d/i, msg: 'Download artifact step present', fail: 'Missing actions/download-artifact step' },
+                { pattern: /build[-_]?output/i, msg: 'Downloads build artifact', fail: 'Download the "build-output" artifact' }
+            ],
+            5: [
+                { pattern: /if:\s*always\(\)/i, msg: 'Always condition set', fail: 'Use "if: always()" so notification fires on success or failure' },
+                { pattern: /curl/i, msg: 'Curl command used', fail: 'Use curl to POST to the Slack webhook' },
+                { pattern: /POST/i, msg: 'POST method specified', fail: 'Use -X POST with curl' },
+                { pattern: /Content-type.*application\/json/i, msg: 'JSON content type header', fail: 'Set Content-type header to application/json' },
+                { pattern: /job\.status/i, msg: 'Job status referenced', fail: 'Include ${{ job.status }} in the message payload' },
+                { pattern: /secrets\.SLACK_WEBHOOK_URL/i, msg: 'Webhook URL from secrets', fail: 'Use ${{ secrets.SLACK_WEBHOOK_URL }} for the webhook URL' }
+            ]
+        };
+
+        // ===== Terminal output for each phase =====
+        const terminalOutput = {
+            1: [
+                '<span class="t-bold">CI/CD Pipeline</span> <span class="t-dim">-- Run #1 triggered by push to main</span>',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Requested runner: <span class="t-cyan">ubuntu-latest</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Provisioning runner... <span class="t-green">done</span> (3s)',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Step 1/3: Checkout</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">actions/checkout@v4</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Syncing repository: hexworth/app',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Checking out ref: refs/heads/main',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-green">Checkout complete</span> (1.2s)',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Step 2/3: Setup Node.js</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">actions/setup-node@v4</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Attempting to download Node 20.x...',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Node v20.11.1 found in cache',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-green">Node.js 20.11.1 configured</span> (0.4s)',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Step 3/3: Install Dependencies</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> $ npm ci',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> added 847 packages in 12s',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-green">Dependencies installed</span> (12.3s)',
+                '',
+                '<span class="t-green t-bold">Phase 1 steps completed successfully</span>'
+            ],
+            2: [
+                '<span class="t-bold">CI/CD Pipeline</span> <span class="t-dim">-- Run #2 (continued)</span>',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Step 4/6: Lint</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> $ npx eslint .',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">Linting 42 files...</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   src/index.js          <span class="t-green">passed</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   src/utils/helpers.js   <span class="t-green">passed</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   src/api/routes.js      <span class="t-green">passed</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-green">All 42 files passed linting</span> (3.1s)',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Step 5/6: Run Tests</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> $ npx jest --coverage',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">PASS</span> src/__tests__/auth.test.js (12 tests)',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">PASS</span> src/__tests__/api.test.js (8 tests)',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">PASS</span> src/__tests__/utils.test.js (15 tests)',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Coverage Summary:</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   Statements : <span class="t-green">94.2%</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   Branches   : <span class="t-green">89.7%</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   Functions  : <span class="t-green">91.3%</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   Lines      : <span class="t-green">93.8%</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-green">35 tests passed</span>, 0 failed (8.7s)',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Step 6/6: Upload Coverage</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">actions/upload-artifact@v4</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Uploading coverage-report (coverage/) ...',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-green">Artifact uploaded: coverage-report (1.2 MB)</span>',
+                '',
+                '<span class="t-green t-bold">Phase 2 steps completed successfully</span>'
+            ],
+            3: [
+                '<span class="t-bold">CI/CD Pipeline</span> <span class="t-dim">-- Run #3 (continued)</span>',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Step 7/8: Build</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> $ npm run build',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">Creating production build...</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Compiling TypeScript...',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Bundling with esbuild...',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   dist/index.js         <span class="t-dim">142 KB</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   dist/worker.js         <span class="t-dim">38 KB</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span>   dist/styles.css        <span class="t-dim">22 KB</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-green">Build complete</span> (6.4s)',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-bold">Step 8/8: Upload Build Artifact</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-dim">actions/upload-artifact@v4</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Uploading build-output (dist/) ...',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> <span class="t-green">Artifact uploaded: build-output (202 KB)</span>',
+                '',
+                '<span class="t-green t-bold">Phase 3 steps completed -- CI job done</span>'
+            ],
+            4: [
+                '<span class="t-bold">CI/CD Pipeline</span> <span class="t-dim">-- Run #4 (deploy job)</span>',
+                '',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Waiting for job <span class="t-blue">ci</span> to complete... <span class="t-green">passed</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Evaluating condition: github.ref == \'refs/heads/main\' <span class="t-green">true</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-cyan">Environment: production</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-dim">Waiting for deployment review...</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-green">Deployment approved by @lead-engineer</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Requesting OIDC token (id-token: write)...',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-green">OIDC token issued</span> (sub: repo:hexworth/app:environment:production)',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Provisioning runner: <span class="t-cyan">ubuntu-latest</span> <span class="t-green">ready</span>',
+                '',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-bold">Step 1/2: Download Artifact</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-dim">actions/download-artifact@v4</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Downloading build-output... <span class="t-green">202 KB</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Extracted to: ./dist/',
+                '',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-bold">Step 2/2: Deploy</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Deploying to production...',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Uploading dist/ to CDN edge nodes...',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span>   us-east-1   <span class="t-green">synced</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span>   eu-west-1   <span class="t-green">synced</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span>   ap-south-1  <span class="t-green">synced</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-green t-bold">Deployment successful</span>',
+                '',
+                '<span class="t-green t-bold">Phase 4 completed -- deploy job passed</span>'
+            ],
+            5: [
+                '<span class="t-bold">CI/CD Pipeline</span> <span class="t-dim">-- Full pipeline run</span>',
+                '',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Checkout          <span class="t-green">passed</span> <span class="t-dim">(1.2s)</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Setup Node 20     <span class="t-green">passed</span> <span class="t-dim">(0.4s)</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> npm ci            <span class="t-green">passed</span> <span class="t-dim">(12.3s)</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Lint (ESLint)     <span class="t-green">passed</span> <span class="t-dim">(3.1s)</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Tests (Jest)      <span class="t-green">passed</span> <span class="t-dim">(8.7s) -- 35/35, 94.2% coverage</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Upload coverage   <span class="t-green">passed</span> <span class="t-dim">(1.2s)</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Build             <span class="t-green">passed</span> <span class="t-dim">(6.4s)</span>',
+                '<span class="t-blue">ci</span> <span class="t-dim">|</span> Upload build      <span class="t-green">passed</span> <span class="t-dim">(0.8s)</span>',
+                '',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Download artifact <span class="t-green">passed</span> <span class="t-dim">(0.6s)</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Deploy to prod    <span class="t-green">passed</span> <span class="t-dim">(4.2s)</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> Notify Slack      <span class="t-green">passed</span> <span class="t-dim">(0.3s)</span>',
+                '',
+                '<span class="t-dim">---</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span> <span class="t-bold">Slack notification sent:</span>',
+                '<span class="t-yellow">deploy</span> <span class="t-dim">|</span>   <span class="t-cyan">#deployments</span>: "Deploy <span class="t-green">success</span> for hexworth/app"',
+                '',
+                '<span class="t-green t-bold">Full pipeline completed in 39.2s</span>',
+                '<span class="t-dim">2 jobs: ci (34.1s), deploy (5.1s)</span>',
+                '<span class="t-dim">11 steps total, 0 failures, 2 artifacts uploaded</span>'
+            ]
+        };
+
+        // ===== Full pipeline YAML =====
+        const fullPipelineYaml = `name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Run Tests
+        run: npx jest --coverage
+
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+
+  deploy:
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      - name: Deploy
+        run: echo "Deploying to production..."
+
+      - name: Notify Slack
+        if: always()
+        run: |
+          curl -X POST \\
+            -H 'Content-type: application/json' \\
+            --data '{"text":"Deploy \${{ job.status }} for \${{ github.repository }}"}' \\
+            \${{ secrets.SLACK_WEBHOOK_URL }}`;
+
+        // ===== Phase navigation =====
+        function goToPhase(phase) {
+            // Only allow navigating to completed phases or the next unlocked one
+            var maxAllowed = 1;
+            for (var i = 1; i <= 5; i++) {
+                if (phaseState[i]) maxAllowed = i + 1;
+            }
+            if (phase > maxAllowed) return;
+
+            currentPhase = phase;
+            document.querySelectorAll('.phase-panel').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById('phase-' + phase).classList.add('active');
+            updateProgressTracker();
+            window.scrollTo({ top: 200, behavior: 'smooth' });
+        }
+
+        function updateProgressTracker() {
+            document.querySelectorAll('.progress-step').forEach(function(step) {
+                var p = parseInt(step.dataset.phase);
+                step.classList.remove('active', 'completed');
+                if (phaseState[p]) {
+                    step.classList.add('completed');
+                } else if (p === currentPhase) {
+                    step.classList.add('active');
+                }
+            });
+            for (var i = 1; i <= 4; i++) {
+                var conn = document.getElementById('conn-' + i);
+                if (conn) {
+                    conn.classList.toggle('completed', phaseState[i]);
+                }
+            }
+        }
+
+        // ===== Validation =====
+        function validatePhase(phase) {
+            var editor = document.getElementById('editor-' + phase);
+            var yaml = editor.value;
+            var rules = validationRules[phase];
+            var passed = [];
+            var failed = [];
+
+            rules.forEach(function(rule) {
+                if (rule.pattern.test(yaml)) {
+                    passed.push(rule.msg);
+                } else {
+                    failed.push(rule.fail);
+                }
+            });
+
+            var feedback = document.getElementById('feedback-' + phase);
+            var status = document.getElementById('status-' + phase);
+            var terminal = document.getElementById('terminal-' + phase);
+
+            feedback.classList.add('visible');
+
+            if (failed.length === 0) {
+                // Passed
+                feedback.className = 'validation-feedback visible success';
+                feedback.innerHTML = '<h4>All checks passed</h4><ul>' +
+                    passed.map(function(m) { return '<li>' + m + '</li>'; }).join('') + '</ul>';
+
+                status.className = 'editor-status passed';
+                status.textContent = 'Passed';
+
+                phaseState[phase] = true;
+
+                // Enable next button
+                var nextBtn = document.getElementById('next-' + phase);
+                if (nextBtn) nextBtn.disabled = false;
+
+                // Show terminal
+                showTerminal(phase);
+                updateProgressTracker();
+
+                // Check if all phases done
+                if (phaseState[1] && phaseState[2] && phaseState[3] && phaseState[4] && phaseState[5]) {
+                    showCompletion();
+                }
+            } else {
+                // Failed
+                feedback.className = 'validation-feedback visible error';
+                var html = '<h4>' + failed.length + ' check' + (failed.length > 1 ? 's' : '') + ' failed</h4>';
+                html += '<ul>' + failed.map(function(m) { return '<li>' + m + '</li>'; }).join('') + '</ul>';
+                if (passed.length > 0) {
+                    html += '<h4 style="margin-top:10px; color:var(--green);">' + passed.length + ' check' + (passed.length > 1 ? 's' : '') + ' passed</h4>';
+                    html += '<ul style="color:var(--green);">' + passed.map(function(m) { return '<li>' + m + '</li>'; }).join('') + '</ul>';
+                }
+                feedback.innerHTML = html;
+
+                status.className = 'editor-status failed';
+                status.textContent = 'Failed';
+            }
+        }
+
+        // ===== Terminal simulation =====
+        function showTerminal(phase) {
+            var terminal = document.getElementById('terminal-' + phase);
+            var body = document.getElementById('terminal-body-' + phase);
+            terminal.classList.add('visible');
+            body.innerHTML = '';
+
+            var lines = terminalOutput[phase];
+            var delay = 0;
+
+            lines.forEach(function(line, i) {
+                delay += (line === '') ? 80 : 60 + Math.random() * 40;
+                setTimeout(function() {
+                    var div = document.createElement('div');
+                    div.innerHTML = line || '&nbsp;';
+                    body.appendChild(div);
+                    body.scrollTop = body.scrollHeight;
+                }, delay);
+            });
+        }
+
+        // ===== Hints =====
+        function toggleHint(phase) {
+            var panel = document.getElementById('hint-' + phase);
+            panel.classList.toggle('visible');
+        }
+
+        // ===== Reset =====
+        function resetPhase(phase) {
+            document.getElementById('editor-' + phase).value = starterYaml[phase];
+            document.getElementById('status-' + phase).className = 'editor-status pending';
+            document.getElementById('status-' + phase).textContent = 'Pending';
+            document.getElementById('feedback-' + phase).classList.remove('visible');
+            document.getElementById('terminal-' + phase).classList.remove('visible');
+            document.getElementById('hint-' + phase).classList.remove('visible');
+
+            if (!phaseState[phase]) return; // wasn't completed, nothing else to undo
+
+            phaseState[phase] = false;
+            var nextBtn = document.getElementById('next-' + phase);
+            if (nextBtn) nextBtn.disabled = true;
+
+            // Also reset all subsequent phases
+            for (var i = phase + 1; i <= 5; i++) {
+                phaseState[i] = false;
+                document.getElementById('editor-' + i).value = starterYaml[i];
+                document.getElementById('status-' + i).className = 'editor-status pending';
+                document.getElementById('status-' + i).textContent = 'Pending';
+                document.getElementById('feedback-' + i).classList.remove('visible');
+                document.getElementById('terminal-' + i).classList.remove('visible');
+                document.getElementById('hint-' + i).classList.remove('visible');
+                var nb = document.getElementById('next-' + i);
+                if (nb) nb.disabled = true;
+            }
+
+            document.getElementById('completeSection').classList.remove('visible');
+            var review = document.getElementById('pipelineReview');
+            if (review) review.style.display = 'none';
+
+            updateProgressTracker();
+        }
+
+        // ===== Completion =====
+        function showCompletion() {
+            document.getElementById('completeSection').classList.add('visible');
+            var review = document.getElementById('pipelineReview');
+            review.style.display = 'block';
+            document.getElementById('fullPipelineCode').textContent = fullPipelineYaml;
+        }
+
+        function completeModule() {
+            try {
+                var progress = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+                progress['do-112'] = Date.now();
+                localStorage.setItem('hexworth_forge_progress', JSON.stringify(progress));
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'do-112-cicd-pipeline-lab', { returnToDashboard: false });
+            }
+
+            var btn = document.querySelector('.complete-btn');
+            btn.textContent = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color = '#3b82f6';
+            btn.style.cursor = 'default';
+        }
+
+        // ===== Tab key support in textareas =====
+        document.querySelectorAll('.yaml-editor').forEach(function(editor) {
+            editor.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    var start = this.selectionStart;
+                    var end = this.selectionEnd;
+                    this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+                    this.selectionStart = this.selectionEnd = start + 2;
+                }
+            });
+        });
+
+        // ===== Check if already completed =====
+        try {
+            var p = JSON.parse(localStorage.getItem('hexworth_forge_progress') || '{}');
+            if (p['do-112']) {
+                var btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Completed!';
+                btn.style.background = 'rgba(59,130,246,0.2)';
+                btn.style.color = '#3b82f6';
+            }
+        } catch(e) {}
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
