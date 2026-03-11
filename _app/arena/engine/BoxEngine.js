@@ -1273,112 +1273,139 @@ const BoxEngine = {
             return;
         }
 
+        // Rate limiting check (client-side, prevents unnecessary server calls)
+        if (!this._coOpMode) {
+            const rateCheck = this._checkRateLimit();
+            if (rateCheck.blocked) {
+                msg.innerHTML = `<span style="color:#e74c3c;">${this._escHtml(rateCheck.message)}</span>`;
+                this._startRateLimitCountdown(rateCheck.wait);
+                return;
+            }
+        }
+
+        // Server-side flag validation (SEC-2)
+        // Check if FirebaseAuth is available for server validation
+        const useServer = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
+        const registryId = this.config.registryId;
+
+        if (useServer && registryId) {
+            msg.innerHTML = '<span style="color:#3498db;">Validating...</span>';
+            const submitBtn = document.getElementById('flagModalSubmit');
+            if (submitBtn) submitBtn.disabled = true;
+
+            FirebaseAuth.callFunction('validateFlag', {
+                boxId: registryId,
+                submission: raw
+            }).then(result => {
+                if (submitBtn) submitBtn.disabled = false;
+                const data = result.data || result;
+
+                if (data.correct && data.flagId) {
+                    this._handleFlagCapture(data.flagId, raw, input, msg);
+                } else {
+                    this._handleWrongFlag(raw, msg);
+                }
+            }).catch(err => {
+                if (submitBtn) submitBtn.disabled = false;
+                console.error('[ARENA] Server flag validation error:', err);
+                const errMsg = err.message || '';
+                if (errMsg.includes('Too many attempts')) {
+                    msg.innerHTML = '<span style="color:#e74c3c;">Rate limited. Wait and try again.</span>';
+                } else {
+                    msg.innerHTML = '<span style="color:#e74c3c;">Server error. Try again.</span>';
+                }
+            });
+            return;
+        }
+
+        // Fallback: client-side hashed comparison (offline or no auth)
+        this._hashFlag(raw, this.state._sessionSeed).then(submittedHash => {
+            for (const fh of this._flagHashes) {
+                if (submittedHash === fh.hash) {
+                    this._handleFlagCapture(fh.id, raw, input, msg);
+                    return;
+                }
+            }
+            this._handleWrongFlag(raw, msg);
+        }).catch(e => {
+            console.error('[ARENA] Flag hash error:', e);
+            msg.innerHTML = '<span style="color:#e74c3c;">Error validating flag. Try again.</span>';
+        });
+    },
+
+    /**
+     * Handle a correctly captured flag (shared by server + fallback paths).
+     */
+    _handleFlagCapture(flagId, rawInput, inputEl, msgEl) {
+        if (this.state.flagsFound.includes(flagId)) {
+            msgEl.innerHTML = '<span style="color:#3498db;">Flag already submitted.</span>';
+            return;
+        }
+
         const flags = this.config.flags || [];
+        const flag = flags.find(f => f.id === flagId);
+        const points = flag?.points || 100;
 
+        // Co-op: sync to shared state
         if (this._coOpMode) {
-            // Co-op: use hash comparison (AR-11) then submit atomically
-            const normalized = raw.toLowerCase().trim();
-            this._hashFlag(raw, this.state._sessionSeed).then(submittedHash => {
-                const matchedFH = this._flagHashes.find(fh => fh.hash === submittedHash);
-                const matchedFlag = matchedFH ? flags.find(f => f.id === matchedFH.id) : null;
-
-            msg.innerHTML = '<span style="color:#3498db;">Submitting...</span>';
-
             CoOpSync.submitFlagAtomically(
-                matchedFlag?.id || '__wrong__',
-                raw,
-                flags,
-                this.config.scoring
+                flagId, rawInput, flags, this.config.scoring
             ).then(result => {
                 if (result.success) {
                     this.state = { ...this._defaults(), ...result.newState };
-                    this._logEvent('flag_correct', { flagId: matchedFlag?.id, points: result.points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
-                    msg.innerHTML = `<span style="color:#2ecc71;">&#10003; ${result.message}</span>`;
+                    this._logEvent('flag_correct', { flagId, points: result.points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
+                    msgEl.innerHTML = `<span style="color:#2ecc71;">&#10003; ${result.message}</span>`;
                     this.notify(result.message, 'success');
                     this._syncFlagBadges();
                     this._updateScoreBadge();
-                    this._reportFlagCapture(matchedFlag?.id, result.points);
-                    this._checkPhaseProgression(matchedFlag?.id);
-                    input.value = '';
+                    this._reportFlagCapture(flagId, result.points);
+                    this._checkPhaseProgression(flagId);
+                    inputEl.value = '';
                     if (result.completed) {
                         this._completionShown = true;
                         this._reportCompletion();
                         setTimeout(() => this._showCompletion(0), 800);
                     }
                 } else {
-                    if (result.penalty) {
-                        this.state = { ...this._defaults(), ...result.newState };
-                        this._updateScoreBadge();
-                    }
-                    if (result.message !== 'Flag already submitted') {
-                        this._logEvent('flag_wrong', { flagId: '__none__', attempt: raw });
-                    }
                     const color = result.message === 'Flag already submitted' ? '#3498db' : '#e74c3c';
-                    msg.innerHTML = `<span style="color:${color};">${result.message}${result.penalty ? '. ' + result.penalty + ' points' : ''}</span>`;
+                    msgEl.innerHTML = `<span style="color:${color};">${result.message}</span>`;
                 }
-            });
             });
             return;
         }
 
-        // Solo mode: rate limiting check (AR-11)
-        const rateCheck = this._checkRateLimit();
-        if (rateCheck.blocked) {
-            msg.innerHTML = `<span style="color:#e74c3c;">${this._escHtml(rateCheck.message)}</span>`;
-            this._startRateLimitCountdown(rateCheck.wait);
-            return;
+        // Solo: update local state
+        this.state.flagsFound.push(flagId);
+        this.addScore(points, `${flagId}.txt captured`);
+        this._logEvent('flag_correct', { flagId, points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
+        msgEl.innerHTML = `<span style="color:#2ecc71;">&#10003; ${flagId}.txt captured! +${points} points</span>`;
+        this.notify(`${flagId}.txt captured! +${points} points`, 'success');
+        this._reportFlagCapture(flagId, points);
+
+        const badge = document.getElementById('flagBadge_' + flagId);
+        if (badge) badge.classList.add('found');
+
+        this._checkPhaseProgression(flagId);
+        inputEl.value = '';
+        this._checkCompletion();
+    },
+
+    /**
+     * Handle a wrong flag submission (shared by server + fallback paths).
+     */
+    _handleWrongFlag(rawInput, msgEl) {
+        this.state.wrongFlags++;
+        this.state.wrongFlagTimestamps.push(Date.now());
+        const penalty = this.config.scoring?.wrongFlagPenalty || -25;
+        this.addScore(penalty, 'Wrong flag attempt');
+        this._logEvent('flag_wrong', { flagId: '__none__', attempt: rawInput });
+        msgEl.innerHTML = `<span style="color:#e74c3c;">Incorrect flag. ${penalty} points</span>`;
+        this.save();
+
+        const postCheck = this._checkRateLimit();
+        if (postCheck.blocked) {
+            this._startRateLimitCountdown(postCheck.wait);
         }
-
-        // Solo mode: hashed flag comparison (AR-11)
-        // Hash the submitted value and compare against pre-computed hashes
-        this._hashFlag(raw, this.state._sessionSeed).then(submittedHash => {
-            // Check against pre-computed flag hashes
-            for (const fh of this._flagHashes) {
-                if (submittedHash === fh.hash) {
-                    if (this.state.flagsFound.includes(fh.id)) {
-                        msg.innerHTML = '<span style="color:#3498db;">Flag already submitted.</span>';
-                        return;
-                    }
-                    // Found new flag
-                    const flag = flags.find(f => f.id === fh.id);
-                    this.state.flagsFound.push(fh.id);
-                    this.addScore(fh.points, `${fh.id}.txt captured`);
-                    this._logEvent('flag_correct', { flagId: fh.id, points: fh.points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
-                    msg.innerHTML = `<span style="color:#2ecc71;">&#10003; ${fh.id}.txt captured! +${fh.points} points</span>`;
-                    this.notify(`${fh.id}.txt captured! +${fh.points} points`, 'success');
-                    this._reportFlagCapture(fh.id, fh.points);
-
-                    // Update badge
-                    const badge = document.getElementById('flagBadge_' + fh.id);
-                    if (badge) badge.classList.add('found');
-
-                    // Check phase progression
-                    this._checkPhaseProgression(fh.id);
-
-                    input.value = '';
-                    this._checkCompletion();
-                    return;
-                }
-            }
-
-            // Wrong flag
-            this.state.wrongFlags++;
-            this.state.wrongFlagTimestamps.push(Date.now());
-            const penalty = this.config.scoring?.wrongFlagPenalty || -25;
-            this.addScore(penalty, 'Wrong flag attempt');
-            this._logEvent('flag_wrong', { flagId: '__none__', attempt: raw });
-            msg.innerHTML = `<span style="color:#e74c3c;">Incorrect flag. ${penalty} points</span>`;
-            this.save();
-
-            // Check if we just triggered rate limiting
-            const postCheck = this._checkRateLimit();
-            if (postCheck.blocked) {
-                this._startRateLimitCountdown(postCheck.wait);
-            }
-        }).catch(e => {
-            console.error('[ARENA] Flag hash error:', e);
-            msg.innerHTML = '<span style="color:#e74c3c;">Error validating flag. Try again.</span>';
-        });
     },
 
     _checkCompletion() {

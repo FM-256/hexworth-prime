@@ -77,6 +77,7 @@ const A17Config = {
     difficulty: 'Expert',
     accent: '#9b59b6',
     storageKey: 'hexworth_ctf_a17',
+    registryId: 'a17-whisper-campaign',
     trackerKey: 'ctf_a17',
 
     // ═══════════════════════════════════════════════════════
@@ -195,8 +196,8 @@ const A17Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}', points: 100 },
-        { id: 'root', value: 'flag{wh1sp3r_c0d3_f1n4l_m4n1f3st}',   points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

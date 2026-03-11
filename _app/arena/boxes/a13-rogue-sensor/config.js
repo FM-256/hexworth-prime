@@ -78,6 +78,7 @@ const A13Config = {
     difficulty: 'Advanced',
     accent: '#27ae60',
     storageKey: 'hexworth_ctf_a13',
+    registryId: 'a13-rogue-sensor',
     trackerKey: 'ctf_a13',
 
     // ═══════════════════════════════════════════════════════
@@ -265,8 +266,8 @@ const A13Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{s3ns0r_n0d3_d3f4ult_cr3ds}', points: 100 },
-        { id: 'root', value: 'flag{b10_m4n1f3st_p1v0t_succ3ss}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

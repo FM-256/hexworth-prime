@@ -15,6 +15,7 @@ const A1Config = {
     difficulty: 'Beginner-Intermediate',
     accent: '#dc2626',
     storageKey: 'hexworth_ctf_a1',
+    registryId: 'a1-ancient-ledger',
     trackerKey: 'ctf_a1',
 
     // ═══════════════════════════════════════════════════════
@@ -214,8 +215,8 @@ const A1Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{4nc13nt_l3dg3r_sql1_d1sc0v3r3d}', points: 100 },
-        { id: 'root', value: 'flag{st3ll4r_f0rg3_4ll0c4t10n_c0d3s}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

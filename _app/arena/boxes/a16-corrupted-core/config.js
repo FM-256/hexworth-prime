@@ -77,6 +77,7 @@ const A16Config = {
     difficulty: 'Expert',
     accent: '#c0392b',
     storageKey: 'hexworth_ctf_a16',
+    registryId: 'a16-corrupted-core',
     trackerKey: 'ctf_a16',
 
     // ═══════════════════════════════════════════════════════
@@ -211,8 +212,8 @@ const A16Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{cr1ms0n_gh0st_c2_192_168_13_37}', points: 100 },
-        { id: 'root', value: 'flag{gh0st_pr0t0c0l_d3crypt10n_k3y}',  points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

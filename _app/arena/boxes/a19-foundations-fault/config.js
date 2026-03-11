@@ -78,6 +78,7 @@ const A19Config = {
     difficulty: 'Expert',
     accent: '#d35400',
     storageKey: 'hexworth_ctf_a19',
+    registryId: 'a19-foundations-fault',
     trackerKey: 'ctf_a19',
 
     // ═══════════════════════════════════════════════════════
@@ -269,8 +270,8 @@ const A19Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{k3rn3l_5_4_0_58_g3n3r1c}', points: 100 },
-        { id: 'root', value: 'flag{c1t4d3l_blu3pr1nt_k3rn3l_pwn3d}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

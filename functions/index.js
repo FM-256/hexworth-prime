@@ -145,8 +145,12 @@ exports.verifyGateAccess = onCall(cfOptions, async (request) => {
 
 /**
  * validateFlag — Server-side flag validation.
- * Flags are salted per-session so DevTools inspection is useless.
  * The client never sees the real flag — only the server knows.
+ *
+ * Two modes:
+ * 1. With flagId: check specific flag (original behavior)
+ * 2. Without flagId: check submission against ALL flags for the box,
+ *    return which one matched (SEC-2: client doesn't know flag IDs)
  */
 exports.validateFlag = onCall(cfOptions, async (request) => {
     if (!request.auth) {
@@ -155,62 +159,73 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
 
     const { boxId, flagId, submission, sessionId } = request.data || {};
 
-    if (!boxId || !flagId || !submission) {
-        throw new HttpsError('invalid-argument', 'Missing boxId, flagId, or submission.');
+    if (!boxId || !submission) {
+        throw new HttpsError('invalid-argument', 'Missing boxId or submission.');
     }
 
     const uid = request.auth.uid;
 
-    // Rate limiting — check recent attempts
+    // Rate limiting — check recent attempts per box
     const attemptsRef = db.collection(`users/${uid}/flag_attempts`);
-    const recentAttempts = await attemptsRef
-        .where('boxId', '==', boxId)
-        .where('flagId', '==', flagId)
-        .where('timestamp', '>', new Date(Date.now() - 60000)) // last 60 seconds
-        .get();
+    try {
+        const recentAttempts = await attemptsRef
+            .where('boxId', '==', boxId)
+            .where('timestamp', '>', new Date(Date.now() - 60000))
+            .get();
 
-    if (recentAttempts.size >= 5) {
-        throw new HttpsError('resource-exhausted',
-            'Too many attempts. Wait 60 seconds before trying again.');
+        if (recentAttempts.size >= 10) {
+            throw new HttpsError('resource-exhausted',
+                'Too many attempts. Wait 60 seconds before trying again.');
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn('Rate limit query failed (index may be building):', e.message);
     }
 
     // Log the attempt
-    await attemptsRef.add({
+    attemptsRef.add({
         boxId,
-        flagId,
+        flagId: flagId || '__scan__',
         timestamp: FieldValue.serverTimestamp(),
         sessionId: sessionId || null
-    });
+    }).catch(e => console.warn('Attempt log failed:', e.message));
 
-    // Look up the correct flag from server-side flag registry
+    // Look up the correct flags from server-side flag registry
     const flagDoc = await db.doc(`flag_registry/${boxId}`).get();
     if (!flagDoc.exists) {
         throw new HttpsError('not-found', 'Box not found in flag registry.');
     }
 
     const flags = flagDoc.data().flags || {};
-    const correctFlag = flags[flagId];
-
-    if (!correctFlag) {
-        throw new HttpsError('not-found', 'Flag not found.');
-    }
-
-    // Compare — normalize whitespace and case
     const normalizedSubmission = submission.trim().toLowerCase();
-    const normalizedCorrect = correctFlag.trim().toLowerCase();
-    const isCorrect = normalizedSubmission === normalizedCorrect;
 
-    if (isCorrect) {
-        // Record the capture
-        await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
-            boxId,
-            flagId,
-            capturedAt: FieldValue.serverTimestamp(),
-            sessionId: sessionId || null
-        });
+    // Mode 1: specific flagId provided
+    if (flagId) {
+        const correctFlag = flags[flagId];
+        if (!correctFlag) {
+            throw new HttpsError('not-found', 'Flag not found.');
+        }
+        const isCorrect = normalizedSubmission === correctFlag.trim().toLowerCase();
+
+        if (isCorrect) {
+            await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
+                boxId, flagId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
+            });
+        }
+        return { correct: isCorrect, flagId: isCorrect ? flagId : null };
     }
 
-    return { correct: isCorrect };
+    // Mode 2: no flagId — check all flags for the box
+    for (const [fid, fvalue] of Object.entries(flags)) {
+        if (normalizedSubmission === fvalue.trim().toLowerCase()) {
+            await db.doc(`users/${uid}/flag_captures/${boxId}_${fid}`).set({
+                boxId, flagId: fid, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
+            });
+            return { correct: true, flagId: fid };
+        }
+    }
+
+    return { correct: false, flagId: null };
 });
 
 // ─── Game Scoreboard ─────────────────────────────────────────────

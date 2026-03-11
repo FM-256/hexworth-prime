@@ -77,6 +77,7 @@ const A9Config = {
     difficulty: 'Intermediate-Advanced',
     accent: '#e67e22',
     storageKey: 'hexworth_ctf_a9',
+    registryId: 'a9-rusted-lock',
     trackerKey: 'ctf_a9',
 
     // ═══════════════════════════════════════════════════════
@@ -195,8 +196,8 @@ const A9Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{rust3d_l0ck_d3s3r14l1z3d}', points: 100 },
-        { id: 'root', value: 'flag{f0rg3_r3mn4nts_rc3_m4st3r}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

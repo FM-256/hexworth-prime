@@ -77,6 +77,7 @@ const A10Config = {
     difficulty: 'Intermediate-Advanced',
     accent: '#2c3e50',
     storageKey: 'hexworth_ctf_a10',
+    registryId: 'a10-glass-tunnel',
     trackerKey: 'ctf_a10',
 
     // ═══════════════════════════════════════════════════════
@@ -195,8 +196,8 @@ const A10Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{gl4ss_tunn3l_ssrf_1nt3rn4l}', points: 100 },
-        { id: 'root', value: 'flag{gl4ss_c0rr1d0r_r3d1s_r00t}',  points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

@@ -83,6 +83,7 @@ const A7Config = {
     difficulty: 'Intermediate',
     accent: '#1abc9c',
     storageKey: 'hexworth_ctf_a7',
+    registryId: 'a7-hollow-database',
     trackerKey: 'ctf_a7',
 
     // ═══════════════════════════════════════════════════════
@@ -220,8 +221,8 @@ const A7Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{h0ll0w_db_n0sql_byp4ss}',      points: 100 },
-        { id: 'root', value: 'flag{v01d_c0ll3ct1v3_m4st3r_k3y}',  points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

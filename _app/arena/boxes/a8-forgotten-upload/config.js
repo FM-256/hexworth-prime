@@ -77,6 +77,7 @@ const A8Config = {
     difficulty: 'Intermediate',
     accent: '#e74c3c',
     storageKey: 'hexworth_ctf_a8',
+    registryId: 'a8-forgotten-upload',
     trackerKey: 'ctf_a8',
 
     // ═══════════════════════════════════════════════════════
@@ -221,8 +222,8 @@ const A8Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{4sh3n_4rch1v3_upl04d_byp4ss}', points: 100 },
-        { id: 'root', value: 'flag{4sh3n_r00t_f1nd_pr1v3sc}',     points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

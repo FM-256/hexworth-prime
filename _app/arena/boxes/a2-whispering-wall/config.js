@@ -83,6 +83,7 @@ const A2Config = {
     difficulty: 'Beginner-Intermediate',
     accent: '#e67e22',
     storageKey: 'hexworth_ctf_a2',
+    registryId: 'a2-whispering-wall',
     trackerKey: 'ctf_a2',
 
     // ═══════════════════════════════════════════════════════
@@ -201,8 +202,8 @@ const A2Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{wh1sp3r1ng_w4ll_x55_r3fl3ct3d}', points: 100 },
-        { id: 'root', value: 'flag{0bs1d14n_h4nd_s3rv3r_c0mpr0m1s3d}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════
