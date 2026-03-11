@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access control — requires 'sorted' gate before rendering -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress and achievement tracking loaded before viewport so they initialise early -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API-3: API Design &amp; Documentation | House of the Cloud</title>
+    <style>
+        /* ── Reset & tokens ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:          #0d1117;
+            --bg-card:     #161b22;
+            --bg-card2:    #1c2128;
+            --border:      rgba(121, 192, 255, 0.18);
+            --accent:      #79c0ff;   /* cloud house light-blue */
+            --accent-dim:  #58a6ff;
+            --accent-dark: #1f6feb;
+            --text:        #e6edf3;
+            --text-muted:  #8b949e;
+            --green:       #3fb950;
+            --orange:      #e3b341;
+            --red:         #f85149;
+            --purple:      #bc8cff;
+            --teal:        #39d353;
+            --radius:      14px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow: hidden;          /* slides are full-viewport */
+        }
+
+        /* ── Progress bar ───────────────────────────────────────────── */
+        #progressBar {
+            position: absolute;        /* fixed is broken when body filter set — HEUR-008 */
+            top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-dark), var(--accent));
+            width: 0;
+            z-index: 200;
+            transition: width 0.35s ease;
+            pointer-events: none;
+        }
+
+        /* ── Slide shell ────────────────────────────────────────────── */
+        .deck {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Header bar */
+        .deck-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0.65rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+        .deck-header a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        .deck-header a:hover { opacity: 0.75; }
+        .deck-badge {
+            background: rgba(121, 192, 255, 0.12);
+            color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 0.25rem 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        /* Slide viewport */
+        .slide-viewport {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .slide {
+            display: none;
+            position: absolute;
+            inset: 0;
+            padding: 2.5rem 3.5rem;
+            overflow-y: auto;
+            animation: fadeUp 0.35s ease both;
+        }
+        .slide.active { display: block; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Nav bar ────────────────────────────────────────────────── */
+        .deck-nav {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 0.65rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .nav-btn {
+            background: var(--bg-card2);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(121, 192, 255, 0.12);
+            border-color: var(--accent);
+        }
+        .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .slide-counter { color: var(--text-muted); font-size: 0.9rem; font-weight: 600; }
+
+        #completeBtn {
+            display: none;
+            background: var(--green);
+            color: #0d1117;
+            border: none;
+            padding: 0.5rem 1.4rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+        #completeBtn:hover { filter: brightness(1.15); }
+
+        /* ── Typography ─────────────────────────────────────────────── */
+        .slide h1 {
+            font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            font-weight: 800;
+        }
+        .slide h2 {
+            font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+            color: var(--accent);
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            font-weight: 700;
+        }
+        .slide h3 { font-size: 1.15rem; color: var(--accent-dim); margin-bottom: 0.5rem; }
+        .slide p  { color: var(--text-muted); line-height: 1.7; margin-bottom: 0.75rem; }
+        .slide ul { list-style: none; margin-bottom: 0.75rem; }
+        .slide ul li { color: var(--text-muted); padding: 0.25rem 0; display: flex; gap: 0.55rem; line-height: 1.55; }
+        .slide ul li::before { content: ">"; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+
+        /* Slide subtitle / label */
+        .slide-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-dim);
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+        .slide-intro { color: var(--text-muted); font-size: 1.05rem; max-width: 68ch; margin-bottom: 2rem; }
+
+        /* ── Layout helpers ─────────────────────────────────────────── */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+
+        /* ── Cards ──────────────────────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.4rem;
+        }
+        .card h3 { color: var(--accent); margin-bottom: 0.5rem; }
+        .card p  { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+
+        /* Accent-top card variants */
+        .card-blue  { border-top: 3px solid var(--accent); }
+        .card-green { border-top: 3px solid var(--green); }
+        .card-orange{ border-top: 3px solid var(--orange); }
+        .card-red   { border-top: 3px solid var(--red); }
+        .card-purple{ border-top: 3px solid var(--purple); }
+
+        /* ── Code blocks ────────────────────────────────────────────── */
+        .code-block {
+            background: #010409;
+            border: 1px solid rgba(121, 192, 255, 0.15);
+            border-radius: 10px;
+            padding: 1rem 1.2rem;
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 0.82rem;
+            color: #a5d6ff;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+            white-space: pre;
+        }
+        .code-block .kw  { color: #ff7b72; }   /* keyword */
+        .code-block .str { color: #a5d6ff; }   /* string */
+        .code-block .cmt { color: #6e7681; }   /* comment */
+        .code-block .num { color: #79c0ff; }   /* number */
+        .code-block .key { color: #ffa657; }   /* JSON key */
+
+        /* ── HTTP Method badges ─────────────────────────────────────── */
+        .method-row { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+        .method-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.65rem 1rem;
+            background: var(--bg-card2);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .method-badge {
+            font-family: monospace;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 0.2rem 0.55rem;
+            border-radius: 5px;
+            min-width: 62px;
+            text-align: center;
+            flex-shrink: 0;
+            letter-spacing: 0.05em;
+        }
+        .badge-get    { background: rgba(63, 185, 80, 0.18);  color: var(--green);  border: 1px solid rgba(63, 185, 80, 0.35); }
+        .badge-post   { background: rgba(121, 192, 255, 0.18); color: var(--accent); border: 1px solid rgba(121, 192, 255, 0.35); }
+        .badge-put    { background: rgba(227, 179, 65, 0.18);  color: var(--orange); border: 1px solid rgba(227, 179, 65, 0.35); }
+        .badge-patch  { background: rgba(188, 140, 255, 0.18); color: var(--purple); border: 1px solid rgba(188, 140, 255, 0.35); }
+        .badge-delete { background: rgba(248, 81, 73, 0.18);  color: var(--red);    border: 1px solid rgba(248, 81, 73, 0.35); }
+        .method-text { color: var(--text-muted); font-size: 0.9rem; }
+        .method-label { color: var(--text); font-size: 0.9rem; font-weight: 600; }
+
+        /* ── Status code rows ───────────────────────────────────────── */
+        .status-group { margin-bottom: 1rem; }
+        .status-group-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.4rem;
+        }
+        .status-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .status-pill {
+            display: flex; align-items: center; gap: 0.45rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            border: 1px solid;
+        }
+        .status-2xx { background: rgba(63, 185, 80, 0.12);  color: var(--green);  border-color: rgba(63, 185, 80, 0.3); }
+        .status-3xx { background: rgba(121, 192, 255, 0.1); color: var(--accent); border-color: rgba(121, 192, 255, 0.3); }
+        .status-4xx { background: rgba(227, 179, 65, 0.1);  color: var(--orange); border-color: rgba(227, 179, 65, 0.3); }
+        .status-5xx { background: rgba(248, 81, 73, 0.1);   color: var(--red);    border-color: rgba(248, 81, 73, 0.3); }
+
+        /* ── Comparison table ───────────────────────────────────────── */
+        .compare-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-bottom: 1rem; }
+        .compare-table th {
+            background: var(--bg-card2);
+            color: var(--accent);
+            font-weight: 700;
+            padding: 0.65rem 1rem;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+        }
+        .compare-table td {
+            padding: 0.55rem 1rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: top;
+        }
+        .compare-table tr:hover td { background: rgba(121, 192, 255, 0.04); }
+        .compare-table .good { color: var(--green); font-weight: 600; }
+        .compare-table .warn { color: var(--orange); font-weight: 600; }
+
+        /* ── Highlight callout ──────────────────────────────────────── */
+        .callout {
+            background: rgba(121, 192, 255, 0.07);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 0.85rem 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            font-size: 0.92rem;
+        }
+        .callout strong { color: var(--accent); }
+
+        .callout-green {
+            background: rgba(63, 185, 80, 0.07);
+            border-left-color: var(--green);
+        }
+        .callout-green strong { color: var(--green); }
+        .callout-orange {
+            background: rgba(227, 179, 65, 0.07);
+            border-left-color: var(--orange);
+        }
+        .callout-orange strong { color: var(--orange); }
+        .callout-red {
+            background: rgba(248, 81, 73, 0.07);
+            border-left-color: var(--red);
+        }
+        .callout-red strong { color: var(--red); }
+
+        /* ── Title slide hero ───────────────────────────────────────── */
+        .hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 72vh;
+            gap: 1rem;
+        }
+        .hero-icon {
+            width: 80px; height: 80px;
+            background: rgba(121, 192, 255, 0.1);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+        .hero-icon img { width: 42px; height: 42px; object-fit: contain; }
+        .hero h1 { margin-bottom: 0; }
+        .hero .hero-sub { font-size: 1.05rem; color: var(--text-muted); max-width: 55ch; }
+        .hero-tags { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; margin-top: 0.5rem; }
+        .hero-tag {
+            background: rgba(121, 192, 255, 0.1);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            border-radius: 20px;
+            padding: 0.25rem 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* ── Anti-pattern badges ────────────────────────────────────── */
+        .antipattern-list { display: flex; flex-direction: column; gap: 0.65rem; }
+        .antipattern-item {
+            display: flex; gap: 1rem; align-items: flex-start;
+            background: rgba(248, 81, 73, 0.06);
+            border: 1px solid rgba(248, 81, 73, 0.2);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+        }
+        .antipattern-label {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--red);
+            border-radius: 6px;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .antipattern-text { color: var(--text-muted); font-size: 0.9rem; }
+        .antipattern-text strong { color: var(--text); }
+
+        /* ── Review Q&A ─────────────────────────────────────────────── */
+        .qa-list { display: flex; flex-direction: column; gap: 1rem; }
+        .qa-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .qa-question {
+            padding: 0.9rem 1.1rem;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .qa-question:hover { background: rgba(121, 192, 255, 0.06); }
+        .qa-toggle { color: var(--accent); font-weight: 700; font-size: 1.1rem; flex-shrink: 0; }
+        .qa-answer {
+            display: none;
+            padding: 0.85rem 1.1rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            background: rgba(121, 192, 255, 0.03);
+            font-size: 0.92rem;
+            line-height: 1.65;
+        }
+        .qa-answer.visible { display: block; }
+
+        /* ── Interactive: API Designer ──────────────────────────────── */
+        .designer-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .designer-scenario {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.1rem;
+        }
+        .designer-scenario h3 { color: var(--accent); margin-bottom: 0.75rem; font-size: 1rem; }
+        .designer-scenario p  { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+        .designer-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .designer-panel h3 { color: var(--accent); margin-bottom: 0.3rem; font-size: 1rem; }
+        .designer-row { display: flex; gap: 0.5rem; align-items: center; }
+        .designer-select, .designer-input {
+            background: #010409;
+            border: 1px solid rgba(121, 192, 255, 0.2);
+            border-radius: 7px;
+            color: var(--text);
+            padding: 0.4rem 0.7rem;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .designer-select:focus,
+        .designer-input:focus  { border-color: var(--accent); }
+        .designer-select { flex-shrink: 0; min-width: 90px; }
+        .designer-input  { flex: 1; font-family: monospace; }
+        .designer-status {
+            font-size: 0.85rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+        .status-field {
+            background: #010409;
+            border: 1px solid rgba(121, 192, 255, 0.2);
+            border-radius: 7px;
+            color: var(--text);
+            padding: 0.4rem 0.7rem;
+            font-size: 0.85rem;
+            outline: none;
+            flex-shrink: 0;
+            min-width: 72px;
+            transition: border-color 0.2s;
+        }
+        .status-field:focus { border-color: var(--accent); }
+        .designer-actions { display: flex; gap: 0.6rem; margin-top: 0.3rem; }
+        .btn-validate {
+            background: var(--accent-dark);
+            color: #fff;
+            border: none;
+            border-radius: 7px;
+            padding: 0.45rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+        .btn-validate:hover { filter: brightness(1.2); }
+        .btn-reset {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 0.45rem 0.85rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+        .feedback-box {
+            margin-top: 0.5rem;
+            padding: 0.65rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            min-height: 48px;
+            display: none;
+        }
+        .feedback-box.pass {
+            display: block;
+            background: rgba(63, 185, 80, 0.1);
+            border: 1px solid rgba(63, 185, 80, 0.3);
+            color: var(--green);
+        }
+        .feedback-box.fail {
+            display: block;
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+            color: var(--red);
+        }
+        .feedback-box.warn-feedback {
+            display: block;
+            background: rgba(227, 179, 65, 0.1);
+            border: 1px solid rgba(227, 179, 65, 0.3);
+            color: var(--orange);
+        }
+
+        /* ── OpenAPI Preview ────────────────────────────────────────── */
+        .openapi-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .openapi-editor-pane {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .pane-title {
+            padding: 0.55rem 1rem;
+            background: var(--bg-card2);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .pane-title span { color: var(--accent); }
+        .openapi-textarea {
+            flex: 1;
+            background: #010409;
+            border: none;
+            color: #a5d6ff;
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            padding: 0.9rem 1rem;
+            resize: none;
+            outline: none;
+            line-height: 1.6;
+            min-height: 320px;
+        }
+        .openapi-preview-pane {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .openapi-rendered { flex: 1; padding: 1rem; overflow-y: auto; min-height: 320px; }
+        .oapi-endpoint {
+            background: var(--bg-card2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 0.65rem;
+            overflow: hidden;
+        }
+        .oapi-ep-header {
+            display: flex; align-items: center; gap: 0.65rem;
+            padding: 0.55rem 0.85rem;
+        }
+        .oapi-ep-body {
+            padding: 0.65rem 0.85rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .oapi-ep-body strong { color: var(--text); }
+        .oapi-info-block { margin-bottom: 0.75rem; }
+        .oapi-info-block .oapi-title { color: var(--accent); font-size: 1rem; font-weight: 700; }
+        .oapi-info-block .oapi-version { color: var(--text-muted); font-size: 0.82rem; }
+        .oapi-parse-error { color: var(--red); font-size: 0.85rem; padding: 0.5rem; }
+        .render-btn {
+            background: var(--accent-dark);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+        .render-btn:hover { filter: brightness(1.2); }
+
+        /* ── Checklist items ────────────────────────────────────────── */
+        .checklist { list-style: none; }
+        .checklist li {
+            display: flex; gap: 0.65rem; padding: 0.3rem 0;
+            color: var(--text-muted); font-size: 0.92rem;
+        }
+        .checklist li::before { content: none; }
+        .check-mark { color: var(--green); font-weight: 700; flex-shrink: 0; }
+
+        /* ── Versioning comparison ──────────────────────────────────── */
+        .version-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .version-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.1rem;
+        }
+        .version-card h3 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+        .version-card .example { font-family: monospace; font-size: 0.8rem; color: var(--accent); background: rgba(121,192,255,0.08); padding: 0.25rem 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; display: inline-block; }
+        .pro { color: var(--green); font-size: 0.82rem; }
+        .con { color: var(--red);   font-size: 0.82rem; }
+
+        /* ── Responsive ─────────────────────────────────────────────── */
+        @media (max-width: 860px) {
+            .slide { padding: 1.5rem; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .designer-wrap, .openapi-wrap { grid-template-columns: 1fr; }
+            .version-cards { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="deck">
+
+    <!-- Ambient progress bar tracks position through deck -->
+    <div id="progressBar"></div>
+
+    <!-- Persistent header -->
+    <header class="deck-header">
+        <a href="../index.html">&larr; Cloud House</a>
+        <div class="deck-badge">API-3 &middot; 16 SLIDES</div>
+    </header>
+
+    <!-- ============================================================
+         SLIDE VIEWPORT
+    ============================================================ -->
+    <div class="slide-viewport">
+
+        <!-- ── SLIDE 1: Title ─────────────────────────────────────── -->
+        <div class="slide active" id="slide1">
+            <div class="hero">
+                <div class="hero-icon">
+                    <img src="/assets/images/icons/icon-chain.webp" alt="">
+                </div>
+                <div class="slide-label">API Design &amp; Documentation</div>
+                <h1>API-3: Design Principles &amp; Documentation</h1>
+                <p class="hero-sub">
+                    Build APIs that are intuitive, consistent, and self-documenting.
+                    Master REST, OpenAPI, GraphQL, and gRPC — and know when to reach for each.
+                </p>
+                <div class="hero-tags">
+                    <span class="hero-tag">REST</span>
+                    <span class="hero-tag">OpenAPI</span>
+                    <span class="hero-tag">GraphQL</span>
+                    <span class="hero-tag">gRPC</span>
+                    <span class="hero-tag">HATEOAS</span>
+                    <span class="hero-tag">API Versioning</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 2: RESTful Design Principles ────────────────── -->
+        <div class="slide" id="slide2">
+            <div class="slide-label">Slide 2 of 16</div>
+            <h1>RESTful Design Principles</h1>
+            <p class="slide-intro">REST (Representational State Transfer) defines six architectural constraints that separate it from ad-hoc RPC approaches.</p>
+
+            <div class="grid-2">
+                <div class="card card-blue">
+                    <h3>Client-Server</h3>
+                    <p>Separate UI concerns from data storage. The server exposes resources; the client decides how to present them. Enables independent evolution of each side.</p>
+                </div>
+                <div class="card card-blue">
+                    <h3>Stateless</h3>
+                    <p>Each request carries all context required to process it — no session state is stored server-side between calls. Simplifies scaling and caching.</p>
+                </div>
+                <div class="card card-blue">
+                    <h3>Cacheable</h3>
+                    <p>Responses must label themselves as cacheable or not. Clients and intermediaries (CDNs, proxies) can then reuse safe responses, reducing load.</p>
+                </div>
+                <div class="card card-blue">
+                    <h3>Uniform Interface</h3>
+                    <p>Four sub-constraints: resource identification in requests, manipulation through representations, self-descriptive messages, and HATEOAS (slide 6).</p>
+                </div>
+                <div class="card card-blue">
+                    <h3>Layered System</h3>
+                    <p>Clients cannot tell whether they are talking to an origin server or an intermediary. This enables load balancers, gateways, and security layers to be inserted transparently.</p>
+                </div>
+                <div class="card card-blue">
+                    <h3>Code on Demand (optional)</h3>
+                    <p>Servers can extend client functionality by transferring executable code (e.g., JavaScript). The only optional constraint in REST.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 3: HTTP Methods ──────────────────────────────── -->
+        <div class="slide" id="slide3">
+            <div class="slide-label">Slide 3 of 16</div>
+            <h1>HTTP Methods — Semantics</h1>
+            <p class="slide-intro">Each HTTP verb carries a defined contract. Violating these semantics breaks caching, idempotency, and client expectations.</p>
+
+            <div class="method-row">
+                <div class="method-item">
+                    <span class="method-badge badge-get">GET</span>
+                    <div>
+                        <div class="method-label">Retrieve a resource or collection — safe, idempotent, cacheable</div>
+                        <div class="method-text">Never mutate state. Repeated calls must return the same logical result. Example: <code style="color:var(--accent)">GET /books/42</code></div>
+                    </div>
+                </div>
+                <div class="method-item">
+                    <span class="method-badge badge-post">POST</span>
+                    <div>
+                        <div class="method-label">Create a subordinate resource — not safe, not idempotent</div>
+                        <div class="method-text">Server assigns the new resource URI. Calling twice creates two resources. Example: <code style="color:var(--accent)">POST /books</code></div>
+                    </div>
+                </div>
+                <div class="method-item">
+                    <span class="method-badge badge-put">PUT</span>
+                    <div>
+                        <div class="method-label">Replace a resource entirely — not safe, idempotent</div>
+                        <div class="method-text">Client provides the complete representation. Calling twice leaves the server in the same state. Example: <code style="color:var(--accent)">PUT /books/42</code></div>
+                    </div>
+                </div>
+                <div class="method-item">
+                    <span class="method-badge badge-patch">PATCH</span>
+                    <div>
+                        <div class="method-label">Apply a partial update — not safe, not guaranteed idempotent</div>
+                        <div class="method-text">Only send fields that change. Design patch documents carefully to make them idempotent (RFC 6902 JSON Patch). Example: <code style="color:var(--accent)">PATCH /books/42</code></div>
+                    </div>
+                </div>
+                <div class="method-item">
+                    <span class="method-badge badge-delete">DELETE</span>
+                    <div>
+                        <div class="method-label">Remove a resource — not safe, idempotent</div>
+                        <div class="method-text">A second DELETE on the same URI should return 404 or 204 — both are acceptable; the end state is identical. Example: <code style="color:var(--accent)">DELETE /books/42</code></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 4: Resource Naming ───────────────────────────── -->
+        <div class="slide" id="slide4">
+            <div class="slide-label">Slide 4 of 16</div>
+            <h1>Resource Naming Conventions</h1>
+            <p class="slide-intro">Good URIs read like a directory hierarchy, not a function call. They identify things, not actions.</p>
+
+            <div class="grid-2">
+                <div>
+                    <h2>Rules</h2>
+                    <ul>
+                        <li>Use <strong style="color:var(--text)">plural nouns</strong> for collections: <code style="color:var(--accent)">/books</code>, <code style="color:var(--accent)">/users</code></li>
+                        <li>Use singular noun + ID for items: <code style="color:var(--accent)">/books/42</code></li>
+                        <li>Express relationships through nesting (max 2–3 levels): <code style="color:var(--accent)">/authors/7/books</code></li>
+                        <li>Use <strong style="color:var(--text)">kebab-case</strong> for multi-word segments: <code style="color:var(--accent)">/book-categories</code></li>
+                        <li>Query parameters for filtering, sorting, pagination: <code style="color:var(--accent)">/books?genre=sci-fi&amp;sort=title&amp;page=2</code></li>
+                        <li>Never include verbs in URIs — method encodes the action</li>
+                        <li>Lowercase only — URIs are case-sensitive by spec</li>
+                        <li>No trailing slashes — treat <code style="color:var(--accent)">/books</code> and <code style="color:var(--accent)">/books/</code> as the same resource, redirect if needed</li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Anti-patterns vs Correct</h2>
+                    <div class="code-block"><span class="cmt"># Bad — verbs in path</span>
+GET /getBook/42
+POST /createBook
+DELETE /deleteBook/42
+
+<span class="cmt"># Good — nouns, HTTP verb carries action</span>
+GET    /books/42
+POST   /books
+DELETE /books/42
+
+<span class="cmt"># Bad — inconsistent, singular</span>
+GET /book?id=42
+GET /Book/42
+
+<span class="cmt"># Good — plural, lowercase, ID in path</span>
+GET /books/42</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 5: Status Codes ──────────────────────────────── -->
+        <div class="slide" id="slide5">
+            <div class="slide-label">Slide 5 of 16</div>
+            <h1>HTTP Status Codes</h1>
+            <p class="slide-intro">Status codes are a contract with clients. Misusing them (e.g., returning 200 for errors) breaks monitoring, caching, and retry logic.</p>
+
+            <div class="grid-2">
+                <div>
+                    <div class="status-group">
+                        <div class="status-group-title" style="color:var(--green)">2xx — Success</div>
+                        <div class="status-row">
+                            <span class="status-pill status-2xx"><strong>200</strong> OK — general success</span>
+                            <span class="status-pill status-2xx"><strong>201</strong> Created — POST succeeded</span>
+                            <span class="status-pill status-2xx"><strong>204</strong> No Content — DELETE / update with no body</span>
+                            <span class="status-pill status-2xx"><strong>206</strong> Partial Content — range requests</span>
+                        </div>
+                    </div>
+
+                    <div class="status-group">
+                        <div class="status-group-title" style="color:var(--accent)">3xx — Redirection</div>
+                        <div class="status-row">
+                            <span class="status-pill status-3xx"><strong>301</strong> Moved Permanently — update bookmarks</span>
+                            <span class="status-pill status-3xx"><strong>302</strong> Found — temporary redirect</span>
+                            <span class="status-pill status-3xx"><strong>304</strong> Not Modified — ETag cache hit</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="status-group">
+                        <div class="status-group-title" style="color:var(--orange)">4xx — Client Errors</div>
+                        <div class="status-row">
+                            <span class="status-pill status-4xx"><strong>400</strong> Bad Request — malformed syntax</span>
+                            <span class="status-pill status-4xx"><strong>401</strong> Unauthorized — missing / bad credentials</span>
+                            <span class="status-pill status-4xx"><strong>403</strong> Forbidden — authenticated but not allowed</span>
+                            <span class="status-pill status-4xx"><strong>404</strong> Not Found — resource doesn't exist</span>
+                            <span class="status-pill status-4xx"><strong>409</strong> Conflict — state conflict (duplicate)</span>
+                            <span class="status-pill status-4xx"><strong>422</strong> Unprocessable — validation errors</span>
+                            <span class="status-pill status-4xx"><strong>429</strong> Too Many Requests — rate limited</span>
+                        </div>
+                    </div>
+                    <div class="status-group">
+                        <div class="status-group-title" style="color:var(--red)">5xx — Server Errors</div>
+                        <div class="status-row">
+                            <span class="status-pill status-5xx"><strong>500</strong> Internal Server Error — unexpected crash</span>
+                            <span class="status-pill status-5xx"><strong>502</strong> Bad Gateway — upstream failure</span>
+                            <span class="status-pill status-5xx"><strong>503</strong> Service Unavailable — overload / maintenance</span>
+                            <span class="status-pill status-5xx"><strong>504</strong> Gateway Timeout — upstream too slow</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout-orange callout">
+                <strong>Never</strong> return 200 with an error payload body. Monitors and retry logic key off the status code, not the body.
+            </div>
+        </div>
+
+        <!-- ── SLIDE 6: Request/Response Design ──────────────────── -->
+        <div class="slide" id="slide6">
+            <div class="slide-label">Slide 6 of 16</div>
+            <h1>Request &amp; Response Design</h1>
+
+            <div class="grid-2">
+                <div>
+                    <h2>Key Request Headers</h2>
+                    <div class="code-block"><span class="key">Content-Type</span>: application/json
+<span class="key">Accept</span>: application/json, application/xml
+<span class="key">Authorization</span>: Bearer &lt;token&gt;
+<span class="key">If-None-Match</span>: "abc123"       <span class="cmt"># ETag conditional</span>
+<span class="key">Accept-Language</span>: en-US, en;q=0.9
+<span class="key">X-Request-ID</span>: uuid            <span class="cmt"># correlation ID</span></div>
+
+                    <h2 style="margin-top:1rem">Content Negotiation</h2>
+                    <ul>
+                        <li>Client declares preferred formats via <code style="color:var(--accent)">Accept</code> header with quality values (q-factors)</li>
+                        <li>Server responds with <code style="color:var(--accent)">Content-Type</code> matching what was actually sent</li>
+                        <li>Return <strong style="color:var(--orange)">406 Not Acceptable</strong> if no format overlap</li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Pagination Patterns</h2>
+                    <div class="code-block"><span class="cmt">// Offset-based (simple, poor perf at scale)</span>
+GET /books?page=3&limit=25
+
+<span class="cmt">// Cursor-based (stable, scale-friendly)</span>
+GET /books?after=eyJpZCI6MTAwfQ&limit=25
+
+<span class="cmt">// Standard response envelope</span>
+{
+  <span class="key">"data"</span>: [...],
+  <span class="key">"meta"</span>: {
+    <span class="key">"total"</span>: <span class="num">1240</span>,
+    <span class="key">"page"</span>: <span class="num">3</span>,
+    <span class="key">"limit"</span>: <span class="num">25</span>,
+    <span class="key">"next_cursor"</span>: <span class="str">"eyJpZCI6MTI1fQ"</span>
+  }
+}</div>
+                </div>
+            </div>
+
+            <div class="callout">
+                <strong>Error envelope standard (RFC 7807 — Problem Details):</strong>
+                Use <code style="color:var(--accent)">type</code>, <code style="color:var(--accent)">title</code>, <code style="color:var(--accent)">status</code>, <code style="color:var(--accent)">detail</code>, and <code style="color:var(--accent)">instance</code> fields so every error is machine-readable.
+            </div>
+        </div>
+
+        <!-- ── SLIDE 7: HATEOAS ───────────────────────────────────── -->
+        <div class="slide" id="slide7">
+            <div class="slide-label">Slide 7 of 16</div>
+            <h1>HATEOAS</h1>
+            <p class="slide-intro"><strong style="color:var(--text)">Hypermedia as the Engine of Application State</strong> — the most misunderstood REST constraint. Responses include links that describe what the client can do next, making the API self-discoverable.</p>
+
+            <div class="grid-2">
+                <div>
+                    <h2>Without HATEOAS</h2>
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem">Clients hard-code URIs. Any server-side URI change breaks all clients.</p>
+                    <div class="code-block">{
+  <span class="key">"id"</span>: <span class="num">42</span>,
+  <span class="key">"title"</span>: <span class="str">"Dune"</span>,
+  <span class="key">"status"</span>: <span class="str">"available"</span>
+}
+<span class="cmt">// Client must know to call GET /books/42/checkout</span></div>
+                </div>
+                <div>
+                    <h2>With HATEOAS</h2>
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem">Links tell the client what transitions are valid from the current state.</p>
+                    <div class="code-block">{
+  <span class="key">"id"</span>: <span class="num">42</span>,
+  <span class="key">"title"</span>: <span class="str">"Dune"</span>,
+  <span class="key">"status"</span>: <span class="str">"available"</span>,
+  <span class="key">"_links"</span>: {
+    <span class="key">"self"</span>:     { <span class="key">"href"</span>: <span class="str">"/books/42"</span> },
+    <span class="key">"checkout"</span>: { <span class="key">"href"</span>: <span class="str">"/books/42/checkout"</span>, <span class="key">"method"</span>: <span class="str">"POST"</span> },
+    <span class="key">"reviews"</span>:  { <span class="key">"href"</span>: <span class="str">"/books/42/reviews"</span> }
+  }
+}</div>
+                </div>
+            </div>
+
+            <div class="callout-green callout">
+                <strong>Practical note:</strong> Full HATEOAS is rarely implemented in real products — it adds payload weight and parsing complexity. Use it selectively: link to the most common next actions. HAL+JSON and Siren are popular formats.
+            </div>
+        </div>
+
+        <!-- ── SLIDE 8: API Versioning ────────────────────────────── -->
+        <div class="slide" id="slide8">
+            <div class="slide-label">Slide 8 of 16</div>
+            <h1>API Versioning Strategies</h1>
+            <p class="slide-intro">Versioning lets you evolve without breaking existing clients. Each strategy involves tradeoffs in discoverability, caching, and implementation complexity.</p>
+
+            <div class="version-cards">
+                <div class="version-card card-blue">
+                    <h3 style="color:var(--accent)">URI Path</h3>
+                    <div class="example">/v2/books/42</div>
+                    <ul style="font-size:0.85rem">
+                        <li class="pro">&plus; Immediately visible, easy to test in browser</li>
+                        <li class="pro">&plus; Works everywhere — logs, CDNs, proxies</li>
+                        <li class="con">&minus; Violates "URI identifies a resource" principle</li>
+                        <li class="con">&minus; Cache keys include version — can't share cache across versions</li>
+                    </ul>
+                    <p style="margin-top:0.5rem;font-size:0.82rem;color:var(--text-muted)">Most widely adopted. Used by Stripe, GitHub, Twilio.</p>
+                </div>
+                <div class="version-card card-orange">
+                    <h3 style="color:var(--orange)">Header</h3>
+                    <div class="example" style="color:var(--orange);background:rgba(227,179,65,0.08)">API-Version: 2</div>
+                    <ul style="font-size:0.85rem">
+                        <li class="pro">&plus; Clean URIs — resource identity unchanged</li>
+                        <li class="pro">&plus; Easy to set default version</li>
+                        <li class="con">&minus; Not visible in browser / curl without extra flags</li>
+                        <li class="con">&minus; Requires Vary header for correct caching</li>
+                    </ul>
+                    <p style="margin-top:0.5rem;font-size:0.82rem;color:var(--text-muted)">Used by Azure REST APIs and Microsoft Graph.</p>
+                </div>
+                <div class="version-card card-purple">
+                    <h3 style="color:var(--purple)">Query String</h3>
+                    <div class="example" style="color:var(--purple);background:rgba(188,140,255,0.08)">/books/42?version=2</div>
+                    <ul style="font-size:0.85rem">
+                        <li class="pro">&plus; Optional — easy to make backward-compatible default</li>
+                        <li class="pro">&plus; No routing changes needed</li>
+                        <li class="con">&minus; Pollutes query namespace</li>
+                        <li class="con">&minus; Often ignored in API gateway routing rules</li>
+                    </ul>
+                    <p style="margin-top:0.5rem;font-size:0.82rem;color:var(--text-muted)">Common in legacy systems; rarely chosen for new APIs.</p>
+                </div>
+            </div>
+
+            <div class="callout">
+                <strong>Sunset policy:</strong> Announce deprecation timelines via <code style="color:var(--accent)">Sunset</code> and <code style="color:var(--accent)">Deprecation</code> headers (RFC 8594). Give consumers at least 6 months before removing a version.
+            </div>
+        </div>
+
+        <!-- ── SLIDE 9: OpenAPI / Swagger ─────────────────────────── -->
+        <div class="slide" id="slide9">
+            <div class="slide-label">Slide 9 of 16</div>
+            <h1>OpenAPI / Swagger Specification</h1>
+            <p class="slide-intro">OpenAPI 3.x is the industry-standard machine-readable contract for REST APIs. It drives documentation, SDK generation, validation middleware, and mock servers from a single YAML/JSON file.</p>
+
+            <div class="grid-2">
+                <div>
+                    <h2>Core Structure</h2>
+                    <div class="code-block">openapi: "3.1.0"
+info:
+  title: Library API
+  version: "2.0.0"
+  description: Manage books and patrons.
+
+servers:
+  - url: https://api.library.io/v2
+
+paths:
+  /books/{bookId}:
+    get:
+      summary: Get a book by ID
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Book found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        "404":
+          description: Not found
+
+components:
+  schemas:
+    Book:
+      type: object
+      properties:
+        id:    { type: integer }
+        title: { type: string }
+        isbn:  { type: string, pattern: '^\d{13}$' }</div>
+                </div>
+                <div>
+                    <h2>Key Sections</h2>
+                    <ul>
+                        <li><strong style="color:var(--text)">info</strong> — title, version, description, contact</li>
+                        <li><strong style="color:var(--text)">servers</strong> — base URLs (prod, staging, mock)</li>
+                        <li><strong style="color:var(--text)">paths</strong> — every endpoint with methods, parameters, and responses</li>
+                        <li><strong style="color:var(--text)">components/schemas</strong> — reusable data models (DRY)</li>
+                        <li><strong style="color:var(--text)">components/securitySchemes</strong> — OAuth 2.0, API key, Bearer token definitions</li>
+                        <li><strong style="color:var(--text)">components/responses</strong> — shared error responses (400, 401, etc.)</li>
+                        <li><strong style="color:var(--text)">tags</strong> — group operations into logical sections</li>
+                    </ul>
+
+                    <h2 style="margin-top:1rem">Tooling Ecosystem</h2>
+                    <ul>
+                        <li>Swagger UI / Redoc — browser-rendered docs</li>
+                        <li>OpenAPI Generator — SDKs in 50+ languages</li>
+                        <li>Prism / Stoplight — mock servers from spec</li>
+                        <li>Spectral — linting rules for spec quality</li>
+                        <li>Postman — import spec, generate collections</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 10: Documentation Best Practices ─────────────── -->
+        <div class="slide" id="slide10">
+            <div class="slide-label">Slide 10 of 16</div>
+            <h1>API Documentation Best Practices</h1>
+
+            <div class="grid-3">
+                <div class="card card-blue">
+                    <h3>Working Examples First</h3>
+                    <p>Show a complete request/response pair before explaining parameters. Developers copy-paste before they read. Every endpoint needs at least one realistic example.</p>
+                </div>
+                <div class="card card-green">
+                    <h3>Error Schema</h3>
+                    <p>Document every 4xx and 5xx response with an example body. Include error codes, messages, and resolution hints. RFC 7807 Problem Details format is preferred.</p>
+                </div>
+                <div class="card card-orange">
+                    <h3>Authentication Flow</h3>
+                    <p>Show the full auth sequence — how to obtain a token, how to attach it, and how to refresh it. Never assume this is obvious.</p>
+                </div>
+                <div class="card card-purple">
+                    <h3>Changelog</h3>
+                    <p>Date-stamped log of breaking changes, deprecations, and additions. Essential for consumers to plan upgrades. Include migration guides for breaking changes.</p>
+                </div>
+                <div class="card card-blue">
+                    <h3>SDK Quickstarts</h3>
+                    <p>Provide "Hello World" code snippets in the top 3–5 languages your audience uses. Auto-generate from OpenAPI where possible; keep them in sync with the spec.</p>
+                </div>
+                <div class="card card-green">
+                    <h3>Interactive Console</h3>
+                    <p>Let developers send live requests without leaving the docs page. Swagger UI, Redoc Try-it-out, and Scalar all support this. Reduces time-to-first-call from hours to minutes.</p>
+                </div>
+            </div>
+
+            <div class="callout">
+                <strong>Golden rule:</strong> Documentation is part of the product. Outdated docs are worse than no docs — they create false confidence. Automate doc generation from the source-of-truth spec.
+            </div>
+        </div>
+
+        <!-- ── SLIDE 11: GraphQL vs REST ──────────────────────────── -->
+        <div class="slide" id="slide11">
+            <div class="slide-label">Slide 11 of 16</div>
+            <h1>GraphQL vs REST</h1>
+            <p class="slide-intro">Neither is universally better. The right choice depends on your data graph, client diversity, and team maturity.</p>
+
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th>Dimension</th>
+                        <th>REST</th>
+                        <th>GraphQL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Data fetching</td><td>Fixed response shape per endpoint</td><td class="good">Client specifies exactly what fields it needs</td></tr>
+                    <tr><td>Over/under-fetching</td><td class="warn">Common — endpoints return too much or too little</td><td class="good">Eliminated by design — client drives the query</td></tr>
+                    <tr><td>Multiple resources</td><td class="warn">Often requires N+1 requests</td><td class="good">Single query can span multiple types</td></tr>
+                    <tr><td>Caching</td><td class="good">HTTP caching built-in (ETags, Cache-Control)</td><td class="warn">Requires custom layer (Persisted Queries, CDN workarounds)</td></tr>
+                    <tr><td>Schema</td><td>Optional (OpenAPI)</td><td class="good">Schema is mandatory — strong typing enforced</td></tr>
+                    <tr><td>Versioning</td><td>Explicit versions (v1, v2)</td><td class="good">Evolve schema; deprecate fields</td></tr>
+                    <tr><td>File uploads</td><td class="good">Native multipart/form-data</td><td class="warn">Requires spec extension (graphql-multipart-request)</td></tr>
+                    <tr><td>Learning curve</td><td class="good">Widely understood — HTML verbs, status codes</td><td class="warn">SDL, resolvers, N+1 problem, DataLoader pattern</td></tr>
+                    <tr><td>Best for</td><td>Public APIs, simple CRUD, CDN-cached content</td><td>Complex UIs, mobile (bandwidth sensitive), internal APIs</td></tr>
+                </tbody>
+            </table>
+
+            <div class="callout-green callout">
+                <strong>When to pick GraphQL:</strong> Mobile apps with varied screen sizes needing different field subsets, complex dashboards aggregating many entity types, or when rapid UI iteration outpaces API versioning cycles.
+            </div>
+        </div>
+
+        <!-- ── SLIDE 12: gRPC & Protocol Buffers ─────────────────── -->
+        <div class="slide" id="slide12">
+            <div class="slide-label">Slide 12 of 16</div>
+            <h1>gRPC &amp; Protocol Buffers</h1>
+            <p class="slide-intro">gRPC is a high-performance RPC framework built on HTTP/2 and binary serialization. It is the default choice for internal microservice-to-microservice communication at scale.</p>
+
+            <div class="grid-2">
+                <div>
+                    <h2>Protocol Buffers (.proto)</h2>
+                    <div class="code-block">syntax = "proto3";
+
+package library.v1;
+
+service BookService {
+  rpc GetBook(GetBookRequest) returns (Book);
+  rpc ListBooks(ListBooksRequest) returns (stream Book);
+  rpc CreateBook(CreateBookRequest) returns (Book);
+}
+
+message GetBookRequest {
+  int32 book_id = 1;
+}
+
+message Book {
+  int32  id    = 1;
+  string title = 2;
+  string isbn  = 3;
+  bool   available = 4;
+}</div>
+                </div>
+                <div>
+                    <h2>Why gRPC for Microservices?</h2>
+                    <ul>
+                        <li><strong style="color:var(--text)">Binary serialization</strong> — Protobuf is 3–10x smaller than JSON; faster parse/serialize</li>
+                        <li><strong style="color:var(--text)">HTTP/2 multiplexing</strong> — many streams on one connection, reduces latency</li>
+                        <li><strong style="color:var(--text)">Streaming support</strong> — unary, server streaming, client streaming, bidirectional</li>
+                        <li><strong style="color:var(--text)">Code generation</strong> — protoc generates client stubs in 10+ languages from the .proto file</li>
+                        <li><strong style="color:var(--text)">Deadline propagation</strong> — timeouts flow through the call chain automatically</li>
+                        <li><strong style="color:var(--text)">Interceptors</strong> — middleware for auth, logging, tracing at the framework level</li>
+                    </ul>
+
+                    <div class="callout-orange callout" style="margin-top:1rem">
+                        <strong>Limitation:</strong> gRPC is not natively browser-readable. Use gRPC-Web or a REST/gRPC transcoding gateway (like Envoy or Cloud Endpoints) for public-facing APIs.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 13: Interactive API Designer ────────────────── -->
+        <div class="slide" id="slide13">
+            <div class="slide-label">Slide 13 of 16 — Interactive Lab</div>
+            <h1>Lab: Design an API</h1>
+            <p class="slide-intro" style="margin-bottom:1rem">Scenario: a <strong style="color:var(--text)">Library Management System</strong> needs a REST API. Define three endpoints below — resource path, HTTP method, and expected success status code — then validate against REST best practices.</p>
+
+            <div class="designer-wrap">
+                <div class="designer-scenario">
+                    <h3>Requirements</h3>
+                    <p>The system needs to:</p>
+                    <ul style="margin-bottom:0.75rem">
+                        <li>Return a list of all books in the collection</li>
+                        <li>Add a new book to the collection</li>
+                        <li>Check out (borrow) a specific book by ID</li>
+                        <li>Delete a book that is no longer available</li>
+                        <li>Update just the availability status of a book</li>
+                    </ul>
+                    <p style="font-size:0.85rem">Resources: <code style="color:var(--accent)">books</code>, <code style="color:var(--accent)">checkouts</code></p>
+                    <p style="font-size:0.85rem">Base URL: <code style="color:var(--accent)">https://api.library.io/v1</code></p>
+                    <div id="designerScore" style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-muted)">Define all three endpoints and click Validate.</div>
+                </div>
+
+                <div class="designer-panel">
+                    <h3>Your API Design</h3>
+
+                    <!-- Row 1 -->
+                    <div class="designer-row">
+                        <select class="designer-select" id="m1">
+                            <option value="">Method</option>
+                            <option>GET</option><option>POST</option>
+                            <option>PUT</option><option>PATCH</option><option>DELETE</option>
+                        </select>
+                        <input class="designer-input" id="p1" type="text" placeholder="/path/to/resource" spellcheck="false">
+                        <input class="status-field" id="s1" type="text" placeholder="2xx" maxlength="3" spellcheck="false">
+                    </div>
+                    <!-- Row 2 -->
+                    <div class="designer-row">
+                        <select class="designer-select" id="m2">
+                            <option value="">Method</option>
+                            <option>GET</option><option>POST</option>
+                            <option>PUT</option><option>PATCH</option><option>DELETE</option>
+                        </select>
+                        <input class="designer-input" id="p2" type="text" placeholder="/path/to/resource" spellcheck="false">
+                        <input class="status-field" id="s2" type="text" placeholder="2xx" maxlength="3" spellcheck="false">
+                    </div>
+                    <!-- Row 3 -->
+                    <div class="designer-row">
+                        <select class="designer-select" id="m3">
+                            <option value="">Method</option>
+                            <option>GET</option><option>POST</option>
+                            <option>PUT</option><option>PATCH</option><option>DELETE</option>
+                        </select>
+                        <input class="designer-input" id="p3" type="text" placeholder="/path/to/resource" spellcheck="false">
+                        <input class="status-field" id="s3" type="text" placeholder="2xx" maxlength="3" spellcheck="false">
+                    </div>
+
+                    <div class="designer-actions">
+                        <button class="btn-validate" onclick="validateDesign()">Validate Design</button>
+                        <button class="btn-reset" onclick="resetDesign()">Reset</button>
+                    </div>
+                    <div class="feedback-box" id="designerFeedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 14: OpenAPI Preview Lab ─────────────────────── -->
+        <div class="slide" id="slide14">
+            <div class="slide-label">Slide 14 of 16 — Interactive Lab</div>
+            <h1>Lab: OpenAPI Preview</h1>
+            <p class="slide-intro" style="margin-bottom:1rem">Edit the minimal OpenAPI snippet on the left, then click <strong style="color:var(--accent)">Render</strong> to see it visualized as documentation on the right.</p>
+
+            <div class="openapi-wrap">
+                <div class="openapi-editor-pane">
+                    <div class="pane-title">
+                        <span>openapi.yaml</span>
+                        <button class="render-btn" onclick="renderOpenAPI()">Render</button>
+                    </div>
+                    <textarea class="openapi-textarea" id="openapiEditor" spellcheck="false">openapi: "3.1.0"
+info:
+  title: My API
+  version: "1.0.0"
+paths:
+  /items:
+    get:
+      summary: List items
+      description: Returns all items in the collection.
+      responses:
+        "200":
+          description: Success
+  /items/{id}:
+    get:
+      summary: Get item by ID
+      responses:
+        "200":
+          description: Item found
+        "404":
+          description: Item not found
+    delete:
+      summary: Delete an item
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Item not found</textarea>
+                </div>
+
+                <div class="openapi-preview-pane">
+                    <div class="pane-title"><span>Rendered Documentation</span></div>
+                    <div class="openapi-rendered" id="openapiRendered">
+                        <p style="color:var(--text-muted);font-size:0.88rem">Click <strong style="color:var(--accent)">Render</strong> to generate preview.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 15: Anti-patterns ───────────────────────────── -->
+        <div class="slide" id="slide15">
+            <div class="slide-label">Slide 15 of 16</div>
+            <h1>API Design Anti-patterns</h1>
+
+            <div class="grid-2">
+                <div>
+                    <h2>Structural Anti-patterns</h2>
+                    <div class="antipattern-list">
+                        <div class="antipattern-item">
+                            <span class="antipattern-label">CHATTY</span>
+                            <span class="antipattern-text"><strong>Chatty API</strong> — requires clients to make many small calls to accomplish a single task. Solution: composite endpoints or GraphQL queries.</span>
+                        </div>
+                        <div class="antipattern-item">
+                            <span class="antipattern-label">GOD EP</span>
+                            <span class="antipattern-text"><strong>God Endpoint</strong> — one endpoint does everything based on request body flags. Example: <code style="color:var(--red)">POST /api?action=createBook</code>. Breaks HTTP semantics and caching.</span>
+                        </div>
+                        <div class="antipattern-item">
+                            <span class="antipattern-label">VERB URI</span>
+                            <span class="antipattern-text"><strong>Verbs in URIs</strong> — <code style="color:var(--red)">/getUsers</code>, <code style="color:var(--red)">/deleteBook/42</code>. HTTP method already encodes the action; the URI should identify a resource.</span>
+                        </div>
+                        <div class="antipattern-item">
+                            <span class="antipattern-label">INCONSIST</span>
+                            <span class="antipattern-text"><strong>Inconsistent naming</strong> — mixing <code style="color:var(--red)">/bookId</code>, <code style="color:var(--red)">/book_id</code>, and <code style="color:var(--red)">/BookID</code> in the same API. Pick one convention and enforce it with a linter.</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h2>Operational Anti-patterns</h2>
+                    <div class="antipattern-list">
+                        <div class="antipattern-item">
+                            <span class="antipattern-label">200 ERR</span>
+                            <span class="antipattern-text"><strong>200 for errors</strong> — returning <code style="color:var(--red)">200 OK</code> with <code style="color:var(--red)">"status": "error"</code> in the body. Breaks monitors, retries, and load-balancer health checks.</span>
+                        </div>
+                        <div class="antipattern-item">
+                            <span class="antipattern-label">NO LIMIT</span>
+                            <span class="antipattern-text"><strong>No rate limiting</strong> — public APIs without <code style="color:var(--red)">429 Too Many Requests</code> handling are one script away from a DoS. Always implement and document rate limits.</span>
+                        </div>
+                        <div class="antipattern-item">
+                            <span class="antipattern-label">SECRETS</span>
+                            <span class="antipattern-text"><strong>Sensitive data in URIs</strong> — tokens, passwords, or PII in query strings end up in server logs, browser history, and HTTP Referer headers. Use request headers or body instead.</span>
+                        </div>
+                        <div class="antipattern-item">
+                            <span class="antipattern-label">NO VERSN</span>
+                            <span class="antipattern-text"><strong>No versioning strategy</strong> — changing a stable API without a version path forces all consumers to update simultaneously. Plan for versioning from day one.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SLIDE 16: Idempotency, Caching, ETags + Review ───── -->
+        <div class="slide" id="slide16">
+            <div class="slide-label">Slide 16 of 16</div>
+            <h1>Idempotency, Caching &amp; ETags — Review</h1>
+
+            <div class="grid-2" style="margin-bottom:1.25rem">
+                <div>
+                    <h2>Idempotency Keys</h2>
+                    <p>For non-idempotent POST operations (e.g., payments), clients send an <code style="color:var(--accent)">Idempotency-Key</code> header. The server stores the result against that key and returns the cached response on retries — preventing double charges.</p>
+                    <div class="code-block">POST /payments
+Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
+
+<span class="cmt"># Retry with same key → same response, no double charge</span></div>
+
+                    <h2 style="margin-top:1rem">HTTP Caching with ETags</h2>
+                    <ul>
+                        <li>Server returns <code style="color:var(--accent)">ETag: "abc123"</code> with GET response</li>
+                        <li>Client caches and later sends <code style="color:var(--accent)">If-None-Match: "abc123"</code></li>
+                        <li>Server replies 304 if unchanged — zero payload transferred</li>
+                        <li>For conditional updates: <code style="color:var(--accent)">If-Match</code> prevents lost updates under concurrent writes</li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Review Questions</h2>
+                    <div class="qa-list">
+                        <div class="qa-item">
+                            <div class="qa-question" onclick="toggleAnswer(this)">
+                                <span>1. Which HTTP method is both safe AND idempotent?</span>
+                                <span class="qa-toggle">+</span>
+                            </div>
+                            <div class="qa-answer">GET (and HEAD). Safe means no side effects; idempotent means repeated calls produce the same result. DELETE is idempotent but not safe.</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question" onclick="toggleAnswer(this)">
+                                <span>2. What status code should a POST that creates a resource return?</span>
+                                <span class="qa-toggle">+</span>
+                            </div>
+                            <div class="qa-answer">201 Created, with a Location header pointing to the new resource URI. Never 200 — that implies the resource already existed.</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question" onclick="toggleAnswer(this)">
+                                <span>3. What is the main caching disadvantage of URI-path versioning?</span>
+                                <span class="qa-toggle">+</span>
+                            </div>
+                            <div class="qa-answer">The version is baked into the cache key, so /v1/books and /v2/books are cached separately even if the response is identical. Header versioning can share cache entries using the Vary header.</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question" onclick="toggleAnswer(this)">
+                                <span>4. When should you choose gRPC over REST?</span>
+                                <span class="qa-toggle">+</span>
+                            </div>
+                            <div class="qa-answer">Internal microservice communication where low latency, binary efficiency, streaming, and strong type contracts matter more than browser compatibility or public discoverability.</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question" onclick="toggleAnswer(this)">
+                                <span>5. What does an Idempotency-Key prevent in payment APIs?</span>
+                                <span class="qa-toggle">+</span>
+                            </div>
+                            <div class="qa-answer">Double charges caused by network retries. The server stores the outcome against the key and replays it on duplicate requests instead of executing the operation twice.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Module complete trigger -->
+            <div style="text-align:center;padding:1.25rem 0 0.5rem">
+                <button id="completeModuleBtn" onclick="completeModule()"
+                    style="background:var(--green);color:#0d1117;border:none;padding:0.65rem 2rem;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:filter 0.2s;"
+                    onmouseover="this.style.filter='brightness(1.15)'"
+                    onmouseout="this.style.filter=''">
+                    Mark Complete
+                </button>
+            </div>
+        </div>
+
+    </div><!-- /.slide-viewport -->
+
+    <!-- ============================================================
+         NAVIGATION BAR
+    ============================================================ -->
+    <nav class="deck-nav">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)" disabled>&#8592; Previous</button>
+        <span class="slide-counter">
+            Slide <span id="currentSlide">1</span> of <span id="totalSlides">16</span>
+        </span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next &#8594;</button>
+    </nav>
+
+</div><!-- /.deck -->
+
+<!-- ================================================================
+     SCRIPTS — ordered: access first, then tracking, then behaviour
+================================================================ -->
+<script>
+    /* ── Slide engine ──────────────────────────────────────────────── */
+    const TOTAL_SLIDES = 16;
+    const STORAGE_KEY  = 'cloud-api-003-slide';
+    let currentSlide   = parseInt(localStorage.getItem(STORAGE_KEY) || '1', 10);
+
+    /**
+     * Activate a specific slide by index (1-based).
+     * Updates progress bar, counter, and button state.
+     */
+    function showSlide(n) {
+        if (n < 1) n = 1;
+        if (n > TOTAL_SLIDES) n = TOTAL_SLIDES;
+        currentSlide = n;
+
+        document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+        document.getElementById('slide' + currentSlide).classList.add('active');
+
+        document.getElementById('currentSlide').textContent = currentSlide;
+        document.getElementById('prevBtn').disabled = (currentSlide === 1);
+        document.getElementById('nextBtn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const pct = ((currentSlide / TOTAL_SLIDES) * 100).toFixed(1);
+        document.getElementById('progressBar').style.width = pct + '%';
+
+        localStorage.setItem(STORAGE_KEY, currentSlide);
+    }
+
+    function changeSlide(dir) { showSlide(currentSlide + dir); }
+
+    /* Keyboard navigation: arrow keys */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  changeSlide(1);
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    changeSlide(-1);
+    });
+
+    showSlide(currentSlide);
+
+    /* ── Module completion ─────────────────────────────────────────── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'cloud-api-003', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    /* ── Q&A toggle ────────────────────────────────────────────────── */
+    function toggleAnswer(questionEl) {
+        const answer = questionEl.nextElementSibling;
+        const toggle = questionEl.querySelector('.qa-toggle');
+        const isOpen = answer.classList.contains('visible');
+        answer.classList.toggle('visible', !isOpen);
+        toggle.textContent = isOpen ? '+' : '−';
+    }
+
+    /* ================================================================
+       INTERACTIVE: API DESIGNER
+       Validates student-defined endpoints against REST best practices.
+       Acceptance criteria for the library scenario:
+         - GET  /books (or /books/)     → 200
+         - POST /books                  → 201
+         - POST /books/{id}/checkouts   → 201
+         - DELETE /books/{id}           → 204
+         - PATCH  /books/{id}           → 200 or 204
+    ================================================================ */
+    const VALID_PATTERNS = [
+        {
+            methods: ['GET'],
+            /* match /books, /v1/books, optional trailing slash */
+            pathRe: /^\/?(v\d+\/)?books\/?(\?.*)?$/i,
+            statuses: ['200'],
+            hint: 'List books: GET /books → 200'
+        },
+        {
+            methods: ['POST'],
+            pathRe: /^\/?(v\d+\/)?books\/?(\?.*)?$/i,
+            statuses: ['201'],
+            hint: 'Create book: POST /books → 201'
+        },
+        {
+            /* checkout a book — accept both /books/{id}/checkouts and /checkouts */
+            methods: ['POST'],
+            pathRe: /^\/?(v\d+\/)?(books\/[\w:-]+\/checkouts?|checkouts?)\/?(\?.*)?$/i,
+            statuses: ['201'],
+            hint: 'Checkout: POST /books/{id}/checkouts → 201'
+        },
+        {
+            methods: ['DELETE'],
+            pathRe: /^\/?(v\d+\/)?books\/[\w:-]+\/?(\?.*)?$/i,
+            statuses: ['204', '200'],
+            hint: 'Delete book: DELETE /books/{id} → 204'
+        },
+        {
+            methods: ['PATCH'],
+            pathRe: /^\/?(v\d+\/)?books\/[\w:-]+\/?(\?.*)?$/i,
+            statuses: ['200', '204'],
+            hint: 'Partial update: PATCH /books/{id} → 200 or 204'
+        }
+    ];
+
+    /**
+     * Checks a single endpoint row against the valid pattern list.
+     * Returns the matched pattern hint or a specific error string.
+     */
+    function checkEndpoint(method, path, status) {
+        if (!method) return 'Select an HTTP method.';
+        if (!path || !path.startsWith('/')) return 'Path must start with /.';
+        if (!/^\d{3}$/.test(status)) return 'Status code must be 3 digits.';
+
+        /* Check for verb-in-path anti-pattern */
+        if (/\/(get|post|put|patch|delete|create|update|remove|fetch)/i.test(path)) {
+            return 'Anti-pattern: remove the verb from the path. Use HTTP method instead.';
+        }
+        /* Check for singular resource names in common positions */
+        if (/\/book\/|\/author\/|\/patron\//i.test(path + '/')) {
+            return 'Prefer plural resource names: /books instead of /book.';
+        }
+
+        for (const p of VALID_PATTERNS) {
+            if (p.methods.includes(method) && p.pathRe.test(path)) {
+                if (!p.statuses.includes(status)) {
+                    return 'Path and method look right, but check the status code. Hint: ' + p.hint;
+                }
+                return 'ok:' + p.hint;
+            }
+        }
+        return 'Not matched — review the scenario requirements.';
+    }
+
+    function validateDesign() {
+        const rows = [
+            { m: document.getElementById('m1').value, p: document.getElementById('p1').value.trim(), s: document.getElementById('s1').value.trim() },
+            { m: document.getElementById('m2').value, p: document.getElementById('p2').value.trim(), s: document.getElementById('s2').value.trim() },
+            { m: document.getElementById('m3').value, p: document.getElementById('p3').value.trim(), s: document.getElementById('s3').value.trim() }
+        ];
+
+        let passed = 0;
+        const issues = [];
+        const hints  = [];
+
+        rows.forEach(function(row, idx) {
+            const result = checkEndpoint(row.m, row.p, row.s);
+            if (result.startsWith('ok:')) {
+                passed++;
+                hints.push((idx + 1) + '. ' + result.slice(3));
+            } else {
+                issues.push('Row ' + (idx + 1) + ': ' + result);
+            }
+        });
+
+        const fb = document.getElementById('designerFeedback');
+        const score = document.getElementById('designerScore');
+
+        if (passed === 3) {
+            fb.className = 'feedback-box pass';
+            fb.textContent = 'All three endpoints are correct. ' + hints.join(' | ');
+            score.textContent = 'Score: 3/3 — Perfect design.';
+        } else if (passed > 0) {
+            fb.className = 'feedback-box warn-feedback';
+            fb.textContent = passed + '/3 correct. Issues: ' + issues.join(' | ');
+            score.textContent = 'Score: ' + passed + '/3 — keep refining.';
+        } else {
+            fb.className = 'feedback-box fail';
+            fb.textContent = 'Issues: ' + issues.join(' | ');
+            score.textContent = 'Score: 0/3 — review REST conventions.';
+        }
+    }
+
+    function resetDesign() {
+        ['m1','m2','m3'].forEach(function(id) { document.getElementById(id).value = ''; });
+        ['p1','p2','p3'].forEach(function(id) { document.getElementById(id).value = ''; });
+        ['s1','s2','s3'].forEach(function(id) { document.getElementById(id).value = ''; });
+        const fb = document.getElementById('designerFeedback');
+        fb.className = 'feedback-box';
+        document.getElementById('designerScore').textContent = 'Define all three endpoints and click Validate.';
+    }
+
+    /* ================================================================
+       INTERACTIVE: OPENAPI PREVIEW RENDERER
+       Parses a simplified YAML subset (info block + paths)
+       and renders it as styled endpoint cards.
+    ================================================================ */
+
+    /**
+     * Minimal YAML-to-object parser covering the subset needed for OpenAPI snippets.
+     * Handles: key: value, multi-level indentation, list items.
+     * Not a full YAML parser — sufficient for controlled input.
+     */
+    function parseMiniYAML(yaml) {
+        try {
+            const lines  = yaml.split('\n');
+            const result = {};
+            const stack  = [{ obj: result, indent: -1 }];
+            let lastKey  = null;
+
+            for (let i = 0; i < lines.length; i++) {
+                const raw = lines[i];
+                if (!raw.trim() || raw.trim().startsWith('#')) continue;
+
+                const indent = raw.search(/\S/);
+                const content = raw.trim();
+
+                /* Pop stack to correct parent level */
+                while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+                    stack.pop();
+                }
+
+                const parent = stack[stack.length - 1].obj;
+                const colonIdx = content.indexOf(':');
+
+                if (colonIdx === -1) continue;
+
+                const key = content.slice(0, colonIdx).trim();
+                const val = content.slice(colonIdx + 1).trim();
+
+                if (val === '' || val === null) {
+                    /* Object value will be filled by children */
+                    const child = {};
+                    parent[key] = child;
+                    stack.push({ obj: child, indent });
+                    lastKey = key;
+                } else {
+                    /* Scalar value — strip quotes */
+                    parent[key] = val.replace(/^["']|["']$/g, '');
+                    lastKey = key;
+                }
+            }
+            return result;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function methodColor(m) {
+        const map = { GET: 'badge-get', POST: 'badge-post', PUT: 'badge-put', PATCH: 'badge-patch', DELETE: 'badge-delete' };
+        return map[m.toUpperCase()] || 'badge-post';
+    }
+
+    function renderOpenAPI() {
+        const yaml    = document.getElementById('openapiEditor').value;
+        const spec    = parseMiniYAML(yaml);
+        const target  = document.getElementById('openapiRendered');
+
+        if (!spec) {
+            target.innerHTML = '<p class="oapi-parse-error">Parse error — check YAML indentation and try again.</p>';
+            return;
+        }
+
+        let html = '';
+
+        /* Info block */
+        const info = spec.info || {};
+        html += '<div class="oapi-info-block">';
+        html += '<div class="oapi-title">' + escHtml(info.title || 'Untitled API') + '</div>';
+        html += '<div class="oapi-version">Version ' + escHtml(info.version || '?') + '</div>';
+        if (info.description) {
+            html += '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem">' + escHtml(info.description) + '</div>';
+        }
+        html += '</div>';
+
+        /* Paths */
+        const paths = spec.paths || {};
+        const pathKeys = Object.keys(paths);
+
+        if (pathKeys.length === 0) {
+            html += '<p style="color:var(--text-muted);font-size:0.85rem">No paths defined.</p>';
+        } else {
+            html += '<div style="margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.06em">Endpoints</div>';
+            pathKeys.forEach(function(pathKey) {
+                const pathObj = paths[pathKey];
+                if (typeof pathObj !== 'object') return;
+                const methods = ['get','post','put','patch','delete','head','options']
+                    .filter(function(m) { return pathObj[m]; });
+
+                methods.forEach(function(method) {
+                    const op = pathObj[method];
+                    if (typeof op !== 'object') return;
+
+                    html += '<div class="oapi-endpoint">';
+                    html += '<div class="oapi-ep-header">';
+                    html += '<span class="method-badge ' + methodColor(method) + '">' + method.toUpperCase() + '</span>';
+                    html += '<span style="font-family:monospace;font-size:0.85rem;color:var(--text)">' + escHtml(pathKey) + '</span>';
+                    html += '</div>';
+
+                    const summary = op.summary || op.description || '';
+                    const responses = op.responses || {};
+                    const respKeys = Object.keys(responses);
+
+                    html += '<div class="oapi-ep-body">';
+                    if (summary) html += '<div><strong>Summary:</strong> ' + escHtml(summary) + '</div>';
+                    if (respKeys.length) {
+                        html += '<div style="margin-top:0.35rem"><strong>Responses:</strong> ';
+                        html += respKeys.map(function(code) {
+                            const cls = code.startsWith('2') ? 'status-2xx' : code.startsWith('4') ? 'status-4xx' : code.startsWith('5') ? 'status-5xx' : 'status-3xx';
+                            const desc = (responses[code] && responses[code].description) ? escHtml(responses[code].description) : '';
+                            return '<span class="status-pill ' + cls + '" style="display:inline-flex;margin:2px">' + escHtml(code) + (desc ? ' — ' + desc : '') + '</span>';
+                        }).join(' ');
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                    html += '</div>';
+                });
+            });
+        }
+
+        target.innerHTML = html;
+    }
+
+    /**
+     * Escape HTML special characters to prevent XSS when rendering user-typed content.
+     */
+    function escHtml(str) {
+        if (typeof str !== 'string') return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /* Auto-render the default content on page load */
+    document.addEventListener('DOMContentLoaded', function() {
+        renderOpenAPI();
+    });
+    /* Also render immediately if DOM is already ready */
+    if (document.readyState !== 'loading') { renderOpenAPI(); }
+</script>
+
+<!-- FluxCapacitor and PresentationA11y loaded last — they enhance, not block -->
+<script src="../../../components/FluxCapacitor.js"></script>
+<script src="../../../components/PresentationA11y.js"></script>
+</body>
+</html>
