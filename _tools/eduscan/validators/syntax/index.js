@@ -46,6 +46,7 @@ const SandboxValidator = require('./sandbox');
 const LinuxTerminalValidator = require('./linux-terminal');
 const ProgressKeysValidator = require('./progress-keys');
 const XPAuditValidator = require('./xp-audit');
+const ClientSecretsValidator = require('../security/client-secrets');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -157,6 +158,11 @@ class SyntaxValidator {
             rootPath: this.rootPath,
             profile: this.profile
         });
+        this.clientSecretsValidator = new ClientSecretsValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
     }
 
     /**
@@ -194,6 +200,7 @@ class SyntaxValidator {
                 linuxTerminalErrors: 0,
                 progressKeysErrors: 0,
                 xpAuditErrors: 0,
+                clientSecretsErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -308,6 +315,16 @@ class SyntaxValidator {
         }
         results.summary.sandboxMap = sandboxGlobalResults.summary;
 
+        // Run Client Secrets validation (global, scans .js files for exposed secrets)
+        const secretsGlobalResults = this.clientSecretsValidator.validateGlobal();
+        if (secretsGlobalResults.length > 0) {
+            results.issues.push(...secretsGlobalResults);
+            results.summary.clientSecretsErrors += secretsGlobalResults.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] ClientSecrets (global): ${secretsGlobalResults.length} issues`);
+            }
+        }
+
         for (const file of contentFiles) {
             // Only validate HTML files
             if (!file.path.endsWith('.html')) {
@@ -342,6 +359,7 @@ class SyntaxValidator {
             const sandboxIssues = this.sandboxValidator.validate(fileWithContent);
             const ltIssues = this.linuxTerminalValidator.validate(fileWithContent);
             const progIssues = this.progressKeysValidator.validate(fileWithContent);
+            const secretsIssues = this.clientSecretsValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -361,6 +379,7 @@ class SyntaxValidator {
             results.issues.push(...sandboxIssues);
             results.issues.push(...ltIssues);
             results.issues.push(...progIssues);
+            results.issues.push(...secretsIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -380,6 +399,7 @@ class SyntaxValidator {
             results.summary.sandboxErrors += sandboxIssues.length;
             results.summary.linuxTerminalErrors += ltIssues.length;
             results.summary.progressKeysErrors += progIssues.length;
+            results.summary.clientSecretsErrors += secretsIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html
