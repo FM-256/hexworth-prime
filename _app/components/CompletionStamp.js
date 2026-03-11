@@ -155,6 +155,188 @@ const CompletionStamp = (function() {
     // ─── Rendering ─────────────────────────────────────────────────
 
     /**
+     * Inject overlay stamp styles for applyAll() (idempotent).
+     * Separate from _ensureStyles() so the overlay rules don't pollute
+     * pages that only use the grid/badge rendering API.
+     */
+    function _ensureOverlayStyles() {
+        if (document.getElementById('cs-overlay-styles')) return;
+        var style = document.createElement('style');
+        style.id = 'cs-overlay-styles';
+        style.textContent = [
+            /* Host element must be positioned for the overlay to anchor */
+            '[data-module-id] { position: relative; overflow: visible; }',
+
+            /* Stamp badge — rotated corner overlay */
+            '.cs-overlay-stamp {',
+            '  position: absolute;',
+            '  top: 10px;',
+            '  right: -4px;',
+            '  transform: rotate(-12deg);',
+            '  transform-origin: top right;',
+            '  display: inline-flex;',
+            '  align-items: center;',
+            '  gap: 5px;',
+            '  padding: 4px 12px;',
+            '  border-radius: 4px;',
+            '  border: 2px solid #3fb950;',
+            '  background: rgba(15, 30, 18, 0.88);',
+            '  color: #3fb950;',
+            '  font-size: 0.68rem;',
+            '  font-weight: 700;',
+            '  letter-spacing: 0.1em;',
+            '  text-transform: uppercase;',
+            '  pointer-events: none;',
+            '  z-index: 10;',
+            '  box-shadow: 0 2px 8px rgba(63, 185, 80, 0.25);',
+            '  white-space: nowrap;',
+            '}',
+
+            /* Checkmark icon inside the stamp */
+            '.cs-overlay-stamp .cs-ov-check {',
+            '  width: 12px;',
+            '  height: 12px;',
+            '  border-radius: 50%;',
+            '  background: #3fb950;',
+            '  display: inline-flex;',
+            '  align-items: center;',
+            '  justify-content: center;',
+            '  color: #0d1117;',
+            '  font-size: 0.6rem;',
+            '  font-weight: 900;',
+            '  flex-shrink: 0;',
+            '}',
+
+            /* Optional completion date line below the badge */
+            '.cs-overlay-date {',
+            '  position: absolute;',
+            '  top: 34px;',
+            '  right: -4px;',
+            '  transform: rotate(-12deg);',
+            '  transform-origin: top right;',
+            '  font-size: 0.6rem;',
+            '  color: rgba(63, 185, 80, 0.65);',
+            '  letter-spacing: 0.05em;',
+            '  pointer-events: none;',
+            '  z-index: 10;',
+            '  white-space: nowrap;',
+            '}'
+        ].join('\n');
+        document.head.appendChild(style);
+    }
+
+    /**
+     * Format an ISO timestamp to a short date string (e.g. "Mar 11 2026").
+     * @param {string} iso
+     * @returns {string}
+     */
+    function _formatDate(iso) {
+        if (!iso) return '';
+        try {
+            var d = new Date(iso);
+            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            return months[d.getMonth()] + ' ' + d.getDate() + ' ' + d.getFullYear();
+        } catch (e) {
+            return '';
+        }
+    }
+
+    /**
+     * Check completion for a given stamp key, with dual-store fallback.
+     *
+     * Primary: hexworth_completion_stamps[stampKey]
+     * Fallback: hexworth_progress[houseId][shortModuleId] — supports pages
+     *   (like Linux Admin index) that track progress in the flat progress
+     *   object before the stamp bridge runs.
+     *
+     * @param {string} stampKey - Full stamp ID, e.g. "script-script-la-ch01"
+     * @param {string} [houseId] - Optional house prefix, e.g. "script"
+     * @param {string} [shortId] - Optional short module key for flat-store fallback
+     * @returns {{ complete: boolean, timestamp: string|null, score: number|null }}
+     */
+    function _resolveCompletion(stampKey, houseId, shortId) {
+        var stamps = _load();
+        var record = stamps[stampKey];
+
+        if (record && record.completed) {
+            return { complete: true, timestamp: record.timestamp || null, score: record.score != null ? record.score : null };
+        }
+
+        // Flat-store fallback: hexworth_progress[houseId][shortId]
+        if (houseId && shortId) {
+            try {
+                var flat = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var houseData = flat[houseId] || {};
+                var entry = houseData[shortId];
+                if (entry && entry.completed) {
+                    return { complete: true, timestamp: entry.date || null, score: null };
+                }
+            } catch (e) { /* silent */ }
+        }
+
+        return { complete: false, timestamp: null, score: null };
+    }
+
+    /**
+     * Scan all [data-module-id] elements and apply visual completion stamps.
+     *
+     * Attribute API (on the host element):
+     *   data-module-id      - Full stamp key: "{houseId}-{moduleId}"
+     *                         e.g. "script-script-la-ch01"
+     *   data-module-house   - House prefix used for flat-store fallback lookup
+     *                         e.g. "script"
+     *   data-module-short   - Short module key used for flat-store fallback
+     *                         e.g. "script-linux-la-ch01-intro"
+     *
+     * Only completed modules receive an overlay badge. Incomplete elements
+     * are left untouched so no visual noise is added for in-progress cards.
+     *
+     * @param {string} [selector='[data-module-id]'] - CSS selector for target elements
+     */
+    function applyAll(selector) {
+        _ensureOverlayStyles();
+        var targets = document.querySelectorAll(selector || '[data-module-id]');
+        if (!targets.length) return;
+
+        for (var i = 0; i < targets.length; i++) {
+            var el = targets[i];
+            var stampKey = el.getAttribute('data-module-id');
+            if (!stampKey) continue;
+
+            // Skip if a stamp overlay is already present (idempotent)
+            if (el.querySelector('.cs-overlay-stamp')) continue;
+
+            var houseId  = el.getAttribute('data-module-house') || null;
+            var shortId  = el.getAttribute('data-module-short') || null;
+
+            var result = _resolveCompletion(stampKey, houseId, shortId);
+            if (!result.complete) continue;
+
+            // Build the stamp badge
+            var badge = document.createElement('div');
+            badge.className = 'cs-overlay-stamp';
+            badge.setAttribute('aria-label', 'Completed');
+
+            var check = document.createElement('span');
+            check.className = 'cs-ov-check';
+            check.textContent = '\u2713'; // checkmark
+            badge.appendChild(check);
+
+            var label = document.createTextNode('Completed');
+            badge.appendChild(label);
+            el.appendChild(badge);
+
+            // Append date line if timestamp available
+            if (result.timestamp) {
+                var dateEl = document.createElement('div');
+                dateEl.className = 'cs-overlay-date';
+                dateEl.textContent = _formatDate(result.timestamp);
+                el.appendChild(dateEl);
+            }
+        }
+    }
+
+    /**
      * Inject stamp styles into the page (idempotent).
      */
     function _ensureStyles() {
@@ -289,7 +471,8 @@ const CompletionStamp = (function() {
         resetHouse: resetHouse,
         renderStamps: renderStamps,
         renderProgressBar: renderProgressBar,
-        renderDashboardCard: renderDashboardCard
+        renderDashboardCard: renderDashboardCard,
+        applyAll: applyAll
     };
 })();
 

@@ -813,6 +813,182 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'shield-sec101-m01': {
+            id: 'shield-sec101-m01',
+            title: 'Security 101: Introduction to Security',
+            description: 'CIA Triad, AAA, security controls, threat landscape, defense-in-depth, and foundational security principles',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['cia-triad', 'security-fundamentals', 'threat-actors', 'controls'],
+            paths: ['sc-900', 'security-plus'],
+            components: {
+                presentation: 'houses/shield/security-101/shield-sec101-m01.presentation.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Explain the CIA Triad and map real threats to each pillar',
+                'Differentiate authentication, authorization, and accounting',
+                'Classify security controls by type and function',
+                'Describe threat actor categories and their motivations',
+                'Apply defense-in-depth principles to security design'
+            ]
+        },
+        'shield-sec101-m02': {
+            id: 'shield-sec101-m02',
+            title: 'Security 101: Identity and Access Management',
+            description: 'Authentication factors, MFA, SSO, RBAC, PAM, Zero Trust identity, and Conditional Access',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 50,
+            topics: ['iam', 'mfa', 'sso', 'zero-trust', 'rbac'],
+            paths: ['sc-900', 'security-plus'],
+            components: {
+                presentation: 'houses/shield/security-101/shield-sec101-m02.presentation.html'
+            },
+            prerequisites: ['shield-sec101-m01'],
+            objectives: [
+                'Distinguish authentication factors by category',
+                'Compare MFA methods by phishing resistance',
+                'Explain SSO using SAML and OIDC',
+                'Apply RBAC and least privilege principles',
+                'Describe Zero Trust identity principles and Conditional Access'
+            ]
+        },
+        'shield-sec101-m03': {
+            id: 'shield-sec101-m03',
+            title: 'Security 101: Network Security',
+            description: 'Firewalls, segmentation, VPN, IDS/IPS, DNS security, DDoS protection, and Zero Trust networking',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 50,
+            topics: ['firewalls', 'network-segmentation', 'vpn', 'ids-ips', 'dns-security'],
+            paths: ['sc-900', 'network-plus', 'security-plus'],
+            components: {
+                presentation: 'houses/shield/security-101/shield-sec101-m03.presentation.html'
+            },
+            prerequisites: ['shield-sec101-m01'],
+            objectives: [
+                'Compare firewall generations from packet filter to NGFW',
+                'Design a network architecture using DMZ segmentation',
+                'Differentiate VPN and ZTNA for remote access',
+                'Explain IDS vs IPS detection and deployment modes',
+                'Describe DNS attack types and their mitigations'
+            ]
+        },
+        'shield-sec101-m04': {
+            id: 'shield-sec101-m04',
+            title: 'Security 101: Endpoint Security',
+            description: 'EDR, patch management, OS hardening, application control, malware taxonomy, and mobile security',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['edr', 'patch-management', 'os-hardening', 'malware', 'mdm'],
+            paths: ['sc-900', 'security-plus'],
+            components: {
+                presentation: 'houses/shield/security-101/shield-sec101-m04.presentation.html'
+            },
+            prerequisites: ['shield-sec101-m01'],
+            objectives: [
+                'Contrast traditional AV with EDR capabilities',
+                'Apply risk-based patch prioritization using CVSS and KEV',
+                'List core OS hardening actions',
+                'Classify malware types by behavior and characteristics',
+                'Compare MDM and MAM for BYOD environments'
+            ]
+        },
+        'shield-sec101-m05': {
+            id: 'shield-sec101-m05',
+            title: 'Security 101: Data Security',
+            description: 'Symmetric and asymmetric encryption, hashing, PKI, data classification, DLP, and key management',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['encryption', 'hashing', 'pki', 'dlp', 'data-classification'],
+            paths: ['sc-900', 'security-plus'],
+            components: {
+                presentation: 'houses/shield/security-101/shield-sec101-m05.presentation.html'
+            },
+            prerequisites: ['shield-sec101-m01'],
+            objectives: [
+                'Explain the three data states and appropriate protections for each',
+                'Compare symmetric and asymmetric encryption use cases',
+                'Describe secure password hashing requirements',
+                'Explain how PKI and digital certificates establish trust',
+                'Design a data classification scheme with appropriate controls'
+            ]
+        },
+        'shield-sec101-m06': {
+            id: 'shield-sec101-m06',
+            title: 'Security 101: Cloud Security',
+            description: 'Shared responsibility, CSPM, CASB, container security, DevSecOps, and cloud misconfigurations',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['cloud-security', 'shared-responsibility', 'cspm', 'casb', 'containers'],
+            paths: ['sc-900', 'az-900', 'security-plus'],
+            components: {
+                presentation: 'houses/shield/security-101/shield-sec101-m06.presentation.html'
+            },
+            prerequisites: ['shield-sec101-m01', 'shield-sec101-m02'],
+            objectives: [
+                'Map customer vs provider responsibilities across IaaS/PaaS/SaaS',
+                'Identify the most common cloud security misconfigurations',
+                'Explain the role of CSPM and CWPP in cloud environments',
+                'Describe CASB capabilities for shadow IT and data control',
+                'Apply DevSecOps practices to shift security left'
+            ]
+        },
+        'shield-sec101-m07': {
+            id: 'shield-sec101-m07',
+            title: 'Security 101: Security Operations',
+            description: 'SOC, SIEM, incident response, SOAR, threat intelligence, MITRE ATT&CK, and digital forensics',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['soc', 'siem', 'incident-response', 'soar', 'threat-hunting'],
+            paths: ['sc-200', 'security-plus'],
+            components: {
+                presentation: 'houses/shield/security-101/shield-sec101-m07.presentation.html'
+            },
+            prerequisites: ['shield-sec101-m01'],
+            objectives: [
+                'Describe SOC tier structure and key operational metrics',
+                'Explain SIEM log correlation and alert management',
+                'Apply the NIST incident response lifecycle',
+                'Use MITRE ATT&CK for detection gap analysis',
+                'Describe digital forensics evidence collection priorities'
+            ]
+        },
+        'shield-sec101-m08': {
+            id: 'shield-sec101-m08',
+            title: 'Security 101: Governance and Compliance',
+            description: 'NIST CSF 2.0, ISO 27001, risk management, security policies, regulatory frameworks, and BCP/DR',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['governance', 'compliance', 'risk-management', 'nist-csf', 'iso-27001'],
+            paths: ['sc-900', 'security-plus', 'cism'],
+            components: {
+                presentation: 'houses/shield/security-101/shield-sec101-m08.presentation.html'
+            },
+            prerequisites: ['shield-sec101-m01'],
+            objectives: [
+                'Explain security governance structure and the three lines of defense',
+                'Compare NIST CSF 2.0 and ISO 27001',
+                'Apply quantitative risk analysis (ALE, SLE, ARO)',
+                'Map security documentation types to their hierarchy',
+                'Distinguish major compliance frameworks and their applicability'
+            ]
+        },
         'cse-06-quiz': {
             id: 'cse-06-quiz',
             title: 'CSE: Security Monitoring Quiz',
@@ -6103,6 +6279,86 @@ const ContentRegistry = {
             },
             prerequisites: [],
             objectives: []
+        },
+        'web-cloud-networking-pres': {
+            id: 'web-cloud-networking-pres',
+            title: 'Cloud Networking & Virtualization',
+            description: 'Cloud service models, SDN, NFV, VPC, and virtualization for Network+ N10-009',
+            house: 'web',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['cloud', 'virtualization', 'sdn', 'networking'],
+            paths: ['comptia-network'],
+            components: {
+                presentation: 'houses/web/presentations/web-cloud-networking.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['N10-009 1.2', 'N10-009 1.6']
+        },
+        'web-wan-technologies-pres': {
+            id: 'web-wan-technologies-pres',
+            title: 'WAN Technologies',
+            description: 'Leased lines, MPLS, Metro Ethernet, broadband, SD-WAN, and VPN for Network+ N10-009',
+            house: 'web',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['wan', 'mpls', 'vpn', 'networking'],
+            paths: ['comptia-network'],
+            components: {
+                presentation: 'houses/web/presentations/web-wan-technologies.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['N10-009 1.2', 'N10-009 2.4']
+        },
+        'web-network-security-pres': {
+            id: 'web-network-security-pres',
+            title: 'Network Security Concepts',
+            description: 'Firewalls, IDS/IPS, AAA, 802.1X, zero trust, hardening, and common attacks for Network+ N10-009',
+            house: 'web',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['security', 'firewalls', 'aaa', 'zero-trust', 'networking'],
+            paths: ['comptia-network', 'comptia-security'],
+            components: {
+                presentation: 'houses/web/presentations/web-network-security.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['N10-009 4.1', 'N10-009 4.2', 'N10-009 4.3']
+        },
+        'web-network-monitoring-pres': {
+            id: 'web-network-monitoring-pres',
+            title: 'Network Monitoring & Management',
+            description: 'SNMP, syslog, NetFlow, QoS, baselines, and documentation for Network+ N10-009',
+            house: 'web',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['snmp', 'syslog', 'netflow', 'qos', 'networking'],
+            paths: ['comptia-network'],
+            components: {
+                presentation: 'houses/web/presentations/web-network-monitoring.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['N10-009 3.1', 'N10-009 3.2', 'N10-009 3.3']
+        },
+        'web-high-availability-pres': {
+            id: 'web-high-availability-pres',
+            title: 'High Availability & Disaster Recovery',
+            description: 'Redundancy, clustering, RAID, backup strategies, DR sites, and BCP for Network+ N10-009',
+            house: 'web',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['high-availability', 'disaster-recovery', 'redundancy', 'networking'],
+            paths: ['comptia-network'],
+            components: {
+                presentation: 'houses/web/presentations/web-high-availability.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['N10-009 3.1', 'N10-009 3.4']
         },
         'web-network-sim-v2': {
             id: 'web-network-sim-v2',
