@@ -83,6 +83,7 @@ const A3Config = {
     difficulty: 'Intermediate',
     accent: '#2ecc71',
     storageKey: 'hexworth_ctf_a3',
+    registryId: 'a3-phantom-shell',
     trackerKey: 'ctf_a3',
 
     // ═══════════════════════════════════════════════════════
@@ -201,8 +202,8 @@ const A3Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{ph4nt0m_sh3ll_1nj3ct10n_d1sc0v3r3d}', points: 100 },
-        { id: 'root', value: 'flag{1r0n_b4st10n_r00t_c0mpr0m1s3d}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

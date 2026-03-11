@@ -103,6 +103,7 @@ const A4Config = {
     difficulty: 'Intermediate',
     accent: '#f39c12',
     storageKey: 'hexworth_ctf_a4',
+    registryId: 'a4-lost-root',
     trackerKey: 'ctf_a4',
 
     // ═══════════════════════════════════════════════════════
@@ -243,8 +244,8 @@ const A4Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{c1t4d3l_m41nt_4cc3ss_gr4nt3d}', points: 100 },
-        { id: 'root', value: 'flag{l0st_r00t_pr1v3sc_c0mpl3t3}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

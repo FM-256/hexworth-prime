@@ -63,6 +63,8 @@
         </div>
     </div>
     <script src="../../../../../../components/CLHConfig.js"></script>
+    <script src="../../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../../components/CLHInsightValidator.js"></script>
     <script src="../../../../../../components/CLHTerminal.js"></script>
     <script src="../../../../../../components/CLHCompletionModal.js"></script>
     <script>
@@ -104,27 +106,55 @@
             terminal.print('[PROMPT] ' + insightConfig.question, 'output');
         }
 
-        function submitInsightAnswer() {
+        async function submitInsightAnswer() {
             const insightConfig = config.insightPhase;
             const input = document.getElementById('insightAnswer');
             const feedback = document.getElementById('insightFeedback');
             const userAnswer = input.value.trim().toLowerCase();
-            if (!userAnswer) { feedback.className = 'insight-feedback wrong'; feedback.textContent = 'Please enter your analysis.'; return; }
+        
+            if (!userAnswer) {
+                feedback.className = 'insight-feedback wrong';
+                feedback.textContent = 'Please enter your analysis.';
+                return;
+            }
+        
             insightAttempts++;
-            const isCorrect = insightConfig.acceptedAnswers.some(accepted => userAnswer.includes(accepted.toLowerCase()));
-            if (isCorrect) {
-                feedback.className = 'insight-feedback'; feedback.style.display = 'block';
-                feedback.style.background = 'rgba(63, 185, 80, 0.1)'; feedback.style.border = '1px solid #3fb950'; feedback.style.color = '#3fb950';
-                feedback.textContent = insightConfig.correctAnswerMessage;
-                terminal.print('[CONFIRMED] ' + insightConfig.correctAnswerMessage, 'success');
-                input.disabled = true; document.querySelector('.insight-submit').disabled = true; document.querySelector('.insight-submit').style.opacity = '0.5';
-                setTimeout(() => { showCompletionModal(); }, 1500);
-            } else {
-                terminal.print('[REJECTED] Intelligence not confirmed.', 'error');
-                if (insightAttempts >= insightConfig.hintAfterAttempts && insightConfig.hint) {
-                    feedback.className = 'insight-feedback hint'; feedback.textContent = 'Hint: ' + insightConfig.hint;
-                } else { feedback.className = 'insight-feedback wrong'; feedback.textContent = insightConfig.wrongAnswerMessage; }
-                input.value = ''; input.focus();
+            input.disabled = true;
+            document.querySelector('.insight-submit').disabled = true;
+        
+            try {
+                const result = await CLHInsightValidator.submit(MODULE_ID, userAnswer);
+        
+                if (result.success) {
+                    feedback.className = 'insight-feedback';
+                    feedback.style.display = 'block';
+                    feedback.style.background = 'rgba(63, 185, 80, 0.1)';
+                    feedback.style.border = '1px solid #3fb950';
+                    feedback.style.color = '#3fb950';
+                    feedback.textContent = result.feedback;
+                    if (typeof terminal !== 'undefined') terminal.print('[CONFIRMED] ' + result.feedback, 'success');
+                    document.querySelector('.insight-submit').style.opacity = '0.5';
+                    setTimeout(() => { showCompletionModal(); }, 1500);
+                } else {
+                    if (typeof terminal !== 'undefined') terminal.print('[REJECTED] Intelligence not confirmed.', 'error');
+                    if (insightAttempts >= (insightConfig.hintAfterAttempts || 3) && insightConfig.hint) {
+                        feedback.className = 'insight-feedback hint';
+                        feedback.textContent = 'Hint: ' + insightConfig.hint;
+                    } else {
+                        feedback.className = 'insight-feedback wrong';
+                        feedback.textContent = result.feedback;
+                    }
+                    input.disabled = false;
+                    document.querySelector('.insight-submit').disabled = false;
+                    input.value = '';
+                    input.focus();
+                }
+            } catch (err) {
+                feedback.className = 'insight-feedback wrong';
+                feedback.textContent = 'Connection error. Please try again.';
+                input.disabled = false;
+                document.querySelector('.insight-submit').disabled = false;
+                console.error('Insight validation error:', err);
             }
         }
 

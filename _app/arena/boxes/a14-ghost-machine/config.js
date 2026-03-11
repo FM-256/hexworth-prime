@@ -78,6 +78,7 @@ const A14Config = {
     difficulty: 'Expert',
     accent: '#8e44ad',
     storageKey: 'hexworth_ctf_a14',
+    registryId: 'a14-ghost-machine',
     trackerKey: 'ctf_a14',
 
     // ═══════════════════════════════════════════════════════
@@ -233,8 +234,8 @@ const A14Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{gh0st_p3rs1st3nc3_ld_pr3l04d}', points: 100 },
-        { id: 'root', value: 'flag{v4ngu4rd_0p3r4t10n4l_m4nd4t3}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

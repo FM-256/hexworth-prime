@@ -145,8 +145,12 @@ exports.verifyGateAccess = onCall(cfOptions, async (request) => {
 
 /**
  * validateFlag — Server-side flag validation.
- * Flags are salted per-session so DevTools inspection is useless.
  * The client never sees the real flag — only the server knows.
+ *
+ * Two modes:
+ * 1. With flagId: check specific flag (original behavior)
+ * 2. Without flagId: check submission against ALL flags for the box,
+ *    return which one matched (SEC-2: client doesn't know flag IDs)
  */
 exports.validateFlag = onCall(cfOptions, async (request) => {
     if (!request.auth) {
@@ -155,62 +159,73 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
 
     const { boxId, flagId, submission, sessionId } = request.data || {};
 
-    if (!boxId || !flagId || !submission) {
-        throw new HttpsError('invalid-argument', 'Missing boxId, flagId, or submission.');
+    if (!boxId || !submission) {
+        throw new HttpsError('invalid-argument', 'Missing boxId or submission.');
     }
 
     const uid = request.auth.uid;
 
-    // Rate limiting — check recent attempts
+    // Rate limiting — check recent attempts per box
     const attemptsRef = db.collection(`users/${uid}/flag_attempts`);
-    const recentAttempts = await attemptsRef
-        .where('boxId', '==', boxId)
-        .where('flagId', '==', flagId)
-        .where('timestamp', '>', new Date(Date.now() - 60000)) // last 60 seconds
-        .get();
+    try {
+        const recentAttempts = await attemptsRef
+            .where('boxId', '==', boxId)
+            .where('timestamp', '>', new Date(Date.now() - 60000))
+            .get();
 
-    if (recentAttempts.size >= 5) {
-        throw new HttpsError('resource-exhausted',
-            'Too many attempts. Wait 60 seconds before trying again.');
+        if (recentAttempts.size >= 10) {
+            throw new HttpsError('resource-exhausted',
+                'Too many attempts. Wait 60 seconds before trying again.');
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn('Rate limit query failed (index may be building):', e.message);
     }
 
     // Log the attempt
-    await attemptsRef.add({
+    attemptsRef.add({
         boxId,
-        flagId,
+        flagId: flagId || '__scan__',
         timestamp: FieldValue.serverTimestamp(),
         sessionId: sessionId || null
-    });
+    }).catch(e => console.warn('Attempt log failed:', e.message));
 
-    // Look up the correct flag from server-side flag registry
+    // Look up the correct flags from server-side flag registry
     const flagDoc = await db.doc(`flag_registry/${boxId}`).get();
     if (!flagDoc.exists) {
         throw new HttpsError('not-found', 'Box not found in flag registry.');
     }
 
     const flags = flagDoc.data().flags || {};
-    const correctFlag = flags[flagId];
-
-    if (!correctFlag) {
-        throw new HttpsError('not-found', 'Flag not found.');
-    }
-
-    // Compare — normalize whitespace and case
     const normalizedSubmission = submission.trim().toLowerCase();
-    const normalizedCorrect = correctFlag.trim().toLowerCase();
-    const isCorrect = normalizedSubmission === normalizedCorrect;
 
-    if (isCorrect) {
-        // Record the capture
-        await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
-            boxId,
-            flagId,
-            capturedAt: FieldValue.serverTimestamp(),
-            sessionId: sessionId || null
-        });
+    // Mode 1: specific flagId provided
+    if (flagId) {
+        const correctFlag = flags[flagId];
+        if (!correctFlag) {
+            throw new HttpsError('not-found', 'Flag not found.');
+        }
+        const isCorrect = normalizedSubmission === correctFlag.trim().toLowerCase();
+
+        if (isCorrect) {
+            await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
+                boxId, flagId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
+            });
+        }
+        return { correct: isCorrect, flagId: isCorrect ? flagId : null };
     }
 
-    return { correct: isCorrect };
+    // Mode 2: no flagId — check all flags for the box
+    for (const [fid, fvalue] of Object.entries(flags)) {
+        if (normalizedSubmission === fvalue.trim().toLowerCase()) {
+            await db.doc(`users/${uid}/flag_captures/${boxId}_${fid}`).set({
+                boxId, flagId: fid, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
+            });
+            return { correct: true, flagId: fid };
+        }
+    }
+
+    return { correct: false, flagId: null };
 });
 
 // ─── Game Scoreboard ─────────────────────────────────────────────
@@ -1023,6 +1038,224 @@ exports.sendHandlerMessage = onCall(cfOptions, async (request) => {
 
     return { success: true, messageId: msgRef.id };
 });
+
+// ─── SEC-1: Generic Challenge Validation ─────────────────────────
+
+/**
+ * validateChallenge — Server-side challenge validation for interactive labs.
+ * Supports: shopbot (AI Exploit Lab). Extensible to CLH, quizzes, etc.
+ *
+ * Client sends: { challengeId, levelId, userInput, conversation }
+ * Server returns: { blocked, success, feedback, points, explanation }
+ *
+ * The client NEVER sees the success/defense patterns or response text
+ * until the server decides to reveal them.
+ */
+exports.validateChallenge = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { challengeId, levelId, userInput, conversation } = request.data || {};
+
+    if (!challengeId || !levelId || !userInput) {
+        throw new HttpsError('invalid-argument', 'Missing challengeId, levelId, or userInput.');
+    }
+
+    if (typeof userInput !== 'string' || userInput.length > 2000) {
+        throw new HttpsError('invalid-argument', 'Input must be a string under 2000 characters.');
+    }
+
+    const uid = request.auth.uid;
+
+    // ── Rate limiting: 10 attempts per level per 60 seconds ──
+    const attemptsRef = db.collection(`users/${uid}/challenge_attempts`);
+    try {
+        const recentAttempts = await attemptsRef
+            .where('challengeId', '==', challengeId)
+            .where('levelId', '==', levelId)
+            .where('timestamp', '>', new Date(Date.now() - 60000))
+            .get();
+
+        if (recentAttempts.size >= 10) {
+            throw new HttpsError('resource-exhausted',
+                'Too many attempts. Wait 60 seconds before trying again.');
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn('Rate limit query failed (index may be building):', e.message);
+    }
+
+    // Log the attempt
+    attemptsRef.add({
+        challengeId,
+        levelId,
+        timestamp: FieldValue.serverTimestamp()
+    }).catch(e => console.warn('Attempt log failed:', e.message));
+
+    // ── Route to challenge handler ──
+    switch (challengeId) {
+        case 'shopbot':
+            return evaluateShopbot(levelId, userInput, conversation || []);
+        case 'clh-insight':
+            return evaluateClhInsight(levelId, userInput);
+        default:
+            throw new HttpsError('not-found', `Unknown challenge: ${challengeId}`);
+    }
+});
+
+/**
+ * Evaluate a ShopBot AI Exploit Lab submission.
+ * Reads level config from Firestore, runs defense/success checks server-side.
+ */
+async function evaluateShopbot(levelId, userInput, conversation) {
+    const levelNum = parseInt(levelId);
+    if (!levelNum || levelNum < 1 || levelNum > 8) {
+        throw new HttpsError('invalid-argument', 'Invalid ShopBot level.');
+    }
+
+    // Fetch level config from Firestore
+    const levelDoc = await db.doc(`challenge_registry/shopbot/levels/${levelNum}`).get();
+    if (!levelDoc.exists) {
+        throw new HttpsError('not-found', 'Level not found in challenge registry.');
+    }
+
+    const level = levelDoc.data();
+    const msg = userInput.toLowerCase();
+
+    // ── Defense check ──
+    const blocked = checkShopbotDefense(level, msg);
+    if (blocked) {
+        return {
+            blocked: true,
+            success: false,
+            feedback: blocked,
+            points: 0,
+            explanation: null
+        };
+    }
+
+    // ── Success check ──
+    // Build conversation context matching the client format
+    const conv = [...conversation, { role: 'user', content: userInput }];
+    const success = checkShopbotSuccess(level, msg, conv);
+
+    if (success) {
+        return {
+            blocked: false,
+            success: true,
+            feedback: level.successResponse,
+            points: level.points,
+            explanation: level.explanation
+        };
+    }
+
+    // No match — generic bot response (client picks one randomly)
+    return {
+        blocked: false,
+        success: false,
+        feedback: null,
+        points: 0,
+        explanation: null
+    };
+}
+
+/**
+ * Check if a message triggers the level's defense layer.
+ * Returns the block message or false.
+ */
+function checkShopbotDefense(level, msg) {
+    // Level 7: compound defense (requires + anyOf)
+    if (level.defenseCompound) {
+        const dc = level.defenseCompound;
+        const hasRequired = dc.requires.every(p => msg.includes(p));
+        const hasAny = dc.anyOf.some(p => msg.includes(p));
+        if (hasRequired && hasAny) return level.defenseResponse;
+        return false;
+    }
+
+    // Level 8: multiple defense rules
+    if (level.defenseRules && Array.isArray(level.defenseRules)) {
+        for (const rule of level.defenseRules) {
+            const hasPatterns = rule.patterns.some(p => msg.includes(p));
+            if (!hasPatterns) continue;
+
+            // If rule has requires/anyOf, check those too
+            if (rule.requires) {
+                if (!rule.requires.every(p => msg.includes(p))) continue;
+            }
+            if (rule.anyOf) {
+                if (!rule.anyOf.some(p => msg.includes(p))) continue;
+            }
+
+            return rule.response;
+        }
+        return false;
+    }
+
+    // Simple pattern defense (levels 1-6)
+    if (!level.defensePatterns || level.defensePatterns.length === 0) {
+        return false;
+    }
+
+    const checkMsg = level.defenseStripSpaces ? msg.replace(/\s+/g, '') : msg;
+    for (const pattern of level.defensePatterns) {
+        if (checkMsg.includes(pattern)) {
+            return level.defenseResponse;
+        }
+    }
+    return false;
+}
+
+/**
+ * Check if a message (or conversation) triggers success for this level.
+ * Returns true/false.
+ */
+function checkShopbotSuccess(level, msg, conversation) {
+    // Check string patterns
+    if (level.successPatterns && level.successPatterns.length > 0) {
+        for (const pattern of level.successPatterns) {
+            if (msg.includes(pattern)) return true;
+        }
+    }
+
+    // Check regex pattern (level 3 has a spaced-letter regex)
+    if (level.successRegex) {
+        const regex = new RegExp(level.successRegex);
+        if (regex.test(msg)) return true;
+    }
+
+    return false;
+}
+
+/**
+ * Evaluate a CLH insight phase answer.
+ * Reads accepted answers from Firestore, does case-insensitive comparison.
+ */
+async function evaluateClhInsight(moduleId, userInput) {
+    if (!moduleId || typeof moduleId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Invalid CLH module ID.');
+    }
+
+    const insightDoc = await db.doc(`challenge_registry/clh/insights/${moduleId}`).get();
+    if (!insightDoc.exists) {
+        throw new HttpsError('not-found', 'Module insight not found in challenge registry.');
+    }
+
+    const insight = insightDoc.data();
+    const normalized = userInput.trim().toLowerCase();
+    const isCorrect = (insight.acceptedAnswers || []).some(
+        a => a.toLowerCase() === normalized
+    );
+
+    return {
+        blocked: false,
+        success: isCorrect,
+        feedback: isCorrect ? insight.correctMessage : insight.wrongMessage,
+        points: isCorrect ? 100 : 0,
+        explanation: null
+    };
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────
 

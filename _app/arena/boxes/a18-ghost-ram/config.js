@@ -78,6 +78,7 @@ const A18Config = {
     difficulty: 'Expert',
     accent: '#1a5276',
     storageKey: 'hexworth_ctf_a18',
+    registryId: 'a18-ghost-ram',
     trackerKey: 'ctf_a18',
 
     // ═══════════════════════════════════════════════════════
@@ -253,8 +254,8 @@ const A18Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{chr0n0s_c2_10_13_37_100}', points: 100 },
-        { id: 'root', value: 'flag{1nt3l_br13f1ng_chr0n0s_d3f34t3d}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

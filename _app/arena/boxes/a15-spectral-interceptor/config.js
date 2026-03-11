@@ -78,6 +78,7 @@ const A15Config = {
     difficulty: 'Expert',
     accent: '#e67e22',
     storageKey: 'hexworth_ctf_a15',
+    registryId: 'a15-spectral-interceptor',
     trackerKey: 'ctf_a15',
 
     // ═══════════════════════════════════════════════════════
@@ -200,8 +201,8 @@ const A15Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{gfsk_4800_b4ud_nrz_pr0t0c0l}', points: 100 },
-        { id: 'root', value: 'flag{c0ur13r_m4n1f3st_d3c0d3d}',    points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

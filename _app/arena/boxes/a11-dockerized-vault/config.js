@@ -78,6 +78,7 @@ const A11Config = {
     difficulty: 'Advanced',
     accent: '#2980b9',
     storageKey: 'hexworth_ctf_a11',
+    registryId: 'a11-dockerized-vault',
     trackerKey: 'ctf_a11',
 
     // ===============================================================
@@ -283,8 +284,8 @@ const A11Config = {
     // ===============================================================
 
     flags: [
-        { id: 'user', value: 'flag{d0ck3r_s0ck3t_3xp0s3d_v4ult}',          points: 100 },
-        { id: 'root', value: 'flag{c0nt41n3r_3sc4p3_m4st3r_m4n1f3st}',      points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ===============================================================

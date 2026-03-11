@@ -77,6 +77,7 @@ const A6Config = {
     difficulty: 'Intermediate',
     accent: '#9b59b6',
     storageKey: 'hexworth_ctf_a6',
+    registryId: 'a6-broken-cipher',
     trackerKey: 'ctf_a6',
 
     // ═══════════════════════════════════════════════════════
@@ -195,8 +196,8 @@ const A6Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{s1l3nt_0rd3r_cr4ck3d_c1ph3r}', points: 100 },
-        { id: 'root', value: 'flag{br0k3n_c1ph3r_v4ult_m4st3r}',  points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

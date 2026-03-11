@@ -606,11 +606,8 @@ PRO TIP: Good operatives always check for hidden files.
             insightPhase: {
                 enabled: true,
                 question: "What is the password to the vault?",
-                acceptedAnswers: ["SHADOWRUN", "shadowrun", "Shadowrun"],
                 hint: "Look for hidden files in the intel directory. Secrets hide in the shadows.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Access denied. Search deeper - some files are hidden from plain sight.",
-                correctAnswerMessage: "Vault access granted: SHADOWRUN confirmed. You found the hidden intelligence."
             },
 
             remoteHosts: null,
@@ -890,11 +887,8 @@ PRO TIP: Wrap patterns with spaces in quotes.
             insightPhase: {
                 enabled: true,
                 question: "What is the secret code hidden in the evidence?",
-                acceptedAnswers: ["42XDFL", "42xdfl"],
                 hint: "Use grep to search for 'Secret Code' in the mystery.txt file.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Code not recognized. Search the evidence more carefully.",
-                correctAnswerMessage: "Code verified: 42XDFL. Evidence extraction complete. You've mastered pattern hunting."
             },
 
             remoteHosts: null,
@@ -1131,11 +1125,8 @@ SUSPICIOUS INDICATORS
             insightPhase: {
                 enabled: true,
                 question: "What is the name of the unauthorized process?",
-                acceptedAnswers: ["unknown_process", "unknown process", "623"],
                 hint: "Compare the process list to the baseline. What process is NOT approved?",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Process not identified. Check baseline.txt for approved processes.",
-                correctAnswerMessage: "Threat confirmed: unknown_process (PID 623). Flagged for termination."
             },
 
             remoteHosts: null,
@@ -1428,20 +1419,8 @@ The official cover story is "equipment malfunction."
             insightPhase: {
                 enabled: true,
                 question: "According to the anomaly detector, where did the signal originate?",
-                acceptedAnswers: [
-                    "extrasolar",
-                    "extra-solar",
-                    "extra solar",
-                    "outside the solar system",
-                    "outside solar system",
-                    "not terrestrial",
-                    "non-terrestrial",
-                    "beyond the solar system"
-                ],
                 hint: "Look at the ERROR entries in system.log - what location is mentioned?",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Intelligence not confirmed. Review the ERROR entries in system.log.",
-                correctAnswerMessage: "Signal origin confirmed: EXTRASOLAR. Excellent analysis, Operator."
             },
 
             remoteHosts: null,
@@ -1668,16 +1647,8 @@ BURN AFTER READING
             insightPhase: {
                 enabled: true,
                 question: "Before you leave, what is the dead drop passphrase?",
-                acceptedAnswers: [
-                    "the owl flies at midnight",
-                    "owl flies at midnight",
-                    "the owl flies at midnight.",
-                    "\"the owl flies at midnight\""
-                ],
                 hint: "Check for hidden files in your home directory using ls -la",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Passphrase not recognized. Did you check all files, including hidden ones?",
-                correctAnswerMessage: "Passphrase confirmed. Dead drop protocol acknowledged."
             },
 
             remoteHosts: null,
@@ -1911,16 +1882,8 @@ SECURITY TIP:
             insightPhase: {
                 enabled: true,
                 question: "Before leaving the facility, which Shadow Network node is compromised?",
-                acceptedAnswers: [
-                    "gamma",
-                    "node gamma",
-                    "gamma node",
-                    "10.13.37.3"
-                ],
                 hint: "Check for hidden files in your home directory - network intel may be stored there.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Node not recognized. Review the shadow network access points.",
-                correctAnswerMessage: "Confirmed. Node Gamma flagged as compromised - avoid at all costs."
             },
 
             remoteHosts: null,
@@ -2198,17 +2161,8 @@ BEST PRACTICES
             insightPhase: {
                 enabled: true,
                 question: "If extraction is required, what are the dead drop coordinates?",
-                acceptedAnswers: [
-                    "40.7484",
-                    "73.9857",
-                    "40.7484° n, 73.9857° w",
-                    "40.7484 n 73.9857 w",
-                    "under bench"
-                ],
                 hint: "Check for hidden protocol files that detail emergency procedures.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Coordinates not recognized. Review the exfiltration protocol.",
-                correctAnswerMessage: "Dead drop coordinates confirmed. Package under bench - handler notified."
             },
 
             remoteHosts: null,
@@ -2702,14 +2656,8 @@ COMMON PIPELINES
             insightPhase: {
                 enabled: true,
                 question: "Based on your analysis, which IP is making unauthorized upload attempts?",
-                acceptedAnswers: [
-                    "10.0.0.88",
-                    "10.0.0.88."
-                ],
                 hint: "Look for repeated 403 (forbidden) responses in the access log.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "IP not confirmed. Analyze the access.log for repeated 403 errors.",
-                correctAnswerMessage: "Threat actor identified: 10.0.0.88 - Flagged for monitoring."
             },
 
             remoteHosts: null,
@@ -2995,14 +2943,8 @@ TEE (Split stream):
             insightPhase: {
                 enabled: true,
                 question: "According to the analyst notes, which IP should be monitored for persistence?",
-                acceptedAnswers: [
-                    "192.168.1.105",
-                    "192.168.1.105."
-                ],
                 hint: "Check the intel directory for analyst notes about monitoring targets.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Target IP not confirmed. Review the analyst notes in intel/.",
-                correctAnswerMessage: "Target confirmed: 192.168.1.105 - Added to persistence watchlist."
             },
 
             remoteHosts: null,
@@ -3255,16 +3197,8 @@ $     End of line
             insightPhase: {
                 enabled: true,
                 question: "How many failed login attempts were recorded in auth.log?",
-                acceptedAnswers: [
-                    "6",
-                    "six",
-                    "6 failed",
-                    "6 attempts"
-                ],
                 hint: "Use grep -c to count lines matching 'FAILED' in the auth log.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Count not confirmed. Use grep -c 'FAILED' logs/auth.log",
-                correctAnswerMessage: "Brute force confirmed: 6 failed attempts from hostile IP. Countermeasures deployed."
             },
 
             remoteHosts: null,
@@ -3530,11 +3464,8 @@ ROUTING:
             insightPhase: {
                 enabled: true,
                 question: "Based on the scan results, what database port is open on the target?",
-                acceptedAnswers: ["3306", "mysql", "3306/tcp"],
                 hint: "Check the scan_results.txt file in the intel directory.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Port not confirmed. Review the scan results in intel/.",
-                correctAnswerMessage: "Confirmed: MySQL on port 3306. Database access possible."
             },
 
             remoteHosts: null,
@@ -3827,11 +3758,8 @@ Use for mission verification before operations.`
             insightPhase: {
                 enabled: true,
                 question: "What alias is defined in the operator's .bashrc file?",
-                acceptedAnswers: ["ll", "ls -la", "ll="],
                 hint: "Read the .bashrc file to see what shortcuts are configured.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Alias not found. Check cat .bashrc for defined aliases.",
-                correctAnswerMessage: "Confirmed: 'll' alias maps to 'ls -la'. Shell configured."
             },
 
             remoteHosts: null,
@@ -4109,11 +4037,8 @@ tmux                Modern terminal multiplexer`
             insightPhase: {
                 enabled: true,
                 question: "According to intel, what is the name of the cryptominer process?",
-                acceptedAnswers: ["rogue_agent", "rogue agent", "rogueagent"],
                 hint: "Check the processes.txt file in the intel directory for known threats.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Process not recognized. Review intel/processes.txt for malicious process names.",
-                correctAnswerMessage: "Threat identified: rogue_agent (cryptominer). Terminate with extreme prejudice."
             },
 
             remoteHosts: null,
@@ -4803,17 +4728,8 @@ PROBABLE TRAITOR: Codename begins with "N"
             insightPhase: {
                 enabled: true,
                 question: "Enter your findings in format: SUSPECT1,SUSPECT2,SUSPECT3:TRAITOR (suspects alphabetical)",
-                acceptedAnswers: [
-                    "CIPHER,NOMAD,VIPER:NOMAD",
-                    "cipher,nomad,viper:nomad",
-                    "CIPHER, NOMAD, VIPER:NOMAD",
-                    "CIPHER,NOMAD,VIPER: NOMAD",
-                    "CIPHER, NOMAD, VIPER: NOMAD"
-                ],
                 hint: "NIGHTFALL team + ZONE-ALPHA + STANDBY = 3 suspects. The intercept signature reveals which one.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Analysis incomplete. Cross-reference all constraints and find the smoking gun.",
-                correctAnswerMessage: "TRAITOR CONFIRMED: NOMAD. Counter-intel team dispatched. Outstanding work, analyst."
             },
 
             remoteHosts: null,
@@ -4963,11 +4879,8 @@ df -h`
             insightPhase: {
                 enabled: true,
                 question: "What is the operation codename according to the intel notes?",
-                acceptedAnswers: ["iron harvest", "operation iron harvest", "ironharvest"],
                 hint: "Check the notes.txt file in the intel directory.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Codename not recognized. Review intel/notes.txt for mission details.",
-                correctAnswerMessage: "OPERATION IRON HARVEST confirmed. Implant deployment authorized."
             },
 
             remoteHosts: null,
@@ -5140,11 +5053,8 @@ find / -mtime -1 -type f 2>/dev/null`
             insightPhase: {
                 enabled: true,
                 question: "What port does the analyst's backdoor connect to?",
-                acceptedAnswers: ["4444", "port 4444", "4444."],
                 hint: "Read the .backdoor.sh file in /home/analyst to see the C2 connection details.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Port not confirmed. Check the backdoor script for netcat parameters.",
-                correctAnswerMessage: "C2 PORT CONFIRMED: 4444. Mole's communication channel identified."
             },
 
             remoteHosts: null,
@@ -5313,11 +5223,8 @@ md5sum -c checksums.md5         Verify against checksum file`
             insightPhase: {
                 enabled: true,
                 question: "What is the handler's codename for this dead drop operation?",
-                acceptedAnswers: ["raven", "RAVEN", "handler raven"],
                 hint: "Check the manifest.txt or README.txt in the staging or incoming directories.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Handler not recognized. Review the drop documentation.",
-                correctAnswerMessage: "HANDLER RAVEN CONFIRMED. Exfiltration authorized."
             },
 
             remoteHosts: null,
@@ -5528,11 +5435,8 @@ mount -o loop image.img /mnt    Mount disk image`
             insightPhase: {
                 enabled: true,
                 question: "What is the case officer's codename for case 2024-001?",
-                acceptedAnswers: ["specter", "SPECTER", "case officer specter"],
                 hint: "Check the notes.txt file in the case_2024_001 directory.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Case officer not recognized. Review the case notes.",
-                correctAnswerMessage: "CASE OFFICER SPECTER CONFIRMED. Evidence analysis authorized."
             },
 
             remoteHosts: null,
@@ -5725,11 +5629,8 @@ ALERT: Unauthorized privilege escalation detected!`
             insightPhase: {
                 enabled: true,
                 question: "What is the username of the suspicious account created by the attacker?",
-                acceptedAnswers: ["backdoor", "user backdoor", "backdoor user"],
                 hint: "Check the audit_logs directory or admin's bash_history for recently created accounts.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Account not found. Review the privilege_changes.log or user_activity.log.",
-                correctAnswerMessage: "BACKDOOR ACCOUNT IDENTIFIED. Recommend immediate disablement."
             },
 
             remoteHosts: null,
@@ -5889,11 +5790,8 @@ STATUS: ACTIVE`
             insightPhase: {
                 enabled: true,
                 question: "What is the operation codename for this SSH exfiltration mission?",
-                acceptedAnswers: ["silent relay", "SILENT RELAY", "operation silent relay"],
                 hint: "Check the mission_brief.txt file for the operation codename.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Operation codename not recognized. Review mission briefing.",
-                correctAnswerMessage: "OPERATION SILENT RELAY CONFIRMED. Secure channel established."
             },
 
             remoteHosts: null,
@@ -6085,11 +5983,8 @@ Report findings to handler before proceeding`
             insightPhase: {
                 enabled: true,
                 question: "What is the IP address of the primary target (database server)?",
-                acceptedAnswers: ["10.0.0.66", "10.0.0.66/32", "ip 10.0.0.66"],
                 hint: "Check the targets.txt in the notes directory or the initial_sweep.txt scan results.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Target IP not confirmed. Review scan results and target notes.",
-                correctAnswerMessage: "TARGET 10.0.0.66 CONFIRMED. Database server identified for extraction."
             },
 
             remoteHosts: null,
@@ -6272,11 +6167,8 @@ NEXT STEPS:
             insightPhase: {
                 enabled: true,
                 question: "What is the mining pool address being used by the cryptominer? (format: domain:port)",
-                acceptedAnswers: ["darkpool.monero.net:3333", "stratum+tcp://darkpool.monero.net:3333", "darkpool.monero.net"],
                 hint: "Use 'systemctl cat' on suspicious services to view their configuration.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Pool address not found. Examine the service unit files carefully.",
-                correctAnswerMessage: "MINING POOL IDENTIFIED: darkpool.monero.net:3333 - Added to threat intel database."
             },
 
             remoteHosts: null,
@@ -6464,11 +6356,8 @@ Example: */5 = every 5 minutes, 0 * = every hour at minute 0`
             insightPhase: {
                 enabled: true,
                 question: "You found a suspicious file in /etc/cron.d/. How often (in minutes) does this persistence mechanism execute?",
-                acceptedAnswers: ["10", "10 minutes", "every 10 minutes", "*/10"],
                 hint: "Run 'ls /etc/cron.d/' to find the extra file, then 'cat' it. The first field in cron syntax is minutes (*/N = every N minutes).",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Check the cron syntax. First field = minutes. */N means every N minutes.",
-                correctAnswerMessage: "10-MINUTE INTERVAL CONFIRMED. The attacker set up persistence to survive reboots and process kills."
             },
 
             remoteHosts: null,
@@ -6760,11 +6649,8 @@ End-Date: 2026-01-15  02:51:10`
             insightPhase: {
                 enabled: true,
                 question: "At what time (HH:MM:SS) was the malicious 'netminer' package installed?",
-                acceptedAnswers: ["02:51:07", "2:51:07", "02:51"],
                 hint: "Check the dpkg.log for the exact timestamp when netminer was installed.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Timestamp format: HH:MM:SS - check dpkg.log entries carefully.",
-                correctAnswerMessage: "TIMELINE CONFIRMED. 02:51:07 on January 15th - coordinated with other suspicious installs at 02:47-02:48."
             },
 
             remoteHosts: null,
@@ -7072,11 +6958,8 @@ Look for scripting languages with cap_setuid!`
             insightPhase: {
                 enabled: true,
                 question: "Your getcap scan found a binary with cap_setuid=ep. This capability allows a program to change its user ID to ANY user - including root (UID 0). Which binary has this dangerous capability?",
-                acceptedAnswers: ["python3", "python3.10", "/usr/bin/python3", "/usr/bin/python3.10", "python"],
                 hint: "Run: getcap -r / 2>/dev/null — look for 'cap_setuid=ep' in the output.",
                 hintAfterAttempts: 2,
-                wrongAnswerMessage: "Check your getcap output or ~/recon/capabilities.txt for the binary with cap_setuid.",
-                correctAnswerMessage: "CORRECT. Python3.10 has cap_setuid, meaning it can set its UID to 0 (root). Exploitation: python3 -c 'import os; os.setuid(0); os.system(\"/bin/bash\")' — This gives instant root shell without needing sudo or SUID bits."
             },
 
             remoteHosts: null,
@@ -7529,11 +7412,8 @@ guest:x:1004:`
             insightPhase: {
                 enabled: true,
                 question: "You found an account added to the sudo group that wasn't in the baseline. What is the username of this backdoor account?",
-                acceptedAnswers: ["s3rv1c3", "S3RV1C3"],
                 hint: "Compare group_memberships.txt baseline vs current. The extra sudo member was created on the incident date. Check user_list.txt for accounts created 2026-01-15.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Cross-reference the sudo group changes with account creation dates.",
-                correctAnswerMessage: "CONFIRMED. s3rv1c3 (leet-speak for 'service') - created 2026-01-15, immediately added to sudo. Classic persistence technique using disguised naming."
             },
 
             remoteHosts: null,
@@ -7841,9 +7721,7 @@ ROOT CAUSE: Under investigation
             insightPhase: {
                 enabled: true,
                 question: "The alerts mention PID 7777 has a persistent connection. What is the C2 server's IP:PORT that this process is connecting to?",
-                acceptedAnswers: ["10.0.0.88:4444", "10.0.0.88 4444", "10.0.0.88 port 4444"],
                 hint: "Check dashboards/network_io.log for PID 7777's connection destination.",
-                wrongAnswerMessage: "Format: IP:PORT - look for entries with PID 7777 in the network logs.",
                 hintAfterAttempts: 2
             },
 
@@ -8181,7 +8059,6 @@ echo "Configs backed up to configs_backup_$DATE.tar.gz"
             insightPhase: {
                 enabled: true,
                 question: "Your handler requests verification. What is the escape sequence stored in your vim configuration?",
-                acceptedAnswers: ["VIMLOCK", "vimlock"],
                 hint: "Read your .vimrc carefully - look for the field_verification variable.",
                 hintAfterAttempts: 3
             },
@@ -9154,8 +9031,6 @@ Jan 17 03:00:01 CHIMERA systemd[1]: pam_unix(systemd-user:session): session open
             insightPhase: {
                 enabled: true,
                 question: "What is the VALID mission verification code? (Hint: It's NOT Hydra or Phoenix)",
-                acceptedAnswers: ["MEDUSA-9", "medusa-9", "MEDUSA9", "medusa9"],
-                wrongAnswerMessage: "Incorrect. Remember: HYDRA-3 and PHOENIX-7 are DECOY codes. The target is Medusa.",
                 hint: "The valid code is in mission/intel_brief.txt and confirmed in /data/projects/medusa/classified/",
                 hintAfterAttempts: 2
             },

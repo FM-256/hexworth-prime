@@ -102,6 +102,7 @@ const A5Config = {
     difficulty: 'Intermediate',
     accent: '#3498db',
     storageKey: 'hexworth_ctf_a5',
+    registryId: 'a5-custodians-key',
     trackerKey: 'ctf_a5',
 
     // ═══════════════════════════════════════════════════════
@@ -238,8 +239,8 @@ const A5Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{cust0d14n_b4ckup_4cc3ss}', points: 100 },
-        { id: 'root', value: 'flag{cust0d14ns_k3y_syst3m_0wn3d}', points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

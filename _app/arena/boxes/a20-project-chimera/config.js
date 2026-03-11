@@ -80,6 +80,7 @@ const A20Config = {
     difficulty: 'Expert (Extreme)',
     accent: '#c0392b',
     storageKey: 'hexworth_ctf_a20',
+    registryId: 'a20-project-chimera',
     trackerKey: 'ctf_a20',
 
     // ═══════════════════════════════════════════════════════
@@ -304,8 +305,8 @@ const A20Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{g3n3s1s_supply_ch41n_l1bcor3}', points: 100 },
-        { id: 'root', value: 'flag{gl0b4l_d0m1n4t10n_pr0t0c0l}',  points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════

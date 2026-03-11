@@ -77,6 +77,7 @@ const A12Config = {
     difficulty: 'Advanced',
     accent: '#3DDC84',
     storageKey: 'hexworth_ctf_a12',
+    registryId: 'a12-mobile-scapegoat',
     trackerKey: 'ctf_a12',
 
     // ═══════════════════════════════════════════════════════
@@ -639,8 +640,8 @@ public class CryptoUtil {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        { id: 'user', value: 'flag{v0y4g3r_h4rdc0d3d_4p1_k3y}',          points: 100 },
-        { id: 'root', value: 'flag{n0m4d_m4n1f3st_c0nt3nt_pr0v1d3r}',    points: 200 }
+        { id: 'user', points: 100 },
+        { id: 'root', points: 200 }
     ],
 
     // ═══════════════════════════════════════════════════════
