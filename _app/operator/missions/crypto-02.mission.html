@@ -2,187 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="../../components/AccessGuard.js"></script>
-    <script>AccessGuard.require('sorted');</script>
-    <script src="../../components/AchievementManager.js"></script>
-    <script src="../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRYPTO-02: Key Escrow | Operator</title>
     <link rel="stylesheet" href="../engine/operator.css">
-    <style>
-        .editor-panel { display: none !important; }
-        .term-panel { flex:0 0 45%; display:flex; flex-direction:column; background:#080a0e; height:100%; }
-        .term-bar { display:flex; align-items:center; gap:6px; padding:8px 14px; background:#0e1018; border-bottom:1px solid rgba(57,255,20,0.1); }
-        .term-dot { width:8px; height:8px; border-radius:50%; background:rgba(57,255,20,0.3); }
-        .term-bar-label { font-size:0.55rem; letter-spacing:0.12em; color:rgba(57,255,20,0.25); margin-left:6px; }
-        .term-output { flex:1; overflow-y:auto; padding:10px 14px; font-size:0.72rem; line-height:1.55; }
-        .term-output::-webkit-scrollbar { width:4px; }
-        .term-output::-webkit-scrollbar-thumb { background:rgba(57,255,20,0.15); border-radius:2px; }
-        .term-input-row { display:flex; align-items:center; gap:8px; padding:8px 14px; border-top:1px solid rgba(57,255,20,0.1); }
-        .term-prompt-text { color:rgba(57,255,20,0.5); font-size:0.72rem; letter-spacing:0.04em; white-space:nowrap; }
-        .term-input { flex:1; background:transparent; border:none; outline:none; color:#76ff03; font-family:'Courier New',monospace; font-size:0.72rem; caret-color:#39ff14; }
-        .term-line { word-break:break-word; }
-        .term-system { color:rgba(57,255,20,0.3); } .term-info { color:rgba(57,255,20,0.65); }
-        .term-success { color:#39ff14; font-weight:600; } .term-error { color:#ff4444; }
-        .term-warning { color:#ffaa00; } .term-node-info { color:#00ccff; }
-        .term-heading { color:#39ff14; font-weight:700; } .term-prompt-echo { color:rgba(57,255,20,0.4); }
-        @media (max-width:768px) { .term-panel { flex:1; } }
-    </style>
+    <script src="../../components/ModuleProgress.js"></script>
 </head>
 <body>
     <div id="operator-root"></div>
+
     <script src="../engine/OperatorEngine.js"></script>
     <script src="../engine/AgentBridge.js"></script>
+    <script src="../engine/TerminalInterpreter.js"></script>
     <script src="../configs/crypto-02.config.js"></script>
     <script>
+    /* CRYPTO-02: Key Escrow — PKI rogue CA investigation */
     (function() {
-        var CONFIG = CRYPTO_02_CONFIG;
-        var engine = OperatorEngine.init(CONFIG);
-        var state  = engine.getState();
-
-        if (typeof state.rogueIdentified === 'undefined')  state.rogueIdentified = false;
-        if (typeof state.messageDecoded === 'undefined')   state.messageDecoded = false;
-        if (typeof state.rogueRevoked === 'undefined')     state.rogueRevoked = false;
-        if (typeof state.chainVerified === 'undefined')    state.chainVerified = false;
-        if (!state.certsExamined) state.certsExamined = new Set();
-        state.commandHistory = state.commandHistory || []; state.historyIndex = -1;
-
-        var ep=document.querySelector('.editor-panel'); if(ep) ep.style.display='none';
-        var layout=document.querySelector('.mission-layout'), tp=document.createElement('div'); tp.className='term-panel';
-        tp.innerHTML='<div class="term-bar"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><span class="term-bar-label">OPERATOR TERMINAL</span></div><div class="term-output" id="term-output"></div><div class="term-input-row"><span class="term-prompt-text">'+CONFIG.prompt+'</span><input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus></div>';
-        layout.appendChild(tp);
-        var termOutput=document.getElementById('term-output'), termInput=document.getElementById('term-input');
-
-        function printLine(t,type){var l=document.createElement('div');l.className='term-line term-'+(type||'system');l.textContent=t;termOutput.appendChild(l);while(termOutput.children.length>200)termOutput.removeChild(termOutput.firstChild);termOutput.scrollTop=termOutput.scrollHeight;}
-        function currentNodeType(){return CONFIG.grid.cells[state.position.row][state.position.col];}
-
-        function cmdHelp(){printLine('','system');printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550','heading');printLine('  scan / move <dir> / examine','info');printLine('  openssl <target> / decode <string> / diff <c1> <c2>','info');printLine('  revoke (at CRL/OCSP) / verify (at TLS-ENDPOINT)','info');printLine('  status / help / clear','info');}
-
-        function cmdScan(){
-            var col=state.position.col,row=state.position.row,ct=currentNodeType();
-            printLine('Scanning PKI...','system');printLine('','system');
-            if(ct!=='empty'&&ct!=='wall'){var c=CONFIG.nodes[ct];printLine('Current: '+c.label+' ('+c.ip+')','heading');printLine(c.desc,'info');printLine('Platform: '+c.os,'node-info');}
-            else printLine('Current: Traversal path','heading');
-            printLine('','system');printLine('Adjacent:','heading');
-            var dirs=[{name:'North',dc:0,dr:-1},{name:'South',dc:0,dr:1},{name:'East',dc:1,dr:0},{name:'West',dc:-1,dr:0}];
-            for(var i=0;i<dirs.length;i++){var d=dirs[i],nc=col+d.dc,nr=row+d.dr;if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('  '+d.name+': [infrastructure edge]','system');continue;}var type=CONFIG.grid.cells[nr][nc];if(type==='wall'){printLine('  '+d.name+': [isolated]','system');continue;}var key=nc+','+nr;if(!state.visibility[key]||state.visibility[key]==='hidden')state.visibility[key]='revealed';if(type==='empty')printLine('  '+d.name+': Clear path','info');else{var info=CONFIG.nodes[type];printLine('  '+d.name+': '+info.label+' -- '+info.desc,'node-info');}}
-            engine.updateGrid();engine.saveState();
-        }
-
-        function cmdMove(args){
-            if(!args.length){printLine('Usage: move <direction>','error');return;}
-            var dirMap={'north':[0,-1],'n':[0,-1],'south':[0,1],'s':[0,1],'east':[1,0],'e':[1,0],'west':[-1,0],'w':[-1,0]};
-            var dir=args[0].toLowerCase();if(!dirMap[dir]){printLine('Unknown direction.','error');return;}
-            var d=dirMap[dir],nc=state.position.col+d[0],nr=state.position.row+d[1];
-            if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('Edge of PKI.','error');return;}
-            var ct=CONFIG.grid.cells[nr][nc];if(ct==='wall'){printLine('Isolated segment.','error');return;}
-            state.position={col:nc,row:nr};state.visibility[nc+','+nr]='visited';
-            if(ct!=='empty')state.nodesDiscovered.add(ct);engine.revealAdjacent(nc,nr);
-            var dn={n:'north',s:'south',e:'east',w:'west'}[dir]||dir;
-            if(ct==='empty')printLine('Moving '+dn+'... Clear path.','system');
-            else{var info=CONFIG.nodes[ct];printLine('Moving '+dn+'... '+info.label+' ('+info.ip+')','success');printLine(info.desc,'info');printLine('Type "examine" to inspect.','system');}
-            engine.checkObjectives();engine.updateGrid();engine.saveState();
-        }
-
-        function cmdExamine(){
-            var type=currentNodeType();
-            if(type==='empty'||type==='wall'){printLine('Nothing to examine.','error');return;}
-            printLine('','system');
-            if(type==='ca-root'){printLine('=== ROOT CA ===','heading');printLine('CN=Hexworth Root CA | RSA 4096-bit (HSM)','info');printLine('Valid: 2020-2040 | Status: TRUSTED','success');}
-            else if(type==='intermediate-ca'){printLine('=== INTERMEDIATE CA ===','heading');printLine('CN=Hexworth Issuing CA | Issued by Root CA','info');printLine('Status: VALID','success');printLine('','system');printLine('Also found: CN=Hexworth Cloud CA <- [SUSPICIOUS]','warning');printLine('Serial: 00:FF:00:11:22 -- NOT in original issuance plan.','warning');}
-            else if(type==='cert-store'){printLine('=== CERT DATABASE ===','heading');printLine('Total: 2,847 certs','info');printLine('[03/03] *.hexworth.com -- issued by Hexworth Cloud CA <- [SUSPICIOUS]','warning');printLine('[03/04] vpn.hexworth.com -- issued by Hexworth Cloud CA <- [SUSPICIOUS]','warning');}
-            else if(type==='rogue-cert'){printLine('=== ROGUE CERT ===','heading');printLine('CN=Hexworth Cloud CA | Issuer: Root CA (FORGED)','warning');printLine('Key: RSA 2048-bit (software, NOT HSM)','warning');printLine('[!] Signature verification FAILS against root key.','error');if(!state.rogueIdentified){state.rogueIdentified=true;printLine('','system');printLine('[FINDING] Rogue CA confirmed.','success');}}
-            else if(type==='revocation-list'){printLine('=== CRL/OCSP ===','heading');if(state.rogueRevoked)printLine('Serial 00:FF:00:11:22 -- REVOKED','success');else{printLine('CRL loaded. Use "revoke" to add rogue cert.','info');}}
-            else if(type==='tls-endpoint'){printLine('=== TLS: app.hexworth.com ===','heading');printLine('Chain: leaf -> Issuing CA -> Root CA','info');if(state.rogueRevoked)printLine('Rogue CA removed. Chain VALID. Run "verify".','success');else printLine('Rogue CA still active in trust store.','warning');}
-            else if(type==='key-escrow'){printLine('=== KEY ESCROW ===','heading');printLine('[3] Hexworth Cloud CA -- software key <- [NO HSM]','warning');printLine('Encoded message: '+CONFIG.encodedMessage,'node-info');printLine('Use: decode '+CONFIG.encodedMessage,'system');}
-            else if(type==='signing-log'){printLine('=== CT LOG ===','heading');printLine('[02/28] SIGNED: Cloud CA from pki-backup-03 (NOT HSM) <- [SUSPICIOUS]','warning');printLine('[03/03] SIGNED: *.hexworth.com by Cloud CA <- [ROGUE]','warning');}
-            state.certsExamined.add(type);
-            printLine('','system');printLine('[+] '+CONFIG.nodes[type].label+' examined. ('+state.certsExamined.size+'/8)','info');
-            engine.checkObjectives();engine.saveState();
-        }
-
-        function cmdDecode(args){
-            if(!args.length){printLine('Usage: decode <string>','error');return;}
-            var input=args[0];printLine('','system');printLine('Decoding: '+input,'system');
-            if(input===CONFIG.encodedMessage||input.trim()===CONFIG.encodedMessage){
-                printLine('Decoded: '+CONFIG.decodedMessage,'success');
-                if(!state.messageDecoded){state.messageDecoded=true;printLine('[FINDING] Hidden message extracted.','success');engine.checkObjectives();}
-            } else {try{printLine('Result: '+atob(input),'node-info');}catch(e){printLine('Invalid encoding.','error');}}
-            engine.saveState();
-        }
-
-        function cmdDiff(args){
-            if(args.length<2){printLine('Usage: diff <c1> <c2>','error');return;}
-            var aliases={'intermediate':'intermediate-ca','ica':'intermediate-ca','intermediate-ca':'intermediate-ca','rogue':'rogue-cert','rgc':'rogue-cert','rogue-cert':'rogue-cert','root':'ca-root','car':'ca-root','ca-root':'ca-root'};
-            var c1=aliases[args[0].toLowerCase()]||args[0].toLowerCase();
-            var c2=aliases[args[1].toLowerCase()]||args[1].toLowerCase();
-            printLine('','system');printLine('Comparing: '+c1+' vs '+c2,'heading');printLine('','system');
-            if((c1==='intermediate-ca'&&c2==='rogue-cert')||(c1==='rogue-cert'&&c2==='intermediate-ca')){
-                printLine('Key type:    HSM-protected    vs  Software-generated','warning');
-                printLine('Signature:   VERIFIED          vs  FORGED             <- MISMATCH','warning');
-                printLine('Audit trail: Complete          vs  None               <- MISSING','warning');
-            } else printLine('No diff data for this pair.','info');
-        }
-
-        function cmdRevoke(){
-            var type=currentNodeType();
-            if(type!=='revocation-list'){printLine('Must be at CRL/OCSP node.','error');return;}
-            if(!state.rogueIdentified){printLine('Identify the rogue cert first (examine it).','error');return;}
-            if(state.rogueRevoked){printLine('Already revoked.','system');return;}
-            printLine('','system');printLine('Adding serial 00:FF:00:11:22 to CRL...','system');
-            printLine('Publishing updated CRL via OCSP...','system');printLine('[+] Rogue certificate REVOKED.','success');
-            state.rogueRevoked=true;engine.checkObjectives();engine.saveState();
-        }
-
-        function cmdVerify(){
-            var type=currentNodeType();
-            if(type!=='tls-endpoint'){printLine('Must be at TLS-ENDPOINT.','error');return;}
-            if(!state.rogueRevoked){printLine('Revoke the rogue cert first.','error');return;}
-            printLine('','system');printLine('Verifying TLS chain for app.hexworth.com...','system');
-            printLine('depth=2: Root CA -- OK','info');printLine('depth=1: Issuing CA -- OK','info');printLine('depth=0: app.hexworth.com -- OK','info');
-            printLine('Chain: VALID. No rogue issuers.','success');
-            if(!state.chainVerified){state.chainVerified=true;engine.checkObjectives();}
-            engine.saveState();
-        }
-
-        function cmdOpenSSL(args){
-            if(!args.length){printLine('Usage: openssl <target>','error');return;}
-            var resolved=CONFIG.opensslAliases[args.join('-').toLowerCase()]||CONFIG.opensslAliases[args[0].toLowerCase()];
-            if(!resolved){printLine('Unknown target.','error');return;}
-            printLine('','system');printLine('openssl x509 -in '+resolved+'.pem -text -noout','prompt-echo');printLine('','system');
-            if(resolved==='rogue-cert'){printLine('Issuer: Root CA (CLAIMED)','warning');printLine('Key: RSA 2048 (software)','warning');printLine('verify error:num=7: signature failure','error');printLine('FORGED CERTIFICATE','error');}
-            else if(resolved==='ca-root'){printLine('Subject/Issuer: Hexworth Root CA | RSA 4096 | VALID','success');}
-            else if(resolved==='intermediate-ca'){printLine('Subject: Hexworth Issuing CA | Issuer: Root CA | VALID','success');}
-            else if(resolved==='tls-endpoint'){printLine('Chain: Root -> Issuing -> app.hexworth.com: VALID','success');if(!state.rogueRevoked)printLine('Warning: Rogue CA still active.','warning');}
-        }
-
-        function cmdStatus(){printLine('','system');printLine('[STATUS] Certs examined: '+state.certsExamined.size+'/8','info');var done=0;for(var i=0;i<state.objectives.length;i++)if(state.objectives[i])done++;printLine('[STATUS] Objectives: '+done+'/'+CONFIG.objectives.length,'info');}
-
-        function dispatch(raw){
-            state.commandCount=(state.commandCount||0)+1;
-            var parts=raw.trim().split(/\s+/),cmd=parts[0].toLowerCase(),args=parts.slice(1);
-            printLine(CONFIG.prompt+' '+raw,'prompt-echo');
-            switch(cmd){
-                case 'help':cmdHelp();break;case 'scan':cmdScan();break;
-                case 'move':case 'cd':cmdMove(args);break;case 'examine':cmdExamine();break;
-                case 'openssl':cmdOpenSSL(args);break;case 'decode':cmdDecode(args);break;
-                case 'diff':cmdDiff(args);break;case 'revoke':cmdRevoke();break;
-                case 'verify':cmdVerify();break;case 'status':cmdStatus();break;
-                case 'clear':termOutput.innerHTML='';break;
-                default:printLine('Unknown command: '+cmd+'. Type "help".','error');
-            }
-        }
-
-        termInput.addEventListener('keydown',function(e){
-            if(e.key==='Enter'){var v=termInput.value.trim();if(!v)return;state.commandHistory.push(v);state.historyIndex=state.commandHistory.length;termInput.value='';dispatch(v);}
-            else if(e.key==='ArrowUp'){e.preventDefault();if(state.historyIndex>0){state.historyIndex--;termInput.value=state.commandHistory[state.historyIndex];}}
-            else if(e.key==='ArrowDown'){e.preventDefault();if(state.historyIndex<state.commandHistory.length-1){state.historyIndex++;termInput.value=state.commandHistory[state.historyIndex];}else{state.historyIndex=state.commandHistory.length;termInput.value='';}}
-        });
-
-        printLine('OPERATOR // CRYPTO-02: KEY ESCROW','heading');
-        printLine('Investigate rogue CA in the PKI infrastructure.','system');
-        printLine('Type "help" for commands, "scan" to survey.','system');printLine('','system');
-        termInput.focus();
+        var engine = OperatorEngine.init(CRYPTO_02_CONFIG);
+        var agent  = AgentBridge.create(engine);
+        TerminalInterpreter.init(CRYPTO_02_CONFIG, engine, agent);
     })();
     </script>
 </body>

@@ -2,184 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="../../components/AccessGuard.js"></script>
-    <script>AccessGuard.require('sorted');</script>
-    <script src="../../components/AchievementManager.js"></script>
-    <script src="../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOG-02: APT Tracker | Operator</title>
     <link rel="stylesheet" href="../engine/operator.css">
-    <style>
-        .editor-panel { display: none !important; }
-        .term-panel { flex:0 0 45%; display:flex; flex-direction:column; background:#080a0e; height:100%; }
-        .term-bar { display:flex; align-items:center; gap:6px; padding:8px 14px; background:#0e1018; border-bottom:1px solid rgba(57,255,20,0.1); }
-        .term-dot { width:8px; height:8px; border-radius:50%; background:rgba(57,255,20,0.3); }
-        .term-bar-label { font-size:0.55rem; letter-spacing:0.12em; color:rgba(57,255,20,0.25); margin-left:6px; }
-        .term-output { flex:1; overflow-y:auto; padding:10px 14px; font-size:0.72rem; line-height:1.55; }
-        .term-output::-webkit-scrollbar { width:4px; }
-        .term-output::-webkit-scrollbar-thumb { background:rgba(57,255,20,0.15); border-radius:2px; }
-        .term-input-row { display:flex; align-items:center; gap:8px; padding:8px 14px; border-top:1px solid rgba(57,255,20,0.1); }
-        .term-prompt-text { color:rgba(57,255,20,0.5); font-size:0.72rem; letter-spacing:0.04em; white-space:nowrap; }
-        .term-input { flex:1; background:transparent; border:none; outline:none; color:#76ff03; font-family:'Courier New',monospace; font-size:0.72rem; caret-color:#39ff14; }
-        .term-line { word-break:break-word; }
-        .term-system { color:rgba(57,255,20,0.3); } .term-info { color:rgba(57,255,20,0.65); }
-        .term-success { color:#39ff14; font-weight:600; } .term-error { color:#ff4444; }
-        .term-warning { color:#ffaa00; } .term-node-info { color:#00ccff; }
-        .term-heading { color:#39ff14; font-weight:700; } .term-prompt-echo { color:rgba(57,255,20,0.4); }
-        @media (max-width:768px) { .term-panel { flex:1; } }
-    </style>
+    <script src="../../components/ModuleProgress.js"></script>
 </head>
 <body>
     <div id="operator-root"></div>
+
     <script src="../engine/OperatorEngine.js"></script>
     <script src="../engine/AgentBridge.js"></script>
+    <script src="../engine/TerminalInterpreter.js"></script>
     <script src="../configs/log-analysis-02.config.js"></script>
     <script>
+    /* LOG-02: APT Tracker — advanced SIEM correlation mission */
     (function() {
-        var CONFIG = LOG_ANALYSIS_02_CONFIG;
-        var engine = OperatorEngine.init(CONFIG);
-        var state  = engine.getState();
-
-        // Custom state
-        if (!state.examinedSources) state.examinedSources = new Set();
-        if (!state.lateralNodes)    state.lateralNodes = new Set();
-        if (!state.correlations)    state.correlations = [];
-        if (typeof state.initialAccessFound === 'undefined')     state.initialAccessFound = false;
-        if (typeof state.lateralMovementMapped === 'undefined')  state.lateralMovementMapped = false;
-        if (typeof state.exfilChannelDetected === 'undefined')   state.exfilChannelDetected = false;
-        if (typeof state.killChainBuilt === 'undefined')         state.killChainBuilt = false;
-        state.commandHistory = state.commandHistory || []; state.historyIndex = -1;
-
-        // Inject terminal
-        var ep=document.querySelector('.editor-panel'); if(ep) ep.style.display='none';
-        var layout=document.querySelector('.mission-layout'), tp=document.createElement('div'); tp.className='term-panel';
-        tp.innerHTML='<div class="term-bar"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><span class="term-bar-label">OPERATOR TERMINAL</span></div><div class="term-output" id="term-output"></div><div class="term-input-row"><span class="term-prompt-text">'+CONFIG.prompt+'</span><input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus></div>';
-        layout.appendChild(tp);
-        var termOutput=document.getElementById('term-output'), termInput=document.getElementById('term-input');
-
-        function printLine(t,type) { var l=document.createElement('div'); l.className='term-line term-'+(type||'system'); l.textContent=t; termOutput.appendChild(l); while(termOutput.children.length>200) termOutput.removeChild(termOutput.firstChild); termOutput.scrollTop=termOutput.scrollHeight; }
-        function currentNodeType() { return CONFIG.grid.cells[state.position.row][state.position.col]; }
-        function resolveSource(input) { return CONFIG.sourceAliases[input.toLowerCase()]||null; }
-
-        function cmdHelp() { printLine('','system'); printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550','heading'); printLine('  scan / move <dir> / examine / correlate <s1> <s2>','info'); printLine('  query <filter> / enrich <ioc> / timeline / status / help / clear','info'); }
-
-        function cmdScan() {
-            var col=state.position.col,row=state.position.row,ct=currentNodeType();
-            printLine('Scanning area...','system'); printLine('','system');
-            if(ct!=='empty'&&ct!=='wall'){var c=CONFIG.nodes[ct]; printLine('Current: '+c.label+' ('+c.ip+')','heading'); printLine(c.desc,'info'); printLine('Platform: '+c.os,'node-info');}
-            else printLine('Current: Clear path','heading');
-            printLine('','system'); printLine('Adjacent:','heading');
-            var dirs=[{name:'North',dc:0,dr:-1},{name:'South',dc:0,dr:1},{name:'East',dc:1,dr:0},{name:'West',dc:-1,dr:0}];
-            for(var i=0;i<dirs.length;i++){var d=dirs[i],nc=col+d.dc,nr=row+d.dr;if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('  '+d.name+': [edge of SIEM]','system');continue;}var type=CONFIG.grid.cells[nr][nc];if(type==='wall'){printLine('  '+d.name+': [no data path]','system');continue;}var key=nc+','+nr;if(!state.visibility[key]||state.visibility[key]==='hidden')state.visibility[key]='revealed';if(type==='empty')printLine('  '+d.name+': Clear path','info');else{var info=CONFIG.nodes[type];printLine('  '+d.name+': '+info.label+' -- '+info.desc,'node-info');}}
-            engine.updateGrid(); engine.saveState();
-        }
-
-        function cmdMove(args) {
-            if(!args.length){printLine('Usage: move <direction>','error');return;}
-            var dirMap={'north':[0,-1],'n':[0,-1],'south':[0,1],'s':[0,1],'east':[1,0],'e':[1,0],'west':[-1,0],'w':[-1,0]};
-            var dir=args[0].toLowerCase();if(!dirMap[dir]){printLine('Unknown direction.','error');return;}
-            var d=dirMap[dir],nc=state.position.col+d[0],nr=state.position.row+d[1];
-            if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('Edge of SIEM.','error');return;}
-            var ct=CONFIG.grid.cells[nr][nc];if(ct==='wall'){printLine('No data path.','error');return;}
-            state.position={col:nc,row:nr};state.visibility[nc+','+nr]='visited';
-            if(ct!=='empty')state.nodesDiscovered.add(ct);
-            engine.revealAdjacent(nc,nr);
-            var dn={n:'north',s:'south',e:'east',w:'west'}[dir]||dir;
-            if(ct==='empty')printLine('Moving '+dn+'... Clear path.','system');
-            else{var info=CONFIG.nodes[ct];printLine('Moving '+dn+'... '+info.label,'success');printLine(info.desc,'info');printLine('Type "examine" to read.','system');}
-            engine.checkObjectives();engine.updateGrid();engine.saveState();
-        }
-
-        function cmdExamine() {
-            var type=currentNodeType();
-            if(type==='empty'||type==='wall'){printLine('Nothing to examine here.','error');return;}
-            printLine('','system');
-            var examineData = {
-                'proxy-logs':    [[' [02/15 09:14] jsmith -> docs.google.com (200)','info'],['[02/15 09:22] jsmith -> update-service.cloudfront.net (200)  <- [SUSPICIOUS]','warning'],['[02/20 11:30] jsmith -> megaupload-cdn.com/upload (POST 50MB)  <- [EXFIL?]','warning']],
-                'auth-logs':     [['[02/15 09:10] jsmith -- logon (WKS-042)','info'],['[02/15 09:25] jsmith -- privilege escalation -> local admin  <- [ALERT]','warning'],['[02/16 02:14] jsmith -> svc_admin -- credential harvesting  <- [ALERT]','warning'],['[02/18 08:00] svc_admin -- logon (DB-PROD-01)  <- [LATERAL]','warning'],['[02/18 08:05] svc_admin -- logon (FILE-SRV-01)  <- [LATERAL]','warning']],
-                'dns-logs':      [['[02/15 09:22] WKS-042 -> update-service.cloudfront.net -> 185.44.xx.xx','info'],['[02/17 03:00] WKS-042 -> a3f8b2.dns-tunnel.xyz (TXT)  <- [DNS TUNNEL]','warning'],['[02/20 10:00] DB-PROD-01 -> megaupload-cdn.com  <- [EXFIL PREP]','warning']],
-                'endpoint-logs': [['[02/15 09:23] WKS-042: powershell.exe -enc [base64] -> beacon.dll','info'],['[02/15 09:25] WKS-042: mimikatz.exe -- credential dump  <- [ALERT]','warning'],['[02/18 08:02] DB-PROD-01: psexec.exe lateral movement  <- [LATERAL]','warning']],
-                'netflow-data':  [['[02/15-02/20] WKS-042 -> 185.44.xx.xx:443 (persistent beacon)','info'],['[02/17 03:00] WKS-042 -> dns-tunnel.xyz:53 (4.2MB via DNS)','warning'],['[02/20 11:30] DB-PROD-01 -> megaupload-cdn.com:443 (50MB)  <- [EXFIL]','warning']],
-                'dlp-alerts':    [['[02/20 11:28] ALERT: Sensitive data staging on DB-PROD-01','warning'],['  File: customer_records_2024.csv.gz (50MB PII)','info'],['  Destination: megaupload-cdn.com  <- [EXFIL CONFIRMED]','warning']],
-                'email-logs':    [['[02/15 08:55] INBOUND: hr-benefits@update-service.com -> jsmith@corp','info'],['  Subject: "Benefits Update -- Action Required"','info'],['  Attachment: Benefits_2024.xlsm (macro-enabled)  <- [PHISHING]','warning'],['[02/15 09:05] jsmith opened attachment (macro executed)','warning']],
-                'threat-intel':  [['IOC Match: 185.44.xx.xx -- APT-PHANTOM (nation-state)','warning'],['IOC Match: dns-tunnel.xyz -- known C2','warning'],['IOC Match: megaupload-cdn.com -- exfil staging','warning'],['TTP: T1566.001 -> T1003 -> T1021.002 -> T1048.003','node-info']]
-            };
-            var lines = examineData[type];
-            if(!lines){printLine('No data.','error');return;}
-            printLine('=== '+CONFIG.nodes[type].label+' ===','heading');
-            for(var i=0;i<lines.length;i++) printLine(lines[i][0],lines[i][1]);
-            state.examinedSources.add(type);
-            if(type==='auth-logs'||type==='endpoint-logs'||type==='netflow-data') state.lateralNodes.add(type);
-            if(type==='email-logs'&&!state.initialAccessFound){state.initialAccessFound=true;printLine('','system');printLine('[!] INITIAL ACCESS: Phishing email with macro','success');}
-            printLine('','system'); printLine('[+] '+CONFIG.nodes[type].label+' examined. ('+state.examinedSources.size+'/8)','info');
-            engine.checkObjectives(); engine.saveState();
-        }
-
-        function cmdCorrelate(args) {
-            if(args.length<2){printLine('Usage: correlate <s1> <s2>','error');return;}
-            var s1=resolveSource(args[0]),s2=resolveSource(args[1]);
-            if(!s1){printLine('Unknown: '+args[0],'error');return;} if(!s2){printLine('Unknown: '+args[1],'error');return;}
-            if(!state.examinedSources.has(s1)){printLine('Not examined: '+s1,'error');return;}
-            if(!state.examinedSources.has(s2)){printLine('Not examined: '+s2,'error');return;}
-            var pk=[s1,s2].sort().join(':');
-            printLine('','system'); printLine('Cross-referencing '+CONFIG.nodes[s1].label+' x '+CONFIG.nodes[s2].label+'...','heading');
-            // Key correlations
-            if(pk==='auth-logs:endpoint-logs') printLine('Lateral movement via credential abuse + psexec confirmed.','success');
-            else if(pk==='auth-logs:netflow-data') printLine('Lateral SMB movement confirmed via auth + flow.','success');
-            else if(pk==='dlp-alerts:netflow-data') printLine('EXFIL CONFIRMED: 50MB PII to megaupload-cdn.com.','warning');
-            else if(pk==='dns-logs:proxy-logs') printLine('C2 domain chain + exfil prep confirmed.','success');
-            else if(pk==='endpoint-logs:netflow-data') printLine('RAT beacon communications pattern identified.','success');
-            else if(pk==='email-logs:endpoint-logs') printLine('Phishing to execution chain confirmed.','success');
-            else printLine('Patterns noted in correlation database.','info');
-            if(state.correlations.indexOf(pk)===-1) state.correlations.push(pk);
-            // Check lateral
-            if(!state.lateralMovementMapped){var lp=0;for(var i=0;i<state.correlations.length;i++){var pp=state.correlations[i].split(':');if(state.lateralNodes.has(pp[0])||state.lateralNodes.has(pp[1]))lp++;}if(lp>=3)state.lateralMovementMapped=true;}
-            // Check exfil
-            if(!state.exfilChannelDetected){for(var j=0;j<state.correlations.length;j++){var pp2=state.correlations[j].split(':');if(pp2.indexOf('dlp-alerts')!==-1||pp2.indexOf('netflow-data')!==-1){state.exfilChannelDetected=true;printLine('','system');printLine('[!] EXFIL CHANNEL DETECTED','success');break;}}}
-            printLine('[+] Correlations: '+state.correlations.length,'info');
-            engine.checkObjectives(); engine.saveState();
-        }
-
-        function cmdTimeline() {
-            if(!state.initialAccessFound||!state.lateralMovementMapped||!state.exfilChannelDetected){printLine('Insufficient findings. Complete access/lateral/exfil objectives first.','error');return;}
-            printLine('','system'); printLine('=== APT-PHANTOM KILL CHAIN ===','heading');
-            printLine('[02/15 08:55] Initial Access: Phishing email -> jsmith','info');
-            printLine('[02/15 09:23] Execution: Macro -> PowerShell -> beacon.dll','info');
-            printLine('[02/15 09:25] Credential Access: mimikatz -> svc_admin hash','warning');
-            printLine('[02/18 08:00] Lateral Movement: svc_admin -> DB-PROD-01/FILE-SRV','warning');
-            printLine('[02/20 11:30] Exfiltration: 50MB PII -> megaupload-cdn.com','warning');
-            printLine('','system'); printLine('[!] KILL CHAIN COMPLETE','success');
-            if(!state.killChainBuilt){state.killChainBuilt=true;engine.checkObjectives();}
-            engine.saveState();
-        }
-
-        function cmdStatus() { printLine('','system'); printLine('[STATUS] Sources: '+state.nodesDiscovered.size+' | Examined: '+state.examinedSources.size+' | Correlations: '+state.correlations.length,'info'); var done=0;for(var i=0;i<state.objectives.length;i++)if(state.objectives[i])done++;printLine('[STATUS] Objectives: '+done+'/'+CONFIG.objectives.length,'info'); }
-
-        function dispatch(raw) {
-            state.commandCount=(state.commandCount||0)+1;
-            var parts=raw.trim().split(/\s+/),cmd=parts[0].toLowerCase(),args=parts.slice(1);
-            printLine(CONFIG.prompt+' '+raw,'prompt-echo');
-            switch(cmd){
-                case 'help':cmdHelp();break; case 'scan':cmdScan();break;
-                case 'move':case 'cd':cmdMove(args);break; case 'examine':cmdExamine();break;
-                case 'correlate':cmdCorrelate(args);break; case 'timeline':cmdTimeline();break;
-                case 'status':cmdStatus();break; case 'clear':termOutput.innerHTML='';break;
-                case 'query':printLine('Query requires 2+ examined sources. Use examine first.','system');break;
-                case 'enrich':printLine('Navigate to threat-intel and examine for IOC data.','system');break;
-                default:printLine('Unknown command: '+cmd+'. Type "help".','error');
-            }
-        }
-
-        termInput.addEventListener('keydown', function(e) {
-            if(e.key==='Enter'){var v=termInput.value.trim();if(!v)return;state.commandHistory.push(v);state.historyIndex=state.commandHistory.length;termInput.value='';dispatch(v);}
-            else if(e.key==='ArrowUp'){e.preventDefault();if(state.historyIndex>0){state.historyIndex--;termInput.value=state.commandHistory[state.historyIndex];}}
-            else if(e.key==='ArrowDown'){e.preventDefault();if(state.historyIndex<state.commandHistory.length-1){state.historyIndex++;termInput.value=state.commandHistory[state.historyIndex];}else{state.historyIndex=state.commandHistory.length;termInput.value='';}}
-        });
-
-        printLine('OPERATOR // LOG-02: APT TRACKER','heading');
-        printLine('Track APT-PHANTOM across SIEM telemetry.','system');
-        printLine('Type "help" for commands, "scan" to survey.','system'); printLine('','system');
-        termInput.focus();
+        var engine = OperatorEngine.init(LOG_ANALYSIS_02_CONFIG);
+        var agent  = AgentBridge.create(engine);
+        TerminalInterpreter.init(LOG_ANALYSIS_02_CONFIG, engine, agent);
     })();
     </script>
 </body>

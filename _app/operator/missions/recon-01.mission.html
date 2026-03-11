@@ -5,16 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RECON-01: First Contact | Operator</title>
     <link rel="stylesheet" href="../engine/operator.css">
-    <style>
-        /* Terminal panel overrides for editor panel */
-        .editor-panel { background: #080a0e; }
-        .editor-area { display: none; }
-        .editor-toolbar { display: none; }
-        .output-console { flex: 1; }
-        .term-input-row { display: flex; align-items: center; padding: 8px 14px; border-top: 1px solid rgba(57,255,20,0.1); background: #0a0c12; flex-shrink: 0; }
-        .term-prompt-text { color: #39ff14; font-size: 0.78rem; white-space: nowrap; margin-right: 8px; font-family: var(--op-font); }
-        .term-input { flex: 1; background: transparent; border: none; outline: none; color: #76ff03; font-family: var(--op-font); font-size: 0.78rem; caret-color: #39ff14; }
-    </style>
     <script src="../../components/ModuleProgress.js"></script>
 </head>
 <body>
@@ -22,171 +12,14 @@
 
     <script src="../engine/OperatorEngine.js"></script>
     <script src="../engine/AgentBridge.js"></script>
+    <script src="../engine/TerminalInterpreter.js"></script>
     <script src="../configs/recon-01.config.js"></script>
     <script>
-    /* ================================================================
-       RECON-01: First Contact -- Terminal Command Layer
-       Grid/fog/objectives/save handled by OperatorEngine.
-       Custom commands: scan, move, ping, nmap, status, help, clear.
-       ================================================================ */
+    /* RECON-01: First Contact — uses only standard commands (scan, move, ping, nmap) */
     (function() {
-        var config = RECON_01_CONFIG;
-        var engine = OperatorEngine.init(config);
+        var engine = OperatorEngine.init(RECON_01_CONFIG);
         var agent  = AgentBridge.create(engine);
-        var state  = engine.getState();
-
-        // Replace editor panel content with terminal UI
-        var editorPanel = document.querySelector('.editor-panel');
-        editorPanel.innerHTML = '';
-
-        // Terminal bar
-        var termBar = document.createElement('div');
-        termBar.style.cssText = 'padding:7px 14px;background:#0c0e14;border-bottom:1px solid rgba(57,255,20,0.1);display:flex;align-items:center;gap:6px;flex-shrink:0;';
-        for (var i = 0; i < 3; i++) { var dot = document.createElement('div'); dot.style.cssText = 'width:7px;height:7px;border-radius:50%;background:rgba(57,255,20,0.3);'; termBar.appendChild(dot); }
-        var barLabel = document.createElement('span'); barLabel.style.cssText = 'font-size:0.55rem;color:rgba(57,255,20,0.35);letter-spacing:0.1em;margin-left:6px;'; barLabel.textContent = 'TERMINAL';
-        termBar.appendChild(barLabel);
-        editorPanel.appendChild(termBar);
-
-        // Output console (reuse engine's)
-        var outputConsole = document.querySelector('.output-console');
-        editorPanel.appendChild(outputConsole);
-
-        // Input row
-        var inputRow = document.createElement('div'); inputRow.className = 'term-input-row';
-        var promptSpan = document.createElement('span'); promptSpan.className = 'term-prompt-text'; promptSpan.textContent = config.promptText;
-        var termInput = document.createElement('input'); termInput.type = 'text'; termInput.className = 'term-input'; termInput.autocomplete = 'off'; termInput.spellcheck = false;
-        inputRow.appendChild(promptSpan); inputRow.appendChild(termInput);
-        editorPanel.appendChild(inputRow);
-
-        // Command history
-        var history = []; var histIdx = -1;
-
-        function padRight(s, n) { while (s.length < n) s += ' '; return s; }
-
-        // Command handlers
-        function cmdHelp() {
-            engine.printLine('', 'system');
-            engine.printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
-            engine.printLine('  scan            Survey area, reveal adjacent nodes', 'info');
-            engine.printLine('  move <dir>      Move agent (north/south/east/west or n/s/e/w)', 'info');
-            engine.printLine('  ping <node>     Ping a node by name or IP', 'info');
-            engine.printLine('  nmap <node>     Deep scan -- ports, OS, vulnerabilities', 'info');
-            engine.printLine('  status          Show position and objectives', 'info');
-            engine.printLine('  help            Show this reference', 'info');
-            engine.printLine('  clear           Clear terminal output', 'info');
-            engine.printLine('', 'system');
-            engine.printLine('Nodes: reference by name, abbreviation, or IP.', 'system');
-            engine.printLine('Examples: move north, ping router, nmap 10.0.0.254', 'system');
-        }
-
-        function cmdScan() {
-            var s = engine.getState(); var c = engine.getConfig();
-            var col = s.position.col, row = s.position.row;
-            var cellType = c.grid.cells[row][col];
-            engine.printLine('Scanning area...', 'system');
-            engine.printLine('', 'system');
-            if (cellType !== 'empty' && cellType !== 'wall') {
-                var cur = c.nodes[cellType];
-                engine.printLine('Current: ' + cur.label + ' (' + cur.ip + ')', 'heading');
-                engine.printLine(cur.desc, 'info');
-            } else { engine.printLine('Current: Clear path (no node)', 'heading'); }
-            engine.printLine('', 'system');
-            engine.printLine('Adjacent:', 'heading');
-            var dirs = [{name:'North',dc:0,dr:-1},{name:'South',dc:0,dr:1},{name:'East',dc:1,dr:0},{name:'West',dc:-1,dr:0}];
-            for (var i = 0; i < dirs.length; i++) {
-                var d = dirs[i], nc = col + d.dc, nr = row + d.dr;
-                if (nc < 0 || nc >= c.grid.cols || nr < 0 || nr >= c.grid.rows) { engine.printLine('  ' + d.name + ': [network edge]', 'system'); continue; }
-                var type = c.grid.cells[nr][nc];
-                if (type === 'wall') { engine.printLine('  ' + d.name + ': [blocked]', 'system'); continue; }
-                var key = nc + ',' + nr;
-                if (!s.visibility[key] || s.visibility[key] === 'hidden') s.visibility[key] = 'revealed';
-                if (type === 'empty') engine.printLine('  ' + d.name + ': Clear path', 'info');
-                else { var info = c.nodes[type]; engine.printLine('  ' + d.name + ': ' + info.label + ' (' + info.ip + ')', 'node-info'); }
-            }
-            engine.updateGrid(); engine.saveState();
-        }
-
-        function cmdNmap(args) {
-            if (!args.length) { engine.printLine('Usage: nmap <node name or IP>', 'error'); return; }
-            var target = args.join(' '), node = engine.resolveNode(target);
-            if (!node) { engine.printLine('Failed to resolve: ' + target, 'error'); return; }
-            if (node.visibility === 'hidden') { engine.printLine('Host seems down. Scan the area first.', 'error'); return; }
-            var info = node.info; var s = engine.getState();
-            engine.printLine('', 'system');
-            engine.printLine('Starting Nmap 7.94 scan on ' + info.ip + '...', 'system');
-            engine.printLine('', 'system');
-            engine.printLine('Nmap scan report for ' + info.label + ' (' + info.ip + ')', 'heading');
-            engine.printLine('Host is up (0.003s latency)', 'info');
-            engine.printLine('OS: ' + info.os, 'node-info');
-            engine.printLine('', 'system');
-            engine.printLine('PORT         STATE    SERVICE', 'heading');
-            for (var p = 0; p < info.ports.length; p++) {
-                var parts = info.ports[p].split('/');
-                engine.printLine(padRight(parts[0] + '/tcp', 13) + 'open     ' + parts[1].toLowerCase(), 'node-info');
-            }
-            s.nmapTargets.add(node.type);
-            if (node.type === 'firewall' && !s.firewallBypassed) {
-                engine.printLine('', 'system');
-                engine.printLine('[!] VULNERABILITY DETECTED', 'warning');
-                engine.printLine('CVE-2024-1337: Misconfigured ACL allows unauthorized traversal', 'warning');
-                engine.printLine('', 'system');
-                engine.printLine('Firewall defenses neutralized. Path is now clear.', 'success');
-                s.firewallBypassed = true;
-            }
-            engine.printLine('', 'system');
-            engine.checkObjectives(); engine.updateGrid(); engine.saveState();
-        }
-
-        async function executeCommand(input) {
-            var s = engine.getState(); s.agentCmdCount++;
-            engine.printLine(config.promptText + input, 'prompt-echo');
-            var parts = input.trim().split(/\s+/), cmd = parts[0].toLowerCase(), args = parts.slice(1);
-            switch (cmd) {
-                case 'scan':   cmdScan(); break;
-                case 'move':   await agent.move(args[0] || ''); break;
-                case 'ping':   await agent.ping(args.join(' ')); break;
-                case 'nmap':   cmdNmap(args); break;
-                case 'status': await agent.status(); break;
-                case 'help':   cmdHelp(); break;
-                case 'clear':  outputConsole.innerHTML = ''; break;
-                default:
-                    engine.printLine('Unknown command: ' + cmd, 'error');
-                    engine.printLine('Type "help" for available commands.', 'system');
-            }
-        }
-
-        // Terminal input wiring
-        termInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                var cmd = this.value.trim();
-                if (cmd) { history.push(cmd); histIdx = history.length; executeCommand(cmd); }
-                this.value = '';
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (histIdx > 0) { histIdx--; this.value = history[histIdx]; }
-            } else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                if (histIdx < history.length - 1) { histIdx++; this.value = history[histIdx]; }
-                else { histIdx = history.length; this.value = ''; }
-            }
-        });
-        editorPanel.addEventListener('click', function(e) { if (e.target.tagName !== 'INPUT') termInput.focus(); });
-
-        // Mission briefing
-        engine.printLine('\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557', 'heading');
-        engine.printLine('\u2551  MISSION: RECON-01 -- FIRST CONTACT       \u2551', 'heading');
-        engine.printLine('\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563', 'heading');
-        for (var b = 0; b < config.briefing.length; b++) {
-            engine.printLine('\u2551  ' + config.briefing[b] + Array(Math.max(1, 39 - config.briefing[b].length)).join(' ') + '\u2551', 'heading');
-        }
-        engine.printLine('\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D', 'heading');
-        engine.printLine('', 'system');
-        engine.printLine('[SYS] Agent online at GATEWAY (10.0.0.1)', 'success');
-        engine.printLine('[SYS] Type "help" for command reference', 'info');
-        engine.printLine('[SYS] Type "scan" to survey the area', 'info');
-        engine.printLine('', 'system');
-
-        termInput.focus();
+        TerminalInterpreter.init(RECON_01_CONFIG, engine, agent);
     })();
     </script>
 </body>

@@ -7,12 +7,14 @@
 
 var RECON_01_CONFIG = {
     id: 'recon-01',
-    title: 'RECON-01 / FIRST CONTACT',
+    missionTitle: 'RECON-01',
+    title: 'First Contact',
     subtitle: 'Map the topology. Bypass the firewall. Reach the target.',
     category: 'network-recon',
     difficulty: 1,
     inputMode: 'terminal',
     promptText: 'agent@recon:~$ ',
+    promptLabel: 'TERMINAL',
 
     grid: {
         rows: 4,

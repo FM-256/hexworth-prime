@@ -23668,6 +23668,428 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+
+        // ─────────────────────────────────────────────────────────────
+        // THE OPERATOR — Hands-on Missions (matrix house)
+        // ─────────────────────────────────────────────────────────────
+
+        // Python Automation
+        'op-python-01': {
+            id: 'op-python-01',
+            title: 'Script Kiddie',
+            description: 'Python automation mission — write scripts to automate basic security tasks',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['python', 'automation', 'scripting', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/python-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Write Python scripts for basic security automation',
+                'Parse command output and extract actionable data',
+                'Automate repetitive reconnaissance tasks'
+            ]
+        },
+        'op-python-02': {
+            id: 'op-python-02',
+            title: 'Packet Rat',
+            description: 'Python automation mission — craft and parse network packets with Scapy-style scripting',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['python', 'packets', 'networking', 'scapy', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/python-02.mission.html'
+            },
+            prerequisites: ['op-python-01'],
+            objectives: [
+                'Craft and send custom network packets',
+                'Parse packet captures programmatically',
+                'Identify network anomalies through packet analysis'
+            ]
+        },
+        'op-python-03': {
+            id: 'op-python-03',
+            title: 'Grid Iron',
+            description: 'Python automation mission — build network mapping and enumeration tools',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['python', 'network-mapping', 'enumeration', 'scanning', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/python-03.mission.html'
+            },
+            prerequisites: ['op-python-02'],
+            objectives: [
+                'Build network discovery and mapping tools',
+                'Enumerate services and banners programmatically',
+                'Generate network topology reports'
+            ]
+        },
+        'op-python-04': {
+            id: 'op-python-04',
+            title: 'Ghost Protocol',
+            description: 'Python automation mission — develop covert communication and steganography tools',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'expert',
+            duration: 60,
+            topics: ['python', 'steganography', 'covert-channels', 'encryption', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/python-04.mission.html'
+            },
+            prerequisites: ['op-python-03'],
+            objectives: [
+                'Implement covert communication channels',
+                'Use steganography to hide data in files',
+                'Build encrypted exfiltration tools'
+            ]
+        },
+
+        // Network Recon
+        'op-recon-01': {
+            id: 'op-recon-01',
+            title: 'First Contact',
+            description: 'Network recon mission — perform initial target discovery and enumeration',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['recon', 'nmap', 'discovery', 'enumeration', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/recon-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Perform host discovery on a target network',
+                'Identify open ports and running services',
+                'Document findings in a recon report'
+            ]
+        },
+        'op-recon-02': {
+            id: 'op-recon-02',
+            title: 'Deep Sweep',
+            description: 'Network recon mission — advanced scanning, service fingerprinting, and OS detection',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['recon', 'nmap', 'fingerprinting', 'os-detection', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/recon-02.mission.html'
+            },
+            prerequisites: ['op-recon-01'],
+            objectives: [
+                'Perform service version fingerprinting',
+                'Detect operating systems via TCP/IP stack analysis',
+                'Execute targeted NSE scripts for deeper enumeration'
+            ]
+        },
+
+        // Windows Admin
+        'op-windows-cmd-01': {
+            id: 'op-windows-cmd-01',
+            title: 'Workstation Triage',
+            description: 'Windows admin mission — triage a workstation using cmd and PowerShell diagnostics',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['windows', 'cmd', 'powershell', 'triage', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/windows-cmd-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Gather system information with cmd and PowerShell',
+                'Check running processes and network connections',
+                'Identify signs of compromise on a Windows host'
+            ]
+        },
+        'op-windows-cmd-02': {
+            id: 'op-windows-cmd-02',
+            title: 'Blue Screen Protocol',
+            description: 'Windows admin mission — diagnose and recover from system failures and blue screens',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['windows', 'bsod', 'troubleshooting', 'recovery', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/windows-cmd-02.mission.html'
+            },
+            prerequisites: ['op-windows-cmd-01'],
+            objectives: [
+                'Analyze crash dumps and event logs',
+                'Diagnose driver and service failures',
+                'Execute recovery procedures for critical failures'
+            ]
+        },
+
+        // Linux Admin
+        'op-linux-fs-01': {
+            id: 'op-linux-fs-01',
+            title: 'Root Access',
+            description: 'Linux admin mission — navigate filesystems, manage permissions, and escalate privileges',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['linux', 'filesystem', 'permissions', 'privilege-escalation', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/linux-fs-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Navigate Linux filesystem hierarchy',
+                'Manage file and directory permissions',
+                'Understand privilege escalation vectors'
+            ]
+        },
+        'op-linux-fs-02': {
+            id: 'op-linux-fs-02',
+            title: 'Root Hunt',
+            description: 'Linux admin mission — hunt for suspicious files, processes, and persistence mechanisms',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['linux', 'threat-hunting', 'persistence', 'forensics', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/linux-fs-02.mission.html'
+            },
+            prerequisites: ['op-linux-fs-01'],
+            objectives: [
+                'Hunt for hidden and suspicious files',
+                'Identify unauthorized processes and cron jobs',
+                'Detect persistence mechanisms and backdoors'
+            ]
+        },
+
+        // Firewall Ops
+        'op-firewall-01': {
+            id: 'op-firewall-01',
+            title: 'Perimeter',
+            description: 'Firewall ops mission — configure firewall rules and defend the network perimeter',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['firewall', 'iptables', 'acl', 'perimeter-defense', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/firewall-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Configure inbound and outbound firewall rules',
+                'Implement network segmentation policies',
+                'Test and validate rule effectiveness'
+            ]
+        },
+        'op-firewall-02': {
+            id: 'op-firewall-02',
+            title: 'Zero Day Response',
+            description: 'Firewall ops mission — respond to a zero-day exploit with emergency firewall rules',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['firewall', 'zero-day', 'incident-response', 'emergency', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/firewall-02.mission.html'
+            },
+            prerequisites: ['op-firewall-01'],
+            objectives: [
+                'Deploy emergency firewall rules under pressure',
+                'Block exploit traffic while maintaining availability',
+                'Document and justify emergency rule changes'
+            ]
+        },
+
+        // Incident Response
+        'op-incident-response-01': {
+            id: 'op-incident-response-01',
+            title: 'Breach Protocol',
+            description: 'Incident response mission — contain and investigate an active network breach',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['incident-response', 'containment', 'investigation', 'breach', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/incident-response-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Execute containment procedures for an active breach',
+                'Collect and preserve forensic evidence',
+                'Build an incident timeline from log sources'
+            ]
+        },
+        'op-incident-response-02': {
+            id: 'op-incident-response-02',
+            title: 'Ransomware Dawn',
+            description: 'Incident response mission — respond to a ransomware attack across the enterprise',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 50,
+            topics: ['incident-response', 'ransomware', 'recovery', 'containment', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/incident-response-02.mission.html'
+            },
+            prerequisites: ['op-incident-response-01'],
+            objectives: [
+                'Identify ransomware strain and attack vector',
+                'Isolate infected systems and stop lateral movement',
+                'Execute recovery and restoration procedures'
+            ]
+        },
+
+        // Log Analysis
+        'op-log-analysis-01': {
+            id: 'op-log-analysis-01',
+            title: 'Signal in the Noise',
+            description: 'Log analysis mission — sift through noisy logs to identify indicators of compromise',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['log-analysis', 'ioc', 'siem', 'filtering', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/log-analysis-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Filter and correlate log entries across sources',
+                'Identify indicators of compromise in noisy data',
+                'Build detection queries from log patterns'
+            ]
+        },
+        'op-log-analysis-02': {
+            id: 'op-log-analysis-02',
+            title: 'APT Tracker',
+            description: 'Log analysis mission — correlate log sources to track an advanced persistent threat',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['log-analysis', 'apt', 'correlation', 'threat-hunting', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/log-analysis-02.mission.html'
+            },
+            prerequisites: ['op-log-analysis-01'],
+            objectives: [
+                'Correlate events across multiple log sources',
+                'Map attacker activity to MITRE ATT&CK techniques',
+                'Reconstruct an APT campaign timeline'
+            ]
+        },
+
+        // Cryptography
+        'op-crypto-01': {
+            id: 'op-crypto-01',
+            title: 'Dead Drop',
+            description: 'Cryptography mission — encrypt, decrypt, and exchange secrets using terminal tools',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['cryptography', 'encryption', 'gpg', 'openssl', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/crypto-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Encrypt and decrypt files using symmetric and asymmetric methods',
+                'Generate and manage cryptographic keys',
+                'Verify message integrity with hashes and signatures'
+            ]
+        },
+        'op-crypto-02': {
+            id: 'op-crypto-02',
+            title: 'Key Escrow',
+            description: 'Cryptography mission — manage key lifecycle, escrow, and certificate operations',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 40,
+            topics: ['cryptography', 'pki', 'certificates', 'key-management', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/crypto-02.mission.html'
+            },
+            prerequisites: ['op-crypto-01'],
+            objectives: [
+                'Manage certificate lifecycle from generation to revocation',
+                'Implement key escrow and recovery procedures',
+                'Configure TLS/SSL certificates for services'
+            ]
+        },
+
+        // Digital Forensics
+        'op-forensics-01': {
+            id: 'op-forensics-01',
+            title: 'Memory Dump',
+            description: 'Digital forensics mission — analyze memory dumps to extract artifacts and IOCs',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['forensics', 'memory-analysis', 'volatility', 'artifacts', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/forensics-01.mission.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Analyze process listings and network connections from memory',
+                'Extract strings, DLLs, and injected code from dumps',
+                'Identify malware artifacts and IOCs in volatile memory'
+            ]
+        },
+        'op-forensics-02': {
+            id: 'op-forensics-02',
+            title: 'Cloud Artifact',
+            description: 'Digital forensics mission — investigate cloud infrastructure logs and storage artifacts',
+            house: 'matrix',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['forensics', 'cloud', 'aws', 'azure', 'log-analysis', 'operator'],
+            paths: [],
+            components: {
+                lab: 'operator/missions/forensics-02.mission.html'
+            },
+            prerequisites: ['op-forensics-01'],
+            objectives: [
+                'Analyze CloudTrail and Azure Activity logs for anomalies',
+                'Investigate S3/Blob storage for exfiltrated data',
+                'Build a forensic timeline from cloud infrastructure events'
+            ]
+        },
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -24157,6 +24579,15 @@ const ContentRegistry = {
             color: '#ff00ff',
             description: 'You cannot be contained. All houses are open to you.',
             hidden: true  // Don't show in house lists - Divergents explore all houses
+        },
+        matrix: {
+            id: 'matrix',
+            name: 'The Operator',
+            shortName: 'Operator',
+            icon: '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            domain: 'Hands-on Missions',
+            color: '#00ff41',
+            description: 'Terminal-driven operator missions across all security domains'
         },
     },
 

@@ -2,19 +2,40 @@
    LOG-ANALYSIS-01: Signal in the Noise — Config
    ================================================================
    SOC analyst mission. Navigate a SIEM environment visiting 8 log
-   source nodes. Commands: logs, filter, correlate, alert, timeline.
+   source nodes. Commands: logs, filter, correlate, alert.
    Objectives: discover 5 sources, find brute-force, correlate
    lateral movement, file a detection alert.
    ================================================================ */
 
 var LOG_ANALYSIS_01_CONFIG = {
     id: 'log-analysis-01',
-    title: 'LOG-01 / SIGNAL IN THE NOISE',
+    missionTitle: 'LOG-01',
+    title: 'Signal in the Noise',
     subtitle: 'Investigate SIEM alerts and correlate attack patterns.',
     category: 'log-analysis',
     difficulty: 2,
     inputMode: 'terminal',
-    prompt: 'analyst@siem:~$',
+    promptText: 'analyst@siem:~$ ',
+    promptLabel: 'OPERATOR TERMINAL',
+
+    briefing: [
+        'SIEM is flagging multiple alerts from a single source IP.',
+        'Visit log nodes, filter for evidence, correlate sources,',
+        'and file a detection alert when the attack is confirmed.'
+    ],
+
+    customState: {
+        logsViewed: [],
+        bruteForceFound: false,
+        lateralFound: false,
+        alertFiled: false
+    },
+
+    statusFields: [
+        { key: 'bruteForceFound', label: 'Brute Force', trueText: 'DETECTED', falseText: 'NOT FOUND' },
+        { key: 'lateralFound',    label: 'Lateral Move', trueText: 'CONFIRMED', falseText: 'NOT FOUND' },
+        { key: 'alertFiled',      label: 'Alert Filed', trueText: 'YES', falseText: 'NO' }
+    ],
 
     grid: {
         rows: 4,
@@ -126,5 +147,110 @@ var LOG_ANALYSIS_01_CONFIG = {
         title: 'SIGNAL IN THE NOISE',
         subtitle: 'Threat detected. Alert filed.',
         storageKey: 'hexworth_operator_loganalysis01'
+    },
+
+    /* ----------------------------------------------------------------
+       Terminal Commands
+       ---------------------------------------------------------------- */
+    terminalCommands: {
+        'logs': {
+            help: 'View log entries at current node',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                var ct = c.grid.cells[s.position.row][s.position.col];
+                if (ct === 'empty' || ct === 'wall') { e.printLine('No log source here.', 'error'); return; }
+                var info = c.nodes[ct], entries = c.logContent[ct];
+                e.printLine('', 'system');
+                e.printLine('\u2550\u2550\u2550 ' + info.label + ' (' + info.ip + ') \u2550\u2550\u2550', 'heading');
+                e.printLine('OS: ' + info.os, 'node-info');
+                e.printLine('', 'system');
+                for (var i = 0; i < entries.length; i++) {
+                    var line = entries[i];
+                    if (line.indexOf('10.10.5.77') !== -1 || line.indexOf('ALERT') !== -1 || line.indexOf('[WARN]') !== -1) e.printLine(line, 'warning');
+                    else if (line.indexOf('[NOTE]') !== -1 || line.indexOf('[POLICY]') !== -1) e.printLine(line, 'node-info');
+                    else e.printLine(line, 'info');
+                }
+                if (s.logsViewed.indexOf(ct) === -1) s.logsViewed.push(ct);
+                e.saveState();
+            }
+        },
+
+        'filter': {
+            help: 'Search current node logs for a keyword',
+            syntax: 'filter <keyword>',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                if (!args.length) { e.printLine('Usage: filter <keyword>', 'error'); return; }
+                var ct = c.grid.cells[s.position.row][s.position.col];
+                if (ct === 'empty' || ct === 'wall') { e.printLine('No log source here.', 'error'); return; }
+                var keyword = args.join(' ').toLowerCase(), entries = c.logContent[ct];
+                var matches = [];
+                for (var i = 0; i < entries.length; i++) if (entries[i].toLowerCase().indexOf(keyword) !== -1) matches.push(entries[i]);
+                e.printLine('', 'system');
+                e.printLine('filter "' + keyword + '" on ' + c.nodes[ct].label + ':', 'heading');
+                e.printLine('', 'system');
+                if (!matches.length) { e.printLine('No matches.', 'system'); return; }
+                for (var j = 0; j < matches.length; j++) e.printLine(matches[j], matches[j].indexOf('10.10.5.77') !== -1 ? 'warning' : 'info');
+                e.printLine(matches.length + ' match(es).', 'node-info');
+                // Brute-force detection
+                if (ct === 'auth-logs' && (keyword.indexOf('fail') !== -1 || keyword.indexOf('password') !== -1 || keyword.indexOf('10.10.5.77') !== -1)) {
+                    if (!s.bruteForceFound) {
+                        s.bruteForceFound = true;
+                        e.printLine('', 'system');
+                        e.printLine('[!] BRUTE FORCE PATTERN DETECTED', 'warning');
+                        e.printLine('IP 10.10.5.77: 6+ failed SSH attempts.', 'warning');
+                        e.checkObjectives();
+                    }
+                }
+                e.saveState();
+            }
+        },
+
+        'correlate': {
+            help: 'Cross-reference two log sources',
+            syntax: 'correlate <nodeA> <nodeB>',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                if (args.length < 2) { e.printLine('Usage: correlate <nodeA> <nodeB>', 'error'); return; }
+                var nodeA = e.resolveNode(args[0]), nodeB = e.resolveNode(args[1]);
+                if (!nodeA) { e.printLine('Unknown node: ' + args[0], 'error'); return; }
+                if (!nodeB) { e.printLine('Unknown node: ' + args[1], 'error'); return; }
+                if (nodeA.visibility !== 'visited') { e.printLine(nodeA.info.label + ' not visited.', 'warning'); return; }
+                if (nodeB.visibility !== 'visited') { e.printLine(nodeB.info.label + ' not visited.', 'warning'); return; }
+                var pair = [nodeA.type, nodeB.type].sort().join('+');
+                e.printLine('', 'system');
+                e.printLine('\u2550\u2550\u2550 CORRELATE: ' + nodeA.info.label + ' + ' + nodeB.info.label + ' \u2550\u2550\u2550', 'heading');
+                e.printLine('', 'system');
+                if (pair === 'auth-logs+firewall-logs') {
+                    e.printLine('[AUTH]  02:10-02:14 | 6x Failed SSH from 10.10.5.77', 'warning');
+                    e.printLine('[FW]    02:12:05 | 10.10.5.77 -> 10.10.3.50 :22  <-- PIVOT', 'warning');
+                    e.printLine('[FW]    02:12:47 | 10.10.5.77 -> 10.10.4.10 :22  <-- LATERAL', 'warning');
+                    e.printLine('[FW]    02:13:30 | 10.10.5.77 -> 10.10.4.22 :22  <-- LATERAL', 'warning');
+                    e.printLine('', 'system');
+                    e.printLine('[!] LATERAL MOVEMENT CONFIRMED', 'success');
+                    if (!s.lateralFound) { s.lateralFound = true; e.checkObjectives(); }
+                } else {
+                    e.printLine('Cross-reference analysis complete. Overlapping data noted.', 'info');
+                }
+                e.saveState();
+            }
+        },
+
+        'alert': {
+            help: 'File a detection alert',
+            syntax: 'alert <description>',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state;
+                if (!args.length) { e.printLine('Usage: alert <description>', 'error'); return; }
+                var text = args.join(' ');
+                e.printLine('', 'system');
+                e.printLine('[ALERT FILED]', 'heading');
+                e.printLine('Description: ' + text, 'info');
+                e.printLine('Severity: HIGH', 'warning');
+                e.printLine('Status: OPEN', 'success');
+                if (!s.alertFiled) { s.alertFiled = true; e.checkObjectives(); }
+                e.saveState();
+            }
+        }
     }
 };

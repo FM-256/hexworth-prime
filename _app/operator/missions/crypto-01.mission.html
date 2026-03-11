@@ -2,169 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="../../components/AccessGuard.js"></script>
-    <script>AccessGuard.require('sorted');</script>
-    <script src="../../components/AchievementManager.js"></script>
-    <script src="../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRYPTO-01: Dead Drop | Operator</title>
     <link rel="stylesheet" href="../engine/operator.css">
-    <style>
-        .editor-panel { display: none !important; }
-        .term-panel { flex:0 0 45%; display:flex; flex-direction:column; background:#080a0e; height:100%; }
-        .term-bar { display:flex; align-items:center; gap:6px; padding:8px 14px; background:#0e1018; border-bottom:1px solid rgba(57,255,20,0.1); }
-        .term-dot { width:8px; height:8px; border-radius:50%; background:rgba(57,255,20,0.3); }
-        .term-bar-label { font-size:0.55rem; letter-spacing:0.12em; color:rgba(57,255,20,0.25); margin-left:6px; }
-        .term-output { flex:1; overflow-y:auto; padding:10px 14px; font-size:0.72rem; line-height:1.55; }
-        .term-output::-webkit-scrollbar { width:4px; }
-        .term-output::-webkit-scrollbar-thumb { background:rgba(57,255,20,0.15); border-radius:2px; }
-        .term-input-row { display:flex; align-items:center; gap:8px; padding:8px 14px; border-top:1px solid rgba(57,255,20,0.1); }
-        .term-prompt-text { color:rgba(57,255,20,0.5); font-size:0.72rem; letter-spacing:0.04em; white-space:nowrap; }
-        .term-input { flex:1; background:transparent; border:none; outline:none; color:#76ff03; font-family:'Courier New',monospace; font-size:0.72rem; caret-color:#39ff14; }
-        .term-line { word-break:break-word; }
-        .term-system { color:rgba(57,255,20,0.3); } .term-info { color:rgba(57,255,20,0.65); }
-        .term-success { color:#39ff14; font-weight:600; } .term-error { color:#ff4444; }
-        .term-warning { color:#ffaa00; } .term-node-info { color:#00ccff; }
-        .term-heading { color:#39ff14; font-weight:700; } .term-prompt-echo { color:rgba(57,255,20,0.4); }
-        @media (max-width:768px) { .term-panel { flex:1; } }
-    </style>
+    <script src="../../components/ModuleProgress.js"></script>
 </head>
 <body>
     <div id="operator-root"></div>
+
     <script src="../engine/OperatorEngine.js"></script>
     <script src="../engine/AgentBridge.js"></script>
+    <script src="../engine/TerminalInterpreter.js"></script>
     <script src="../configs/crypto-01.config.js"></script>
     <script>
+    /* CRYPTO-01: Dead Drop — decode, decrypt, verify mission */
     (function() {
-        var CONFIG = CRYPTO_01_CONFIG;
-        var engine = OperatorEngine.init(CONFIG);
-        var state  = engine.getState();
-
-        if (typeof state.base64Decoded === 'undefined')       state.base64Decoded = false;
-        if (typeof state.hashCracked === 'undefined')         state.hashCracked = false;
-        if (typeof state.dropDecrypted === 'undefined')       state.dropDecrypted = false;
-        if (typeof state.signatureVerified === 'undefined')   state.signatureVerified = false;
-        if (!state.nodesExamined) state.nodesExamined = new Set();
-        state.commandHistory = state.commandHistory || []; state.historyIndex = -1;
-
-        var ep=document.querySelector('.editor-panel'); if(ep) ep.style.display='none';
-        var layout=document.querySelector('.mission-layout'), tp=document.createElement('div'); tp.className='term-panel';
-        tp.innerHTML='<div class="term-bar"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><span class="term-bar-label">OPERATOR TERMINAL</span></div><div class="term-output" id="term-output"></div><div class="term-input-row"><span class="term-prompt-text">'+CONFIG.prompt+'</span><input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus></div>';
-        layout.appendChild(tp);
-        var termOutput=document.getElementById('term-output'), termInput=document.getElementById('term-input');
-
-        function printLine(t,type){var l=document.createElement('div');l.className='term-line term-'+(type||'system');l.textContent=t;termOutput.appendChild(l);while(termOutput.children.length>200)termOutput.removeChild(termOutput.firstChild);termOutput.scrollTop=termOutput.scrollHeight;}
-        function currentNodeType(){return CONFIG.grid.cells[state.position.row][state.position.col];}
-
-        function cmdHelp(){printLine('','system');printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550','heading');printLine('  scan / move <dir> / examine','info');printLine('  decode <type> <data>  (base64, hex, rot13)','info');printLine('  hash <algo> <text> / crack <hash> / verify','info');printLine('  status / help / clear','info');}
-
-        function cmdScan(){
-            var col=state.position.col,row=state.position.row,ct=currentNodeType();
-            printLine('Scanning area...','system');printLine('','system');
-            if(ct!=='empty'&&ct!=='wall'){var c=CONFIG.nodes[ct];printLine('Current: '+c.label,'heading');printLine(c.desc+' / '+c.os,'info');}
-            else printLine('Current: Clear path','heading');
-            printLine('','system');printLine('Adjacent:','heading');
-            var dirs=[{name:'North',dc:0,dr:-1},{name:'South',dc:0,dr:1},{name:'East',dc:1,dr:0},{name:'West',dc:-1,dr:0}];
-            for(var i=0;i<dirs.length;i++){var d=dirs[i],nc=col+d.dc,nr=row+d.dr;if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('  '+d.name+': [boundary]','system');continue;}var type=CONFIG.grid.cells[nr][nc];if(type==='wall'){printLine('  '+d.name+': [blocked]','system');continue;}var key=nc+','+nr;if(!state.visibility[key]||state.visibility[key]==='hidden')state.visibility[key]='revealed';if(type==='empty')printLine('  '+d.name+': Clear path','info');else{var info=CONFIG.nodes[type];printLine('  '+d.name+': '+info.label+' \u2014 '+info.desc,'node-info');}}
-            engine.updateGrid();engine.saveState();
-        }
-
-        function cmdMove(args){
-            if(!args.length){printLine('Usage: move <direction>','error');return;}
-            var dirMap={'north':[0,-1],'n':[0,-1],'south':[0,1],'s':[0,1],'east':[1,0],'e':[1,0],'west':[-1,0],'w':[-1,0]};
-            var dir=args[0].toLowerCase();if(!dirMap[dir]){printLine('Unknown direction.','error');return;}
-            var d=dirMap[dir],nc=state.position.col+d[0],nr=state.position.row+d[1];
-            if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('Edge of lab.','error');return;}
-            var ct=CONFIG.grid.cells[nr][nc];if(ct==='wall'){printLine('Blocked.','error');return;}
-            state.position={col:nc,row:nr};state.visibility[nc+','+nr]='visited';
-            if(ct!=='empty')state.nodesDiscovered.add(ct);engine.revealAdjacent(nc,nr);
-            var dn={n:'north',s:'south',e:'east',w:'west'}[dir]||dir;
-            if(ct==='empty')printLine('Moving '+dn+'... Clear path.','system');
-            else{var info=CONFIG.nodes[ct];printLine('Moving '+dn+'... '+info.label,'success');printLine(info.desc,'info');printLine('Use "examine" to inspect.','system');}
-            engine.checkObjectives();engine.updateGrid();engine.saveState();
-        }
-
-        function cmdExamine(){
-            var type=currentNodeType();
-            if(type==='empty'||type==='wall'){printLine('Nothing to examine.','error');return;}
-            state.nodesExamined.add(type);printLine('','system');printLine('Examining '+CONFIG.nodes[type].label+'...','heading');printLine('','system');
-            if(type==='terminal'){printLine('System: Kali Linux 2024.1 | Tools: openssl, hashcat, gpg','node-info');}
-            else if(type==='base64-node'){printLine('--- Encoded Drop ---','node-info');printLine(CONFIG.missionBase64,'warning');printLine('Use: decode base64 '+CONFIG.missionBase64,'info');}
-            else if(type==='hash-vault'){printLine('--- Hash Vault #0041 ---','node-info');printLine('SHA-256: '+CONFIG.knownHash,'warning');printLine('Use: crack '+CONFIG.knownHash,'info');}
-            else if(type==='cipher-desk'){printLine('--- Cipher Text ---','node-info');printLine('Gur qrnq qebc vf ng pbbeqvangrf (4,1)','warning');printLine('Cipher: ROT13','system');printLine('Use: decode rot13 Gur qrnq qebc vf ng pbbeqvangrf (4,1)','info');}
-            else if(type==='keystore'){printLine('--- Key Ring ---','node-info');printLine('pub  rsa4096 SHADOW PHOENIX <sp@dead-drop.null>','node-info');printLine('Private key available for decryption.','info');}
-            else if(type==='dead-drop'){
-                if(!state.hashCracked){printLine('--- Dead Drop: LOCKED ---','warning');printLine('Password hash in HASH-VAULT must be cracked first.','info');}
-                else{printLine('--- Dead Drop: DECRYPTING ---','node-info');printLine('Password accepted. Passphrase: '+CONFIG.passphrase,'success');printLine('','system');printLine('--- DECRYPTED INTEL ---','heading');printLine('TO: HANDLER-7 | FROM: ASSET-SIGMA | DATE: 2024-11-30','node-info');printLine('The extraction window opens at 0300. Grid ref KILO-NOVEMBER-7.','info');printLine('','system');printLine('Signature loaded. Proceed to VERIFY-POST.','info');if(!state.dropDecrypted){state.dropDecrypted=true;engine.checkObjectives();}}
-            }
-            else if(type==='hex-bench'){printLine('--- Hex Analyzer ---','node-info');printLine('48 65 78 77 6f 72 74 68','warning');printLine('Use: decode hex 4865787776f727468','info');}
-            else if(type==='verify-post'){
-                if(!state.dropDecrypted){printLine('No signature loaded. Decrypt dead drop first.','warning');}
-                else{printLine('--- Verify Post: READY ---','node-info');printLine('Signer: SHADOW PHOENIX','system');printLine('Use "verify" to confirm.','info');}
-            }
-            engine.saveState();
-        }
-
-        function cmdDecode(args){
-            if(args.length<2){printLine('Usage: decode <type> <data>','error');return;}
-            var type=args[0].toLowerCase(),payload=args.slice(1).join(' ');
-            if(type==='base64'){
-                if(payload===CONFIG.missionBase64){printLine('','system');printLine('Decoding Base64...','system');printLine('Result: '+CONFIG.missionBase64Decoded,'success');printLine('[RECOVERED] Passphrase: '+CONFIG.passphrase,'heading');if(!state.base64Decoded){state.base64Decoded=true;engine.checkObjectives();}}
-                else{try{printLine('Result: '+atob(payload),'node-info');}catch(e){printLine('Invalid Base64.','error');}}
-            } else if(type==='rot13'){
-                var result=payload.replace(/[a-zA-Z]/g,function(ch){var b=ch<='Z'?65:97;return String.fromCharCode(((ch.charCodeAt(0)-b+13)%26)+b);});
-                printLine('','system');printLine('Result: '+result,'success');
-            } else if(type==='hex'){
-                var hex=payload.replace(/\s+/g,'');if(/^[0-9a-fA-F]+$/.test(hex)&&hex.length%2===0){var r='';for(var i=0;i<hex.length;i+=2)r+=String.fromCharCode(parseInt(hex.substr(i,2),16));printLine('Result: '+r,'success');}else printLine('Invalid hex.','error');
-            } else printLine('Types: base64, hex, rot13','error');
-            engine.saveState();
-        }
-
-        function cmdCrack(args){
-            if(!args.length){printLine('Usage: crack <hash>','error');return;}
-            var hash=args[0];
-            if(hash===CONFIG.knownHash||hash.startsWith('5e884898')){
-                printLine('','system');printLine('Running hashcat against wordlist...','system');printLine('Match found!','success');printLine('Hash: '+CONFIG.knownHash.substring(0,16)+'...','node-info');printLine('Plaintext: '+CONFIG.knownHashPlaintext,'success');
-                if(!state.hashCracked){state.hashCracked=true;engine.checkObjectives();}
-            } else printLine('No match found in wordlist.','system');
-            engine.saveState();
-        }
-
-        function cmdVerify(){
-            var type=currentNodeType();
-            if(type!=='verify-post'){printLine('Must be at VERIFY-POST station.','error');return;}
-            if(!state.dropDecrypted){printLine('No signature loaded. Decrypt dead drop first.','error');return;}
-            printLine('','system');printLine('Verifying RSA-SHA256 signature...','system');printLine('Signer: SHADOW PHOENIX <sp@dead-drop.null>','node-info');printLine('Result: SIGNATURE VALID','success');
-            if(!state.signatureVerified){state.signatureVerified=true;engine.checkObjectives();}
-            engine.saveState();
-        }
-
-        function cmdStatus(){printLine('','system');printLine('[STATUS] Position: '+currentNodeType(),'info');printLine('[STATUS] Nodes: '+state.nodesDiscovered.size,'info');var done=0;for(var i=0;i<state.objectives.length;i++)if(state.objectives[i])done++;printLine('[STATUS] Objectives: '+done+'/'+CONFIG.objectives.length,'info');}
-
-        function dispatch(raw){
-            state.commandCount=(state.commandCount||0)+1;
-            var parts=raw.trim().split(/\s+/),cmd=parts[0].toLowerCase(),args=parts.slice(1);
-            printLine(CONFIG.prompt+' '+raw,'prompt-echo');
-            switch(cmd){
-                case 'help':cmdHelp();break;case 'scan':cmdScan();break;
-                case 'move':case 'cd':cmdMove(args);break;case 'examine':cmdExamine();break;
-                case 'decode':cmdDecode(args);break;case 'hash':printLine('Educational: hash <algo> <text>','system');break;
-                case 'crack':cmdCrack(args);break;case 'verify':cmdVerify();break;
-                case 'status':cmdStatus();break;case 'clear':termOutput.innerHTML='';break;
-                default:printLine('Unknown command: '+cmd+'. Type "help".','error');
-            }
-        }
-
-        termInput.addEventListener('keydown',function(e){
-            if(e.key==='Enter'){var v=termInput.value.trim();if(!v)return;state.commandHistory.push(v);state.historyIndex=state.commandHistory.length;termInput.value='';dispatch(v);}
-            else if(e.key==='ArrowUp'){e.preventDefault();if(state.historyIndex>0){state.historyIndex--;termInput.value=state.commandHistory[state.historyIndex];}}
-            else if(e.key==='ArrowDown'){e.preventDefault();if(state.historyIndex<state.commandHistory.length-1){state.historyIndex++;termInput.value=state.commandHistory[state.historyIndex];}else{state.historyIndex=state.commandHistory.length;termInput.value='';}}
-        });
-
-        printLine('OPERATOR // CRYPTO-01: DEAD DROP','heading');
-        printLine('Decode, decrypt, and verify a covert message.','system');
-        printLine('Type "help" for commands, "scan" to survey.','system');printLine('','system');
-        termInput.focus();
+        var engine = OperatorEngine.init(CRYPTO_01_CONFIG);
+        var agent  = AgentBridge.create(engine);
+        TerminalInterpreter.init(CRYPTO_01_CONFIG, engine, agent);
     })();
     </script>
 </body>

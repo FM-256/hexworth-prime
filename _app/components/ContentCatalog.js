@@ -94,6 +94,14 @@ const ContentCatalog = (function() {
             color: '#a855f7',
             description: 'AI & Intelligent Automation',
             basePath: 'houses/ai/'
+        },
+        matrix: {
+            id: 'matrix',
+            name: 'The Operator',
+            icon: '/assets/images/icons/icon-target.webp',
+            color: '#00ff41',
+            description: 'Hands-on Operator Missions',
+            basePath: 'operator/'
         }
     };
 
@@ -1993,6 +2001,39 @@ const ContentCatalog = (function() {
 
         // Cloud House — API Foundations Lab (API-1)
         { house: 'cloud', id: 'cloud-api-foundations-lab', title: 'API Foundations Lab', description: 'REST API fundamentals: HTTP methods, status codes, request anatomy, REST vs GraphQL/gRPC, and interactive API explorer', icon: '/assets/images/icons/icon-chain.webp', status: 'available', components: ['applet'], href: 'games/cloud-api-foundations-lab.applet.html', category: 'api' },
+
+        // ═══════════════════════════════════════════════════════════════════
+        // THE OPERATOR — Hands-on Missions
+        // ═══════════════════════════════════════════════════════════════════
+        // Python Automation
+        { house: 'matrix', id: 'op-python-01', title: 'Script Kiddie', description: 'Python automation mission — write scripts to automate basic security tasks', icon: '/assets/images/icons/icon-terminal.webp', status: 'available', components: ['lab'], href: 'missions/python-01.mission.html', category: 'python-automation' },
+        { house: 'matrix', id: 'op-python-02', title: 'Packet Rat', description: 'Python automation mission — craft and parse network packets with Scapy-style scripting', icon: '/assets/images/icons/icon-terminal.webp', status: 'available', components: ['lab'], href: 'missions/python-02.mission.html', category: 'python-automation' },
+        { house: 'matrix', id: 'op-python-03', title: 'Grid Iron', description: 'Python automation mission — build network mapping and enumeration tools', icon: '/assets/images/icons/icon-terminal.webp', status: 'available', components: ['lab'], href: 'missions/python-03.mission.html', category: 'python-automation' },
+        { house: 'matrix', id: 'op-python-04', title: 'Ghost Protocol', description: 'Python automation mission — develop covert communication and steganography tools', icon: '/assets/images/icons/icon-terminal.webp', status: 'available', components: ['lab'], href: 'missions/python-04.mission.html', category: 'python-automation' },
+        // Network Recon
+        { house: 'matrix', id: 'op-recon-01', title: 'First Contact', description: 'Network recon mission — perform initial target discovery and enumeration', icon: '/assets/images/icons/icon-target.webp', status: 'available', components: ['lab'], href: 'missions/recon-01.mission.html', category: 'network-recon' },
+        { house: 'matrix', id: 'op-recon-02', title: 'Deep Sweep', description: 'Network recon mission — advanced scanning, service fingerprinting, and OS detection', icon: '/assets/images/icons/icon-target.webp', status: 'available', components: ['lab'], href: 'missions/recon-02.mission.html', category: 'network-recon' },
+        // Windows Admin
+        { house: 'matrix', id: 'op-windows-cmd-01', title: 'Workstation Triage', description: 'Windows admin mission — triage a workstation using cmd and PowerShell diagnostics', icon: '/assets/images/icons/icon-desktop.webp', status: 'available', components: ['lab'], href: 'missions/windows-cmd-01.mission.html', category: 'windows-admin' },
+        { house: 'matrix', id: 'op-windows-cmd-02', title: 'Blue Screen Protocol', description: 'Windows admin mission — diagnose and recover from system failures and blue screens', icon: '/assets/images/icons/icon-desktop.webp', status: 'available', components: ['lab'], href: 'missions/windows-cmd-02.mission.html', category: 'windows-admin' },
+        // Linux Admin
+        { house: 'matrix', id: 'op-linux-fs-01', title: 'Root Access', description: 'Linux admin mission — navigate filesystems, manage permissions, and escalate privileges', icon: '/assets/images/icons/icon-terminal.webp', status: 'available', components: ['lab'], href: 'missions/linux-fs-01.mission.html', category: 'linux-admin' },
+        { house: 'matrix', id: 'op-linux-fs-02', title: 'Root Hunt', description: 'Linux admin mission — hunt for suspicious files, processes, and persistence mechanisms', icon: '/assets/images/icons/icon-terminal.webp', status: 'available', components: ['lab'], href: 'missions/linux-fs-02.mission.html', category: 'linux-admin' },
+        // Firewall Ops
+        { house: 'matrix', id: 'op-firewall-01', title: 'Perimeter', description: 'Firewall ops mission — configure firewall rules and defend the network perimeter', icon: '/assets/images/icons/icon-shield.webp', status: 'available', components: ['lab'], href: 'missions/firewall-01.mission.html', category: 'firewall-ops' },
+        { house: 'matrix', id: 'op-firewall-02', title: 'Zero Day Response', description: 'Firewall ops mission — respond to a zero-day exploit with emergency firewall rules', icon: '/assets/images/icons/icon-shield.webp', status: 'available', components: ['lab'], href: 'missions/firewall-02.mission.html', category: 'firewall-ops' },
+        // Incident Response
+        { house: 'matrix', id: 'op-incident-response-01', title: 'Breach Protocol', description: 'Incident response mission — contain and investigate an active network breach', icon: '/assets/images/icons/icon-target.webp', status: 'available', components: ['lab'], href: 'missions/incident-response-01.mission.html', category: 'incident-response' },
+        { house: 'matrix', id: 'op-incident-response-02', title: 'Ransomware Dawn', description: 'Incident response mission — respond to a ransomware attack across the enterprise', icon: '/assets/images/icons/icon-target.webp', status: 'available', components: ['lab'], href: 'missions/incident-response-02.mission.html', category: 'incident-response' },
+        // Log Analysis
+        { house: 'matrix', id: 'op-log-analysis-01', title: 'Signal in the Noise', description: 'Log analysis mission — sift through noisy logs to identify indicators of compromise', icon: '/assets/images/icons/icon-clipboard.webp', status: 'available', components: ['lab'], href: 'missions/log-analysis-01.mission.html', category: 'log-analysis' },
+        { house: 'matrix', id: 'op-log-analysis-02', title: 'APT Tracker', description: 'Log analysis mission — correlate log sources to track an advanced persistent threat', icon: '/assets/images/icons/icon-clipboard.webp', status: 'available', components: ['lab'], href: 'missions/log-analysis-02.mission.html', category: 'log-analysis' },
+        // Cryptography
+        { house: 'matrix', id: 'op-crypto-01', title: 'Dead Drop', description: 'Cryptography mission — encrypt, decrypt, and exchange secrets using terminal tools', icon: '/assets/images/icons/icon-key.webp', status: 'available', components: ['lab'], href: 'missions/crypto-01.mission.html', category: 'cryptography' },
+        { house: 'matrix', id: 'op-crypto-02', title: 'Key Escrow', description: 'Cryptography mission — manage key lifecycle, escrow, and certificate operations', icon: '/assets/images/icons/icon-key.webp', status: 'available', components: ['lab'], href: 'missions/crypto-02.mission.html', category: 'cryptography' },
+        // Digital Forensics
+        { house: 'matrix', id: 'op-forensics-01', title: 'Memory Dump', description: 'Digital forensics mission — analyze memory dumps to extract artifacts and IOCs', icon: '/assets/images/icons/icon-brain.webp', status: 'available', components: ['lab'], href: 'missions/forensics-01.mission.html', category: 'digital-forensics' },
+        { house: 'matrix', id: 'op-forensics-02', title: 'Cloud Artifact', description: 'Digital forensics mission — investigate cloud infrastructure logs and storage artifacts', icon: '/assets/images/icons/icon-brain.webp', status: 'available', components: ['lab'], href: 'missions/forensics-02.mission.html', category: 'digital-forensics' },
 
     ];
 

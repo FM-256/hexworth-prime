@@ -16,12 +16,57 @@
    interpreter sees as the `agent` variable. All methods are async
    for visual pacing (await engine.delay()).
 
+   OP-6: Agent Tier Framework
+   --------------------------
+   Mission configs can declare `agent: { tier: N }` (1-5) to gate
+   which bridge methods are available. Default is Tier 5 (all methods)
+   for backwards compatibility. Locked methods print ACCESS DENIED.
+
    Depends on: OperatorEngine.js (loaded first)
    No build step. No modules. Raw script tag.
    ================================================================ */
 
 (function() {
     'use strict';
+
+    // ----------------------------------------------------------------
+    //  TIER DEFINITIONS (OP-6)
+    // ----------------------------------------------------------------
+
+    var TIER_METHODS = {
+        1: ['move', 'scan', 'status'],
+        2: ['move', 'scan', 'status', 'sweep', 'ping'],
+        3: ['move', 'scan', 'status', 'sweep', 'ping', 'nmap', 'exploit', 'spoof', 'decrypt', 'patch'],
+        4: null,   // all methods (future: class-based agent support)
+        5: null    // all methods (future: multi-agent)
+    };
+
+    // Reverse lookup: method name -> minimum tier required
+    var METHOD_MIN_TIER = {};
+    (function buildMinTierMap() {
+        // Walk tiers 1-3 to find the first tier each method appears
+        for (var t = 1; t <= 3; t++) {
+            var methods = TIER_METHODS[t];
+            for (var i = 0; i < methods.length; i++) {
+                if (!METHOD_MIN_TIER[methods[i]]) {
+                    METHOD_MIN_TIER[methods[i]] = t;
+                }
+            }
+        }
+    })();
+
+    // All bridge method names (used for tier 4/5 "allow all")
+    var ALL_METHOD_NAMES = ['move', 'scan', 'status', 'sweep', 'ping',
+                            'nmap', 'exploit', 'spoof', 'decrypt', 'patch'];
+
+    function getAllowedMethods(tier) {
+        if (tier >= 4) return ALL_METHOD_NAMES.slice();
+        return (TIER_METHODS[tier] || ALL_METHOD_NAMES).slice();
+    }
+
+    function getMinTier(methodName) {
+        return METHOD_MIN_TIER[methodName] || 1;
+    }
 
     // ----------------------------------------------------------------
     //  DIRECTION MAPS (shared by move, sweep)
@@ -647,6 +692,61 @@
             },
             enumerable: true
         });
+
+        // --------------------------------------------------------
+        //  OP-6: Agent Tier Framework
+        // --------------------------------------------------------
+
+        var agentConfig  = C().agent || {};
+        var currentTier  = agentConfig.tier || 5;
+        var allowedNames = getAllowedMethods(currentTier);
+
+        // agent.tier -- read-only current tier number
+        Object.defineProperty(bridge, 'tier', {
+            get: function() { return currentTier; },
+            enumerable: true
+        });
+
+        // agent.commands -- read-only array of available method names
+        Object.defineProperty(bridge, 'commands', {
+            get: function() { return allowedNames.slice(); },
+            enumerable: true
+        });
+
+        // Gate locked methods: replace with ACCESS DENIED stub
+        for (var m = 0; m < ALL_METHOD_NAMES.length; m++) {
+            var methodName = ALL_METHOD_NAMES[m];
+            if (allowedNames.indexOf(methodName) === -1) {
+                (function(name) {
+                    var requiredTier = getMinTier(name);
+                    bridge[name] = function() {
+                        engine.printLine(
+                            '[ACCESS DENIED] ' + name + '() requires Tier ' +
+                            requiredTier + ' clearance. Current: Tier ' + currentTier,
+                            'error'
+                        );
+                        return undefined;
+                    };
+                })(methodName);
+            }
+        }
+
+        // agent.help() -- formatted command list with tier badges
+        bridge.help = function() {
+            engine.printLine('[HELP] === AGENT COMMAND REFERENCE (Tier ' + currentTier + ') ===', 'heading');
+            engine.printLine('[HELP] ----------------------------------------', 'system');
+            for (var i = 0; i < ALL_METHOD_NAMES.length; i++) {
+                var name = ALL_METHOD_NAMES[i];
+                var minT = getMinTier(name);
+                if (allowedNames.indexOf(name) !== -1) {
+                    engine.printLine('[HELP]   agent.' + name + '()    [Tier ' + minT + ']', 'success');
+                } else {
+                    engine.printLine('[HELP]   agent.' + name + '()    [LOCKED -- Tier ' + minT + ']', 'error');
+                }
+            }
+            engine.printLine('[HELP] ----------------------------------------', 'system');
+            engine.printLine('[HELP] Available: ' + allowedNames.length + '/' + ALL_METHOD_NAMES.length + ' commands', 'info');
+        };
 
         return bridge;
     }

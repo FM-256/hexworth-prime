@@ -4,16 +4,30 @@
    Filesystem exploration mission. Grid cells represent directories
    instead of network nodes. No traps, no gates — pure navigation
    and file reading. 4 flags hidden across the filesystem.
+
+   Converted to TerminalInterpreter config-driven pattern.
+   Custom commands: ls, cat, grep, find, pwd
+   Overrides: scan, move (filesystem language), status, help
    ================================================================ */
 
 var LINUX_FS_01_CONFIG = {
     id: 'linux-fs-01',
-    title: 'LINUX-FS-01 / ROOT ACCESS',
+    missionTitle: 'LINUX-FS-01',
+    title: 'Root Access',
     subtitle: 'Navigate the Linux filesystem and capture all four flags.',
     category: 'linux-filesystem',
     difficulty: 1,
     inputMode: 'terminal',
-    prompt: 'root@hexworth:~#',
+    promptText: 'root@hexworth:~# ',
+    promptLabel: 'OPERATOR TERMINAL',
+
+    briefing: [
+        'Navigate the filesystem. Find all 4 flags.',
+        'Use ls, cat, grep, find to explore.',
+        'Flags are hidden in specific directories.'
+    ],
+
+    notFoundMsg: 'Unknown command: {cmd}. Type "help".',
 
     grid: {
         rows: 4,
@@ -96,11 +110,20 @@ var LINUX_FS_01_CONFIG = {
     traps: [],
     gates: {},
 
+    customState: {
+        flagsFound: [],
+        dirsVisited: []
+    },
+
+    statusFields: [
+        { key: 'flagsFound', label: 'Flags captured', trueText: '', falseText: '0/4' }
+    ],
+
     objectives: [
-        { id: 'flag1', label: 'FLAG-1 CAPTURED -- /root/flag1.txt',    check: 'flagsFound.has("root-home")' },
-        { id: 'flag2', label: 'FLAG-2 CAPTURED -- /var/log/flag2.txt', check: 'flagsFound.has("var-log")' },
-        { id: 'flag3', label: 'FLAG-3 CAPTURED -- /opt/flag3.txt',     check: 'flagsFound.has("opt-dir")' },
-        { id: 'flag4', label: 'FLAG-4 CAPTURED -- /srv/flag4.txt',     check: 'flagsFound.has("srv-dir")' }
+        { id: 'flag1', label: 'FLAG-1 CAPTURED -- /root/flag1.txt',    check: 'flagsFound.indexOf("root-home") !== -1' },
+        { id: 'flag2', label: 'FLAG-2 CAPTURED -- /var/log/flag2.txt', check: 'flagsFound.indexOf("var-log") !== -1' },
+        { id: 'flag3', label: 'FLAG-3 CAPTURED -- /opt/flag3.txt',     check: 'flagsFound.indexOf("opt-dir") !== -1' },
+        { id: 'flag4', label: 'FLAG-4 CAPTURED -- /srv/flag4.txt',     check: 'flagsFound.indexOf("srv-dir") !== -1' }
     ],
 
     integrity: 3,
@@ -109,5 +132,218 @@ var LINUX_FS_01_CONFIG = {
         title: 'ROOT ACCESS',
         subtitle: 'Filesystem explored. All flags captured.',
         storageKey: 'hexworth_operator_linuxfs01'
+    },
+
+    /* ----------------------------------------------------------------
+       Terminal Commands -- filesystem-flavored overrides + custom cmds
+       ---------------------------------------------------------------- */
+    terminalCommands: {
+
+        /* Override scan with filesystem language */
+        'scan': {
+            help: 'Survey area, reveal adjacent directories',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                var col = s.position.col, row = s.position.row;
+                var cellType = c.grid.cells[row][col];
+                e.printLine('Scanning area...', 'system');
+                e.printLine('', 'system');
+                if (cellType !== 'empty' && cellType !== 'wall') {
+                    var cur = c.nodes[cellType];
+                    e.printLine('Current: ' + cur.label + ' ' + cur.ip, 'heading');
+                    e.printLine(cur.desc, 'info');
+                    e.printLine('Permissions: ' + cur.os, 'node-info');
+                } else {
+                    e.printLine('Current: Empty path (no directory)', 'heading');
+                }
+                e.printLine('', 'system');
+                e.printLine('Adjacent:', 'heading');
+                var dirs = [{name:'North',dc:0,dr:-1},{name:'South',dc:0,dr:1},{name:'East',dc:1,dr:0},{name:'West',dc:-1,dr:0}];
+                for (var i = 0; i < dirs.length; i++) {
+                    var d = dirs[i], nc = col+d.dc, nr = row+d.dr;
+                    if (nc<0||nc>=c.grid.cols||nr<0||nr>=c.grid.rows) { e.printLine('  '+d.name+': [filesystem boundary]','system'); continue; }
+                    var type = c.grid.cells[nr][nc];
+                    if (type==='wall') { e.printLine('  '+d.name+': [inaccessible]','system'); continue; }
+                    var key = nc+','+nr;
+                    if (!s.visibility[key]||s.visibility[key]==='hidden') s.visibility[key]='revealed';
+                    if (type==='empty') { e.printLine('  '+d.name+': Empty path','info'); }
+                    else { var info=c.nodes[type]; e.printLine('  '+d.name+': '+info.label+' '+info.ip,'node-info'); }
+                }
+                e.updateGrid();
+                e.saveState();
+            }
+        },
+
+        /* Override move with filesystem language + dirsVisited tracking */
+        'move': {
+            help: 'Move (north/south/east/west or n/s/e/w)',
+            syntax: 'move <dir>',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                if (!args.length) { e.printLine('Usage: move <direction>','error'); return; }
+                var dirMap = {'north':[0,-1],'n':[0,-1],'south':[0,1],'s':[0,1],'east':[1,0],'e':[1,0],'west':[-1,0],'w':[-1,0]};
+                var dir = args[0].toLowerCase();
+                if (!dirMap[dir]) { e.printLine('Unknown direction: '+args[0],'error'); return; }
+                var d=dirMap[dir], newCol=s.position.col+d[0], newRow=s.position.row+d[1];
+                if (newCol<0||newCol>=c.grid.cols||newRow<0||newRow>=c.grid.rows) { e.printLine('Filesystem boundary.','error'); return; }
+                var cellType = c.grid.cells[newRow][newCol];
+                if (cellType==='wall') { e.printLine('Inaccessible.','error'); return; }
+                s.position = {col:newCol, row:newRow};
+                s.visibility[newCol+','+newRow] = 'visited';
+                if (cellType!=='empty' && s.dirsVisited.indexOf(cellType) === -1) s.dirsVisited.push(cellType);
+                if (cellType!=='empty' && c.nodes[cellType]) s.nodesDiscovered.add(cellType);
+                e.revealAdjacent(newCol,newRow);
+                var dirFull={n:'north',s:'south',e:'east',w:'west'}, dirName=dirFull[dir]||dir;
+                if (cellType==='empty') { e.printLine('cd '+dirName+'... Empty path.','system'); }
+                else { var info=c.nodes[cellType]; e.printLine('cd '+dirName+'... '+info.label+' '+info.ip,'success'); e.printLine(info.desc,'info'); e.printLine('Permissions: '+info.os,'node-info'); }
+                e.updateGrid(); e.saveState();
+            }
+        },
+
+        /* cd alias for move */
+        'cd': {
+            help: 'Alias for move',
+            syntax: 'cd <dir>',
+            handler: function(args, ctx) {
+                ctx.config.terminalCommands['move'].handler(args, ctx);
+            }
+        },
+
+        /* Override status with filesystem-specific info */
+        'status': {
+            help: 'Show position and objectives',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                var cellType = c.grid.cells[s.position.row][s.position.col];
+                e.printLine('', 'system');
+                e.printLine('[STATUS] Position: '+cellType+' ('+s.position.col+','+s.position.row+')','info');
+                e.printLine('[STATUS] Dirs visited: '+s.dirsVisited.length,'info');
+                e.printLine('[STATUS] Flags: '+s.flagsFound.length+'/4','info');
+                e.printLine('[STATUS] Commands: '+s.agentCmdCount,'info');
+            }
+        },
+
+        /* Override help with filesystem-specific command list */
+        'help': {
+            help: 'Show this reference',
+            handler: function(args, ctx) {
+                var e = ctx.engine;
+                e.printLine('', 'system');
+                e.printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550', 'heading');
+                e.printLine('  scan            Survey area, reveal adjacent directories', 'info');
+                e.printLine('  move <dir>      Move (north/south/east/west or n/s/e/w)', 'info');
+                e.printLine('  ls              List contents of current directory', 'info');
+                e.printLine('  cat <file>      Read a file in the current directory', 'info');
+                e.printLine('  grep <pattern>  Search for pattern in current directory', 'info');
+                e.printLine('  find <pattern>  Search visited directories for files', 'info');
+                e.printLine('  pwd             Show current directory path', 'info');
+                e.printLine('  ping <node>     Check a directory by name', 'info');
+                e.printLine('  status          Show position and objectives', 'info');
+                e.printLine('  help            Show this reference', 'info');
+                e.printLine('  clear           Clear terminal output', 'info');
+            }
+        },
+
+        'ls': {
+            help: 'List contents of current directory',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                var cellType = c.grid.cells[s.position.row][s.position.col];
+                if (cellType==='empty'||cellType==='wall') { e.printLine('Not inside a directory.','error'); return; }
+                var info = c.nodes[cellType];
+                e.printLine(info.ports.join('  '), 'node-info');
+            }
+        },
+
+        'cat': {
+            help: 'Read a file in the current directory',
+            syntax: 'cat <file>',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                if (!args.length) { e.printLine('Usage: cat <filename>','error'); return; }
+                var filename = args[0];
+                var cellType = c.grid.cells[s.position.row][s.position.col];
+                if (cellType==='empty'||cellType==='wall') { e.printLine('cat: not inside a directory','error'); return; }
+                var info = c.nodes[cellType];
+                var files = c.fileContents[cellType];
+                if (!files||!files[filename]) {
+                    var inPorts = info.ports.indexOf(filename) !== -1;
+                    e.printLine('cat: '+filename+': '+(inPorts?'unable to read':'No such file or directory'),'error');
+                    return;
+                }
+                var content = files[filename];
+                if (info.hasFlag && filename === info.flagFile) {
+                    e.printLine(content, 'success');
+                    if (s.flagsFound.indexOf(cellType) === -1) {
+                        s.flagsFound.push(cellType);
+                        e.printLine('', 'system');
+                        e.printLine('[!] FLAG CAPTURED', 'success');
+                        e.checkObjectives();
+                    }
+                } else {
+                    var lines = content.split('\n');
+                    for (var i=0;i<lines.length;i++) e.printLine(lines[i],'node-info');
+                }
+                e.saveState();
+            }
+        },
+
+        'grep': {
+            help: 'Search for pattern in current directory',
+            syntax: 'grep <pattern>',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                if (!args.length) { e.printLine('Usage: grep <pattern>','error'); return; }
+                var pattern = args.join(' ').toLowerCase();
+                var cellType = c.grid.cells[s.position.row][s.position.col];
+                if (cellType==='empty'||cellType==='wall') { e.printLine('grep: not inside a directory','error'); return; }
+                var files = c.fileContents[cellType];
+                if (!files) { e.printLine('No files to search.','error'); return; }
+                var found = 0;
+                var fnames = Object.keys(files);
+                for (var i=0;i<fnames.length;i++) {
+                    if (files[fnames[i]].toLowerCase().indexOf(pattern) !== -1) {
+                        e.printLine(fnames[i]+': match found','node-info');
+                        found++;
+                    }
+                }
+                if (!found) e.printLine('No matches for "'+pattern+'"','system');
+            }
+        },
+
+        'find': {
+            help: 'Search visited directories for files',
+            syntax: 'find <pattern>',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                if (!args.length) { e.printLine('Usage: find <pattern>','error'); return; }
+                var pattern = args.join(' ').toLowerCase();
+                var currentCell = c.grid.cells[s.position.row][s.position.col];
+                var keys = Object.keys(c.fileContents);
+                var found = 0;
+                for (var k=0;k<keys.length;k++) {
+                    if (s.dirsVisited.indexOf(keys[k]) === -1 && keys[k] !== currentCell) continue;
+                    var files = c.fileContents[keys[k]];
+                    var fnames = Object.keys(files);
+                    for (var f=0;f<fnames.length;f++) {
+                        if (fnames[f].toLowerCase().indexOf(pattern) !== -1) {
+                            e.printLine(c.nodes[keys[k]].label+'/'+fnames[f],'node-info');
+                            found++;
+                        }
+                    }
+                }
+                if (!found) e.printLine('No files matching "'+pattern+'" in visited directories.','system');
+            }
+        },
+
+        'pwd': {
+            help: 'Show current directory path',
+            handler: function(args, ctx) {
+                var e = ctx.engine, s = ctx.state, c = ctx.config;
+                var cellType = c.grid.cells[s.position.row][s.position.col];
+                if (cellType!=='empty'&&cellType!=='wall') e.printLine(c.nodes[cellType].label,'info');
+                else e.printLine('(no named directory)','system');
+            }
+        }
     }
 };

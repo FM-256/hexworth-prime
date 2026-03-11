@@ -2,201 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="../../components/AccessGuard.js"></script>
-    <script>AccessGuard.require('sorted');</script>
-    <script src="../../components/AchievementManager.js"></script>
-    <script src="../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOG-01: Signal in the Noise | Operator</title>
     <link rel="stylesheet" href="../engine/operator.css">
-    <style>
-        .editor-panel { display: none !important; }
-        .term-panel { flex:0 0 45%; display:flex; flex-direction:column; background:#080a0e; height:100%; }
-        .term-bar { display:flex; align-items:center; gap:6px; padding:8px 14px; background:#0e1018; border-bottom:1px solid rgba(57,255,20,0.1); }
-        .term-dot { width:8px; height:8px; border-radius:50%; background:rgba(57,255,20,0.3); }
-        .term-bar-label { font-size:0.55rem; letter-spacing:0.12em; color:rgba(57,255,20,0.25); margin-left:6px; }
-        .term-output { flex:1; overflow-y:auto; padding:10px 14px; font-size:0.72rem; line-height:1.55; }
-        .term-output::-webkit-scrollbar { width:4px; }
-        .term-output::-webkit-scrollbar-thumb { background:rgba(57,255,20,0.15); border-radius:2px; }
-        .term-input-row { display:flex; align-items:center; gap:8px; padding:8px 14px; border-top:1px solid rgba(57,255,20,0.1); }
-        .term-prompt-text { color:rgba(57,255,20,0.5); font-size:0.72rem; letter-spacing:0.04em; white-space:nowrap; }
-        .term-input { flex:1; background:transparent; border:none; outline:none; color:#76ff03; font-family:'Courier New',monospace; font-size:0.72rem; caret-color:#39ff14; }
-        .term-line { word-break:break-word; }
-        .term-system { color:rgba(57,255,20,0.3); } .term-info { color:rgba(57,255,20,0.65); }
-        .term-success { color:#39ff14; font-weight:600; } .term-error { color:#ff4444; }
-        .term-warning { color:#ffaa00; } .term-node-info { color:#00ccff; }
-        .term-heading { color:#39ff14; font-weight:700; } .term-prompt-echo { color:rgba(57,255,20,0.4); }
-        @media (max-width:768px) { .term-panel { flex:1; } }
-    </style>
+    <script src="../../components/ModuleProgress.js"></script>
 </head>
 <body>
     <div id="operator-root"></div>
+
     <script src="../engine/OperatorEngine.js"></script>
     <script src="../engine/AgentBridge.js"></script>
+    <script src="../engine/TerminalInterpreter.js"></script>
     <script src="../configs/log-analysis-01.config.js"></script>
     <script>
+    /* LOG-01: Signal in the Noise — SOC log analysis mission */
     (function() {
-        var CONFIG = LOG_ANALYSIS_01_CONFIG;
-        var engine = OperatorEngine.init(CONFIG);
-        var state  = engine.getState();
-
-        // Custom state
-        if (!state.logsViewed) state.logsViewed = new Set();
-        if (typeof state.bruteForceFound === 'undefined') state.bruteForceFound = false;
-        if (typeof state.lateralFound === 'undefined')    state.lateralFound = false;
-        if (typeof state.alertFiled === 'undefined')      state.alertFiled = false;
-        state.commandHistory = state.commandHistory || []; state.historyIndex = -1;
-
-        // Inject terminal
-        var ep = document.querySelector('.editor-panel'); if(ep) ep.style.display='none';
-        var layout = document.querySelector('.mission-layout');
-        var tp = document.createElement('div'); tp.className='term-panel';
-        tp.innerHTML='<div class="term-bar"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><span class="term-bar-label">OPERATOR TERMINAL</span></div><div class="term-output" id="term-output"></div><div class="term-input-row"><span class="term-prompt-text">'+CONFIG.prompt+'</span><input type="text" class="term-input" id="term-input" autocomplete="off" spellcheck="false" autofocus></div>';
-        layout.appendChild(tp);
-        var termOutput=document.getElementById('term-output'), termInput=document.getElementById('term-input');
-
-        function printLine(t,type) { var l=document.createElement('div'); l.className='term-line term-'+(type||'system'); l.textContent=t; termOutput.appendChild(l); while(termOutput.children.length>300) termOutput.removeChild(termOutput.firstChild); termOutput.scrollTop=termOutput.scrollHeight; }
-        function currentNodeType() { return CONFIG.grid.cells[state.position.row][state.position.col]; }
-
-        function cmdHelp() {
-            printLine('','system'); printLine('\u2550\u2550\u2550 COMMAND REFERENCE \u2550\u2550\u2550','heading');
-            printLine('  scan                   Survey area','info'); printLine('  move <dir>             Move analyst (n/s/e/w)','info');
-            printLine('  logs                   View log entries at current node','info'); printLine('  filter <keyword>       Search current node logs','info');
-            printLine('  correlate <A> <B>      Cross-reference two log sources','info'); printLine('  alert <text>           File a detection alert','info');
-            printLine('  status / help / clear','info');
-        }
-
-        function cmdScan() {
-            var col=state.position.col, row=state.position.row, ct=currentNodeType();
-            printLine('Scanning area...','system'); printLine('','system');
-            if (ct!=='empty'&&ct!=='wall') { var c=CONFIG.nodes[ct]; printLine('Current: '+c.label+' ('+c.ip+')','heading'); printLine(c.desc,'info'); }
-            else printLine('Current: Clear path','heading');
-            printLine('','system'); printLine('Adjacent:','heading');
-            var dirs=[{name:'North',dc:0,dr:-1},{name:'South',dc:0,dr:1},{name:'East',dc:1,dr:0},{name:'West',dc:-1,dr:0}];
-            for (var i=0;i<dirs.length;i++) {
-                var d=dirs[i],nc=col+d.dc,nr=row+d.dr;
-                if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('  '+d.name+': [network edge]','system');continue;}
-                var type=CONFIG.grid.cells[nr][nc];
-                if(type==='wall'){printLine('  '+d.name+': [blocked]','system');continue;}
-                var key=nc+','+nr; if(!state.visibility[key]||state.visibility[key]==='hidden') state.visibility[key]='revealed';
-                if(type==='empty') printLine('  '+d.name+': Clear path','info');
-                else { var info=CONFIG.nodes[type]; printLine('  '+d.name+': '+info.label+' ('+info.ip+')','node-info'); }
-            }
-            engine.updateGrid(); engine.saveState();
-        }
-
-        function cmdMove(args) {
-            if(!args.length){printLine('Usage: move <direction>','error');return;}
-            var dirMap={'north':[0,-1],'n':[0,-1],'south':[0,1],'s':[0,1],'east':[1,0],'e':[1,0],'west':[-1,0],'w':[-1,0]};
-            var dir=args[0].toLowerCase(); if(!dirMap[dir]){printLine('Unknown direction.','error');return;}
-            var d=dirMap[dir],nc=state.position.col+d[0],nr=state.position.row+d[1];
-            if(nc<0||nc>=CONFIG.grid.cols||nr<0||nr>=CONFIG.grid.rows){printLine('Edge of network.','error');return;}
-            var ct=CONFIG.grid.cells[nr][nc]; if(ct==='wall'){printLine('Blocked.','error');return;}
-            state.position={col:nc,row:nr}; state.visibility[nc+','+nr]='visited';
-            if(ct!=='empty') state.nodesDiscovered.add(ct);
-            engine.revealAdjacent(nc,nr);
-            var dn={n:'north',s:'south',e:'east',w:'west'}[dir]||dir;
-            if(ct==='empty') printLine('Moving '+dn+'... Clear path.','system');
-            else { var info=CONFIG.nodes[ct]; printLine('Moving '+dn+'... '+info.label+' ('+info.ip+')','success'); printLine(info.desc,'info'); printLine('Type "logs" to view entries.','system'); }
-            engine.checkObjectives(); engine.updateGrid(); engine.saveState();
-        }
-
-        function cmdLogs() {
-            var ct=currentNodeType();
-            if(ct==='empty'||ct==='wall'){printLine('No log source here.','error');return;}
-            var info=CONFIG.nodes[ct], entries=CONFIG.logContent[ct];
-            printLine('','system'); printLine('\u2550\u2550\u2550 '+info.label+' ('+info.ip+') \u2550\u2550\u2550','heading'); printLine('OS: '+info.os,'node-info'); printLine('','system');
-            for(var i=0;i<entries.length;i++) {
-                var line=entries[i];
-                if(line.indexOf('10.10.5.77')!==-1||line.indexOf('ALERT')!==-1||line.indexOf('[WARN]')!==-1) printLine(line,'warning');
-                else if(line.indexOf('[NOTE]')!==-1||line.indexOf('[POLICY]')!==-1) printLine(line,'node-info');
-                else printLine(line,'info');
-            }
-            state.logsViewed.add(ct); engine.saveState();
-        }
-
-        function cmdFilter(args) {
-            if(!args.length){printLine('Usage: filter <keyword>','error');return;}
-            var ct=currentNodeType();
-            if(ct==='empty'||ct==='wall'){printLine('No log source here.','error');return;}
-            var keyword=args.join(' ').toLowerCase(), entries=CONFIG.logContent[ct];
-            var matches=[];
-            for(var i=0;i<entries.length;i++) if(entries[i].toLowerCase().indexOf(keyword)!==-1) matches.push(entries[i]);
-            printLine('','system'); printLine('filter "'+keyword+'" on '+CONFIG.nodes[ct].label+':','heading'); printLine('','system');
-            if(!matches.length){printLine('No matches.','system');return;}
-            for(var j=0;j<matches.length;j++) printLine(matches[j], matches[j].indexOf('10.10.5.77')!==-1?'warning':'info');
-            printLine(matches.length+' match(es).','node-info');
-            // Brute-force detection
-            if(ct==='auth-logs'&&(keyword.indexOf('fail')!==-1||keyword.indexOf('password')!==-1||keyword.indexOf('10.10.5.77')!==-1)) {
-                if(!state.bruteForceFound) { state.bruteForceFound=true; printLine('','system'); printLine('[!] BRUTE FORCE PATTERN DETECTED','warning'); printLine('IP 10.10.5.77: 6+ failed SSH attempts.','warning'); engine.checkObjectives(); }
-            }
-            engine.saveState();
-        }
-
-        function cmdCorrelate(args) {
-            if(args.length<2){printLine('Usage: correlate <nodeA> <nodeB>','error');return;}
-            var nodeA=engine.resolveNode(args[0]), nodeB=engine.resolveNode(args[1]);
-            if(!nodeA){printLine('Unknown node: '+args[0],'error');return;}
-            if(!nodeB){printLine('Unknown node: '+args[1],'error');return;}
-            if(nodeA.visibility!=='visited'){printLine(nodeA.info.label+' not visited.','warning');return;}
-            if(nodeB.visibility!=='visited'){printLine(nodeB.info.label+' not visited.','warning');return;}
-            var pair=[nodeA.type,nodeB.type].sort().join('+');
-            printLine('','system'); printLine('\u2550\u2550\u2550 CORRELATE: '+nodeA.info.label+' + '+nodeB.info.label+' \u2550\u2550\u2550','heading'); printLine('','system');
-            if(pair==='auth-logs+firewall-logs') {
-                printLine('[AUTH]  02:10-02:14 | 6x Failed SSH from 10.10.5.77','warning');
-                printLine('[FW]    02:12:05 | 10.10.5.77 -> 10.10.3.50 :22  <-- PIVOT','warning');
-                printLine('[FW]    02:12:47 | 10.10.5.77 -> 10.10.4.10 :22  <-- LATERAL','warning');
-                printLine('[FW]    02:13:30 | 10.10.5.77 -> 10.10.4.22 :22  <-- LATERAL','warning');
-                printLine('','system'); printLine('[!] LATERAL MOVEMENT CONFIRMED','success');
-                if(!state.lateralFound){state.lateralFound=true; engine.checkObjectives();}
-            } else { printLine('Cross-reference analysis complete. Overlapping data noted.','info'); }
-            engine.saveState();
-        }
-
-        function cmdAlert(args) {
-            if(!args.length){printLine('Usage: alert <description>','error');return;}
-            var text=args.join(' ');
-            printLine('','system'); printLine('[ALERT FILED]','heading'); printLine('Description: '+text,'info');
-            printLine('Severity: HIGH','warning'); printLine('Status: OPEN','success');
-            if(!state.alertFiled){state.alertFiled=true; engine.checkObjectives();}
-            engine.saveState();
-        }
-
-        function cmdStatus() {
-            printLine('','system'); printLine('[STATUS] Position: '+currentNodeType(),'info');
-            printLine('[STATUS] Sources discovered: '+state.nodesDiscovered.size,'info');
-            var done=0; for(var i=0;i<state.objectives.length;i++) if(state.objectives[i]) done++;
-            printLine('[STATUS] Objectives: '+done+'/'+CONFIG.objectives.length,'info');
-        }
-
-        function dispatch(raw) {
-            state.commandCount=(state.commandCount||0)+1;
-            var parts=raw.trim().split(/\s+/), cmd=parts[0].toLowerCase(), args=parts.slice(1);
-            printLine(CONFIG.prompt+' '+raw,'prompt-echo');
-            switch(cmd) {
-                case 'help': cmdHelp(); break;
-                case 'scan': cmdScan(); break;
-                case 'move': case 'cd': cmdMove(args); break;
-                case 'logs': cmdLogs(); break;
-                case 'filter': cmdFilter(args); break;
-                case 'correlate': cmdCorrelate(args); break;
-                case 'alert': cmdAlert(args); break;
-                case 'status': cmdStatus(); break;
-                case 'clear': termOutput.innerHTML=''; break;
-                default: printLine('Unknown command: '+cmd+'. Type "help".','error');
-            }
-        }
-
-        termInput.addEventListener('keydown', function(e) {
-            if(e.key==='Enter'){var v=termInput.value.trim();if(!v)return;state.commandHistory.push(v);state.historyIndex=state.commandHistory.length;termInput.value='';dispatch(v);}
-            else if(e.key==='ArrowUp'){e.preventDefault();if(state.historyIndex>0){state.historyIndex--;termInput.value=state.commandHistory[state.historyIndex];}}
-            else if(e.key==='ArrowDown'){e.preventDefault();if(state.historyIndex<state.commandHistory.length-1){state.historyIndex++;termInput.value=state.commandHistory[state.historyIndex];}else{state.historyIndex=state.commandHistory.length;termInput.value='';}}
-        });
-
-        printLine('OPERATOR // LOG-01: SIGNAL IN THE NOISE','heading');
-        printLine('Investigate SIEM alerts. Correlate the attack.','system');
-        printLine('Type "help" for commands, "scan" to survey.','system'); printLine('','system');
-        termInput.focus();
+        var engine = OperatorEngine.init(LOG_ANALYSIS_01_CONFIG);
+        var agent  = AgentBridge.create(engine);
+        TerminalInterpreter.init(LOG_ANALYSIS_01_CONFIG, engine, agent);
     })();
     </script>
 </body>
