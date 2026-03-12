@@ -26,9 +26,10 @@ const CLHInsightValidator = {
             userInput: userAnswer
         });
 
+        const data = result.data || result;
         return {
-            success: result.success,
-            feedback: result.feedback || ''
+            success: data.success,
+            feedback: data.feedback || ''
         };
     }
 };
