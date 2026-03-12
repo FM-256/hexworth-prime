@@ -352,7 +352,7 @@ Type <span class="lt-cmd">help</span> for available commands.
                 padding: 15px;
                 flex: 1;
                 min-height: 0;
-                max-height: ${config.height || '350px'};
+                ${config.height === '100%' ? '' : `max-height: ${config.height || '350px'};`}
                 overflow-y: auto;
                 font-family: 'JetBrains Mono', monospace;
                 font-size: 14px;
