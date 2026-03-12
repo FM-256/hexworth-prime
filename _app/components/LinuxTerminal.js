@@ -350,7 +350,8 @@ Type <span class="lt-cmd">help</span> for available commands.
             }
             .lt-output {
                 padding: 15px;
-                min-height: 200px;
+                flex: 1;
+                min-height: 0;
                 max-height: ${config.height || '350px'};
                 overflow-y: auto;
                 font-family: 'JetBrains Mono', monospace;
