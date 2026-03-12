@@ -608,6 +608,9 @@ PRO TIP: Good operatives always check for hidden files.
                 question: "What is the password to the vault?",
                 hint: "Look for hidden files in the intel directory. Secrets hide in the shadows.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['SHADOWRUN', 'shadowrun', 'Shadowrun'],
+                correctAnswerMessage: 'Intel confirmed. Vault access granted — credentials authenticated.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -889,6 +892,9 @@ PRO TIP: Wrap patterns with spaces in quotes.
                 question: "What is the secret code hidden in the evidence?",
                 hint: "Use grep to search for 'Secret Code' in the mystery.txt file.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['42XDFL', '42xdfl'],
+                correctAnswerMessage: 'Intel confirmed. Secret code 42XDFL verified — evidence logged.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -1127,6 +1133,9 @@ SUSPICIOUS INDICATORS
                 question: "What is the name of the unauthorized process?",
                 hint: "Compare the process list to the baseline. What process is NOT approved?",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['unknown_process', 'Unknown_process', 'UNKNOWN_PROCESS'],
+                correctAnswerMessage: 'Intel confirmed. Rogue process identified — initiating containment protocol.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -1421,6 +1430,9 @@ The official cover story is "equipment malfunction."
                 question: "According to the anomaly detector, where did the signal originate?",
                 hint: "Look at the ERROR entries in system.log - what location is mentioned?",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['extrasolar', 'Extrasolar', 'EXTRASOLAR', 'extrasolar - no satellite match'],
+                correctAnswerMessage: 'Intel confirmed. Signal origin classified as extrasolar — escalating to MAJIC clearance.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -1649,6 +1661,9 @@ BURN AFTER READING
                 question: "Before you leave, what is the dead drop passphrase?",
                 hint: "Check for hidden files in your home directory using ls -la",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['The owl flies at midnight', 'the owl flies at midnight', 'THE OWL FLIES AT MIDNIGHT'],
+                correctAnswerMessage: 'Intel confirmed. Dead drop passphrase authenticated — operation secure.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -1884,6 +1899,9 @@ SECURITY TIP:
                 question: "Before leaving the facility, which Shadow Network node is compromised?",
                 hint: "Check for hidden files in your home directory - network intel may be stored there.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['Gamma', 'gamma', 'Node Gamma', 'node gamma', 'GAMMA'],
+                correctAnswerMessage: 'Intel confirmed. Node Gamma compromised — routing traffic through alternate nodes.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -2163,6 +2181,9 @@ BEST PRACTICES
                 question: "If extraction is required, what are the dead drop coordinates?",
                 hint: "Check for hidden protocol files that detail emergency procedures.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['40.7484° N, 73.9857° W', '40.7484 N, 73.9857 W', '40.7484N 73.9857W', '40.7484°N, 73.9857°W'],
+                correctAnswerMessage: 'Intel confirmed. Dead drop coordinates verified — extraction route established.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -2658,6 +2679,9 @@ COMMON PIPELINES
                 question: "Based on your analysis, which IP is making unauthorized upload attempts?",
                 hint: "Look for repeated 403 (forbidden) responses in the access log.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['10.0.0.88'],
+                correctAnswerMessage: 'Intel confirmed. IP 10.0.0.88 identified as the unauthorized upload source.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -2945,6 +2969,9 @@ TEE (Split stream):
                 question: "According to the analyst notes, which IP should be monitored for persistence?",
                 hint: "Check the intel directory for analyst notes about monitoring targets.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['192.168.1.105'],
+                correctAnswerMessage: 'Intel confirmed. Target 192.168.1.105 flagged for persistent access monitoring.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -3199,6 +3226,9 @@ $     End of line
                 question: "How many failed login attempts were recorded in auth.log?",
                 hint: "Use grep -c to count lines matching 'FAILED' in the auth log.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['6', 'six'],
+                correctAnswerMessage: 'Intel confirmed. Six failed login attempts cataloged — brute force pattern verified.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -3466,6 +3496,9 @@ ROUTING:
                 question: "Based on the scan results, what database port is open on the target?",
                 hint: "Check the scan_results.txt file in the intel directory.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['3306', 'port 3306', 'mysql 3306'],
+                correctAnswerMessage: 'Intel confirmed. MySQL on port 3306 — potential attack vector identified.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -3760,6 +3793,9 @@ Use for mission verification before operations.`
                 question: "What alias is defined in the operator's .bashrc file?",
                 hint: "Read the .bashrc file to see what shortcuts are configured.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['ll', 'alias ll', 'll="ls -la"', 'ls -la'],
+                correctAnswerMessage: 'Intel confirmed. Alias ll mapped to ls -la — operator shortcuts cataloged.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -4039,6 +4075,9 @@ tmux                Modern terminal multiplexer`
                 question: "According to intel, what is the name of the cryptominer process?",
                 hint: "Check the processes.txt file in the intel directory for known threats.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['rogue_agent', 'rogue agent', 'rogueagent'],
+                correctAnswerMessage: 'Intel confirmed. Process rogue_agent identified as cryptominer — target acquired.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -4730,6 +4769,9 @@ PROBABLE TRAITOR: Codename begins with "N"
                 question: "Enter your findings in format: SUSPECT1,SUSPECT2,SUSPECT3:TRAITOR (suspects alphabetical)",
                 hint: "NIGHTFALL team + ZONE-ALPHA + STANDBY = 3 suspects. The intercept signature reveals which one.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['CIPHER,NOMAD,VIPER:NOMAD', 'cipher,nomad,viper:nomad', 'CIPHER, NOMAD, VIPER:NOMAD', 'CIPHER,NOMAD,VIPER: NOMAD'],
+                correctAnswerMessage: 'Intel confirmed. NOMAD is the traitor. Suspects CIPHER, NOMAD, and VIPER flagged — intercept signature "N" matches NOMAD. Excellent fieldwork, analyst.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -4881,6 +4923,9 @@ df -h`
                 question: "What is the operation codename according to the intel notes?",
                 hint: "Check the notes.txt file in the intel directory.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['IRON HARVEST', 'iron harvest', 'Iron Harvest', 'OPERATION IRON HARVEST'],
+                correctAnswerMessage: 'Intel confirmed. Operation IRON HARVEST — embassy workstation profiled for implant deployment.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -5055,6 +5100,9 @@ find / -mtime -1 -type f 2>/dev/null`
                 question: "What port does the analyst's backdoor connect to?",
                 hint: "Read the .backdoor.sh file in /home/analyst to see the C2 connection details.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['4444', 'port 4444'],
+                correctAnswerMessage: 'Intel confirmed. Backdoor on port 4444 — reverse shell to mole C2 at 10.0.0.88 identified.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -5225,6 +5273,9 @@ md5sum -c checksums.md5         Verify against checksum file`
                 question: "What is the handler's codename for this dead drop operation?",
                 hint: "Check the manifest.txt or README.txt in the staging or incoming directories.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['RAVEN', 'raven', 'Raven'],
+                correctAnswerMessage: 'Intel confirmed. Handler RAVEN controls this dead drop circuit — drop schedule 0300 UTC daily.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -5437,6 +5488,9 @@ mount -o loop image.img /mnt    Mount disk image`
                 question: "What is the case officer's codename for case 2024-001?",
                 hint: "Check the notes.txt file in the case_2024_001 directory.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['SPECTER', 'specter', 'Specter'],
+                correctAnswerMessage: 'Intel confirmed. Case Officer SPECTER assigned to case 2024-001 — compromised workstation investigation.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -5631,6 +5685,9 @@ ALERT: Unauthorized privilege escalation detected!`
                 question: "What is the username of the suspicious account created by the attacker?",
                 hint: "Check the audit_logs directory or admin's bash_history for recently created accounts.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['backdoor', 'BACKDOOR', 'Backdoor'],
+                correctAnswerMessage: 'Intel confirmed. Account "backdoor" created by compromised admin — added to sudo group for persistent access.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -5792,6 +5849,9 @@ STATUS: ACTIVE`
                 question: "What is the operation codename for this SSH exfiltration mission?",
                 hint: "Check the mission_brief.txt file for the operation codename.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['SILENT RELAY', 'silent relay', 'Silent Relay'],
+                correctAnswerMessage: 'Intel confirmed. Operation SILENT RELAY verified — exfil channel is secure.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -5985,6 +6045,9 @@ Report findings to handler before proceeding`
                 question: "What is the IP address of the primary target (database server)?",
                 hint: "Check the targets.txt in the notes directory or the initial_sweep.txt scan results.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['10.0.0.66'],
+                correctAnswerMessage: 'Intel confirmed. Target 10.0.0.66 locked — database server identified.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -6169,6 +6232,9 @@ NEXT STEPS:
                 question: "What is the mining pool address being used by the cryptominer? (format: domain:port)",
                 hint: "Use 'systemctl cat' on suspicious services to view their configuration.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['darkpool.monero.net:3333', 'stratum+tcp://darkpool.monero.net:3333'],
+                correctAnswerMessage: 'Intel confirmed. Mining pool darkpool.monero.net:3333 identified — threat intel updated.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -6358,6 +6424,9 @@ Example: */5 = every 5 minutes, 0 * = every hour at minute 0`
                 question: "You found a suspicious file in /etc/cron.d/. How often (in minutes) does this persistence mechanism execute?",
                 hint: "Run 'ls /etc/cron.d/' to find the extra file, then 'cat' it. The first field in cron syntax is minutes (*/N = every N minutes).",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['10', '10 minutes', 'every 10 minutes', '*/10'],
+                correctAnswerMessage: 'Intel confirmed. Persistence mechanism fires every 10 minutes — cron backdoor documented.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -6651,6 +6720,9 @@ End-Date: 2026-01-15  02:51:10`
                 question: "At what time (HH:MM:SS) was the malicious 'netminer' package installed?",
                 hint: "Check the dpkg.log for the exact timestamp when netminer was installed.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['02:51:07', '2:51:07'],
+                correctAnswerMessage: 'Intel confirmed. Netminer installed at 02:51:07 — forensic timeline updated.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -6960,6 +7032,9 @@ Look for scripting languages with cap_setuid!`
                 question: "Your getcap scan found a binary with cap_setuid=ep. This capability allows a program to change its user ID to ANY user - including root (UID 0). Which binary has this dangerous capability?",
                 hint: "Run: getcap -r / 2>/dev/null — look for 'cap_setuid=ep' in the output.",
                 hintAfterAttempts: 2,
+                acceptedAnswers: ['python3.10', '/usr/bin/python3.10', 'python3', '/usr/bin/python3'],
+                correctAnswerMessage: 'Intel confirmed. python3.10 has cap_setuid=ep — privilege escalation path identified.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -7414,6 +7489,9 @@ guest:x:1004:`
                 question: "You found an account added to the sudo group that wasn't in the baseline. What is the username of this backdoor account?",
                 hint: "Compare group_memberships.txt baseline vs current. The extra sudo member was created on the incident date. Check user_list.txt for accounts created 2026-01-15.",
                 hintAfterAttempts: 3,
+                acceptedAnswers: ['s3rv1c3'],
+                correctAnswerMessage: 'Intel confirmed. Backdoor account s3rv1c3 identified — persistence mechanism documented.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -7722,7 +7800,10 @@ ROOT CAUSE: Under investigation
                 enabled: true,
                 question: "The alerts mention PID 7777 has a persistent connection. What is the C2 server's IP:PORT that this process is connecting to?",
                 hint: "Check dashboards/network_io.log for PID 7777's connection destination.",
-                hintAfterAttempts: 2
+                hintAfterAttempts: 2,
+                acceptedAnswers: ['10.0.0.88:4444'],
+                correctAnswerMessage: 'Intel confirmed. C2 server at 10.0.0.88:4444 identified — threat indicators logged.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -8060,7 +8141,10 @@ echo "Configs backed up to configs_backup_$DATE.tar.gz"
                 enabled: true,
                 question: "Your handler requests verification. What is the escape sequence stored in your vim configuration?",
                 hint: "Read your .vimrc carefully - look for the field_verification variable.",
-                hintAfterAttempts: 3
+                hintAfterAttempts: 3,
+                acceptedAnswers: ['VIMLOCK', 'vimlock'],
+                correctAnswerMessage: 'Intel confirmed. Verification code VIMLOCK accepted — handler identity authenticated.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
@@ -9032,7 +9116,10 @@ Jan 17 03:00:01 CHIMERA systemd[1]: pam_unix(systemd-user:session): session open
                 enabled: true,
                 question: "What is the VALID mission verification code? (Hint: It's NOT Hydra or Phoenix)",
                 hint: "The valid code is in mission/intel_brief.txt and confirmed in /data/projects/medusa/classified/",
-                hintAfterAttempts: 2
+                hintAfterAttempts: 2,
+                acceptedAnswers: ['MEDUSA-9', 'medusa-9', 'Medusa-9'],
+                correctAnswerMessage: 'Intel confirmed. Verification code MEDUSA-9 accepted — mission complete, ghost.',
+                wrongAnswerMessage: 'Negative. Review your findings and try again.',
             },
 
             remoteHosts: null,
