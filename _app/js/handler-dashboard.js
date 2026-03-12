@@ -125,6 +125,8 @@
         let classAssignments = [];
         let classProgressData = [];
         let rosterMembers = [];
+        let rosterPage = 0;
+        const ROSTER_PAGE_SIZE = 15;
         let cbSelection = new Map(); // key => { type, data }
         const dismissedWarnings = new Set();
         const cohortCache = new Map(); // classId => { data, ts }
@@ -2806,10 +2808,8 @@
                     return;
                 }
 
-                container.innerHTML = `
-                    <div class="hd-roster-count">${count} student${count !== 1 ? 's' : ''} enrolled</div>
-                    ${members.map(m => renderRosterCard(m, classId)).join('')}
-                `;
+                rosterPage = 0;
+                _renderRosterPage(container, classId);
 
                 // Render comms panel now that roster is loaded
                 renderCommsPanel();
@@ -2827,6 +2827,35 @@
                     </div>
                 `;
             }
+        }
+
+        function _renderRosterPage(container, classId) {
+            const count = rosterMembers.length;
+            const totalPages = Math.ceil(count / ROSTER_PAGE_SIZE);
+            const start = rosterPage * ROSTER_PAGE_SIZE;
+            const end = Math.min(start + ROSTER_PAGE_SIZE, count);
+            const pageMembers = rosterMembers.slice(start, end);
+
+            let html = '<div class="hd-roster-count">' + count + ' student' + (count !== 1 ? 's' : '') + ' enrolled</div>';
+            html += pageMembers.map(function(m) { return renderRosterCard(m, classId); }).join('');
+
+            if (totalPages > 1) {
+                html += '<div class="hd-roster-pagination">';
+                html += '<button class="hd-btn hd-btn-sm" ' + (rosterPage === 0 ? 'disabled' : '') + ' onclick="_rosterPageNav(-1)">Prev</button>';
+                html += '<span class="hd-roster-page-info">Page ' + (rosterPage + 1) + ' of ' + totalPages + '</span>';
+                html += '<button class="hd-btn hd-btn-sm" ' + (rosterPage >= totalPages - 1 ? 'disabled' : '') + ' onclick="_rosterPageNav(1)">Next</button>';
+                html += '</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function _rosterPageNav(delta) {
+            const container = document.getElementById('rosterContent');
+            if (!container || !selectedClassId) return;
+            const totalPages = Math.ceil(rosterMembers.length / ROSTER_PAGE_SIZE);
+            rosterPage = Math.max(0, Math.min(rosterPage + delta, totalPages - 1));
+            _renderRosterPage(container, selectedClassId);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -3539,6 +3568,7 @@
                     html += '<div class="hd-drilldown-header">';
                     html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
                     html += '<h2 class="hd-drilldown-title">Enrollment: ' + rosterMembers.length + ' Student' + (rosterMembers.length !== 1 ? 's' : '') + '</h2>';
+                    html += '<button class="hd-btn hd-btn-sm hd-btn-outline" onclick="exportDrillCSV()">Export CSV</button>';
                     html += '</div>';
 
                     html += '<table class="hd-drill-table"><thead><tr>';
@@ -3582,6 +3612,7 @@
                     html += '<div class="hd-drilldown-header">';
                     html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
                     html += '<h2 class="hd-drilldown-title">Completion Distribution</h2>';
+                    html += '<button class="hd-btn hd-btn-sm hd-btn-outline" onclick="exportDrillCSV()">Export CSV</button>';
                     html += '</div>';
 
                     const buckets = [
@@ -3649,6 +3680,7 @@
                     html += '<div class="hd-drilldown-header">';
                     html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
                     html += '<h2 class="hd-drilldown-title">Assignment Completion Status</h2>';
+                    html += '<button class="hd-btn hd-btn-sm hd-btn-outline" onclick="exportDrillCSV()">Export CSV</button>';
                     html += '</div>';
 
                     html += '<table class="hd-drill-table"><thead><tr>';
@@ -3745,6 +3777,7 @@
             html += '<div class="hd-drilldown-header">';
             html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
             html += '<h2 class="hd-drilldown-title">' + escapeHtml(fullName) + '</h2>';
+            html += '<button class="hd-btn hd-btn-sm hd-btn-outline" onclick="exportDrillCSV()">Export CSV</button>';
             html += '</div>';
 
             // Student header
@@ -3803,6 +3836,8 @@
             const riskLabel = pct < 40 ? 'At Risk' : pct < 70 ? 'Watch' : 'On Track';
             const riskClass = pct < 40 ? 'hd-risk-high' : pct < 70 ? 'hd-risk-medium' : 'hd-risk-low';
             const colorClass = total > 0 ? progressColorClass(pct) : 'none';
+            const riskScore = calculateRiskScore(member);
+            const riskScoreColor = riskScore >= 70 ? '#f87171' : riskScore >= 40 ? '#fb923c' : '#4ade80';
 
             let html = '';
 
@@ -3814,7 +3849,13 @@
             html += '<div class="hd-roster-progress-bar" style="width:200px;height:6px;margin-top:6px;"><div class="hd-roster-progress-fill ' + colorClass + '" style="width:' + pct + '%;height:6px;border-radius:3px;"></div></div>';
             html += '<div style="font-size:0.75rem;color:var(--hd-text-muted,#888);margin-top:4px;">' + pct + '% complete</div>';
             html += '</div>';
-            html += '<div style="margin-left:auto;"><span class="hd-risk-badge ' + riskClass + '">' + riskLabel + '</span></div>';
+            html += '<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px;">';
+            html += '<span class="hd-risk-badge ' + riskClass + '">' + riskLabel + '</span>';
+            html += '<div style="text-align:right;">';
+            html += '<div style="font-size:0.65rem;color:var(--hd-text-muted,#888);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Risk Score</div>';
+            html += '<div style="font-size:1.1rem;font-weight:700;color:' + riskScoreColor + '">' + riskScore + '</div>';
+            html += '</div>';
+            html += '</div>';
             html += '</div>';
 
             // Per-assignment table
@@ -3937,6 +3978,7 @@
                     html += '<div class="hd-drilldown-header">';
                     html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
                     html += '<h2 class="hd-drilldown-title">' + escapeHtml(name) + ' &mdash; ' + escapeHtml(labels[key] || key) + '</h2>';
+                    html += '<button class="hd-btn hd-btn-sm hd-btn-outline" onclick="exportDrillCSV()">Export CSV</button>';
                     html += '</div>';
                     html += '<div style="padding:24px 0;font-size:2rem;font-weight:700;color:var(--hd-accent,#d4a017)">' + escapeHtml(detail) + '</div>';
                     html += '<div style="color:var(--hd-text-muted,#888);font-size:0.85rem;">Detailed breakdown coming in a future update.</div>';
@@ -3999,6 +4041,114 @@
                 };
             }
             return _profileCache[uid] || null;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // KEYBOARD NAVIGATION
+        // ═══════════════════════════════════════════════════════════════
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && _viewStack.length > 0) {
+                e.preventDefault();
+                goBack();
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // DRILL-DOWN CSV EXPORT
+        // ═══════════════════════════════════════════════════════════════
+
+        function exportDrillCSV() {
+            const table = document.querySelector('.hd-drilldown .hd-drill-table');
+            if (!table) {
+                // Try bar data
+                const bars = document.querySelectorAll('.hd-drill-bar-row');
+                if (bars.length) {
+                    let csv = 'Student,Completion %\n';
+                    bars.forEach(function(row) {
+                        const label = row.querySelector('.hd-drill-bar-label') ? row.querySelector('.hd-drill-bar-label').textContent : '';
+                        const value = row.querySelector('.hd-drill-bar-value') ? row.querySelector('.hd-drill-bar-value').textContent : '';
+                        csv += '"' + label.replace(/"/g, '""') + '",' + value + '\n';
+                    });
+                    _downloadCSV(csv, 'export.csv');
+                    return;
+                }
+                return;
+            }
+
+            let csv = '';
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(function(row) {
+                const cells = row.querySelectorAll('th, td');
+                const rowData = Array.from(cells).map(function(cell) {
+                    const text = cell.textContent.trim().replace(/"/g, '""');
+                    return '"' + text + '"';
+                });
+                csv += rowData.join(',') + '\n';
+            });
+
+            _downloadCSV(csv, 'dashboard-export.csv');
+        }
+
+        function _downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // RISK SCORE ENGINE
+        // ═══════════════════════════════════════════════════════════════
+
+        function calculateRiskScore(member) {
+            const completion = getStudentCompletion(member.uid || member.id);
+            const pct = completion ? completion.pct : 0;
+
+            // Completion weight (0.4)
+            const completionFactor = 1 - (pct / 100);
+
+            // Activity weight (0.3) — days since last activity
+            let inactivityFactor = 0;
+            if (member.lastActivity) {
+                const lastActive = member.lastActivity.seconds
+                    ? member.lastActivity.seconds * 1000
+                    : new Date(member.lastActivity).getTime();
+                const daysSince = (Date.now() - lastActive) / (1000 * 60 * 60 * 24);
+                inactivityFactor = Math.min(1, daysSince / 14); // Max at 14 days
+            } else {
+                inactivityFactor = 1;
+            }
+
+            // Assignment velocity weight (0.3)
+            let velocityFactor = 0;
+            if (classAssignments.length > 0) {
+                const now = Date.now();
+                let dueCount = 0, doneCount = 0;
+                classAssignments.forEach(function(a) {
+                    if (a.dueDate) {
+                        const due = a.dueDate.seconds
+                            ? a.dueDate.seconds * 1000
+                            : new Date(a.dueDate).getTime();
+                        if (due <= now) {
+                            dueCount++;
+                            const studentProgress = classProgressData.find(function(p) { return p.id === (member.uid || member.id); });
+                            const completions = studentProgress ? (studentProgress.completions || {}) : {};
+                            const prog = resolveAssignmentProgress(a, completions);
+                            if (prog && prog.pct === 100) doneCount++;
+                        }
+                    }
+                });
+                if (dueCount > 0) velocityFactor = 1 - (doneCount / dueCount);
+            }
+
+            return Math.round(
+                (completionFactor * 0.4 + inactivityFactor * 0.3 + velocityFactor * 0.3) * 100
+            );
         }
 
         // ═══════════════════════════════════════════════════════════════
