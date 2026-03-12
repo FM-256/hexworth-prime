@@ -365,6 +365,21 @@
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #f85149; }
 
+        /* Insight Phase Styles */
+        .insight-phase { padding: 20px; background: rgba(88, 166, 255, 0.1); border-radius: 8px; border: 2px solid #58a6ff; animation: insightFadeIn 0.5s ease; }
+        @keyframes insightFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .insight-phase .phase-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; color: #58a6ff; font-family: 'Cascadia Code', monospace; font-size: 0.9em; }
+        .insight-phase .question { color: #c9d1d9; font-size: 1.05em; margin-bottom: 15px; line-height: 1.5; }
+        .insight-input-row { display: flex; gap: 10px; }
+        .insight-input { flex: 1; background: #0d1117; border: 2px solid #30363d; border-radius: 6px; padding: 12px 15px; color: #00ff41; font-family: 'Cascadia Code', monospace; font-size: 1em; outline: none; transition: border-color 0.3s; }
+        .insight-input:focus { border-color: #58a6ff; }
+        .insight-input::placeholder { color: #484f58; }
+        .insight-submit { background: #58a6ff; color: #0d1117; border: none; border-radius: 6px; padding: 12px 20px; font-family: 'Cascadia Code', monospace; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .insight-submit:hover { box-shadow: 0 0 15px rgba(88, 166, 255, 0.5); transform: translateY(-1px); }
+        .insight-feedback { margin-top: 12px; padding: 10px 15px; border-radius: 6px; font-size: 0.9em; display: none; }
+        .insight-feedback.wrong { display: block; background: rgba(248, 81, 73, 0.1); border: 1px solid #f85149; color: #f85149; }
+        .insight-feedback.hint { display: block; background: rgba(88, 166, 255, 0.1); border: 1px solid #58a6ff; color: #58a6ff; }
+
         @media (max-width: 1024px) {
             .container { grid-template-columns: 1fr; }
             .intel-panel { border-top: 2px solid #00ff41; border-left: none; height: auto; max-height: 50vh; }
@@ -458,6 +473,8 @@
 
     <!-- CLH Terminal Engine -->
     <script src="../../../components/CLHConfig.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/CLHInsightValidator.js"></script>
     <script src="../../../components/CLHTerminal.js"></script>
     <script src="../../../components/CLHCompletionModal.js?v=1773080572"></script>
 
@@ -468,6 +485,7 @@
 
         const MODULE_ID = 'CLH-004';
         const THREAT_PROCESS = 'unknown_process';
+        let insightAttempts = 0;
 
         // Initialize CLH Terminal with module configuration
         const terminal = new CLHTerminal({
@@ -478,7 +496,7 @@
                 updateMissionUI(objectiveId, totalCompleted, totalObjectives);
             },
             onModuleComplete: () => {
-                showCompletionModal();
+                showInsightPhase();
             },
             onCommand: (cmdLine, output) => {
                 updatePromptDisplay();
@@ -569,6 +587,97 @@
 
             // Print success message
             terminal.print(`[SUCCESS] Objective ${completedId} complete`, 'success');
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // INSIGHT PHASE - Analysis conclusion
+        // ═══════════════════════════════════════════════════════════
+
+        function showInsightPhase() {
+            const insightConfig = config.insightPhase;
+            if (!insightConfig || !insightConfig.enabled) {
+                showCompletionModal();
+                return;
+            }
+
+            document.querySelector('.mission-header h3').textContent = 'ANALYSIS REQUIRED';
+
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="insight-phase">
+                    <div class="phase-header">PHASE 2: ANALYSIS</div>
+                    <div class="question">${insightConfig.question}</div>
+                    <div class="insight-input-row">
+                        <input type="text"
+                               id="insightAnswer"
+                               class="insight-input"
+                               placeholder="Enter your analysis..."
+                               autocomplete="off">
+                        <button class="insight-submit" onclick="submitInsightAnswer()">SUBMIT</button>
+                    </div>
+                    <div id="insightFeedback" class="insight-feedback"></div>
+                </div>
+            `;
+
+            const input = document.getElementById('insightAnswer');
+            input.focus();
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') submitInsightAnswer();
+            });
+
+            terminal.print('[SYSTEM] All objectives complete. Analysis required.', 'highlight');
+            terminal.print('[PROMPT] ' + insightConfig.question, 'output');
+        }
+
+        async function submitInsightAnswer() {
+            const insightConfig = config.insightPhase;
+            const input = document.getElementById('insightAnswer');
+            const feedback = document.getElementById('insightFeedback');
+            const userAnswer = input.value.trim().toLowerCase();
+
+            if (!userAnswer) {
+                feedback.className = 'insight-feedback wrong';
+                feedback.textContent = 'Please enter your analysis.';
+                return;
+            }
+
+            insightAttempts++;
+            input.disabled = true;
+            document.querySelector('.insight-submit').disabled = true;
+
+            try {
+                const result = await CLHInsightValidator.submit(MODULE_ID, userAnswer);
+
+                if (result.success) {
+                    feedback.className = 'insight-feedback';
+                    feedback.style.display = 'block';
+                    feedback.style.background = 'rgba(63, 185, 80, 0.1)';
+                    feedback.style.border = '1px solid #3fb950';
+                    feedback.style.color = '#3fb950';
+                    feedback.textContent = result.feedback;
+                    if (typeof terminal !== 'undefined') terminal.print('[CONFIRMED] ' + result.feedback, 'success');
+                    document.querySelector('.insight-submit').style.opacity = '0.5';
+                    setTimeout(() => { showCompletionModal(); }, 1500);
+                } else {
+                    if (typeof terminal !== 'undefined') terminal.print('[REJECTED] Intelligence not confirmed.', 'error');
+                    if (insightAttempts >= (insightConfig.hintAfterAttempts || 3) && insightConfig.hint) {
+                        feedback.className = 'insight-feedback hint';
+                        feedback.textContent = 'Hint: ' + insightConfig.hint;
+                    } else {
+                        feedback.className = 'insight-feedback wrong';
+                        feedback.textContent = result.feedback;
+                    }
+                    input.disabled = false;
+                    document.querySelector('.insight-submit').disabled = false;
+                    input.value = '';
+                    input.focus();
+                }
+            } catch (err) {
+                feedback.className = 'insight-feedback wrong';
+                feedback.textContent = 'Connection error. Please try again.';
+                input.disabled = false;
+                document.querySelector('.insight-submit').disabled = false;
+                console.error('Insight validation error:', err);
+            }
         }
 
         // Initialize the new completion modal

@@ -522,6 +522,77 @@
                 max-height: 50vh;
             }
         }
+
+        /* Insight Phase Styles */
+        .insight-phase {
+            padding: 20px;
+            background: rgba(88, 166, 255, 0.1);
+            border-radius: 8px;
+            border: 2px solid #58a6ff;
+            animation: insightFadeIn 0.5s ease;
+        }
+        @keyframes insightFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .insight-phase .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: #58a6ff;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.9em;
+        }
+        .insight-phase .question {
+            color: #c9d1d9;
+            font-size: 1.05em;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        .insight-input-row { display: flex; gap: 10px; }
+        .insight-input {
+            flex: 1;
+            background: #0d1117;
+            border: 2px solid #30363d;
+            border-radius: 6px;
+            padding: 12px 15px;
+            color: #00ff41;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .insight-input:focus { border-color: #58a6ff; }
+        .insight-input::placeholder { color: #484f58; }
+        .insight-submit {
+            background: #58a6ff;
+            color: #0d1117;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 20px;
+            font-family: 'Cascadia Code', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .insight-submit:hover { box-shadow: 0 0 15px rgba(88, 166, 255, 0.5); transform: translateY(-1px); }
+        .insight-feedback {
+            margin-top: 12px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            display: none;
+        }
+        .insight-feedback.wrong {
+            display: block;
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid #f85149;
+            color: #f85149;
+        }
+        .insight-feedback.hint {
+            display: block;
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid #58a6ff;
+            color: #58a6ff;
+        }
     </style>
 </head>
 <body>
@@ -675,20 +746,11 @@ drwxr-xr-x  root     ..
         </div>
     </div>
 
-    <!-- ── Completion modal (shown when all 5 objectives pass) ───── -->
-    <div class="modal-overlay" id="completionModal">
-        <div class="modal">
-            <img src="/assets/images/icons/icon-star.webp" alt="" class="modal-icon">
-            <h2>MISSION COMPLETE</h2>
-            <p>Reconnaissance successful. You've identified your operator profile and located the hidden asset.</p>
-            <div class="xp-earned">+75 XP</div>
-            <div class="modal-buttons">
-                <button class="modal-btn secondary" onclick="closeModal()">Stay in Lab</button>
-                <a href="script-clh-001.quiz.html" class="modal-btn primary" id="clh001NextBtn" style="text-decoration:none; color:#0d1117; display:inline-flex; align-items:center;">Next Mission →</a>
-            </div>
-        </div>
-    </div>
 
+    <script src="../../../components/CLHConfig.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/CLHInsightValidator.js"></script>
+    <script src="../../../components/CLHCompletionModal.js?v=1773080572"></script>
     <script>
     // ═══════════════════════════════════════════════════════════════════
     // CLH-001: Introduction to the Hacker CLI — Terminal Engine
@@ -1108,7 +1170,7 @@ Handler message received 2025-11-14 02:47 UTC:
         // All 5 done → trigger completion
         if (STATE.completedCount === 5 && !STATE.labComplete) {
             STATE.labComplete = true;
-            setTimeout(showCompletionModal, 900);
+            setTimeout(showInsightPhase, 900);
         }
     }
 
@@ -1251,29 +1313,119 @@ Handler message received 2025-11-14 02:47 UTC:
             .replace(/"/g, '&quot;');
     }
 
-    // ── Completion modal ─────────────────────────────────────────────
+    // ── Insight phase + completion modal ────────────────────────────
+
+    const MODULE_ID_CLH = 'CLH-001';
+    const clhConfig = CLHConfig.getModule(MODULE_ID_CLH);
+    let insightAttempts = 0;
+
+    function showInsightPhase() {
+        const insightConfig = clhConfig.insightPhase;
+        if (!insightConfig || !insightConfig.enabled) {
+            showCompletionModal();
+            return;
+        }
+
+        document.querySelector('.mission-header h3').textContent = 'ANALYSIS REQUIRED';
+
+        document.getElementById('currentMissionDisplay').innerHTML = `
+            <div class="insight-phase">
+                <div class="phase-header">PHASE 2: ANALYSIS</div>
+                <div class="question">${insightConfig.question}</div>
+                <div class="insight-input-row">
+                    <input type="text"
+                           id="insightAnswer"
+                           class="insight-input"
+                           placeholder="Enter your analysis..."
+                           autocomplete="off">
+                    <button class="insight-submit" onclick="submitInsightAnswer()">SUBMIT</button>
+                </div>
+                <div id="insightFeedback" class="insight-feedback"></div>
+            </div>
+        `;
+
+        const input = document.getElementById('insightAnswer');
+        input.focus();
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitInsightAnswer();
+        });
+
+        printLine('[SYSTEM] All objectives complete. Analysis required.', 'highlight');
+        printLine(`[PROMPT] ${insightConfig.question}`, 'output');
+    }
+
+    async function submitInsightAnswer() {
+        const insightConfig = clhConfig.insightPhase;
+        const input = document.getElementById('insightAnswer');
+        const feedback = document.getElementById('insightFeedback');
+        const userAnswer = input.value.trim().toLowerCase();
+
+        if (!userAnswer) {
+            feedback.className = 'insight-feedback wrong';
+            feedback.textContent = 'Please enter your analysis.';
+            return;
+        }
+
+        insightAttempts++;
+        input.disabled = true;
+        document.querySelector('.insight-submit').disabled = true;
+
+        try {
+            const result = await CLHInsightValidator.submit(MODULE_ID_CLH, userAnswer);
+
+            if (result.success) {
+                feedback.className = 'insight-feedback';
+                feedback.style.display = 'block';
+                feedback.style.background = 'rgba(63, 185, 80, 0.1)';
+                feedback.style.border = '1px solid #3fb950';
+                feedback.style.color = '#3fb950';
+                feedback.textContent = result.feedback;
+                printLine('[CONFIRMED] ' + result.feedback, 'success');
+                document.querySelector('.insight-submit').style.opacity = '0.5';
+                setTimeout(() => { showCompletionModal(); }, 1500);
+            } else {
+                printLine('[REJECTED] Intelligence not confirmed.', 'error');
+                if (insightAttempts >= (insightConfig.hintAfterAttempts || 3) && insightConfig.hint) {
+                    feedback.className = 'insight-feedback hint';
+                    feedback.textContent = 'Hint: ' + insightConfig.hint;
+                } else {
+                    feedback.className = 'insight-feedback wrong';
+                    feedback.textContent = result.feedback;
+                }
+                input.disabled = false;
+                document.querySelector('.insight-submit').disabled = false;
+                input.value = '';
+                input.focus();
+            }
+        } catch (err) {
+            feedback.className = 'insight-feedback wrong';
+            feedback.textContent = 'Connection error. Please try again.';
+            input.disabled = false;
+            document.querySelector('.insight-submit').disabled = false;
+            console.error('Insight validation error:', err);
+        }
+    }
+
+    const nextInfo = CLHConfig.getNextIntroUrl(MODULE_ID_CLH);
+    const completionModal = new CLHCompletionModal({
+        moduleId: MODULE_ID_CLH,
+        moduleName: clhConfig.title,
+        xpEarned: 75,
+        nextIntroUrl: 'script-clh-001.quiz.html',
+        successMessage: 'Reconnaissance successful. You have identified your operator profile and located the hidden asset.',
+        isLastModule: nextInfo.isLast
+    });
 
     function showCompletionModal() {
-        document.getElementById('completionModal').classList.add('show');
+        setTimeout(() => {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-001'] = { completed: true, completedAt: new Date().toISOString(), xpEarned: 75 };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.completeModule(MODULE_ID_CLH);
+            completionModal.show();
+        }, 800);
     }
-
-    function closeModal() {
-        document.getElementById('completionModal').classList.remove('show');
-    }
-
-    /** Save progress when navigating to next module */
-    function completeLab() {
-        ModuleProgress.complete('script', 'script-clh-001-lab', {
-            silent: true,
-            returnToDashboard: false
-        });
-    }
-
-    // Fire progress save when next button is clicked (link handles navigation)
-    document.addEventListener('DOMContentLoaded', () => {
-        const nextBtn = document.getElementById('clh001NextBtn');
-        if (nextBtn) nextBtn.addEventListener('click', () => completeLab());
-    });
 
     // ── Keep terminal focused after any click in the terminal area ───
     document.getElementById('terminal').addEventListener('click', () => inputEl.focus());
