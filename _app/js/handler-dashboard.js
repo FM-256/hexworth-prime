@@ -4,24 +4,63 @@
 
         const _viewStack = [];
         let _currentView = null;
+        let _savedMainHTML = null;
 
         function drillDown(viewConfig) {
-            _viewStack.push(_currentView);
-            _renderView(viewConfig);
+            const mainEl = document.getElementById('mainContent');
+            // Save the original class detail HTML on first drill-down
+            if (!_viewStack.length && mainEl && !_savedMainHTML) {
+                _savedMainHTML = mainEl.innerHTML;
+            }
+            _viewStack.push({ label: _currentView ? _currentView.label : 'Class Overview' });
+            _currentView = viewConfig;
+
+            const bc = document.getElementById('hd-breadcrumb');
+            if (bc) bc.style.display = 'block';
+
+            if (mainEl && viewConfig.render) {
+                mainEl.style.transition = 'opacity 0.15s ease';
+                mainEl.style.opacity = '0';
+                setTimeout(() => {
+                    viewConfig.render(mainEl);
+                    mainEl.style.opacity = '1';
+                }, 150);
+            }
             _updateBreadcrumb();
         }
 
         function goBack() {
             if (!_viewStack.length) return;
-            const prev = _viewStack.pop();
-            _renderView(prev);
+            _viewStack.pop();
+            const mainEl = document.getElementById('mainContent');
+
+            if (!_viewStack.length && _savedMainHTML && mainEl) {
+                // Restore Level 0 — original class detail view
+                mainEl.style.transition = 'opacity 0.15s ease';
+                mainEl.style.opacity = '0';
+                setTimeout(() => {
+                    mainEl.innerHTML = _savedMainHTML;
+                    mainEl.style.opacity = '1';
+                    _savedMainHTML = null;
+                }, 150);
+                _currentView = null;
+                const bc = document.getElementById('hd-breadcrumb');
+                if (bc) bc.style.display = 'none';
+            } else if (_viewStack.length && _currentView) {
+                // Deeper back — re-render previous drill view
+                const prevConfig = _viewStack[_viewStack.length - 1];
+                if (prevConfig && prevConfig.render) {
+                    _renderView(prevConfig);
+                }
+            }
+            _currentView = _viewStack.length ? _viewStack[_viewStack.length - 1] : null;
             _updateBreadcrumb();
         }
 
         function _renderView(config) {
             if (!config) return;
             _currentView = config;
-            const _viewContainer = document.querySelector('.hd-main') || document.querySelector('.hd-content');
+            const _viewContainer = document.getElementById('mainContent') || document.querySelector('.hd-main') || document.querySelector('.hd-content');
             if (_viewContainer) {
                 _viewContainer.style.transition = 'opacity 0.15s ease';
                 _viewContainer.style.opacity = '0';
@@ -35,9 +74,12 @@
         function _updateBreadcrumb() {
             const _breadcrumbEl = document.getElementById('hd-breadcrumb');
             if (!_breadcrumbEl) return;
-            const crumbs = _viewStack.map((v) =>
-                `<span class="hd-crumb" onclick="goBack()" style="cursor:pointer;color:var(--hd-accent)">${v && v.label ? v.label : 'Back'}</span>`
-            );
+            const crumbs = _viewStack.map((v, i) => {
+                if (i < _viewStack.length - 1) {
+                    return `<span class="hd-crumb" onclick="goBack()" style="cursor:pointer;color:var(--hd-accent)">${v && v.label ? v.label : 'Back'}</span>`;
+                }
+                return `<span class="hd-crumb" onclick="goBack()" style="cursor:pointer;color:var(--hd-accent)">${v && v.label ? v.label : 'Back'}</span>`;
+            });
             if (_currentView) crumbs.push(`<span class="hd-crumb-current">${_currentView.label || ''}</span>`);
             _breadcrumbEl.innerHTML = crumbs.join(' <span style="color:var(--hd-text-muted,#666)">></span> ');
             _breadcrumbEl.style.display = crumbs.length ? 'block' : 'none';
@@ -3478,6 +3520,176 @@
             document.body.appendChild(overlay);
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) closeModal('atRiskModal');
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // KPI DRILL-DOWN VIEWS (Wave 24b)
+        // ═══════════════════════════════════════════════════════════════
+
+        function drillDownEnrolled() {
+            if (!rosterMembers.length) {
+                showToast('No students enrolled yet');
+                return;
+            }
+            drillDown({
+                label: 'Enrollment Details',
+                render: function(container) {
+                    let html = '<div class="hd-drilldown">';
+                    html += '<div class="hd-drilldown-header">';
+                    html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
+                    html += '<h2 class="hd-drilldown-title">Enrollment: ' + rosterMembers.length + ' Student' + (rosterMembers.length !== 1 ? 's' : '') + '</h2>';
+                    html += '</div>';
+
+                    html += '<table class="hd-drill-table"><thead><tr>';
+                    html += '<th>Student</th><th>House</th><th>Level</th><th>Joined</th><th>Last Active</th>';
+                    html += '</tr></thead><tbody>';
+
+                    rosterMembers.forEach(function(m) {
+                        const joined = m.joinedAt
+                            ? (m.joinedAt.toDate ? m.joinedAt.toDate().toLocaleDateString() : new Date(m.joinedAt).toLocaleDateString())
+                            : '--';
+                        const lastActive = m.lastActivity
+                            ? (m.lastActivity.toDate ? m.lastActivity.toDate().toLocaleDateString() : new Date(m.lastActivity).toLocaleDateString())
+                            : '--';
+                        const displayName = m.firstName && m.lastName
+                            ? m.lastName + ', ' + m.firstName
+                            : m.displayName || m.email || 'Unknown';
+                        html += '<tr>';
+                        html += '<td><strong>' + escapeHtml(displayName) + '</strong></td>';
+                        html += '<td>' + escapeHtml(m.house || '--') + '</td>';
+                        html += '<td>' + (m.level || 1) + '</td>';
+                        html += '<td>' + joined + '</td>';
+                        html += '<td>' + lastActive + '</td>';
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                }
+            });
+        }
+
+        function drillDownCompletion() {
+            if (!rosterMembers.length) {
+                showToast('No students enrolled yet');
+                return;
+            }
+            drillDown({
+                label: 'Completion Breakdown',
+                render: function(container) {
+                    let html = '<div class="hd-drilldown">';
+                    html += '<div class="hd-drilldown-header">';
+                    html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
+                    html += '<h2 class="hd-drilldown-title">Completion Distribution</h2>';
+                    html += '</div>';
+
+                    const buckets = [
+                        { label: '0-25%', count: 0, color: '#ef5350' },
+                        { label: '26-50%', count: 0, color: '#ff9800' },
+                        { label: '51-75%', count: 0, color: '#42a5f5' },
+                        { label: '76-100%', count: 0, color: '#66bb6a' }
+                    ];
+
+                    rosterMembers.forEach(function(m) {
+                        const pct = getStudentCompletion(m.uid).pct;
+                        if (pct <= 25) buckets[0].count++;
+                        else if (pct <= 50) buckets[1].count++;
+                        else if (pct <= 75) buckets[2].count++;
+                        else buckets[3].count++;
+                    });
+
+                    html += '<div class="hd-drill-charts">';
+                    html += '<div class="hd-drill-chart-wrap" id="drillCompDonut"></div>';
+                    html += '</div>';
+
+                    html += '<div class="hd-drill-subtitle">Per Student</div>';
+                    html += '<div class="hd-drill-bars">';
+
+                    const sorted = rosterMembers.slice().sort(function(a, b) {
+                        return getStudentCompletion(b.uid).pct - getStudentCompletion(a.uid).pct;
+                    });
+                    sorted.forEach(function(m) {
+                        const pct = getStudentCompletion(m.uid).pct;
+                        const color = pct >= 75 ? '#66bb6a' : pct >= 50 ? '#42a5f5' : pct >= 25 ? '#ff9800' : '#ef5350';
+                        const displayName = m.firstName && m.lastName
+                            ? m.lastName + ', ' + m.firstName
+                            : m.displayName || m.email || '?';
+                        html += '<div class="hd-drill-bar-row">';
+                        html += '<span class="hd-drill-bar-label" title="' + escapeHtml(displayName) + '">' + escapeHtml(displayName) + '</span>';
+                        html += '<div class="hd-drill-bar-track"><div class="hd-drill-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
+                        html += '<span class="hd-drill-bar-value">' + pct + '%</span>';
+                        html += '</div>';
+                    });
+
+                    html += '</div></div>';
+                    container.innerHTML = html;
+
+                    setTimeout(function() {
+                        const donutEl = document.getElementById('drillCompDonut');
+                        if (donutEl && typeof HandlerCharts !== 'undefined') {
+                            HandlerCharts.donut(donutEl, buckets.map(function(b) {
+                                return { label: b.label, value: b.count, color: b.color };
+                            }), { size: 160, thickness: 30 });
+                        }
+                    }, 200);
+                }
+            });
+        }
+
+        function drillDownCompletions() {
+            if (!classAssignments.length) {
+                showToast('No assignments configured for this class');
+                return;
+            }
+            drillDown({
+                label: 'Assignment Completions',
+                render: function(container) {
+                    let html = '<div class="hd-drilldown">';
+                    html += '<div class="hd-drilldown-header">';
+                    html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
+                    html += '<h2 class="hd-drilldown-title">Assignment Completion Status</h2>';
+                    html += '</div>';
+
+                    html += '<table class="hd-drill-table"><thead><tr>';
+                    html += '<th>Assignment</th><th>Completed</th><th>Rate</th><th>Avg Score</th>';
+                    html += '</tr></thead><tbody>';
+
+                    classAssignments.forEach(function(asgn) {
+                        let completed = 0;
+                        let totalScore = 0;
+                        let scored = 0;
+
+                        rosterMembers.forEach(function(m) {
+                            const sp = classProgressData.find(function(p) { return p.id === m.uid; });
+                            const completions = sp ? (sp.completions || {}) : {};
+                            const result = resolveAssignmentProgress(asgn, completions);
+                            if (result.pct === 100) {
+                                completed++;
+                                // Check if there's a score recorded
+                                const entry = completions[asgn.contentId];
+                                if (entry && entry.score != null) {
+                                    totalScore += entry.score;
+                                    scored++;
+                                }
+                            }
+                        });
+
+                        const rate = rosterMembers.length ? Math.round((completed / rosterMembers.length) * 100) : 0;
+                        const avgScore = scored ? Math.round(totalScore / scored) : '--';
+                        const color = rate >= 75 ? '#66bb6a' : rate >= 50 ? '#42a5f5' : rate >= 25 ? '#ff9800' : '#ef5350';
+
+                        html += '<tr>';
+                        html += '<td>' + escapeHtml(asgn.title || asgn.contentId) + '</td>';
+                        html += '<td>' + completed + '/' + rosterMembers.length + '</td>';
+                        html += '<td><span style="color:' + color + '">' + rate + '%</span></td>';
+                        html += '<td>' + (avgScore !== '--' ? avgScore + '%' : '--') + '</td>';
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                }
             });
         }
 
