@@ -809,13 +809,15 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
                 return '<span class="lt-highlight">tr: character translation - see man tr</span>';
 
             case 'sed': {
+                const result = _sed(args);
                 _checkObjective('sed');
-                return '<span class="lt-highlight">sed: stream editing simulated - see man sed for usage</span>';
+                return result;
             }
 
             case 'awk': {
+                const result = _awk(args);
                 _checkObjective('awk');
-                return '<span class="lt-highlight">awk: text processing simulated - see man awk for usage</span>';
+                return result;
             }
 
             // --------------- Permissions ---------------
@@ -1614,6 +1616,319 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
         return results.join('\n') || '';
     }
 
+    function _sed(args) {
+        if (args.length === 0) return '<span class="lt-error">sed: missing expression</span>';
+
+        let inPlace = false;
+        let backupExt = null;
+        let suppressOutput = false;
+        let expression = null;
+        let fileName = null;
+
+        // Parse args: flags, expression, filename
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            if (arg === '-n') {
+                suppressOutput = true;
+            } else if (arg === '-i') {
+                inPlace = true;
+            } else if (arg.startsWith('-i') && arg.length > 2) {
+                // -i.bak style
+                inPlace = true;
+                backupExt = arg.substring(2);
+            } else if (!expression) {
+                expression = arg.replace(/^['"]|['"]$/g, '');
+            } else {
+                fileName = arg;
+            }
+        }
+
+        if (!expression) return '<span class="lt-error">sed: missing expression</span>';
+
+        // Substitute command: s/old/new/ or s/old/new/g
+        const subMatch = expression.match(/^s(.)(.+?)\1(.*?)\1(g?)$/);
+        // Delete command: /pattern/d
+        const delMatch = expression.match(/^\/(.*?)\/d$/);
+        // Print command: /pattern/p
+        const printMatch = expression.match(/^\/(.*?)\/p$/);
+
+        if (!subMatch && !delMatch && !printMatch) {
+            return '<span class="lt-error">sed: unsupported expression: ' + expression + '</span>';
+        }
+
+        // If no filename, expect stdin (not supported in this sim)
+        if (!fileName) return '<span class="lt-highlight">sed: reading from stdin (not supported in this simulation)</span>';
+
+        const path = _resolvePath(fileName);
+        const node = state.fs[path];
+
+        if (!node) return `<span class="lt-error">sed: can't read ${fileName}: No such file or directory</span>`;
+        if (node.type === 'dir') return `<span class="lt-error">sed: read error on ${fileName}: Is a directory</span>`;
+        if (!node.content && node.content !== '') return `<span class="lt-error">sed: can't read ${fileName}: No such file or directory</span>`;
+
+        const lines = node.content.split('\n');
+        let resultLines = [];
+
+        if (subMatch) {
+            const searchStr = subMatch[2];
+            const replaceStr = subMatch[3];
+            const globalFlag = subMatch[4] === 'g';
+            const regex = new RegExp(searchStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), globalFlag ? 'g' : '');
+
+            for (const line of lines) {
+                const newLine = line.replace(regex, replaceStr);
+                if (!suppressOutput) {
+                    if (newLine !== line) {
+                        // Highlight the replacements in output
+                        const displayRegex = new RegExp(replaceStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), globalFlag ? 'g' : '');
+                        const highlighted = newLine.replace(displayRegex, '<span class="lt-highlight">$&</span>');
+                        resultLines.push(highlighted);
+                    } else {
+                        resultLines.push(line);
+                    }
+                }
+            }
+
+            // In-place editing
+            if (inPlace) {
+                if (backupExt) {
+                    state.fs[path + backupExt] = {
+                        type: 'file',
+                        content: node.content,
+                        permissions: node.permissions || 'rw-r--r--',
+                        owner: node.owner || state.currentUser.username,
+                        group: node.group || state.currentUser.groups[0].name,
+                        modified: node.modified || new Date().toISOString()
+                    };
+                }
+                const newContent = lines.map(l => l.replace(regex, replaceStr)).join('\n');
+                state.fs[path].content = newContent;
+                state.fs[path].modified = new Date().toISOString();
+                if (inPlace) return ''; // -i produces no output
+            }
+        } else if (delMatch) {
+            const pattern = delMatch[1];
+            const regex = new RegExp(pattern);
+
+            for (const line of lines) {
+                if (!regex.test(line)) {
+                    resultLines.push(line);
+                }
+            }
+
+            if (inPlace) {
+                if (backupExt) {
+                    state.fs[path + backupExt] = {
+                        type: 'file',
+                        content: node.content,
+                        permissions: node.permissions || 'rw-r--r--',
+                        owner: node.owner || state.currentUser.username,
+                        group: node.group || state.currentUser.groups[0].name,
+                        modified: node.modified || new Date().toISOString()
+                    };
+                }
+                state.fs[path].content = resultLines.join('\n');
+                state.fs[path].modified = new Date().toISOString();
+                return '';
+            }
+        } else if (printMatch) {
+            const pattern = printMatch[1];
+            const regex = new RegExp(pattern);
+
+            for (const line of lines) {
+                const matches = regex.test(line);
+                if (suppressOutput) {
+                    // -n: only print lines explicitly selected by /p
+                    if (matches) {
+                        const highlighted = line.replace(regex, '<span class="lt-highlight">$&</span>');
+                        resultLines.push(highlighted);
+                    }
+                } else {
+                    // Without -n: print all lines, matching lines duplicated by /p
+                    if (matches) {
+                        const highlighted = line.replace(regex, '<span class="lt-highlight">$&</span>');
+                        resultLines.push(highlighted);
+                        resultLines.push(highlighted);
+                    } else {
+                        resultLines.push(line);
+                    }
+                }
+            }
+
+            if (inPlace) {
+                return '';
+            }
+        }
+
+        return resultLines.join('\n');
+    }
+
+    function _awk(args) {
+        if (args.length === 0) return '<span class="lt-error">awk: missing program</span>';
+
+        let separator = null;
+        let program = null;
+        let files = [];
+
+        // Parse args: extract -F separator, quoted program, and filenames
+        let i = 0;
+        while (i < args.length) {
+            const arg = args[i];
+            if (arg === '-F' && i + 1 < args.length) {
+                separator = args[i + 1].replace(/^['"]|['"]$/g, '');
+                i += 2;
+                continue;
+            } else if (arg.startsWith('-F') && arg.length > 2) {
+                separator = arg.substring(2).replace(/^['"]|['"]$/g, '');
+                i++;
+                continue;
+            }
+
+            // Reconstruct the awk program from shell-split tokens
+            // Program can be: '{print $1}' or '/pattern/ {print $1}' etc.
+            if (!program) {
+                let raw = arg;
+                // Strip leading single quote if present
+                if (raw.startsWith("'")) raw = raw.substring(1);
+                // Check if the program is fully contained in this token
+                if (raw.endsWith("'")) {
+                    program = raw.substring(0, raw.length - 1);
+                } else if (arg.startsWith("'") || arg.startsWith('{') || arg.startsWith('/')) {
+                    // Multi-token program — join until closing }' or just '
+                    let parts = [raw];
+                    i++;
+                    while (i < args.length) {
+                        let part = args[i];
+                        if (part.endsWith("'")) {
+                            parts.push(part.substring(0, part.length - 1));
+                            break;
+                        } else if (part.endsWith("}") && !args[i + 1]) {
+                            parts.push(part);
+                            break;
+                        }
+                        parts.push(part);
+                        i++;
+                    }
+                    program = parts.join(' ');
+                } else {
+                    program = raw;
+                }
+            } else {
+                files.push(arg);
+            }
+            i++;
+        }
+
+        if (!program) return '<span class="lt-error">awk: missing program</span>';
+        if (files.length === 0) return '<span class="lt-highlight">awk: reading from stdin (not supported in this simulation)</span>';
+
+        // Parse the awk program into pattern and action
+        // Forms: '{action}', '/pattern/ {action}', 'NR==N', 'NR==N {action}'
+        let patternRegex = null;
+        let nrCondition = null;
+        let action = null;
+
+        const progTrimmed = program.replace(/^\{|\}$/g, '').trim();
+
+        // Check for /pattern/ {action}
+        const patternActionMatch = program.match(/^\/(.*?)\/\s*\{(.*)\}$/);
+        // Check for NR==N {action} or just NR==N
+        const nrActionMatch = program.match(/^NR\s*==\s*(\d+)\s*(?:\{(.*)\})?$/);
+        // Check for plain {action}
+        const plainActionMatch = program.match(/^\{(.*)\}$/);
+
+        if (patternActionMatch) {
+            patternRegex = new RegExp(patternActionMatch[1]);
+            action = patternActionMatch[2].trim();
+        } else if (nrCondition === null && nrActionMatch) {
+            nrCondition = parseInt(nrActionMatch[1]);
+            action = nrActionMatch[2] ? nrActionMatch[2].trim() : 'print $0';
+        } else if (plainActionMatch) {
+            action = plainActionMatch[1].trim();
+        } else {
+            // Try as a bare condition like NR==3 without braces (already caught above)
+            // Or treat the whole thing as an action
+            action = progTrimmed;
+        }
+
+        if (!action) action = 'print $0';
+
+        const results = [];
+        const fs = separator || /\s+/;
+
+        for (const file of files) {
+            const path = _resolvePath(file);
+            const node = state.fs[path];
+
+            if (!node) {
+                results.push(`<span class="lt-error">awk: ${file}: No such file or directory</span>`);
+                continue;
+            }
+            if (node.type === 'dir') {
+                results.push(`<span class="lt-error">awk: ${file}: Is a directory</span>`);
+                continue;
+            }
+            if (!node.content && node.content !== '') continue;
+
+            const lines = node.content.split('\n');
+
+            for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+                const line = lines[lineIdx];
+                const nr = lineIdx + 1;
+
+                // Apply pattern/condition filters
+                if (patternRegex && !patternRegex.test(line)) continue;
+                if (nrCondition !== null && nr !== nrCondition) continue;
+
+                // Split line into fields
+                const fields = separator
+                    ? line.split(separator)
+                    : line.trim().split(/\s+/);
+                const nf = fields.length;
+
+                // Process the action (handle print statements)
+                const printMatch = action.match(/^print\s+(.*)$/);
+                if (printMatch) {
+                    const printArgs = printMatch[1];
+                    // Split print arguments by comma
+                    const parts = printArgs.split(/\s*,\s*/);
+                    const outputParts = [];
+
+                    for (const part of parts) {
+                        const token = part.trim();
+                        if (token === '$0') {
+                            outputParts.push(line);
+                        } else if (token === 'NR') {
+                            outputParts.push(String(nr));
+                        } else if (token === 'NF') {
+                            outputParts.push(String(nf));
+                        } else if (token.startsWith('$')) {
+                            const fieldNum = parseInt(token.substring(1));
+                            if (fieldNum === 0) {
+                                outputParts.push(line);
+                            } else if (fieldNum >= 1 && fieldNum <= nf) {
+                                outputParts.push(fields[fieldNum - 1]);
+                            } else {
+                                outputParts.push('');
+                            }
+                        } else if (token.startsWith('"') && token.endsWith('"')) {
+                            outputParts.push(token.slice(1, -1));
+                        } else {
+                            outputParts.push(token);
+                        }
+                    }
+
+                    results.push(outputParts.join(' '));
+                } else {
+                    // If no recognized action, print the whole line
+                    results.push(line);
+                }
+            }
+        }
+
+        return results.join('\n') || '';
+    }
+
     function _which(args) {
         const commands = {
             'ls': '/usr/bin/ls', 'cat': '/usr/bin/cat', 'cp': '/usr/bin/cp', 'mv': '/usr/bin/mv',
@@ -2307,7 +2622,99 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
 <span class="lt-success">EXAMPLES</span>
        man ls         Show the manual page for ls
        man 5 passwd   Show the passwd file format (section 5)
-       man -k search  Search manual page names and descriptions`
+       man -k search  Search manual page names and descriptions`,
+
+            'sed': `<span class="lt-highlight">SED(1)                    User Commands                    SED(1)</span>
+
+<span class="lt-success">NAME</span>
+       sed - stream editor for filtering and transforming text
+
+<span class="lt-success">SYNOPSIS</span>
+       sed [OPTIONS] 'EXPRESSION' [FILE]
+
+<span class="lt-success">DESCRIPTION</span>
+       sed reads input line by line, applies editing commands from
+       EXPRESSION, and writes the result to standard output. The
+       original input file is not modified unless -i is used.
+
+<span class="lt-success">COMMANDS</span>
+       s/old/new/     Substitute first occurrence of 'old' with 'new'
+                      on each line
+       s/old/new/g    Substitute ALL occurrences of 'old' with 'new'
+                      on each line (global flag)
+       /pattern/d     Delete lines matching 'pattern'
+       /pattern/p     Print lines matching 'pattern' (use with -n
+                      to print ONLY matching lines)
+
+<span class="lt-success">FLAGS</span>
+       -n             Suppress automatic printing of pattern space.
+                      Only lines explicitly selected by /p are output.
+       -i             Edit file in place (overwrite original file)
+       -i.EXT         Edit in place, saving backup with extension .EXT
+                      (e.g., -i.bak creates file.bak before modifying)
+       g              (suffix) Global flag for substitute command.
+                      Without it, only the first match per line is replaced.
+
+<span class="lt-success">EXAMPLES</span>
+       sed 's/http/https/' urls.txt
+              Replace first 'http' with 'https' on each line
+
+       sed 's/foo/bar/g' data.txt
+              Replace every 'foo' with 'bar' throughout the file
+
+       sed '/^#/d' config.txt
+              Delete all comment lines (starting with #)
+
+       sed -n '/error/p' log.txt
+              Print only lines containing 'error'
+
+       sed -i 's/old/new/g' file.txt
+              Replace all 'old' with 'new' and save changes to file
+
+       sed -i.bak 's/old/new/g' file.txt
+              Same as above, but keep original as file.txt.bak`,
+
+            'awk': `<span class="lt-highlight">AWK(1)                    User Commands                    AWK(1)</span>
+
+<span class="lt-success">NAME</span>
+       awk - pattern scanning and text processing language
+
+<span class="lt-success">SYNOPSIS</span>
+       awk [OPTIONS] 'program' [FILE...]
+       awk [-F separator] '/pattern/ {action}' [FILE...]
+
+<span class="lt-success">DESCRIPTION</span>
+       awk scans each input FILE for lines that match any of a set of
+       patterns. For each matching line, awk executes the associated
+       action. If no pattern is given, every line matches.
+
+       The default field separator is whitespace. Fields are referenced
+       as $1, $2, ... $N. $0 refers to the entire line.
+
+<span class="lt-success">BUILT-IN VARIABLES</span>
+       $0         The entire input line
+       $1..$N     The Nth field of the current line
+       NR         Current line number (Number of Records)
+       NF         Number of fields in the current line
+       FS         Field separator (default: whitespace)
+
+<span class="lt-success">OPTIONS</span>
+       -F sep     Set the field separator to sep
+
+<span class="lt-success">PATTERNS</span>
+       /regex/    Match lines containing the regular expression
+       NR==N      Match only line number N
+       (none)     Match all lines (when only {action} is given)
+
+<span class="lt-success">EXAMPLES</span>
+       awk '{print $1}' file.txt          Print the first field of each line
+       awk '{print $1, $3}' file.txt      Print the 1st and 3rd fields
+       awk '{print $0}' file.txt          Print each entire line
+       awk '{print NR, $0}' file.txt      Print line numbers with content
+       awk '/error/ {print $0}' log.txt   Print lines matching "error"
+       awk -F: '{print $1}' /etc/passwd   Use : as field separator
+       awk '{print NF}' file.txt          Print field count per line
+       awk 'NR==3' file.txt               Print only the 3rd line`
         };
 
         return manPages[args[0]] || `<span class="lt-error">No manual entry for ${args[0]}</span>`;
