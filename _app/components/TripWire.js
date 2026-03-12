@@ -72,6 +72,7 @@
   var authorizedKeys  = {};
   var domCache        = {};
   var observer        = null;
+  var _timerReplacementTripped = false;
 
   // Native timer references (Sensor 5)
   var _nativeSetTimeout  = window.setTimeout;
@@ -120,10 +121,16 @@
 
   function _stackHasConsole(stack) {
     if (!stack) return false;
-    var markers = ['<anonymous>', 'debugger eval code', 'eval@', 'eval ('];
-    for (var i = 0; i < markers.length; i++) {
-      if (stack.indexOf(markers[i]) !== -1) return true;
-    }
+    // Firefox console
+    if (/debugger eval code/.test(stack)) return true;
+    // Chrome/Edge console: "at <anonymous>:N:N" (NOT "Object.<anonymous> (file.js:N)")
+    if (/\bat\s+<anonymous>:\d+:\d+/.test(stack)) return true;
+    // Chrome eval-in-console
+    if (/\bat\s+eval\s+\(eval\s+at/.test(stack)) return true;
+    // Firefox eval
+    if (/^eval@/m.test(stack)) return true;
+    // Safari
+    if (/\beval code\b/.test(stack)) return true;
     return false;
   }
 
@@ -283,8 +290,17 @@
       }
     };
 
-    // Poll for external tampering (devtools Application tab, other tabs)
+    // Poll for external tampering (devtools Application tab edits)
     _nativeSetInterval.call(window, _pollStorage, POLL_INTERVAL_MS);
+
+    // Cross-tab sync: legitimate writes from other tabs update the snapshot
+    // so the poll doesn't flag them as tampering
+    window.addEventListener('storage', function (e) {
+      if (e.key && _isProtectedKey(e.key)) {
+        storageSnapshot[e.key] = e.newValue;
+        checksumMap[e.key] = _checksum(e.key, e.newValue);
+      }
+    });
   }
 
   function _snapshotStorage() {
@@ -522,7 +538,8 @@
         var dateNow = _nativeDateNow.call(Date);
         // Both should advance at roughly the same rate within a session
         // We check if someone replaced Date.now with a static value
-        if (window.Date.now !== _nativeDateNow) {
+        if (!_timerReplacementTripped && window.Date.now !== _nativeDateNow) {
+          _timerReplacementTripped = true;
           _dispatch({
             sensor:   'timer',
             category: 'timer_manipulation',
@@ -531,20 +548,24 @@
         }
       }
 
-      // Check if setTimeout/setInterval have been replaced
-      if (window.setTimeout !== _nativeSetTimeout) {
-        _dispatch({
-          sensor:   'timer',
-          category: 'timer_manipulation',
-          detail:   'window.setTimeout has been replaced'
-        });
-      }
-      if (window.setInterval !== _nativeSetInterval) {
-        _dispatch({
-          sensor:   'timer',
-          category: 'timer_manipulation',
-          detail:   'window.setInterval has been replaced'
-        });
+      // Check if setTimeout/setInterval have been replaced (once per session)
+      if (!_timerReplacementTripped) {
+        if (window.setTimeout !== _nativeSetTimeout) {
+          _timerReplacementTripped = true;
+          _dispatch({
+            sensor:   'timer',
+            category: 'timer_manipulation',
+            detail:   'window.setTimeout has been replaced'
+          });
+        }
+        if (window.setInterval !== _nativeSetInterval) {
+          _timerReplacementTripped = true;
+          _dispatch({
+            sensor:   'timer',
+            category: 'timer_manipulation',
+            detail:   'window.setInterval has been replaced'
+          });
+        }
       }
     }, HEARTBEAT_MS);
   }
