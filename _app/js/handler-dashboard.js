@@ -3241,7 +3241,7 @@
             const anonBadge = member.isAnonymous ? '<span class="hd-roster-anon-badge">Anonymous</span>' : '';
 
             return `
-                <div class="hd-roster-card" tabindex="0" onclick="showStudentDetail('${member.uid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showStudentDetail('${member.uid}')}">
+                <div class="hd-roster-card hd-roster-clickable" tabindex="0" onclick="drillDownStudent('${member.uid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();drillDownStudent('${member.uid}')}">
                     <div class="hd-roster-avatar" style="${avatarBg}">${avatarHtml}</div>
                     <div class="hd-roster-info">
                         <div class="hd-roster-name">${escapeHtml(fullName)}${activeBadge}${anonBadge}</div>
@@ -3691,6 +3691,314 @@
                     container.innerHTML = html;
                 }
             });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // STUDENT PROFILE DRILL-DOWN (Wave 24c)
+        // ═══════════════════════════════════════════════════════════════
+
+        const _profileCache = {};
+
+        function drillDownStudent(uid) {
+            const member = rosterMembers.find(function(m) { return m.uid === uid; });
+            if (!member) return;
+
+            drillDown({
+                label: member.displayName || member.firstName || 'Student Profile',
+                render: function(container) {
+                    _renderStudentProfile(container, member, 'class');
+                    // Kick off async global fetch in background
+                    _fetchGlobalProfile(uid).then(function() {
+                        // Re-render active tab if still on class (no-op) or global (re-render)
+                        const activeTab = container.querySelector('.hd-profile-tab.active');
+                        if (activeTab && activeTab.dataset.tab === 'global') {
+                            _renderProfileTab(container, member, 'global');
+                        }
+                    });
+                }
+            });
+        }
+
+        function _renderStudentProfile(container, member, activeTab) {
+            const houseColor = HOUSE_COLORS[member.house] || '#888';
+            const houseName = member.house ? capitalize(member.house) : 'Unsorted';
+            const fullName = (member.firstName && member.lastName)
+                ? member.lastName + ', ' + member.firstName
+                : member.displayName || 'Unknown';
+            const callsignDisplay = member.callsign || fullName;
+            const avatarLetter = (callsignDisplay[0] || '?').toUpperCase();
+
+            const joinDate = member.joinedAt
+                ? (member.joinedAt.toDate
+                    ? member.joinedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : new Date(member.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
+                : '--';
+            const lastActive = member.lastActivity
+                ? (member.lastActivity.toDate
+                    ? member.lastActivity.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : new Date(member.lastActivity).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+                : '--';
+            const level = member.level || 1;
+            const xp = member.xp || 0;
+
+            let html = '<div class="hd-drilldown">';
+            html += '<div class="hd-drilldown-header">';
+            html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
+            html += '<h2 class="hd-drilldown-title">' + escapeHtml(fullName) + '</h2>';
+            html += '</div>';
+
+            // Student header
+            html += '<div class="hd-student-header">';
+            html += '<div class="hd-student-avatar" style="background:' + houseColor + '33;color:' + houseColor + '">' + escapeHtml(avatarLetter) + '</div>';
+            html += '<div class="hd-student-info">';
+            html += '<div class="hd-student-name">' + escapeHtml(callsignDisplay) + '</div>';
+            html += '<div class="hd-student-meta">' + escapeHtml(houseName) + ' | Level ' + level + ' | XP: ' + xp + ' | Joined: ' + joinDate + ' | Last active: ' + lastActive + '</div>';
+            html += '</div>';
+            html += '</div>';
+
+            // Tabs
+            html += '<div class="hd-profile-tabs">';
+            html += '<button class="hd-profile-tab' + (activeTab === 'class' ? ' active' : '') + '" data-tab="class" onclick="_switchProfileTab(this,\'' + escapeHtml(member.uid) + '\',\'class\')">Class Profile</button>';
+            html += '<button class="hd-profile-tab' + (activeTab === 'global' ? ' active' : '') + '" data-tab="global" onclick="_switchProfileTab(this,\'' + escapeHtml(member.uid) + '\',\'global\')">Global Profile</button>';
+            html += '</div>';
+
+            // Tab content placeholder
+            html += '<div class="hd-profile-content" id="hd-profile-tab-content-' + escapeHtml(member.uid) + '"></div>';
+
+            html += '</div>';
+            container.innerHTML = html;
+
+            // Render initial tab content
+            const tabContent = document.getElementById('hd-profile-tab-content-' + member.uid);
+            if (tabContent) {
+                _renderProfileTab(tabContent, member, activeTab);
+            }
+        }
+
+        function _switchProfileTab(btn, uid, tab) {
+            const member = rosterMembers.find(function(m) { return m.uid === uid; });
+            if (!member) return;
+            // Update active tab button
+            const tabs = btn.closest('.hd-profile-tabs');
+            if (tabs) {
+                tabs.querySelectorAll('.hd-profile-tab').forEach(function(t) { t.classList.remove('active'); });
+            }
+            btn.classList.add('active');
+            const tabContent = document.getElementById('hd-profile-tab-content-' + uid);
+            if (tabContent) {
+                _renderProfileTab(tabContent, member, tab);
+            }
+        }
+
+        function _renderProfileTab(container, member, tab) {
+            if (tab === 'class') {
+                container.innerHTML = _buildClassProfileHTML(member);
+            } else {
+                container.innerHTML = _buildGlobalProfileHTML(member);
+            }
+        }
+
+        function _buildClassProfileHTML(member) {
+            const { completed, total, pct } = getStudentCompletion(member.uid);
+            const riskLabel = pct < 40 ? 'At Risk' : pct < 70 ? 'Watch' : 'On Track';
+            const riskClass = pct < 40 ? 'hd-risk-high' : pct < 70 ? 'hd-risk-medium' : 'hd-risk-low';
+            const colorClass = total > 0 ? progressColorClass(pct) : 'none';
+
+            let html = '';
+
+            // Summary row
+            html += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">';
+            html += '<div>';
+            html += '<div style="font-size:0.75rem;color:var(--hd-text-muted,#888);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Assignment Progress</div>';
+            html += '<div style="font-size:1.4rem;font-weight:700;color:var(--hd-text,#e0e0e0)">' + completed + ' / ' + total + '</div>';
+            html += '<div class="hd-roster-progress-bar" style="width:200px;height:6px;margin-top:6px;"><div class="hd-roster-progress-fill ' + colorClass + '" style="width:' + pct + '%;height:6px;border-radius:3px;"></div></div>';
+            html += '<div style="font-size:0.75rem;color:var(--hd-text-muted,#888);margin-top:4px;">' + pct + '% complete</div>';
+            html += '</div>';
+            html += '<div style="margin-left:auto;"><span class="hd-risk-badge ' + riskClass + '">' + riskLabel + '</span></div>';
+            html += '</div>';
+
+            // Per-assignment table
+            if (classAssignments.length === 0) {
+                html += '<div style="color:var(--hd-text-muted,#888);font-size:0.85rem;">No assignments configured for this class.</div>';
+                return html;
+            }
+
+            const studentProgress = classProgressData.find(function(p) { return p.id === member.uid; });
+            const completions = studentProgress ? (studentProgress.completions || {}) : {};
+
+            html += '<div class="hd-assignment-status">';
+            classAssignments.forEach(function(a) {
+                const result = resolveAssignmentProgress(a, completions);
+                const isDone = result.pct === 100;
+                const comp = studentProgress && completions[a.contentId];
+                const score = comp && comp.score != null ? comp.score + '%' : '--';
+                const dateStr = comp && comp.completedAt
+                    ? (comp.completedAt.toDate
+                        ? comp.completedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        : new Date(comp.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+                    : '--';
+                html += '<div class="hd-asgn-row">';
+                html += '<div class="hd-asgn-dot ' + (isDone ? 'complete' : 'incomplete') + '"></div>';
+                html += '<div class="hd-asgn-name" title="' + escapeHtml(a.title) + '">' + escapeHtml(a.title) + '</div>';
+                if (a.assignmentType === 'path') {
+                    html += '<div class="hd-asgn-score" style="color:var(--hd-text-muted,#888);font-size:0.7rem;">' + result.completed + '/' + result.total + '</div>';
+                } else {
+                    html += '<div class="hd-asgn-score">' + (isDone ? score : '--') + '</div>';
+                }
+                html += '<div class="hd-asgn-date">' + (isDone ? dateStr : '--') + '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+
+            return html;
+        }
+
+        function _buildGlobalProfileHTML(member) {
+            const uid = member.uid;
+            const cached = _profileCache[uid];
+
+            if (!cached) {
+                // Fetch and show loading
+                _fetchGlobalProfile(uid).then(function() {
+                    const tabContent = document.getElementById('hd-profile-tab-content-' + uid);
+                    if (tabContent) tabContent.innerHTML = _buildGlobalProfileHTML(member);
+                });
+                return '<div style="color:var(--hd-text-muted,#888);font-size:0.85rem;padding:20px 0;">Loading global profile...</div>';
+            }
+
+            const p = cached;
+            const quizAvg = p.quizAvg != null ? Math.round(p.quizAvg) + '%' : '--';
+            const modulesCompleted = p.modulesCompleted != null ? p.modulesCompleted : '--';
+            const labsCompleted = p.labsCompleted != null ? p.labsCompleted : '--';
+            const xp = p.xp != null ? p.xp : (member.xp || '--');
+            const level = p.level != null ? p.level : (member.level || '--');
+            const streak = p.streak != null ? p.streak : '--';
+
+            const stats = [
+                { label: 'Quiz Avg', value: quizAvg, key: 'quizAvg' },
+                { label: 'Modules', value: modulesCompleted, key: 'modulesCompleted' },
+                { label: 'Labs', value: labsCompleted, key: 'labsCompleted' },
+                { label: 'XP', value: xp, key: 'xp' },
+                { label: 'Level', value: level, key: 'level' },
+                { label: 'Streak', value: streak + (typeof streak === 'number' ? 'd' : ''), key: 'streak' }
+            ];
+
+            let html = '<div class="hd-stat-cards-row">';
+            stats.forEach(function(s) {
+                html += '<div class="hd-profile-stat" onclick="_profileStatDetail(\'' + escapeHtml(uid) + '\',\'' + s.key + '\')" title="Click for details">';
+                html += '<div class="hd-profile-stat-value">' + escapeHtml(String(s.value)) + '</div>';
+                html += '<div class="hd-profile-stat-label">' + escapeHtml(s.label) + '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+
+            // House + achievements summary
+            const house = p.house || member.house || '--';
+            const achievementsCount = p.achievements != null
+                ? (Array.isArray(p.achievements) ? p.achievements.length : Object.keys(p.achievements).length)
+                : '--';
+
+            html += '<div style="display:flex;gap:24px;font-size:0.8rem;color:var(--hd-text-muted,#888);margin-top:8px;">';
+            html += '<span>House: <strong style="color:var(--hd-text,#e0e0e0)">' + escapeHtml(house ? capitalize(house) : '--') + '</strong></span>';
+            html += '<span>Achievements: <strong style="color:var(--hd-text,#e0e0e0)">' + escapeHtml(String(achievementsCount)) + '</strong></span>';
+            html += '</div>';
+
+            return html;
+        }
+
+        function _profileStatDetail(uid, key) {
+            const cached = _profileCache[uid];
+            const member = rosterMembers.find(function(m) { return m.uid === uid; });
+            if (!member) return;
+            const name = (member.firstName && member.lastName)
+                ? member.lastName + ', ' + member.firstName
+                : member.displayName || 'Student';
+
+            const labels = {
+                quizAvg: 'Quiz Average',
+                modulesCompleted: 'Modules Completed',
+                labsCompleted: 'Labs Completed',
+                xp: 'Total XP',
+                level: 'Level',
+                streak: 'Current Streak'
+            };
+
+            let detail = '--';
+            if (cached && cached[key] != null) {
+                detail = String(cached[key]);
+                if (key === 'streak') detail += ' days';
+                if (key === 'quizAvg') detail = Math.round(cached[key]) + '%';
+            }
+
+            drillDown({
+                label: labels[key] || key,
+                render: function(container) {
+                    let html = '<div class="hd-drilldown">';
+                    html += '<div class="hd-drilldown-header">';
+                    html += '<button class="hd-btn hd-btn-sm" onclick="goBack()">&larr; Back</button>';
+                    html += '<h2 class="hd-drilldown-title">' + escapeHtml(name) + ' &mdash; ' + escapeHtml(labels[key] || key) + '</h2>';
+                    html += '</div>';
+                    html += '<div style="padding:24px 0;font-size:2rem;font-weight:700;color:var(--hd-accent,#d4a017)">' + escapeHtml(detail) + '</div>';
+                    html += '<div style="color:var(--hd-text-muted,#888);font-size:0.85rem;">Detailed breakdown coming in a future update.</div>';
+                    html += '</div>';
+                    container.innerHTML = html;
+                }
+            });
+        }
+
+        async function _fetchGlobalProfile(uid) {
+            if (_profileCache[uid]) return _profileCache[uid];
+            try {
+                if (typeof firebase !== 'undefined' && firebase.firestore) {
+                    const db = firebase.firestore();
+                    const doc = await db.collection('users').doc(uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        // Compute quiz average from quizzes map if present
+                        let quizAvg = null;
+                        if (data.quizzes && typeof data.quizzes === 'object') {
+                            const scores = Object.values(data.quizzes)
+                                .map(function(q) { return typeof q === 'object' ? q.score : q; })
+                                .filter(function(s) { return typeof s === 'number'; });
+                            if (scores.length > 0) {
+                                quizAvg = scores.reduce(function(a, b) { return a + b; }, 0) / scores.length;
+                            }
+                        } else if (data.quizAvg != null) {
+                            quizAvg = data.quizAvg;
+                        }
+                        _profileCache[uid] = {
+                            xp: data.xp || 0,
+                            level: data.level || 1,
+                            modulesCompleted: data.modulesCompleted || 0,
+                            labsCompleted: data.labsCompleted || 0,
+                            streak: data.streak || 0,
+                            house: data.house || null,
+                            callsign: data.callsign || null,
+                            achievements: data.achievements || null,
+                            quizAvg: quizAvg
+                        };
+                        return _profileCache[uid];
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not fetch global profile for', uid, e);
+            }
+            // Fallback: use roster member data
+            const member = rosterMembers.find(function(m) { return m.uid === uid; });
+            if (member) {
+                _profileCache[uid] = {
+                    xp: member.xp || 0,
+                    level: member.level || 1,
+                    modulesCompleted: null,
+                    labsCompleted: null,
+                    streak: null,
+                    house: member.house || null,
+                    callsign: member.callsign || null,
+                    achievements: null,
+                    quizAvg: null
+                };
+            }
+            return _profileCache[uid] || null;
         }
 
         // ═══════════════════════════════════════════════════════════════
