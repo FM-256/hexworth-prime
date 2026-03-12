@@ -500,25 +500,26 @@
 - [x] Run `npm run scan` — full EduScan, fix any CRITICAL/HIGH issues
 - [x] Run `npm run scan:test` — signature tests must pass (40/40)
 - [x] Run `npm run scan:archive` — save baseline
-- [ ] Commit all remaining changes
-- [ ] `git push`
-- [ ] `npx firebase deploy --only hosting`
+- [x] Commit all remaining changes
+- [x] `git push`
+- [x] `npx firebase deploy --only hosting`
 
 **Final commit:** `chore: Marathon phase 2 complete — deployed`
 
 ---
 
 ## Wave 20: CAT-002 Cleanup — Register All Undeclared Files
-*99 files on disk not declared in ContentCatalog.js — register them all*
+*98 files on disk not declared in ContentCatalog.js — register them all (verified 2026-03-12)*
 
 **By house (agent allocation):**
 
-- [ ] **Agent 1 — Script CLH (34 files):** Register `script-clh-001` through `031` + course quiz/intro modules in ContentCatalog.js + content-registry.js
-- [ ] **Agent 2 — Script Database (35 files):** Register `script-db-01` through `35` (full SQL course) in ContentCatalog.js + content-registry.js
-- [ ] **Agent 3 — Shield (11 files):** Register `shield-sec101-m01` through `m08` presentations + `shield-contra`, `shield-threatdex` games in ContentCatalog.js + content-registry.js
-- [ ] **Agent 4 — Cloud + Web + Forge + Code (17 files):** Register `cloud-api-002` through `007`, `web-cloud-networking` through `web-wan-technologies` (5), `forge-aplus-core1-prep-round-{2,3,4}`, `forge-md100-midterm-sim`, `code-pye-capstone`, `code-pye-midterm` in ContentCatalog.js + content-registry.js
-- [ ] Run `npm run scan` — verify CAT-002 count drops to 0
-- [ ] Commit: `fix: Register 99 undeclared content files (CAT-002 cleanup)`
+- [x] **Agent 1 — Script CLH (36 files):** 31 standalone labs + 5 extras (031 briefing/quiz, course quiz/intro)
+- [x] **Agent 2 — Script Database (35 files):** DB-01 through DB-35 (modules, labs, quizzes)
+- [x] **Agent 3 — Shield (10 files):** 8 Security 101 presentations + Contra + ThreatDex games
+- [x] **Agent 4 — Cloud + Web + Forge + Code (17 files):** 6 Cloud API + 5 Web N+ presentations + 4 Forge (A+ prep rounds 2-4, MD-100 midterm) + 2 PYE (midterm, capstone)
+- [x] Run `npm run scan` — CAT-002: 0 (was 98)
+- [x] Commit: `fix: Register 98 undeclared content files in ContentCatalog (CAT-002 zero)`
+- [x] Deployed 2026-03-12
 
 **Rules:**
 - Read each file's `<title>` and first few lines for accurate description
@@ -526,6 +527,147 @@
 - href is relative to house basePath — NOT absolute
 - content-registry paths are relative to `_app/`
 - Serialize ContentCatalog.js edits — only one agent writes at a time (contention bottleneck)
+
+---
+
+## Wave 21: Operator Hub Overhaul — Intro + Mission Registration
+*The Operator hub drops users in cold with no context. Fix that, then register the 4 new missions.*
+
+**Current state:**
+- Hub page: `_app/operator/index.html` (~620 lines, inline CSS+JS)
+- 20 missions across 4 tiers, rendered from TIERS array in inline JS
+- Hero section: icon + "OPERATOR" title + one-liner quote — no explanation of what this is or how it works
+- 4 built but unregistered missions exist on disk:
+  - `missions/recon-03.mission.html` + `configs/recon-03.config.js`
+  - `missions/linux-fs-03.mission.html` + `configs/linux-fs-03.config.js`
+  - `missions/incident-response-03.mission.html` + `configs/incident-response-03.config.js`
+  - `missions/forensics-03.mission.html` + `configs/forensics-03.config.js`
+- Progress bar hardcoded to `/20`, needs update to `/24`
+
+**Wave 21a: Operator Introduction Section**
+- [x] Collapsible briefing panel below hero — what Operator is, how it works, tiers, domains, scoring
+- [x] CRT/terminal aesthetic maintained — styled as mission briefing with grid cards
+- [x] Auto-expands for first-time visitors (localStorage `hexworth_operator_briefing_seen`), collapsed for returning
+
+**Wave 21b: Register 4 New Missions**
+- [x] RECON-03 (Phantom Network, Tier 2), LINUX-FS-03 (Privilege Escalation, Tier 2), IR-03 (Supply Chain, Tier 3), FORENSICS-03 (Insider Threat, Tier 3)
+- [x] Progress counter updated /20 → /24, bar calc updated
+- [x] All 4 registered in ContentCatalog.js (house: matrix)
+
+**Wave 21c: Validation**
+- [x] EduScan clean (CAT-001: 0, CAT-002: 0, no new CRITICAL)
+- [x] Deployed 2026-03-12
+
+---
+
+## Wave 22: TripWire + Wall of Shame
+*Honeypot defense system — detect, neutralize, log, display. Sprint plan: `_planning/TRIPWIRE_WALL_OF_SHAME.md`*
+
+**Wave 22a: Foundation (2 parallel agents)**
+- [x] **TripWire.js** — Core detection engine + Sensors 1-3 (Storage Integrity, Runtime Freeze+Proxy, DOM MutationObserver)
+- [x] **Firestore rules** — tripwire_events + tripwire_stats collections, rate limiting, nonce validation
+
+**Wave 22b: Remaining Sensors (2 parallel agents)**
+- [x] **Sensors 4-5** — Console Injection Detection + Timer Manipulation Guard
+- [x] **Sensors 6-7** — Decoy Flags (planted in BoxEngine/Operator configs) + XSS Pattern Detection
+
+**Wave 22c: Wall of Shame (1 agent)**
+- [x] **WallOfShame.js** — Display component, Firestore sync, entry rendering
+- [x] **wall-of-shame/index.html + CSS** — CRT aesthetic, local rap sheet, global stats, leaderboard
+
+**Wave 22d: Integration + Achievements (3 parallel agents)**
+- [x] **9 TripWire achievements** — Busted!, Repeat Offender, Script Kiddie, The Manipulator, Storage Raider, Time Bandit, Decoy Victim, XSS Artist, Hall of Fame (title: "the Notorious")
+- [x] **FluxCapacitor auto-load** — TripWire.js + TripWireEffects.js loads on every page
+- [x] **Engine integration** — BoxEngine decoy flags, OperatorEngine decoy commands, XPCalculator integrity cross-ref
+
+**Wave 22e: Polish + Validation**
+- [x] Run `npm run scan` — fix any new issues
+- [x] TripWireEffects.js — 10 escalating visual tiers + Web Audio API synthesis + speech synthesis
+- [x] False positive fixes — stack trace inspection for storage sensor, tab visibility check for timer sensor
+- [x] Deployed v3.0.0
+- [x] Feature doc: `_app/docs/features/TRIPWIRE_DEFENSE.md`
+
+---
+
+## Wave 23: Progress Sync — Priority Courses + Protection
+*Full scoping doc: `_planning/INSTRUCTOR_HOOKS_SCOPE.md`*
+*Priority: A+ Core 2, CLH, Linux Mastery, Linux Administration*
+*IMPORTANT: Progress is to be PROTECTED — TripWire + server validation*
+
+**Current sync state:**
+- A+ Core 1: SYNCING (ProgressSync `checkLocalCompletion()`)
+- A+ Core 2: SYNCING (ProgressSync `checkLocalCompletion()`)
+- WSA: SYNCING (ProgressSync `checkWSAModule()`)
+- CLH: SYNCING (ProgressSync via `hexworth_progress.script.clh-*`)
+- Linux Mastery: NOT SYNCING — need to identify storage keys + add check function
+- Linux Administration: NOT SYNCING — need to identify storage keys + add check function
+- Games (81): NOT SYNCING
+- Dark Arts gates (8): NOT SYNCING
+- Reviews (6): NOT SYNCING
+- CMMC (14): NOT SYNCING
+
+**Wave 23a: Audit Current Sync Coverage**
+- [x] All 4 priority courses already sync via generic `hexworth_progress.script` handler
+  - A+ Core 2: syncs via contentId `script-*` → `hexworth_progress.script[key]`
+  - CLH: syncs via dedicated handler + generic fallback
+  - Linux Mastery: 53 modules, syncs via generic handler (`hexworth_progress.script[filename]`)
+  - Linux Admin: 37 items (12 pres + 12 labs + 12 quizzes + 1 review), syncs via generic handler
+- [x] Linux Mastery also has `hexworth_arctic_progress` (dual-store) — ProgressSync checks this as fallback
+- [x] Linux Admin quiz keys use abbreviated format (`la-chXX-quiz`) — ProgressSync handles via `hp[contentId]` fallback
+
+**Wave 23b: ProgressSync already covers priority courses** (no new handlers needed)
+- [x] Generic handler at line 157 matches all `script-*` contentIds
+- [x] Falls back to `hp[contentId]` which catches full key format
+
+**Wave 23c: Progress Protection Layer**
+- [x] TripWire: added `hexworth_arctic_progress` to PROTECTED_KEYS
+- [x] TripWire: added `hexworth_synced_activity` to protect sync tracking
+- [x] TripWire: added `hexworth_operator_` prefix match (all Operator mission keys)
+- [x] Firestore rules already enforce: field whitelist on user profile, gate writes Cloud Function only, progress writes auth-gated per student
+
+**Wave 23d: Sync Gap Closure**
+- [x] Added `checkGameData()` — reads `hexworth_game_tracker`, checks played/won/completed
+- [x] Added `checkGateData()` — reads `gate{N}_complete` key, handles string and JSON formats
+- [x] Added `checkOperatorMission()` — reads `hexworth_operator_{slug}` key
+
+**Wave 23e: Validation**
+- [x] EduScan clean — no new issues
+- [x] Deployed 2026-03-12
+
+---
+
+## Wave 24: Handler Dashboard Redesign — Drill-Down Analytics
+*Full plan: `_planning/HANDLER_DASHBOARD_REDESIGN.md`*
+*Sports analytics model — no scroll, click-to-drill, predictive layer*
+
+**Wave 24a: File Extraction + View Engine Foundation**
+- [x] Extracted 9,091-line monolith → 4 files (HTML 461 lines + CSS 3,704 + JS 4,985 + Charts 82)
+- [x] View engine: drillDown(), goBack(), breadcrumb navigation, save/restore Level 0
+- [x] Kept 3-column layout (sidebar still useful for class switching)
+
+**Wave 24b: KPI Cards + Clickable Drill-Downs**
+- [x] Enrolled, Avg Completion, Total Completions cards clickable with keyboard support
+- [x] drillDownEnrolled(): student table with house, level, join date, last active
+- [x] drillDownCompletion(): SVG donut chart + per-student completion bars
+- [x] drillDownCompletions(): per-assignment table with rates and avg scores
+- [x] HandlerCharts.js: donut, barChart, sparkline, histogram (SVG/Canvas, no library)
+
+**Wave 24c: Student Profile — Global/Class Tabs**
+- [x] Roster cards clickable → student profile drill-down
+- [x] Student header: avatar, callsign, house, level, XP, dates
+- [x] CLASS tab: assignment completion, per-assignment status, risk badge
+- [x] GLOBAL tab: 6 stat cards (Quiz Avg, Modules, Labs, XP, Level, Streak)
+- [x] Stat cards clickable → Level 2 detail view
+- [x] Profile data fetched from Firestore users/{uid}, cached in _profileCache
+
+**Wave 24d: Polish + Export**
+- [x] CSV export from any drill-down view (tables + bar charts)
+- [x] Escape key navigates back through drill-down stack
+- [x] Roster pagination (15 per page, Prev/Next controls)
+- [x] Risk score engine: completion deficit (0.4) + inactivity (0.3) + overdue velocity (0.3)
+- [x] EduScan clean, deployed 2026-03-12
+
+**Commit message:** `feat: Handler dashboard redesign — drill-down analytics, predictive layer, zero-scroll`
 
 ---
 
@@ -553,11 +695,18 @@
 | 18 — Bug bounty sim platform | 2-3 parallel | 4 modules + bounty sim lab + AI track | 3-4 hrs |
 | 19 — Final QC & deploy | 1 | EduScan + git + firebase | 15 min |
 | 20 — CAT-002 cleanup | 4 parallel → serial | Register 99 undeclared files | 2-3 hrs |
+| 21 — Operator expansion reg | 1 serial | Register 4 new missions in ContentCatalog + content-registry | 30 min |
+| 22 — TripWire + Wall of Shame | 5 waves | TripWire.js (8 sensors), WallOfShame.js, wall page, 9 achievements | 6-8 hrs |
+| 23 — Progress Sync + Protection | 5 waves | Priority course sync, TripWire protection, sync gap closure | 4-6 hrs |
+| 24 — Handler Dashboard Redesign | 4 waves | Drill-down analytics, prediction engine, zero-scroll, charts | 12-18 hrs |
 
-**Total: 20 waves, ~59 agents across all waves**
+**Total: 24 waves, ~75 agents across all waves**
 **Phase 1 (Waves 1-14): 14 GH Actions modules + 6 API modules + 7 hub pages + 2 games + 1 asymmetric box + Security-101 course + universal stamps**
 **Phase 2 (Waves 15-19): AI exploit lab enhancements + bug bounty simulation platform**
 **Phase 3 (Wave 20): ContentCatalog registration for all marathon-created content**
+**Phase 4 (Waves 21-22): Operator expansion registration + TripWire honeypot defense system**
+**Phase 5 (Wave 23): Progress sync for priority courses (A+ Core 2, CLH, Linux Mastery, Linux Admin) + protection layer**
+**Phase 6 (Wave 24): Handler dashboard redesign — drill-down sports analytics model with predictive layer**
 **Engine: BoxEngine blue team extensions (AR-6), AI exploit hint/explanation/logs system**
 **Quality: ~5,000+ EduScan findings resolved + accessibility audit + CAT-002 zero**
 
