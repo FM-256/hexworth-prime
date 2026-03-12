@@ -153,6 +153,51 @@
             return null;
         }
 
+        // Game completions (via GameTracker)
+        const gameMatch = contentId.match(/^game-(.+)$/);
+        if (gameMatch) {
+            try {
+                const tracker = JSON.parse(localStorage.getItem('hexworth_game_tracker') || '{}');
+                const gameData = tracker[gameMatch[1]] || tracker[contentId];
+                if (gameData && (gameData.played || gameData.won || gameData.completed)) {
+                    return { completed: true, score: gameData.bestScore || null, completedAt: gameData.lastPlayed || null };
+                }
+            } catch (e) { /* fall through */ }
+            return null;
+        }
+
+        // Dark Arts gate completions
+        const gateMatch = contentId.match(/^gate(\d+)$/);
+        if (gateMatch) {
+            const key = 'gate' + gateMatch[1] + '_complete';
+            try {
+                const val = localStorage.getItem(key);
+                if (val === 'true' || val === '1') {
+                    return { completed: true, score: null, completedAt: null };
+                }
+                // Also check JSON format
+                const parsed = JSON.parse(val);
+                if (parsed && parsed.completed) {
+                    return { completed: true, score: null, completedAt: parsed.completedAt || null };
+                }
+            } catch (e) { /* fall through */ }
+            return null;
+        }
+
+        // Operator mission completions
+        const opMatch = contentId.match(/^op-(.+)$/);
+        if (opMatch) {
+            const keySlug = opMatch[1].replace(/-/g, '');
+            const key = 'hexworth_operator_' + keySlug;
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                if (data && data.completed) {
+                    return { completed: true, score: data.score || null, completedAt: data.completedAt || null };
+                }
+            } catch (e) { /* fall through */ }
+            return null;
+        }
+
         // Generic house content
         const houseMatch = contentId.match(/^(script|shield|web|forge|cloud|code|key|eye)-(.+)$/);
         if (houseMatch) {
