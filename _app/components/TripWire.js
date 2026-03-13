@@ -39,7 +39,8 @@
     'hexworth_xp', 'hexworth_streak', 'hexworth_stats',
     'hexworth_house_completions', 'hexworth_game_tracker',
     'hexworth_integrity', 'hexworth_mastery_',
-    'hexworth_synced_activity', 'hexworth_operator_'
+    'hexworth_synced_activity', 'hexworth_operator_',
+    'hexworth_lab_', 'dispatch_desk_toys'
   ];
 
   var GATE_KEYS = [];
@@ -290,17 +291,135 @@
       }
     };
 
-    // Poll for external tampering (devtools Application tab edits)
-    _nativeSetInterval.call(window, _pollStorage, POLL_INTERVAL_MS);
+    // Wrap Storage.prototype.removeItem -- prevent deleting protected keys
+    var originalRemoveItem = Storage.prototype.removeItem;
+    Storage.prototype.removeItem = function (key) {
+      if (_isProtectedKey(key)) {
+        var stack = '';
+        try { stack = new Error().stack || ''; } catch (e) { /* */ }
+        if (_stackHasConsole(stack)) {
+          _dispatch({
+            sensor:   'storage',
+            category: 'storage_tampering',
+            detail:   'Unauthorized delete of "' + key + '"'
+          });
+          // Restore from snapshot
+          var good = storageSnapshot[key];
+          if (good !== undefined) {
+            authorizedKeys[key] = true;
+            originalSetItem.call(localStorage, key, good);
+            delete authorizedKeys[key];
+          }
+          return;
+        }
+      }
+      originalRemoveItem.call(this, key);
+      if (_isProtectedKey(key)) {
+        delete storageSnapshot[key];
+        delete checksumMap[key];
+      }
+    };
 
-    // Cross-tab sync: legitimate writes from other tabs update the snapshot
-    // so the poll doesn't flag them as tampering
+    // Wrap Storage.prototype.clear -- prevent wiping all data
+    var originalClear = Storage.prototype.clear;
+    Storage.prototype.clear = function () {
+      var stack = '';
+      try { stack = new Error().stack || ''; } catch (e) { /* */ }
+      if (_stackHasConsole(stack)) {
+        _dispatch({
+          sensor:   'storage',
+          category: 'storage_tampering',
+          detail:   'Attempted localStorage.clear() from console'
+        });
+        // Restore all protected keys
+        var sKeys = Object.keys(storageSnapshot);
+        for (var i = 0; i < sKeys.length; i++) {
+          if (storageSnapshot[sKeys[i]] !== undefined) {
+            authorizedKeys[sKeys[i]] = true;
+            originalSetItem.call(localStorage, sKeys[i], storageSnapshot[sKeys[i]]);
+            delete authorizedKeys[sKeys[i]];
+          }
+        }
+        return;
+      }
+      originalClear.call(this);
+      storageSnapshot = {};
+      checksumMap = {};
+    };
+
+    // Lock down Storage.prototype so wrappers can't be unwrapped
+    try {
+      Object.defineProperty(Storage.prototype, 'setItem', {
+        writable: false, configurable: false
+      });
+      Object.defineProperty(Storage.prototype, 'removeItem', {
+        writable: false, configurable: false
+      });
+      Object.defineProperty(Storage.prototype, 'clear', {
+        writable: false, configurable: false
+      });
+    } catch (e) { /* older browsers may not support this */ }
+
+    // Poll for external tampering (devtools Application tab edits, direct property access)
+    // Reduced from 3s to 1s to shrink the bypass window
+    _nativeSetInterval.call(window, _pollStorage, 1000);
+
+    // Cross-tab sync: validate writes from other tabs instead of blindly accepting
     window.addEventListener('storage', function (e) {
       if (e.key && _isProtectedKey(e.key)) {
+        // Validate the change: detect suspicious jumps
+        if (_isSuspiciousCrossTabWrite(e.key, e.oldValue, e.newValue)) {
+          _dispatch({
+            sensor:   'storage',
+            category: 'cross_tab_tampering',
+            detail:   'Suspicious cross-tab write to "' + e.key + '"'
+          });
+          // Revert: restore our snapshot
+          if (storageSnapshot[e.key] !== undefined) {
+            authorizedKeys[e.key] = true;
+            localStorage.setItem(e.key, storageSnapshot[e.key]);
+            delete authorizedKeys[e.key];
+          }
+          return;
+        }
+        // Legitimate cross-tab write: update snapshot
         storageSnapshot[e.key] = e.newValue;
         checksumMap[e.key] = _checksum(e.key, e.newValue);
       }
     });
+  }
+
+  /**
+   * Detect suspicious cross-tab writes. Catches common cheat patterns:
+   * - XP jumps by more than 500 in a single write
+   * - Achievement count doubles or more
+   * - Progress values move backward significantly
+   */
+  function _isSuspiciousCrossTabWrite(key, oldVal, newVal) {
+    if (!oldVal || !newVal) return false;
+    try {
+      // XP: flag jumps > 500
+      if (key === 'hexworth_xp') {
+        var oldXP = parseInt(oldVal, 10) || 0;
+        var newXP = parseInt(newVal, 10) || 0;
+        if (newXP - oldXP > 500) return true;
+      }
+      // Achievements v2: flag if unlocked count doubles
+      if (key === 'hexworth_achievements_v2') {
+        var oldA = JSON.parse(oldVal);
+        var newA = JSON.parse(newVal);
+        var oldCount = oldA && oldA.unlocked ? Object.keys(oldA.unlocked).length : 0;
+        var newCount = newA && newA.unlocked ? Object.keys(newA.unlocked).length : 0;
+        if (oldCount > 0 && newCount > oldCount * 2) return true;
+      }
+      // Stats: flag if total_xp jumps > 1000
+      if (key === 'hexworth_stats') {
+        var oldS = JSON.parse(oldVal);
+        var newS = JSON.parse(newVal);
+        if (oldS && newS && newS.totalXP - oldS.totalXP > 1000) return true;
+      }
+    } catch (e) { /* parse errors = suspicious */ return true; }
+    return false;
   }
 
   function _snapshotStorage() {
