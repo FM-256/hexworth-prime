@@ -1124,6 +1124,67 @@
             .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
             .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
         }
+
+        /* ── AMMO SELECTOR ── */
+        .ammo-selector {
+            position: absolute;
+            bottom: -92px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            background: rgba(20,20,28,0.85);
+            border: 1px solid rgba(232,112,48,0.18);
+            border-radius: 5px;
+            padding: 4px 6px;
+            pointer-events: auto;
+            white-space: nowrap;
+        }
+        .ammo-sel-btn {
+            width: 26px;
+            height: 22px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 3px;
+            color: var(--dp-text-dim);
+            font-family: var(--dp-font);
+            font-size: 0.45rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.02em;
+            line-height: 1;
+        }
+        .ammo-sel-btn:hover { background: rgba(255,255,255,0.08); color: var(--dp-text); }
+        .ammo-sel-btn.active {
+            background: rgba(232,112,48,0.15);
+            border-color: rgba(232,112,48,0.4);
+            color: #e87030;
+        }
+        .ammo-sel-btn.locked, .target-sel-btn.locked {
+            opacity: 0.3;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        @keyframes unlockGlow {
+            0%, 100% { box-shadow: 0 0 8px rgba(255,200,0,0.8); }
+            50% { box-shadow: 0 0 20px rgba(255,200,0,1); }
+        }
+        .newly-unlocked { animation: unlockGlow 0.6s ease 5; }
+
+        /* Nerf ball bounce animation */
+        @keyframes nerfBounce {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            25%  { transform: translate(0, -20px) scale(1.1); opacity: 1; }
+            45%  { transform: translate(0, 0) scale(0.95); opacity: 0.9; }
+            65%  { transform: translate(0, -10px) scale(1.05); opacity: 0.8; }
+            80%  { transform: translate(0, 0) scale(0.98); opacity: 0.6; }
+            100% { transform: translate(0, 0) scale(1); opacity: 0; }
+        }
+        .nerf-bounce { animation: nerfBounce 0.7s ease-out forwards; }
     </style>
 </head>
 <body>
@@ -1808,6 +1869,14 @@
                     <span id="windReadout">W: 0</span>
                 </div>
             </div>
+
+            <!-- Ammo selector tray -->
+            <div class="ammo-selector">
+                <button class="ammo-sel-btn active" id="selAmmoFoam"    data-tier="1" onclick="selectAmmo('foam')"    title="Foam Dart (T1)">FDT</button>
+                <button class="ammo-sel-btn"        id="selAmmoSuction" data-tier="2" onclick="selectAmmo('suction')" title="Suction Cup (T2)">SCT</button>
+                <button class="ammo-sel-btn"        id="selAmmoNerf"    data-tier="3" onclick="selectAmmo('nerf')"    title="Nerf Ball (T3)">NRF</button>
+                <button class="ammo-sel-btn"        id="selAmmoRubber"  data-tier="4" onclick="selectAmmo('rubber')"  title="Rubber Band (T4)">RBR</button>
+            </div>
         </div>
 
         <!-- ═══ BULLSEYE TARGET ═══ -->
@@ -2068,10 +2137,10 @@
 
             <!-- Target selector row -->
             <div class="target-selector">
-                <button class="target-sel-btn active" id="selBullseye" onclick="selectTarget('bullseye')" title="Bullseye">BSY</button>
-                <button class="target-sel-btn" id="selBottle"   onclick="selectTarget('bottle')"   title="Bottle">BTL</button>
-                <button class="target-sel-btn" id="selClown"    onclick="selectTarget('clown')"    title="Clown">CLN</button>
-                <button class="target-sel-btn" id="selCups"     onclick="selectTarget('cups')"     title="Cups">CUP</button>
+                <button class="target-sel-btn active" id="selBullseye" data-tier="1" onclick="selectTarget('bullseye')" title="Bullseye">BSY</button>
+                <button class="target-sel-btn" id="selBottle"   data-tier="2" onclick="selectTarget('bottle')"   title="Bottle">BTL</button>
+                <button class="target-sel-btn" id="selClown"    data-tier="3" onclick="selectTarget('clown')"    title="Clown">CLN</button>
+                <button class="target-sel-btn" id="selCups"     data-tier="4" onclick="selectTarget('cups')"     title="Cups">CUP</button>
             </div>
 
             <!-- Score display -->
@@ -2283,6 +2352,7 @@
         var totalShots = 0;
         var totalHits = 0;
         var activeTarget = 'bullseye';
+        var activeAmmo = 'foam';
 
         // Session zero offset — random each page load
         var zeroElev = (Math.random() * 30) - 15;  // -15 to +15 deg
@@ -2351,11 +2421,40 @@
             } catch(e) {}
         };
 
+        // ── Ammo selector ──
+        window.selectAmmo = function(name) {
+            var unlocked = getUnlockedAmmo();
+            if (unlocked.indexOf(name) === -1) {
+                showLockedTip(document.getElementById('selAmmo' + name.charAt(0).toUpperCase() + name.slice(1)));
+                return;
+            }
+            activeAmmo = name;
+            var ammos = ['foam','suction','nerf','rubber'];
+            ammos.forEach(function(a) {
+                var btn = document.getElementById('selAmmo' + a.charAt(0).toUpperCase() + a.slice(1));
+                if (btn) btn.classList.toggle('active', a === name);
+            });
+            try {
+                var data = JSON.parse(localStorage.getItem('dispatch_desk_toys') || '{}');
+                data.activeAmmo = name;
+                localStorage.setItem('dispatch_desk_toys', JSON.stringify(data));
+            } catch(e) {}
+        };
+
         // ── Restore active target from storage ──
         try {
             var _saved = JSON.parse(localStorage.getItem('dispatch_desk_toys') || '{}');
             if (_saved.activeTarget && ['bullseye','bottle','clown','cups'].indexOf(_saved.activeTarget) !== -1) {
                 window.selectTarget(_saved.activeTarget);
+            }
+        } catch(e) {}
+
+        // ── Restore active ammo from storage ──
+        try {
+            var _savedAmmo = JSON.parse(localStorage.getItem('dispatch_desk_toys') || '{}');
+            if (_savedAmmo.activeAmmo && ['foam','suction','nerf','rubber'].indexOf(_savedAmmo.activeAmmo) !== -1) {
+                // Will be applied after checkTierUnlocks runs
+                activeAmmo = _savedAmmo.activeAmmo;
             }
         } catch(e) {}
 
@@ -2388,68 +2487,85 @@
             }
         });
 
-        function fireDart() {
-            if (isFiring || !projLayer) return;
-            isFiring = true;
-            totalShots++;
-
-            var launcherEl = document.getElementById('deskLauncher');
-            var targetEl = document.getElementById('deskTarget');
-            if (!launcherEl || !targetEl) { isFiring = false; return; }
-
-            var lRect = launcherEl.getBoundingClientRect();
-            var tRect = targetEl.getBoundingClientRect();
-
-            // Muzzle: top-right area of launcher
-            var sx = lRect.left + lRect.width * 0.85;
-            var sy = lRect.top + lRect.height * 0.3;
-
-            // Target center: center of the active target area
-            var tx = tRect.left + 50 * (tRect.width / 100);
-            var ty = tRect.top + 55 * (tRect.height / 130);
-
-            // Apply zero offset
-            var effectiveElev = elevation + zeroElev;
-            var effectiveWind = windage + zeroWind;
-
-            var landX = tx + effectiveWind * 0.8;
-            var landY = ty + (45 - effectiveElev) * 1.2;
-
-            var dist = Math.sqrt(Math.pow(landX - sx, 2) + Math.pow(landY - sy, 2));
-            var apexH = Math.max(40, Math.sin(Math.abs(effectiveElev) * Math.PI / 180) * dist * 0.35);
-
-            // Create dart
+        // ── Projectile SVG builder — returns a <g> element for the active ammo type ──
+        function buildProjectileSvg(ammoType) {
             var ns = 'http://www.w3.org/2000/svg';
             var dart = document.createElementNS(ns, 'g');
-            var dartBody = document.createElementNS(ns, 'rect');
-            dartBody.setAttribute('x', '-8');
-            dartBody.setAttribute('y', '-2');
-            dartBody.setAttribute('width', '16');
-            dartBody.setAttribute('height', '4');
-            dartBody.setAttribute('rx', '1');
-            dartBody.setAttribute('fill', '#e87030');
-            var dartTip = document.createElementNS(ns, 'circle');
-            dartTip.setAttribute('cx', '-8');
-            dartTip.setAttribute('cy', '0');
-            dartTip.setAttribute('r', '2.5');
-            dartTip.setAttribute('fill', '#cc5520');
-            var dartFin = document.createElementNS(ns, 'polygon');
-            dartFin.setAttribute('points', '6,-4 10,0 6,4');
-            dartFin.setAttribute('fill', '#dd6020');
-            dart.appendChild(dartBody);
-            dart.appendChild(dartTip);
-            dart.appendChild(dartFin);
+
+            if (ammoType === 'suction') {
+                // Wider orange body + larger suction cup at tip
+                var body = document.createElementNS(ns, 'rect');
+                body.setAttribute('x', '-8'); body.setAttribute('y', '-2.5');
+                body.setAttribute('width', '16'); body.setAttribute('height', '5');
+                body.setAttribute('rx', '1'); body.setAttribute('fill', '#e87030');
+                var cup = document.createElementNS(ns, 'circle');
+                cup.setAttribute('cx', '-8'); cup.setAttribute('cy', '0');
+                cup.setAttribute('r', '4'); cup.setAttribute('fill', '#222');
+                cup.setAttribute('stroke', '#555'); cup.setAttribute('stroke-width', '0.8');
+                var cupInner = document.createElementNS(ns, 'circle');
+                cupInner.setAttribute('cx', '-8'); cupInner.setAttribute('cy', '0');
+                cupInner.setAttribute('r', '2'); cupInner.setAttribute('fill', '#3a3a3a');
+                var fin = document.createElementNS(ns, 'polygon');
+                fin.setAttribute('points', '6,-4 10,0 6,4'); fin.setAttribute('fill', '#dd6020');
+                dart.appendChild(body); dart.appendChild(cup); dart.appendChild(cupInner); dart.appendChild(fin);
+
+            } else if (ammoType === 'nerf') {
+                // Yellow foam ball
+                var ball = document.createElementNS(ns, 'circle');
+                ball.setAttribute('cx', '0'); ball.setAttribute('cy', '0');
+                ball.setAttribute('r', '5'); ball.setAttribute('fill', '#f5d442');
+                ball.setAttribute('stroke', '#d4b020'); ball.setAttribute('stroke-width', '0.8');
+                var shine = document.createElementNS(ns, 'circle');
+                shine.setAttribute('cx', '-2'); shine.setAttribute('cy', '-2');
+                shine.setAttribute('r', '1.5'); shine.setAttribute('fill', 'rgba(255,255,255,0.4)');
+                dart.appendChild(ball); dart.appendChild(shine);
+
+            } else if (ammoType === 'rubber') {
+                // Thin brown line — rubber band
+                var band = document.createElementNS(ns, 'line');
+                band.setAttribute('x1', '-10'); band.setAttribute('y1', '0');
+                band.setAttribute('x2', '10'); band.setAttribute('y2', '0');
+                band.setAttribute('stroke', '#8b5e3c'); band.setAttribute('stroke-width', '2.5');
+                band.setAttribute('stroke-linecap', 'round');
+                var knot = document.createElementNS(ns, 'circle');
+                knot.setAttribute('cx', '-10'); knot.setAttribute('cy', '0');
+                knot.setAttribute('r', '1.5'); knot.setAttribute('fill', '#6b3e1c');
+                dart.appendChild(band); dart.appendChild(knot);
+
+            } else {
+                // Default: foam dart
+                var dartBody = document.createElementNS(ns, 'rect');
+                dartBody.setAttribute('x', '-8'); dartBody.setAttribute('y', '-2');
+                dartBody.setAttribute('width', '16'); dartBody.setAttribute('height', '4');
+                dartBody.setAttribute('rx', '1'); dartBody.setAttribute('fill', '#e87030');
+                var dartTip = document.createElementNS(ns, 'circle');
+                dartTip.setAttribute('cx', '-8'); dartTip.setAttribute('cy', '0');
+                dartTip.setAttribute('r', '2.5'); dartTip.setAttribute('fill', '#cc5520');
+                var dartFin = document.createElementNS(ns, 'polygon');
+                dartFin.setAttribute('points', '6,-4 10,0 6,4'); dartFin.setAttribute('fill', '#dd6020');
+                dart.appendChild(dartBody); dart.appendChild(dartTip); dart.appendChild(dartFin);
+            }
+            return dart;
+        }
+
+        // ── Single shot animation ──
+        function launchSingleShot(sx, sy, landX, landY, apexH, ammoType, onDone) {
+            var ns = 'http://www.w3.org/2000/svg';
+            var dart = buildProjectileSvg(ammoType);
             projLayer.appendChild(dart);
 
-            // Trail
+            var trailColor = (ammoType === 'rubber') ? 'rgba(139,94,60,0.3)' :
+                             (ammoType === 'nerf')   ? 'rgba(245,212,66,0.3)' :
+                             'rgba(232,112,48,0.3)';
             var trail = document.createElementNS(ns, 'polyline');
             trail.setAttribute('fill', 'none');
-            trail.setAttribute('stroke', 'rgba(232,112,48,0.3)');
+            trail.setAttribute('stroke', trailColor);
             trail.setAttribute('stroke-width', '1.5');
             trail.setAttribute('stroke-dasharray', '3,3');
             projLayer.appendChild(trail);
             var trailPoints = [];
 
+            var dist = Math.sqrt(Math.pow(landX - sx, 2) + Math.pow(landY - sy, 2));
             var duration = 600 + dist * 0.8;
             var startTime = null;
 
@@ -2475,7 +2591,11 @@
                     requestAnimationFrame(animate);
                 } else {
                     if (dart.parentNode) projLayer.removeChild(dart);
-                    checkHit(landX, landY, angle);
+
+                    // Nerf ball: show bounce on miss
+                    if (ammoType === 'nerf') {
+                        spawnNerfBounce(landX, landY);
+                    }
 
                     var fadeStart = performance.now();
                     function fadeTrail(ts2) {
@@ -2488,10 +2608,89 @@
                         }
                     }
                     requestAnimationFrame(fadeTrail);
-                    isFiring = false;
+                    if (onDone) onDone(landX, landY, angle);
                 }
             }
             requestAnimationFrame(animate);
+        }
+
+        // ── Nerf ball bounce effect ──
+        function spawnNerfBounce(x, y) {
+            var ns = 'http://www.w3.org/2000/svg';
+            var g = document.createElementNS(ns, 'g');
+            g.setAttribute('transform', 'translate(' + x + ',' + y + ')');
+            var ball = document.createElementNS(ns, 'circle');
+            ball.setAttribute('cx', '0'); ball.setAttribute('cy', '0');
+            ball.setAttribute('r', '5'); ball.setAttribute('fill', '#f5d442');
+            ball.setAttribute('stroke', '#d4b020'); ball.setAttribute('stroke-width', '0.8');
+            g.appendChild(ball);
+            g.setAttribute('class', 'nerf-bounce');
+            projLayer.appendChild(g);
+            setTimeout(function() { if (g.parentNode) g.parentNode.removeChild(g); }, 800);
+        }
+
+        function fireDart() {
+            if (isFiring || !projLayer) return;
+
+            var launcherEl = document.getElementById('deskLauncher');
+            var targetEl = document.getElementById('deskTarget');
+            if (!launcherEl || !targetEl) return;
+
+            var lRect = launcherEl.getBoundingClientRect();
+            var tRect = targetEl.getBoundingClientRect();
+
+            var sx = lRect.left + lRect.width * 0.85;
+            var sy = lRect.top + lRect.height * 0.3;
+            var tx = tRect.left + 50 * (tRect.width / 100);
+            var ty = tRect.top + 55 * (tRect.height / 130);
+
+            var effectiveElev = elevation + zeroElev;
+            var effectiveWind = windage + zeroWind;
+
+            if (activeAmmo === 'rubber') {
+                // Rubber band: 3-shot burst, 100ms apart, flat trajectory
+                isFiring = true;
+                var shotsLeft = 3;
+                function fireRubberShot(shotIdx) {
+                    totalShots++;
+                    var scatter = (Math.random() - 0.5) * 6;
+                    var scatterY = (Math.random() - 0.5) * 6;
+                    var lx = tx + effectiveWind * 0.8 + scatter;
+                    var ly = ty + (45 - effectiveElev) * 1.2 + scatterY;
+                    var dist = Math.sqrt(Math.pow(lx - sx, 2) + Math.pow(ly - sy, 2));
+                    // Rubber band: nearly flat — reduce apexH by 80%
+                    var apexH = Math.max(8, Math.sin(Math.abs(effectiveElev) * Math.PI / 180) * dist * 0.07);
+                    var isLast = (shotIdx === 2);
+                    launchSingleShot(sx, sy, lx, ly, apexH, 'rubber', function(fx, fy, angle) {
+                        checkHit(fx, fy, angle);
+                        if (isLast) isFiring = false;
+                    });
+                }
+                fireRubberShot(0);
+                setTimeout(function() { fireRubberShot(1); }, 100);
+                setTimeout(function() { fireRubberShot(2); }, 200);
+
+            } else {
+                isFiring = true;
+                totalShots++;
+
+                var lx = tx + effectiveWind * 0.8;
+                var ly = ty + (45 - effectiveElev) * 1.2;
+
+                // Nerf ball: add +/-5px random scatter
+                if (activeAmmo === 'nerf') {
+                    lx += (Math.random() - 0.5) * 10;
+                    ly += (Math.random() - 0.5) * 10;
+                }
+
+                var dist = Math.sqrt(Math.pow(lx - sx, 2) + Math.pow(ly - sy, 2));
+                var apexH = Math.max(40, Math.sin(Math.abs(effectiveElev) * Math.PI / 180) * dist * 0.35);
+
+                launchSingleShot(sx, sy, lx, ly, apexH, activeAmmo, function(fx, fy, angle) {
+                    checkHit(fx, fy, angle);
+                    isFiring = false;
+                });
+            }
         }
 
         // ══════════════════════════════
@@ -2922,7 +3121,7 @@
             setTimeout(function() { container.innerHTML = ''; }, 1200);
         }
 
-        // ── Stuck dart in bullseye SVG ──
+        // ── Stuck dart in bullseye SVG (ammo-aware) ──
         function addStuckDart(x, y, angle) {
             if (!stuckDarts) return;
             var ns = 'http://www.w3.org/2000/svg';
@@ -2930,28 +3129,57 @@
             g.setAttribute('class', 'stuck-dart');
             g.setAttribute('transform', 'translate(' + x + ',' + y + ') rotate(' + (angle || 0) + ')');
 
-            var body = document.createElementNS(ns, 'rect');
-            body.setAttribute('x', '-7');
-            body.setAttribute('y', '-1.5');
-            body.setAttribute('width', '14');
-            body.setAttribute('height', '3');
-            body.setAttribute('rx', '1');
-            body.setAttribute('fill', '#e87030');
+            if (activeAmmo === 'suction') {
+                // Suction cup stuck dart — wider body + large dark suction cup
+                var body = document.createElementNS(ns, 'rect');
+                body.setAttribute('x', '-7'); body.setAttribute('y', '-2');
+                body.setAttribute('width', '14'); body.setAttribute('height', '4');
+                body.setAttribute('rx', '1'); body.setAttribute('fill', '#e87030');
+                var cup = document.createElementNS(ns, 'circle');
+                cup.setAttribute('cx', '-8'); cup.setAttribute('cy', '0');
+                cup.setAttribute('r', '4'); cup.setAttribute('fill', '#222');
+                cup.setAttribute('stroke', '#555'); cup.setAttribute('stroke-width', '0.8');
+                var cupInner = document.createElementNS(ns, 'circle');
+                cupInner.setAttribute('cx', '-8'); cupInner.setAttribute('cy', '0');
+                cupInner.setAttribute('r', '2'); cupInner.setAttribute('fill', '#3a3a3a');
+                var fin = document.createElementNS(ns, 'polygon');
+                fin.setAttribute('points', '5,-3 8,0 5,3'); fin.setAttribute('fill', '#dd6020');
+                fin.setAttribute('opacity', '0.7');
+                g.appendChild(body); g.appendChild(cup); g.appendChild(cupInner); g.appendChild(fin);
 
-            var tip = document.createElementNS(ns, 'circle');
-            tip.setAttribute('cx', '-7');
-            tip.setAttribute('cy', '0');
-            tip.setAttribute('r', '2');
-            tip.setAttribute('fill', '#cc5520');
+            } else if (activeAmmo === 'nerf') {
+                // Nerf ball sticks as yellow ball
+                var ball = document.createElementNS(ns, 'circle');
+                ball.setAttribute('cx', '0'); ball.setAttribute('cy', '0');
+                ball.setAttribute('r', '4'); ball.setAttribute('fill', '#f5d442');
+                ball.setAttribute('stroke', '#d4b020'); ball.setAttribute('stroke-width', '0.8');
+                ball.setAttribute('opacity', '0.85');
+                g.appendChild(ball);
 
-            var fin = document.createElementNS(ns, 'polygon');
-            fin.setAttribute('points', '5,-3 8,0 5,3');
-            fin.setAttribute('fill', '#dd6020');
-            fin.setAttribute('opacity', '0.7');
+            } else if (activeAmmo === 'rubber') {
+                // Rubber band sticks as short brown line
+                var band = document.createElementNS(ns, 'line');
+                band.setAttribute('x1', '-6'); band.setAttribute('y1', '0');
+                band.setAttribute('x2', '6'); band.setAttribute('y2', '0');
+                band.setAttribute('stroke', '#8b5e3c'); band.setAttribute('stroke-width', '2');
+                band.setAttribute('stroke-linecap', 'round'); band.setAttribute('opacity', '0.7');
+                g.appendChild(band);
 
-            g.appendChild(body);
-            g.appendChild(tip);
-            g.appendChild(fin);
+            } else {
+                // Default foam dart
+                var dBody = document.createElementNS(ns, 'rect');
+                dBody.setAttribute('x', '-7'); dBody.setAttribute('y', '-1.5');
+                dBody.setAttribute('width', '14'); dBody.setAttribute('height', '3');
+                dBody.setAttribute('rx', '1'); dBody.setAttribute('fill', '#e87030');
+                var dTip = document.createElementNS(ns, 'circle');
+                dTip.setAttribute('cx', '-7'); dTip.setAttribute('cy', '0');
+                dTip.setAttribute('r', '2'); dTip.setAttribute('fill', '#cc5520');
+                var dFin = document.createElementNS(ns, 'polygon');
+                dFin.setAttribute('points', '5,-3 8,0 5,3'); dFin.setAttribute('fill', '#dd6020');
+                dFin.setAttribute('opacity', '0.7');
+                g.appendChild(dBody); g.appendChild(dTip); g.appendChild(dFin);
+            }
+
             stuckDarts.appendChild(g);
         }
 
@@ -2983,9 +3211,152 @@
             } catch (e) {}
         }
 
+        // ══════════════════════════════
+        // ── TIER UNLOCK SYSTEM ──
+        // ══════════════════════════════
+
+        // Box keys to check for completed tickets — extend this list as new boxes ship
+        var BOX_KEYS = ['hexworth_lab_nt1'];
+
+        function countCompletedTickets() {
+            var count = 0;
+            BOX_KEYS.forEach(function(key) {
+                try {
+                    var d = JSON.parse(localStorage.getItem(key) || '{}');
+                    if (d.flags && d.flags.length > 0) count++;
+                } catch(e) {}
+            });
+            return count;
+        }
+
+        function getUnlockedAmmo() {
+            var tickets = countCompletedTickets();
+            var unlocked = ['foam'];
+            if (tickets >= 3)  unlocked.push('suction');
+            if (tickets >= 8)  unlocked.push('nerf');
+            if (tickets >= 15) unlocked.push('rubber');
+            return unlocked;
+        }
+
+        function getUnlockedTargets() {
+            var tickets = countCompletedTickets();
+            var unlocked = ['bullseye'];
+            if (tickets >= 3)  unlocked.push('bottle');
+            if (tickets >= 8)  unlocked.push('clown');
+            if (tickets >= 15) unlocked.push('cups');
+            return unlocked;
+        }
+
+        function showLockedTip(btn) {
+            if (!btn) return;
+            var tier = parseInt(btn.getAttribute('data-tier') || '2');
+            var needed = tier === 2 ? 3 : tier === 3 ? 8 : 15;
+            var current = countCompletedTickets();
+            var remaining = needed - current;
+            var tip = document.getElementById('deskTooltip');
+            if (tip) {
+                tip.textContent = 'Complete ' + remaining + ' more ticket' + (remaining === 1 ? '' : 's') + ' to unlock';
+                var rect = btn.getBoundingClientRect();
+                tip.style.left = (rect.left + rect.width / 2) + 'px';
+                tip.style.top = (rect.top - 30) + 'px';
+                tip.style.transform = 'translateX(-50%) translateY(0)';
+                tip.classList.add('show');
+                setTimeout(function() { tip.classList.remove('show'); }, 2200);
+            }
+        }
+
+        function checkTierUnlocks() {
+            try {
+                var data = JSON.parse(localStorage.getItem('dispatch_desk_toys') || '{}');
+                var prevUnlockedAmmo    = data.unlockedAmmo    || ['foam'];
+                var prevUnlockedTargets = data.unlockedTargets || ['bullseye'];
+
+                var nowAmmo    = getUnlockedAmmo();
+                var nowTargets = getUnlockedTargets();
+
+                // Apply locked/unlocked states to ammo buttons
+                var ammoMap = {foam:'selAmmoFoam', suction:'selAmmoSuction', nerf:'selAmmoNerf', rubber:'selAmmoRubber'};
+                Object.keys(ammoMap).forEach(function(a) {
+                    var btn = document.getElementById(ammoMap[a]);
+                    if (!btn) return;
+                    var isUnlocked = nowAmmo.indexOf(a) !== -1;
+                    btn.classList.toggle('locked', !isUnlocked);
+                    // New unlock flash
+                    if (isUnlocked && prevUnlockedAmmo.indexOf(a) === -1) {
+                        btn.classList.add('newly-unlocked');
+                        showNewUnlockTip(btn, btn.title || a);
+                        setTimeout(function() { btn.classList.remove('newly-unlocked'); }, 3100);
+                    }
+                });
+
+                // Apply locked/unlocked states to target buttons
+                var targetMap = {bullseye:'selBullseye', bottle:'selBottle', clown:'selClown', cups:'selCups'};
+                Object.keys(targetMap).forEach(function(t) {
+                    var btn = document.getElementById(targetMap[t]);
+                    if (!btn) return;
+                    var isUnlocked = nowTargets.indexOf(t) !== -1;
+                    btn.classList.toggle('locked', !isUnlocked);
+                    // New unlock flash
+                    if (isUnlocked && prevUnlockedTargets.indexOf(t) === -1) {
+                        btn.classList.add('newly-unlocked');
+                        showNewUnlockTip(btn, btn.title || t);
+                        setTimeout(function() { btn.classList.remove('newly-unlocked'); }, 3100);
+                    }
+                });
+
+                // Save new unlock state
+                data.unlockedAmmo    = nowAmmo;
+                data.unlockedTargets = nowTargets;
+                localStorage.setItem('dispatch_desk_toys', JSON.stringify(data));
+
+                // If active ammo/target is now locked (shouldn't happen but guard), reset to T1
+                if (nowAmmo.indexOf(activeAmmo) === -1) {
+                    activeAmmo = 'foam';
+                    window.selectAmmo('foam');
+                }
+                if (nowTargets.indexOf(activeTarget) === -1) {
+                    window.selectTarget('bullseye');
+                }
+
+                // Apply active ammo button state
+                var ammos = ['foam','suction','nerf','rubber'];
+                ammos.forEach(function(a) {
+                    var btn = document.getElementById(ammoMap[a]);
+                    if (btn && !btn.classList.contains('locked')) {
+                        btn.classList.toggle('active', a === activeAmmo);
+                    }
+                });
+
+            } catch(e) {}
+        }
+
+        function showNewUnlockTip(btn, name) {
+            var tip = document.getElementById('deskTooltip');
+            if (!tip) return;
+            tip.textContent = 'NEW: ' + name + ' unlocked!';
+            var rect = btn.getBoundingClientRect();
+            tip.style.left = (rect.left + rect.width / 2) + 'px';
+            tip.style.top = (rect.top - 30) + 'px';
+            tip.style.transform = 'translateX(-50%) translateY(0)';
+            tip.classList.add('show');
+            setTimeout(function() { tip.classList.remove('show'); }, 3000);
+        }
+
+        // Override selectTarget to respect locks
+        var _origSelectTarget = window.selectTarget;
+        window.selectTarget = function(name) {
+            var unlocked = getUnlockedTargets();
+            if (unlocked.indexOf(name) === -1) {
+                showLockedTip(document.getElementById('sel' + name.charAt(0).toUpperCase() + name.slice(1)));
+                return;
+            }
+            _origSelectTarget(name);
+        };
+
         // ── Init ──
         updateBarrel();
         updateCrosshair();
+        checkTierUnlocks();
     })();
     </script>
 
