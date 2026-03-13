@@ -861,6 +861,213 @@
   };
 
   /* ══════════════════════════════════════════════════════════════
+   * SENSOR 8: DevTools Detection + Consent Trap
+   * ══════════════════════════════════════════════════════════════ */
+
+  var _devToolsOpen = false;
+  var _devToolsModalShown = false;
+  var _devToolsConsentGiven = false;
+
+  function _initDevToolsSensor() {
+    // Method 1: Window size delta (DevTools panel changes inner vs outer width)
+    var threshold = 160;
+    var checkCount = 0;
+
+    function checkDevTools() {
+      var widthDelta = window.outerWidth - window.innerWidth;
+      var heightDelta = window.outerHeight - window.innerHeight;
+
+      var isOpen = widthDelta > threshold || heightDelta > threshold;
+
+      if (isOpen && !_devToolsOpen) {
+        _devToolsOpen = true;
+        _onDevToolsOpened();
+      } else if (!isOpen && _devToolsOpen) {
+        _devToolsOpen = false;
+      }
+    }
+
+    _nativeSetInterval.call(window, checkDevTools, 500);
+
+    // Method 2: debugger timing (detects when debugger statement pauses execution)
+    // Only runs once at startup — if debugger pauses, delta is huge
+    (function debuggerCheck() {
+      var before = performance.now();
+      // This debugger statement is intentional — it detects if DevTools is open
+      // at page load by measuring execution pause time
+      try { (function(){}).constructor('debugger')(); } catch (e) {}
+      var after = performance.now();
+      if (after - before > 100 && !_devToolsOpen) {
+        _devToolsOpen = true;
+        _onDevToolsOpened();
+      }
+    })();
+  }
+
+  function _onDevToolsOpened() {
+    _dispatch({
+      sensor:   'devtools',
+      category: 'devtools_opened',
+      detail:   'Developer Tools detected'
+    });
+
+    if (!_devToolsModalShown) {
+      _devToolsModalShown = true;
+      _showConsentModal();
+    }
+  }
+
+  function _showConsentModal() {
+    // Create full-screen modal overlay
+    var overlay = document.createElement('div');
+    overlay.id = 'tw-devtools-modal';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;'
+      + 'background:rgba(0,0,0,0.85);z-index:2147483646;display:flex;'
+      + 'align-items:center;justify-content:center;font-family:"Segoe UI",system-ui,sans-serif;';
+
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:#1a1a2e;border:2px solid #e74c3c;border-radius:12px;'
+      + 'padding:40px;max-width:520px;width:90%;color:#e0e0e0;text-align:center;'
+      + 'box-shadow:0 0 40px rgba(231,76,60,0.3);';
+
+    // Shield icon (text-based)
+    var icon = document.createElement('div');
+    icon.style.cssText = 'font-size:48px;margin-bottom:16px;';
+    icon.innerHTML = '<img src="/assets/images/icons/icon-shield.webp" alt="" '
+      + 'style="width:48px;height:48px;display:inline-block;object-fit:contain" '
+      + 'onerror="this.style.display=\'none\'">';
+
+    var title = document.createElement('h2');
+    title.style.cssText = 'color:#e74c3c;margin:0 0 12px;font-size:22px;font-weight:700;letter-spacing:1px;';
+    title.textContent = 'DEVELOPER TOOLS DETECTED';
+
+    var msg = document.createElement('p');
+    msg.style.cssText = 'color:#bbb;font-size:14px;line-height:1.6;margin:0 0 8px;';
+    msg.textContent = 'This session is now being monitored. All console commands, '
+      + 'localStorage changes, and DOM modifications are being recorded and reported '
+      + 'to your instructor\'s dashboard.';
+
+    var msg2 = document.createElement('p');
+    msg2.style.cssText = 'color:#888;font-size:12px;line-height:1.5;margin:0 0 24px;';
+    msg2.textContent = 'Session ID: ' + sessionId + ' | Forensic logging: ACTIVE | '
+      + 'Instructor notification: QUEUED';
+
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:16px;justify-content:center;';
+
+    var btnContinue = document.createElement('button');
+    btnContinue.style.cssText = 'padding:12px 28px;border:2px solid #e74c3c;background:rgba(231,76,60,0.15);'
+      + 'color:#e74c3c;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;'
+      + 'transition:all 0.2s;';
+    btnContinue.textContent = 'I Understand, Continue';
+    btnContinue.onmouseover = function() { this.style.background = 'rgba(231,76,60,0.3)'; };
+    btnContinue.onmouseout = function() { this.style.background = 'rgba(231,76,60,0.15)'; };
+
+    var btnClose = document.createElement('button');
+    btnClose.style.cssText = 'padding:12px 28px;border:2px solid #555;background:rgba(255,255,255,0.05);'
+      + 'color:#888;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;'
+      + 'transition:all 0.2s;';
+    btnClose.textContent = 'Close DevTools';
+    btnClose.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.1)'; };
+    btnClose.onmouseout = function() { this.style.background = 'rgba(255,255,255,0.05)'; };
+
+    // BOTH BUTTONS DO THE SAME THING
+    function onConsent(choice) {
+      _devToolsConsentGiven = true;
+
+      // Log the choice (both are consent)
+      _dispatch({
+        sensor:   'devtools',
+        category: choice === 'continue' ? 'devtools_consent' : 'devtools_denial',
+        detail:   choice === 'continue'
+          ? 'Student acknowledged monitoring and continued'
+          : 'Student clicked "Close DevTools" (still consented, DevTools still open)'
+      });
+
+      // Write consent to Firestore (real — instructor sees this)
+      _tryFirestore({
+        sensor: 'devtools',
+        category: 'devtools_consent',
+        detail: 'Choice: ' + choice + ' | Session: ' + sessionId
+      });
+
+      // Dismiss modal
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+
+      // Activate HoneypotMaze
+      if (window.HoneypotMaze && typeof window.HoneypotMaze.activate === 'function') {
+        window.HoneypotMaze.activate();
+      }
+
+      // Inject fake console messages
+      try {
+        console.log('%c[HEXWORTH SECURITY] Session ID: ' + sessionId, 'color:#ff0;font-weight:bold;font-size:12px');
+        console.log('%c[HEXWORTH SECURITY] Monitoring active. Instructor notified.', 'color:#ff0;font-size:12px');
+        console.log('%c[HEXWORTH SECURITY] All console input is being recorded.', 'color:#ff0;font-size:12px');
+        console.log('%c[HEXWORTH SECURITY] Type "help" for legitimate debugging commands.', 'color:#0f0;font-size:11px');
+      } catch (e) {}
+
+      // Show persistent "Monitored" banner
+      _showMonitorBanner();
+    }
+
+    btnContinue.onclick = function() { onConsent('continue'); };
+    btnClose.onclick = function() { onConsent('close'); };
+
+    btnRow.appendChild(btnContinue);
+    btnRow.appendChild(btnClose);
+
+    modal.appendChild(icon);
+    modal.appendChild(title);
+    modal.appendChild(msg);
+    modal.appendChild(msg2);
+    modal.appendChild(btnRow);
+    overlay.appendChild(modal);
+
+    // Wait for body
+    if (document.body) {
+      document.body.appendChild(overlay);
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        document.body.appendChild(overlay);
+      });
+    }
+  }
+
+  function _showMonitorBanner() {
+    var banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:8px;right:8px;z-index:2147483645;'
+      + 'background:rgba(231,76,60,0.9);color:#fff;padding:6px 14px;border-radius:6px;'
+      + 'font-family:"Segoe UI",system-ui,sans-serif;font-size:11px;font-weight:600;'
+      + 'letter-spacing:0.5px;display:flex;align-items:center;gap:8px;'
+      + 'box-shadow:0 2px 12px rgba(231,76,60,0.4);pointer-events:none;';
+
+    // Blinking dot
+    var dot = document.createElement('span');
+    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#ff4444;'
+      + 'display:inline-block;animation:twBlink 1.5s ease infinite;';
+
+    // Add blink animation
+    var blinkStyle = document.createElement('style');
+    blinkStyle.textContent = '@keyframes twBlink{0%,100%{opacity:1}50%{opacity:0.2}}';
+    document.head.appendChild(blinkStyle);
+
+    var text = document.createElement('span');
+    text.textContent = 'SESSION MONITORED';
+
+    banner.appendChild(dot);
+    banner.appendChild(text);
+
+    if (document.body) {
+      document.body.appendChild(banner);
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        document.body.appendChild(banner);
+      });
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════
    * Initialization
    * ══════════════════════════════════════════════════════════════ */
 
@@ -890,6 +1097,9 @@
 
   // Sensor 7: XSS pattern detection
   _initXssSensor();
+
+  // Sensor 8: DevTools detection + consent modal
+  _initDevToolsSensor();
 
   // Startup log (subtle)
   try {

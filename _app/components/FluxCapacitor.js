@@ -31,6 +31,39 @@
         }
     })();
 
+    // ── TripWire.js (Honeypot Defense System) ──
+    (function() {
+        var cs = document.currentScript;
+        if (cs && cs.src) {
+            var s = document.createElement('script');
+            s.src = cs.src.replace('FluxCapacitor.js', 'TripWire.js');
+            s.async = true;
+            document.head.appendChild(s);
+        }
+    })();
+
+    // ── TripWireEffects.js (Visual Consequences Engine) ──
+    (function() {
+        var cs = document.currentScript;
+        if (cs && cs.src) {
+            var s = document.createElement('script');
+            s.src = cs.src.replace('FluxCapacitor.js', 'TripWireEffects.js');
+            s.async = true;
+            document.head.appendChild(s);
+        }
+    })();
+
+    // ── HoneypotMaze.js (Psychological Warfare / Anti-Cheat Maze) ──
+    (function() {
+        var cs = document.currentScript;
+        if (cs && cs.src) {
+            var s = document.createElement('script');
+            s.src = cs.src.replace('FluxCapacitor.js', 'HoneypotMaze.js');
+            s.async = true;
+            document.head.appendChild(s);
+        }
+    })();
+
     // ═══════════════════════════════════════════════════════════════
     // CONFIGURATION
     // ═══════════════════════════════════════════════════════════════
