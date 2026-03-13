@@ -50,7 +50,8 @@ class QuizEngine {
             moduleId: config.moduleId || config.achievement || null,  // Unique ID for this quiz
             houseId: config.houseId || this.detectHouseFromUrl(),     // Auto-detect from URL
             trackProgress: config.trackProgress !== false,            // Enable progress tracking
-            nextModule: config.nextModule || null                      // CLH: config-provided next module
+            nextModule: config.nextModule || null,                     // CLH: config-provided next module
+            returnLabel: config.returnLabel || null                      // Custom label for back button (default: "Back to House")
         };
 
         this.state = {
@@ -561,7 +562,7 @@ class QuizEngine {
                         ` : ''}
                         ${results.passed ? `
                             <button class="quiz-btn quiz-house-btn">
-                                ← Back to House
+                                ← ${this.config.returnLabel || 'Back to House'}
                             </button>
                         ` : ''}
                         ${this.config.retryAllowed ? `
