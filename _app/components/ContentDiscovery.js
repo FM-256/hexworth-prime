@@ -1206,7 +1206,7 @@ const ContentDiscovery = (function() {
                 left: 14px;
                 top: 50%;
                 transform: translateY(-50%);
-                color: #666;
+                color: #8a8a8a;
                 font-size: 1rem;
                 pointer-events: none;
                 z-index: 1;
@@ -1231,7 +1231,7 @@ const ContentDiscovery = (function() {
             }
 
             .cd-search-input::placeholder {
-                color: #555;
+                color: #808080;
             }
 
             .cd-kbd-hint {
@@ -1240,7 +1240,7 @@ const ContentDiscovery = (function() {
                 top: 50%;
                 transform: translateY(-50%);
                 background: rgba(255, 255, 255, 0.06);
-                color: #555;
+                color: #808080;
                 padding: 2px 8px;
                 border-radius: 4px;
                 font-size: 0.7rem;
@@ -1313,7 +1313,7 @@ const ContentDiscovery = (function() {
 
             .cd-results-count {
                 font-size: 0.75rem;
-                color: #666;
+                color: #8a8a8a;
                 margin-bottom: 10px;
                 padding-bottom: 8px;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -1350,7 +1350,7 @@ const ContentDiscovery = (function() {
 
             .cd-house-count {
                 font-size: 0.65rem;
-                color: #666;
+                color: #8a8a8a;
                 background: rgba(255, 255, 255, 0.05);
                 padding: 2px 8px;
                 border-radius: 10px;
@@ -1413,7 +1413,7 @@ const ContentDiscovery = (function() {
 
             .cd-module-desc {
                 font-size: 0.72rem;
-                color: #666;
+                color: #8a8a8a;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -1455,7 +1455,7 @@ const ContentDiscovery = (function() {
             .cd-no-results {
                 text-align: center;
                 padding: 30px 20px;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .cd-no-results-icon {
@@ -1471,7 +1471,7 @@ const ContentDiscovery = (function() {
 
             .cd-no-results-hint {
                 font-size: 0.75rem;
-                color: #555;
+                color: #808080;
             }
 
             /* ═══════════════════════════════════════════
@@ -1517,7 +1517,7 @@ const ContentDiscovery = (function() {
             }
 
             .discovery-search-input::placeholder {
-                color: #666;
+                color: #8a8a8a;
             }
 
             .discovery-search-icon {
@@ -1525,7 +1525,7 @@ const ContentDiscovery = (function() {
                 left: 14px;
                 top: 50%;
                 transform: translateY(-50%);
-                color: #666;
+                color: #8a8a8a;
                 font-size: 1rem;
                 pointer-events: none;
             }
@@ -1610,7 +1610,7 @@ const ContentDiscovery = (function() {
 
             .discovery-results-count {
                 font-size: 0.8rem;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .discovery-results-count strong {
@@ -1627,7 +1627,7 @@ const ContentDiscovery = (function() {
                 background: rgba(255, 255, 255, 0.05);
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 6px;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 0.9rem;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -1678,7 +1678,7 @@ const ContentDiscovery = (function() {
                 border: none;
                 font-size: 1.2rem;
                 cursor: pointer;
-                color: #555;
+                color: #808080;
                 opacity: 0.7;
                 transition: all 0.2s ease;
                 padding: 2px 4px;
@@ -1729,7 +1729,7 @@ const ContentDiscovery = (function() {
                 padding: 2px 10px;
                 border-radius: 10px;
                 font-size: 0.75rem;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .global-house-group {
@@ -1764,7 +1764,7 @@ const ContentDiscovery = (function() {
 
             .global-house-count {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
                 background: rgba(255, 255, 255, 0.05);
                 padding: 2px 8px;
                 border-radius: 10px;
@@ -1811,7 +1811,7 @@ const ContentDiscovery = (function() {
 
             .global-module-desc {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -1888,7 +1888,7 @@ const ContentDiscovery = (function() {
             .start-here-item-icon img { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; }
             .start-here-item-info { flex: 1; }
             .start-here-item-title { font-size: 0.9rem; color: #ddd; margin-bottom: 2px; }
-            .start-here-item-type { font-size: 0.7rem; color: #666; }
+            .start-here-item-type { font-size: 0.7rem; color: #8a8a8a; }
 
             .start-here-item-arrow {
                 color: #444;
@@ -1925,12 +1925,12 @@ const ContentDiscovery = (function() {
             .discovery-no-results {
                 text-align: center;
                 padding: 60px 20px;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .discovery-no-results-icon { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
             .discovery-no-results-text { font-size: 0.95rem; margin-bottom: 8px; }
-            .discovery-no-results-hint { font-size: 0.8rem; color: #555; }
+            .discovery-no-results-hint { font-size: 0.8rem; color: #808080; }
 
             .discovery-clear-btn {
                 margin-top: 15px;

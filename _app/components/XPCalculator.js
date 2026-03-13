@@ -6,12 +6,13 @@
  * never accumulated. This eliminates drift, inflation, and formula mismatches.
  *
  * Dependencies (optional, graceful fallback if missing):
+ *   - XPMasterLedger (canonical XP values — falls back to hardcoded defaults if missing)
  *   - ProgressManager (for getProgress, LEVEL_TIERS)
  *   - ContentCatalog (for type resolution of ambiguous module IDs)
  *   - AchievementSystem (for badge count)
  *   - GameTracker (not used directly — reads hexworth_game_tracker from localStorage)
  *
- * Load order: after ProgressManager, ContentCatalog (optional)
+ * Load order: after XPMasterLedger (optional), ProgressManager, ContentCatalog (optional)
  *
  * Usage:
  *   const result = XPCalculator.recalculate();
@@ -69,6 +70,15 @@ const XPCalculator = (function () {
             }
         } catch (e) { /* ignore */ }
 
+        // Cross-reference TripWire log for storage tampering
+        try {
+            var tripLog = JSON.parse(localStorage.getItem('hexworth_tripwire_log') || '[]');
+            var storageTamps = tripLog.filter(function(e) { return e.sensor === 'storage'; });
+            if (storageTamps.length > 0) {
+                garbageCount += storageTamps.length;
+            }
+        } catch (e) { /* ignore */ }
+
         // Threshold: > 5 garbage entries = cheating
         const THRESHOLD = 5;
         if (garbageCount > THRESHOLD) {
@@ -88,20 +98,78 @@ const XPCalculator = (function () {
         return null;
     }
 
-    // Canonical XP rates — single source of truth
-    const XP_RATES = {
+    // ─── XP rate resolution ────────────────────────────────────
+    // XPMasterLedger is the single source of truth for XP values.
+    // If it is not loaded (script tag missing), fall back to hardcoded defaults
+    // so XPCalculator continues to work standalone.
+
+    const _FALLBACK_RATES = {
         PRESENTATION_VIEW: 100,
         TOOL_EXPLORE: 100,
-        QUIZ_PASS: 100,        // 70-89%
-        QUIZ_PERFECT: 200,     // 90%+
+        QUIZ_PASS: 100,
+        QUIZ_PERFECT: 200,
         GATE_CLEARED: 500,
         LAB_COMPLETE: 500,
-        GAME_PLAYED: 100,      // flat rate per unique game with a recorded score
+        GAME_PLAYED: 100,
         MODULE_COMPLETE: 1000,
         COURSE_COMPLETE: 10000,
         DAILY_LOGIN: 25
-        // Badges use their own .points values (10-500 per badge, defined in AchievementSystem)
     };
+
+    // Maps XP_RATES keys to XPMasterLedger.values keys
+    const _RATE_TO_LEDGER = {
+        PRESENTATION_VIEW: 'presentation',
+        TOOL_EXPLORE: 'tool',
+        QUIZ_PASS: 'quiz_pass',
+        QUIZ_PERFECT: 'quiz_perfect',
+        GATE_CLEARED: 'gate',
+        LAB_COMPLETE: 'lab',
+        GAME_PLAYED: 'game',
+        MODULE_COMPLETE: 'module',
+        COURSE_COMPLETE: 'course_completion',
+        DAILY_LOGIN: 'daily_login'
+    };
+
+    /**
+     * Resolve an XP rate by key. Checks XPMasterLedger first, falls back to hardcoded.
+     * @param {string} key - XP_RATES key (e.g. 'QUIZ_PASS')
+     * @returns {number}
+     */
+    function _rate(key) {
+        if (typeof XPMasterLedger !== 'undefined' && XPMasterLedger.values) {
+            var ledgerKey = _RATE_TO_LEDGER[key];
+            if (ledgerKey && XPMasterLedger.values[ledgerKey] !== undefined) {
+                return XPMasterLedger.values[ledgerKey];
+            }
+        }
+        return _FALLBACK_RATES[key] || 0;
+    }
+
+    /**
+     * Resolve gate XP for a specific gate number. Uses XPMasterLedger.getXP()
+     * to pick up per-gate overrides (e.g. gates 6-8 have escalating XP).
+     * Falls back to flat GATE_CLEARED rate if ledger is not loaded.
+     * @param {number} gateNum - Gate number (1-10)
+     * @returns {number}
+     */
+    function _gateXP(gateNum) {
+        if (typeof XPMasterLedger !== 'undefined' && XPMasterLedger.getXP) {
+            return XPMasterLedger.getXP('dark-arts-gate-' + gateNum, 'gate');
+        }
+        return _FALLBACK_RATES.GATE_CLEARED;
+    }
+
+    // XP_RATES proxy: reads from ledger at access time so callers always
+    // get current ledger values. External code that reads XPCalculator.XP_RATES.QUIZ_PASS
+    // (e.g. ProgressManager, FirestoreManager) continues to work unchanged.
+    const XP_RATES = new Proxy(_FALLBACK_RATES, {
+        get: function(target, prop) {
+            if (typeof prop === 'string' && prop in _RATE_TO_LEDGER) {
+                return _rate(prop);
+            }
+            return target[prop];
+        }
+    });
 
     // Max daily login days for XP cap
     const MAX_LOGIN_DAYS = 365;
@@ -280,24 +348,24 @@ const XPCalculator = (function () {
                     // Quizzes: one-and-done, no diminishing returns
                     const score = quizScores[id] || 0;
                     if (score >= 90) {
-                        breakdown.quizPerfect += XP_RATES.QUIZ_PERFECT;
+                        breakdown.quizPerfect += _rate('QUIZ_PERFECT');
                         breakdown._counts.quizPerfect++;
                     } else {
-                        breakdown.quizzes += XP_RATES.QUIZ_PASS;
+                        breakdown.quizzes += _rate('QUIZ_PASS');
                         breakdown._counts.quizzes++;
                     }
                     break;
                 }
                 case 'lab':
-                    breakdown.labs += _diminishingXPSum(XP_RATES.LAB_COMPLETE, viewCount);
+                    breakdown.labs += _diminishingXPSum(_rate('LAB_COMPLETE'), viewCount);
                     breakdown._counts.labs++;
                     break;
                 case 'tool':
-                    breakdown.tools += _diminishingXPSum(XP_RATES.TOOL_EXPLORE, viewCount);
+                    breakdown.tools += _diminishingXPSum(_rate('TOOL_EXPLORE'), viewCount);
                     breakdown._counts.tools++;
                     break;
                 default: // presentation (conservative fallback)
-                    breakdown.presentations += _diminishingXPSum(XP_RATES.PRESENTATION_VIEW, viewCount);
+                    breakdown.presentations += _diminishingXPSum(_rate('PRESENTATION_VIEW'), viewCount);
                     breakdown._counts.presentations++;
             }
         }
@@ -308,10 +376,10 @@ const XPCalculator = (function () {
             if (seen.has(q.moduleId)) continue;
             seen.add(q.moduleId);
             if (q.score >= 90) {
-                breakdown.quizPerfect += XP_RATES.QUIZ_PERFECT;
+                breakdown.quizPerfect += _rate('QUIZ_PERFECT');
                 breakdown._counts.quizPerfect++;
             } else if (q.score >= 70) {
-                breakdown.quizzes += XP_RATES.QUIZ_PASS;
+                breakdown.quizzes += _rate('QUIZ_PASS');
                 breakdown._counts.quizzes++;
             }
         }
@@ -320,7 +388,7 @@ const XPCalculator = (function () {
         for (const labId of labsCompleted) {
             if (seen.has(labId)) continue;
             seen.add(labId);
-            breakdown.labs += XP_RATES.LAB_COMPLETE;
+            breakdown.labs += _rate('LAB_COMPLETE');
             breakdown._counts.labs++;
         }
     }
@@ -403,7 +471,7 @@ const XPCalculator = (function () {
                 }
             }
 
-            breakdown.games = gamesWithScores * XP_RATES.GAME_PLAYED;
+            breakdown.games = gamesWithScores * _rate('GAME_PLAYED');
             breakdown._counts.games = gamesWithScores;
         } catch (e) {
             // Silent fail — game XP is a bonus, not critical
@@ -466,14 +534,16 @@ const XPCalculator = (function () {
      */
     function _countGateXP(breakdown) {
         let gateCount = 0;
+        let gateXP = 0;
 
         for (let i = 1; i <= 10; i++) {
             if (localStorage.getItem(`gate${i}_complete`) === 'true') {
                 gateCount++;
+                gateXP += _gateXP(i);
             }
         }
 
-        breakdown.gates = gateCount * XP_RATES.GATE_CLEARED;
+        breakdown.gates = gateXP;
         breakdown._counts.gates = gateCount;
     }
 
@@ -521,7 +591,7 @@ const XPCalculator = (function () {
             }
         }
 
-        breakdown.courses = courseCount * XP_RATES.COURSE_COMPLETE;
+        breakdown.courses = courseCount * _rate('COURSE_COMPLETE');
         breakdown._counts.courses = courseCount;
     }
 
@@ -551,7 +621,7 @@ const XPCalculator = (function () {
         } catch (e) { /* ignore */ }
 
         loginDays = Math.min(loginDays, MAX_LOGIN_DAYS);
-        breakdown.dailyLogins = loginDays * XP_RATES.DAILY_LOGIN;
+        breakdown.dailyLogins = loginDays * _rate('DAILY_LOGIN');
         breakdown._counts.dailyLogins = loginDays;
     }
 

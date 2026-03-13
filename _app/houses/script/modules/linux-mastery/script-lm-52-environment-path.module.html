@@ -31,7 +31,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -156,6 +157,16 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
+
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
         .terminal-container {
             flex: 1;
@@ -413,11 +424,16 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="view-env">env/printenv</span>
-                    <span class="task-chip" data-task="export">export</span>
-                    <span class="task-chip" data-task="path">PATH</span>
-                    <span class="task-chip" data-task="alias">alias</span>
+                    <span class="task-chip" data-task="view-env">1</span>
+                    <span class="task-chip" data-task="export">2</span>
+                    <span class="task-chip" data-task="path">3</span>
+                    <span class="task-chip" data-task="alias">4</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 4 &mdash; View Environment</div>
+                <div class="task-desc">Display all environment variables using <code>env</code> or <code>printenv</code>.</div>
+                <div class="task-hint">Run: <code>env</code> or <code>printenv</code></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -706,14 +722,62 @@
         }
 
         const MODULE_ID = 'lm-52-environment-path';
-        const tasks = { 'view-env': false, 'export': false, 'path': false, 'alias': false };
+        const TASK_ORDER = ["view-env","export","path","alias"];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'view-env': {
+                num: '1 of 4 &mdash; View Environment',
+                desc: 'Display all environment variables using <code>env</code> or <code>printenv</code>.',
+                hint: 'Run: <code>env</code> or <code>printenv</code>'
+            },
+            'export': {
+                num: '2 of 4 &mdash; Export a Variable',
+                desc: 'Create and export an environment variable so it\'s available to child processes.',
+                hint: 'Run: <code>export MY_VAR="hello"</code>'
+            },
+            'path': {
+                num: '3 of 4 &mdash; Explore PATH',
+                desc: 'View or modify the <code>PATH</code> variable, or use <code>which</code>/<code>type</code> to find commands.',
+                hint: 'Run: <code>echo $PATH</code> or <code>which ls</code>'
+            },
+            'alias': {
+                num: '4 of 4 &mdash; Create an Alias',
+                desc: 'Create a shortcut command using <code>alias</code>.',
+                hint: 'Run: <code>alias ll="ls -la"</code>'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.remove('active');
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) setTimeout(() => showTaskInstruction(next), 400);
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-52-environment-path', { returnUrl: 'script-lm-53-next-steps.module.html' });
             }
@@ -736,6 +800,13 @@
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
@@ -743,6 +814,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

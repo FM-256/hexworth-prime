@@ -31,7 +31,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -158,6 +159,16 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
+
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
         .terminal-container {
             flex: 1;
@@ -385,11 +396,16 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="ipaddr">ip addr</span>
-                    <span class="task-chip" data-task="iplink">ip link</span>
-                    <span class="task-chip" data-task="hostname">hostname</span>
-                    <span class="task-chip" data-task="hosts">/etc/hosts</span>
+                    <span class="task-chip" data-task="ipaddr">1</span>
+                    <span class="task-chip" data-task="iplink">2</span>
+                    <span class="task-chip" data-task="hostname">3</span>
+                    <span class="task-chip" data-task="hosts">4</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 4 &mdash; View IP Addresses</div>
+                <div class="task-desc">Display all IP addresses assigned to your network interfaces.</div>
+                <div class="task-hint">Run: <code>ip addr</code> or <code>ip a</code></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -600,14 +616,62 @@
         });
 
         const MODULE_ID = 'script-lm-35-network-info';
-        const tasks = { 'ipaddr': false, 'iplink': false, 'hostname': false, 'hosts': false };
+        const TASK_ORDER = ["ipaddr","iplink","hostname","hosts"];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'ipaddr': {
+                num: '1 of 4 &mdash; View IP Addresses',
+                desc: 'Display all IP addresses assigned to your network interfaces.',
+                hint: 'Run: <code>ip addr</code> or <code>ip a</code>'
+            },
+            'iplink': {
+                num: '2 of 4 &mdash; View Interface Status',
+                desc: 'Show network interface link status (UP/DOWN, MAC addresses).',
+                hint: 'Run: <code>ip link</code>'
+            },
+            'hostname': {
+                num: '3 of 4 &mdash; Check Hostname',
+                desc: 'Display the system hostname or view the hostname config file.',
+                hint: 'Run: <code>hostname</code> or <code>cat /etc/hostname</code>'
+            },
+            'hosts': {
+                num: '4 of 4 &mdash; View /etc/hosts',
+                desc: 'Read the local name resolution file that maps hostnames to IP addresses.',
+                hint: 'Run: <code>cat /etc/hosts</code>'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.remove('active');
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) setTimeout(() => showTaskInstruction(next), 400);
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-35-network-info', { returnUrl: 'script-lm-36-connectivity.module.html' });
             }
@@ -630,6 +694,13 @@
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
@@ -637,6 +708,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

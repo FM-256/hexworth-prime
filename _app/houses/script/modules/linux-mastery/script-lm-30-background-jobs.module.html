@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -156,6 +157,53 @@
             background: var(--accent-dim);
             border-color: var(--accent);
             color: var(--accent);
+        }
+
+        .task-chip.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(78, 201, 176, 0.1);
+        }
+
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+
+        .task-instruction {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: none;
+        }
+
+        .task-instruction.visible { display: block; }
+
+        .task-instruction .task-number {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+
+        .task-instruction .task-cmd {
+            background: var(--bg-terminal);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+            margin: 6px 0;
+            display: inline-block;
+        }
+
+        .task-instruction .task-expect {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 4px;
+            font-style: italic;
         }
 
         .terminal-container {
@@ -378,12 +426,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="bg-job">cmd &</span>
-                    <span class="task-chip" data-task="jobs">jobs</span>
-                    <span class="task-chip" data-task="fg">fg</span>
-                    <span class="task-chip" data-task="bg">bg</span>
-                    <span class="task-chip" data-task="nohup">nohup</span>
+                    <span class="task-chip" data-task="bg-job" onclick="showTaskInstruction('bg-job')">1</span>
+                    <span class="task-chip" data-task="jobs" onclick="showTaskInstruction('jobs')">2</span>
+                    <span class="task-chip" data-task="fg" onclick="showTaskInstruction('fg')">3</span>
+                    <span class="task-chip" data-task="bg" onclick="showTaskInstruction('bg')">4</span>
+                    <span class="task-chip" data-task="nohup" onclick="showTaskInstruction('nohup')">5</span>
                 </div>
+                <div class="task-instruction" id="taskInstruction"></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -526,16 +575,83 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
+        const TASK_ORDER = ['bg-job', 'jobs', 'fg', 'bg', 'nohup'];
+
+        const TASK_INSTRUCTIONS = {
+            'bg-job': {
+                number: 1,
+                title: 'Run a Command in the Background',
+                description: 'Add <code>&</code> at the end of a command to run it in the background. This frees up your terminal immediately. Try running a sleep command in the background.',
+                command: 'sleep 100 &',
+                expect: 'You should see [1] followed by a PID number -- this means job #1 is running in the background.'
+            },
+            'jobs': {
+                number: 2,
+                title: 'List Background Jobs',
+                description: 'Use the <code>jobs</code> command to see all jobs running in your current shell session.',
+                command: 'jobs',
+                expect: 'You should see your background sleep job listed as [1]+ Running with the command name.'
+            },
+            'fg': {
+                number: 3,
+                title: 'Bring a Job to the Foreground',
+                description: 'Use <code>fg</code> to bring a background job back to the foreground. You can specify which job with <code>%1</code> (job number).',
+                command: 'fg %1',
+                expect: 'The job is brought to the foreground and marked as Done. Your terminal is now "blocked" by that job.'
+            },
+            'bg': {
+                number: 4,
+                title: 'Resume a Job in the Background',
+                description: 'First, start another background job with <code>sleep 200 &</code>, then use <code>bg</code> to simulate resuming a stopped job in the background.',
+                command: 'bg %2',
+                expect: 'The job resumes running in the background. You see the job number and command with & appended.'
+            },
+            'nohup': {
+                number: 5,
+                title: 'Keep a Job Running After Logout',
+                description: 'Use <code>nohup</code> before a command to make it immune to hangup signals. This means it keeps running even if you close the terminal.',
+                command: 'nohup sleep 300 &',
+                expect: 'You should see a message about output being appended to nohup.out, plus a job/PID number.'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-number">Task ${info.number}: ${info.title}</div>
+                <div>${info.description}</div>
+                <div class="task-cmd">${info.command}</div>
+                <div class="task-expect">${info.expect}</div>
+            `;
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         LinuxTerminal.init('LM-30', '#terminal', {
             user: 'learner',
             hostname: 'linux-mastery',
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
-                if (/&\s*$/.test(cmdLine)) completeTask('bg-job');
+                // Task 1: any command with trailing &
+                if (cmd === 'bg-start' || /&\s*$/.test(cmdLine)) {
+                    completeTask('bg-job');
+                }
+                // Task 2: jobs
                 if (cmd === 'jobs') completeTask('jobs');
+                // Task 3: fg
                 if (cmd === 'fg') completeTask('fg');
+                // Task 4: bg
                 if (cmd === 'bg') completeTask('bg');
+                // Task 5: nohup
                 if (cmd === 'nohup') completeTask('nohup');
             }
         });
@@ -546,10 +662,17 @@
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
-            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
             updateProgress();
             saveProgress();
-            if (Object.values(tasks).every(v => v)) {
+            const next = getNextIncompleteTask();
+            if (next) {
+                showTaskInstruction(next);
+            } else {
+                const el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You now know how to manage background jobs like a pro.</div>';
+                el.classList.add('visible');
                 ModuleProgress.complete('script', 'script-lm-30-background-jobs', { returnUrl: 'script-lm-31-signals-kill.module.html' });
             }
         }
@@ -578,6 +701,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

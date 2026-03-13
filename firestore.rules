@@ -226,5 +226,23 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/classes/$(classId)).data.handlerUid == request.auth.uid;
       }
     }
+
+    // TripWire events — authenticated users can create (report their own incidents)
+    // Admin can read all. Rate limited to 10 per user per hour via Cloud Function.
+    match /tripwire_events/{eventId} {
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'method', 'category', 'detail', 'timestamp', 'nonce', 'sessionId'])
+        && request.resource.data.method is string
+        && request.resource.data.category is string
+        && request.resource.data.detail is string
+        && request.resource.data.detail.size() <= 200;
+      allow read: if isAdmin();
+    }
+
+    // TripWire global stats — anyone authenticated can read, only Cloud Functions can write
+    match /tripwire_stats/{docId} {
+      allow read: if request.auth != null;
+      // Only Cloud Functions (admin SDK) can write — increment counters
+    }
   }
 }

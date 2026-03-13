@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wall of Shame | Hexworth Prime</title>
+    <link rel="stylesheet" href="../css/wall-of-shame.css">
+    <script src="../components/FluxCapacitor.js"></script>
+</head>
+<body>
+    <!-- CRT effect overlay -->
+    <div class="crt-overlay"></div>
+    <div class="scanlines"></div>
+
+    <!-- Header -->
+    <header class="wos-header">
+        <h1>WALL OF SHAME</h1>
+        <p class="wos-subtitle">// INTRUSION DETECTION LOG</p>
+        <div class="wos-counter">
+            <span class="counter-label">TOTAL INCIDENTS:</span>
+            <span class="counter-value" id="total-counter">0</span>
+        </div>
+    </header>
+
+    <!-- Main content: two panels -->
+    <main class="wos-main">
+        <!-- Left: Your Rap Sheet (local data) -->
+        <section class="wos-panel wos-local">
+            <div class="panel-header">
+                <h2>YOUR RAP SHEET</h2>
+                <span class="panel-indicator">[LOCAL]</span>
+            </div>
+            <div class="panel-toolbar">
+                <button class="toolbar-btn active" data-filter="all">ALL</button>
+                <button class="toolbar-btn" data-filter="high">HIGH</button>
+                <button class="toolbar-btn" data-filter="medium">MED</button>
+                <button class="toolbar-btn" data-filter="low">LOW</button>
+            </div>
+            <div class="wos-entries" id="local-entries">
+                <!-- Populated by JS -->
+            </div>
+            <div class="panel-empty" id="local-empty">
+                <p>NO INCIDENTS RECORDED</p>
+                <p class="empty-sub">// Clean record... for now</p>
+            </div>
+        </section>
+
+        <!-- Right: Global Stats (Firestore aggregated) -->
+        <section class="wos-panel wos-global">
+            <div class="panel-header">
+                <h2>GLOBAL STATS</h2>
+                <span class="panel-indicator">[AGGREGATE]</span>
+            </div>
+            <div class="wos-stats" id="global-stats">
+                <div class="stat-row stat-highlight">
+                    <span class="stat-label">TOTAL CAUGHT GLOBALLY</span>
+                    <span class="stat-value" id="global-total">---</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">LAST EVENT</span>
+                    <span class="stat-value" id="global-last-event">---</span>
+                </div>
+                <div class="stat-divider"></div>
+                <h3 class="stat-section-title">METHOD BREAKDOWN</h3>
+                <div class="stat-chart" id="method-chart">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Achievements earned from TripWire -->
+    <section class="wos-achievements" id="wos-badges">
+        <div class="panel-header">
+            <h2>BADGES EARNED</h2>
+            <span class="panel-indicator">[TRIPWIRE]</span>
+        </div>
+        <div class="badge-grid" id="badge-grid">
+            <!-- Populated by JS -->
+        </div>
+        <div class="panel-empty" id="badge-empty">
+            <p>NO BADGES EARNED</p>
+            <p class="empty-sub">// Trigger more sensors to unlock</p>
+        </div>
+    </section>
+
+    <!-- Footer with quote -->
+    <footer class="wos-footer">
+        <p class="footer-quote">"Getting caught is the first step to understanding defense."</p>
+        <a href="../dashboard.html" class="back-link">[ RETURN TO BASE ]</a>
+    </footer>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // ── Storage Keys ──
+        const TRIPWIRE_KEY = 'hexworth_tripwire_log';
+        const ACHIEVEMENTS_KEY = 'hexworth_achievements_v2';
+
+        // ── Severity Mapping ──
+        const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
+        const SEVERITY_LABELS = { high: 'HIGH', medium: 'MED', low: 'LOW' };
+
+        // ── TripWire Achievement IDs ──
+        const TRIPWIRE_BADGE_IDS = [
+            'tripwire_first_catch',
+            'tripwire_5_catches',
+            'tripwire_10_catches',
+            'tripwire_25_catches',
+            'tripwire_50_catches',
+            'tripwire_100_catches',
+            'tripwire_console_snoop',
+            'tripwire_dom_tamper',
+            'tripwire_storage_probe',
+            'tripwire_network_intercept',
+            'tripwire_debugger_detected',
+            'tripwire_all_methods',
+            'tripwire_speed_run',
+            'tripwire_night_owl',
+            'tripwire_persistence'
+        ];
+
+        // ── Load TripWire Log ──
+        function loadTripwireLog() {
+            try {
+                var raw = localStorage.getItem(TRIPWIRE_KEY);
+                if (!raw) return [];
+                var parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        // ── Load Achievements ──
+        function loadAchievements() {
+            try {
+                var raw = localStorage.getItem(ACHIEVEMENTS_KEY);
+                if (!raw) return {};
+                return JSON.parse(raw) || {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        // ── Format Timestamp ──
+        function formatTimestamp(ts) {
+            if (!ts) return 'UNKNOWN';
+            var d = new Date(ts);
+            if (isNaN(d.getTime())) return 'UNKNOWN';
+            var year = d.getFullYear();
+            var month = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            var hours = String(d.getHours()).padStart(2, '0');
+            var mins = String(d.getMinutes()).padStart(2, '0');
+            var secs = String(d.getSeconds()).padStart(2, '0');
+            return year + '-' + month + '-' + day + ' ' + hours + ':' + mins + ':' + secs;
+        }
+
+        // ── Relative Time ──
+        function relativeTime(ts) {
+            if (!ts) return '';
+            var diff = Date.now() - new Date(ts).getTime();
+            if (diff < 0) return 'just now';
+            var seconds = Math.floor(diff / 1000);
+            if (seconds < 60) return seconds + 's ago';
+            var minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return minutes + 'm ago';
+            var hours = Math.floor(minutes / 60);
+            if (hours < 24) return hours + 'h ago';
+            var days = Math.floor(hours / 24);
+            return days + 'd ago';
+        }
+
+        // ── Counter Animation ──
+        function animateCounter(el, target) {
+            if (target === 0) { el.textContent = '0'; return; }
+            var current = 0;
+            var step = Math.max(1, Math.floor(target / 60));
+            var interval = setInterval(function() {
+                current += step;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(interval);
+                }
+                el.textContent = current;
+            }, 20);
+        }
+
+        // ── Build Entry Card ──
+        function buildEntryCard(entry) {
+            var card = document.createElement('div');
+            card.className = 'wos-entry';
+            var sev = (entry.severity || 'low').toLowerCase();
+            card.setAttribute('data-severity', sev);
+
+            var sevLabel = SEVERITY_LABELS[sev] || 'LOW';
+            var sevClass = 'severity-' + sev;
+
+            var sensor = entry.sensor || entry.name || 'UNKNOWN';
+            var category = entry.category || entry.method || 'general';
+            var detail = entry.detail || entry.message || 'No details recorded';
+            var ts = formatTimestamp(entry.timestamp || entry.time);
+            var rel = relativeTime(entry.timestamp || entry.time);
+
+            card.innerHTML =
+                '<div class="entry-header">' +
+                    '<span class="entry-sensor">' + escapeHTML(sensor) + '</span>' +
+                    '<span class="entry-badge ' + sevClass + '">' + sevLabel + '</span>' +
+                '</div>' +
+                '<div class="entry-category">[' + escapeHTML(category.toUpperCase()) + ']</div>' +
+                '<div class="entry-detail">' + escapeHTML(detail) + '</div>' +
+                '<div class="entry-timestamp">' +
+                    '<span class="ts-full">' + ts + '</span>' +
+                    '<span class="ts-relative">' + rel + '</span>' +
+                '</div>';
+
+            return card;
+        }
+
+        // ── Escape HTML ──
+        function escapeHTML(str) {
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ── Render Local Entries ──
+        function renderLocalEntries(entries) {
+            var container = document.getElementById('local-entries');
+            var emptyMsg = document.getElementById('local-empty');
+            container.innerHTML = '';
+
+            if (!entries || entries.length === 0) {
+                container.style.display = 'none';
+                emptyMsg.style.display = 'block';
+                return;
+            }
+
+            emptyMsg.style.display = 'none';
+            container.style.display = 'block';
+
+            // Sort newest first
+            var sorted = entries.slice().sort(function(a, b) {
+                var ta = new Date(a.timestamp || a.time || 0).getTime();
+                var tb = new Date(b.timestamp || b.time || 0).getTime();
+                return tb - ta;
+            });
+
+            sorted.forEach(function(entry) {
+                container.appendChild(buildEntryCard(entry));
+            });
+        }
+
+        // ── Render Method Chart ──
+        function renderMethodChart(entries) {
+            var chart = document.getElementById('method-chart');
+            chart.innerHTML = '';
+
+            if (!entries || entries.length === 0) {
+                chart.innerHTML = '<div class="chart-empty">No data available</div>';
+                return;
+            }
+
+            // Count methods
+            var counts = {};
+            entries.forEach(function(entry) {
+                var method = (entry.category || entry.method || 'unknown').toLowerCase();
+                counts[method] = (counts[method] || 0) + 1;
+            });
+
+            // Sort by count descending
+            var methods = Object.keys(counts).sort(function(a, b) {
+                return counts[b] - counts[a];
+            });
+
+            var max = counts[methods[0]] || 1;
+
+            methods.forEach(function(method) {
+                var count = counts[method];
+                var pct = Math.round((count / max) * 100);
+
+                var row = document.createElement('div');
+                row.className = 'chart-row';
+                row.innerHTML =
+                    '<div class="chart-label">' + escapeHTML(method.toUpperCase()) + '</div>' +
+                    '<div class="chart-bar-wrap">' +
+                        '<div class="chart-bar" style="width: ' + pct + '%;"></div>' +
+                    '</div>' +
+                    '<div class="chart-count">' + count + '</div>';
+                chart.appendChild(row);
+            });
+        }
+
+        // ── Render Global Stats Summary ──
+        function renderGlobalSummary(entries) {
+            var totalEl = document.getElementById('global-total');
+            var lastEl = document.getElementById('global-last-event');
+
+            // For now, global stats = local stats (no Firestore connection yet)
+            totalEl.textContent = entries.length;
+
+            if (entries.length > 0) {
+                var sorted = entries.slice().sort(function(a, b) {
+                    var ta = new Date(a.timestamp || a.time || 0).getTime();
+                    var tb = new Date(b.timestamp || b.time || 0).getTime();
+                    return tb - ta;
+                });
+                lastEl.textContent = relativeTime(sorted[0].timestamp || sorted[0].time);
+            } else {
+                lastEl.textContent = 'NONE';
+            }
+        }
+
+        // ── Render Badges ──
+        function renderBadges() {
+            var achievements = loadAchievements();
+            var grid = document.getElementById('badge-grid');
+            var emptyMsg = document.getElementById('badge-empty');
+            grid.innerHTML = '';
+
+            var earned = [];
+            TRIPWIRE_BADGE_IDS.forEach(function(id) {
+                if (achievements[id]) {
+                    earned.push({ id: id, data: achievements[id] });
+                }
+            });
+
+            if (earned.length === 0) {
+                grid.style.display = 'none';
+                emptyMsg.style.display = 'block';
+                return;
+            }
+
+            emptyMsg.style.display = 'none';
+            grid.style.display = 'grid';
+
+            earned.forEach(function(badge) {
+                var card = document.createElement('div');
+                card.className = 'badge-card';
+
+                var title = badge.data.title || badge.data.name || badge.id;
+                var desc = badge.data.description || badge.data.desc || '';
+                var ts = badge.data.unlockedAt || badge.data.timestamp || '';
+
+                card.innerHTML =
+                    '<div class="badge-icon">' +
+                        '<img src="/assets/images/icons/shield-check.webp" alt="" width="32" height="32" onerror="this.style.display=\'none\'">' +
+                    '</div>' +
+                    '<div class="badge-info">' +
+                        '<div class="badge-title">' + escapeHTML(title) + '</div>' +
+                        '<div class="badge-desc">' + escapeHTML(desc) + '</div>' +
+                        (ts ? '<div class="badge-date">' + formatTimestamp(ts) + '</div>' : '') +
+                    '</div>';
+
+                grid.appendChild(card);
+            });
+        }
+
+        // ── Filter Toolbar ──
+        function initFilters() {
+            var buttons = document.querySelectorAll('.toolbar-btn');
+            buttons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    buttons.forEach(function(b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+
+                    var filter = btn.getAttribute('data-filter');
+                    var entries = document.querySelectorAll('.wos-entry');
+                    entries.forEach(function(entry) {
+                        if (filter === 'all') {
+                            entry.style.display = '';
+                        } else {
+                            entry.style.display = entry.getAttribute('data-severity') === filter ? '' : 'none';
+                        }
+                    });
+                });
+            });
+        }
+
+        // ── Scanline Height Sync ──
+        function syncScanlines() {
+            var scanlines = document.querySelector('.scanlines');
+            var crtOverlay = document.querySelector('.crt-overlay');
+            if (scanlines) {
+                var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) + 'px';
+                scanlines.style.height = h;
+                if (crtOverlay) crtOverlay.style.height = h;
+            }
+        }
+
+        // ── Init ──
+        function init() {
+            var entries = loadTripwireLog();
+
+            // Animate total counter
+            var counterEl = document.getElementById('total-counter');
+            animateCounter(counterEl, entries.length);
+
+            // Render panels
+            renderLocalEntries(entries);
+            renderMethodChart(entries);
+            renderGlobalSummary(entries);
+            renderBadges();
+            initFilters();
+
+            // Sync scanline overlay height
+            syncScanlines();
+            window.addEventListener('resize', syncScanlines);
+        }
+
+        // Wait for DOM
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+
+    <script src="../components/WallOfShame.js"></script>
+</body>
+</html>

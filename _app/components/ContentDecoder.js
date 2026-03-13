@@ -331,7 +331,7 @@ const ContentDecoder = (function() {
 
             .content-locked {
                 text-align: center;
-                color: #666;
+                color: #8a8a8a;
                 padding: 20px;
             }
 

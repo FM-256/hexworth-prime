@@ -133,7 +133,7 @@ const MasteryXP = (function() {
             '.mxp-xp-label {',
             '  display: inline-block;',
             '  font-size: 0.65rem;',
-            '  color: #666;',
+            '  color: #8a8a8a;',
             '  margin-left: 4px;',
             '  font-weight: 500;',
             '  letter-spacing: 0.04em;',

@@ -704,7 +704,7 @@ window.ReviewEngine = (function () {
             '.review-reset-btn:hover{background:rgba(239,68,68,0.25)}',
 
             /* Modal overlay */
-            '.review-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity 0.25s ease}',
+            '.review-modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity 0.25s ease}',
             '.review-modal-active{opacity:1}',
 
             /* Modal */

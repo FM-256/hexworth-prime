@@ -270,13 +270,13 @@ const HED = (function() {
         var s = document.createElement('style');
         s.id = 'hed-panel-styles';
         s.textContent = [
-            '.hed-dot{position:fixed;bottom:16px;left:16px;width:14px;height:14px;border-radius:50%;',
+            '.hed-dot{position:absolute;bottom:16px;left:16px;width:14px;height:14px;border-radius:50%;',
             'background:#4ade80;cursor:pointer;z-index:99998;transition:all .3s;box-shadow:0 0 6px #4ade8066;',
             'border:2px solid rgba(0,0,0,.3)}',
             '.hed-dot.has-errors{background:#f87171;box-shadow:0 0 8px #f8717166;animation:hed-pulse 2s infinite}',
             '.hed-dot:hover{transform:scale(1.3)}',
             '@keyframes hed-pulse{0%,100%{box-shadow:0 0 6px #f8717166}50%{box-shadow:0 0 14px #f87171aa}}',
-            '.hed-float{position:fixed;bottom:40px;left:16px;width:480px;max-height:70vh;',
+            '.hed-float{position:absolute;bottom:40px;left:16px;width:480px;max-height:70vh;',
             'background:#1a1a2e;border:1px solid #333;border-radius:10px;z-index:99999;',
             'font-family:"Courier New",monospace;font-size:12px;color:#e5e5e5;',
             'display:none;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)}',
@@ -286,7 +286,7 @@ const HED = (function() {
             '.hed-float-title{font-weight:700;font-size:13px;color:#60a5fa;flex:1}',
             '.hed-float-badge{background:#f8717122;color:#f87171;border:1px solid #f8717144;',
             'padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}',
-            '.hed-float-close{background:none;border:none;color:#666;cursor:pointer;font-size:18px;',
+            '.hed-float-close{background:none;border:none;color:#8a8a8a;cursor:pointer;font-size:18px;',
             'padding:0 4px;line-height:1}',
             '.hed-float-close:hover{color:#fff}',
             '.hed-float-body{overflow-y:auto;flex:1;padding:8px;max-height:calc(70vh - 90px)}',
@@ -304,8 +304,8 @@ const HED = (function() {
             '.hed-code{font-size:10px;font-weight:600;padding:3px 6px;border-radius:3px;text-align:center;',
             'align-self:start}',
             '.hed-msg{word-break:break-word;line-height:1.4;color:#ddd}',
-            '.hed-meta{font-size:10px;color:#666;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}',
-            '.hed-empty{text-align:center;padding:30px 10px;color:#666;font-style:italic}',
+            '.hed-meta{font-size:10px;color:#8a8a8a;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}',
+            '.hed-empty{text-align:center;padding:30px 10px;color:#8a8a8a;font-style:italic}',
             '@media(max-width:560px){.hed-float{left:8px;right:8px;width:auto}}'
         ].join('\n');
         document.head.appendChild(s);
@@ -415,7 +415,7 @@ const HED = (function() {
             // Fallback: textarea copy
             var ta = document.createElement('textarea');
             ta.value = text;
-            ta.style.cssText = 'position:fixed;opacity:0';
+            ta.style.cssText = 'position:absolute;opacity:0';
             document.body.appendChild(ta);
             ta.select();
             document.execCommand('copy');

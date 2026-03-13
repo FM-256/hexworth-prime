@@ -42,6 +42,47 @@
         .panel-tasks { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
         .task-chip { font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 99px; border: 1px solid var(--border); color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
         .task-chip.completed { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(78, 201, 176, 0.1);
+        }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: none;
+            width: 100%;
+        }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+        .task-instruction .task-cmd {
+            background: var(--bg-terminal);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+            margin: 6px 0;
+            display: inline-block;
+        }
+        .task-instruction .task-expect {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 4px;
+            font-style: italic;
+        }
         .progress-bar { height: 3px; background: var(--border); border-radius: 2px; flex: 1; min-width: 60px; }
         .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
         .progress-text { font-size: 0.7rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
@@ -109,12 +150,13 @@
 <div class="main-layout">
     <div class="terminal-panel">
         <div class="panel-tasks">
-            <span class="task-chip" data-task="cp">cp</span>
-            <span class="task-chip" data-task="cp-r">cp -r</span>
-            <span class="task-chip" data-task="mv">mv</span>
-            <span class="task-chip" data-task="mv-rename">mv rename</span>
+            <span class="task-chip" data-task="cp" onclick="showTaskInstruction('cp')">1</span>
+            <span class="task-chip" data-task="cp-r" onclick="showTaskInstruction('cp-r')">2</span>
+            <span class="task-chip" data-task="mv" onclick="showTaskInstruction('mv')">3</span>
+            <span class="task-chip" data-task="mv-rename" onclick="showTaskInstruction('mv-rename')">4</span>
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
             <span class="progress-text" id="progressText">0 / 4</span>
+            <div class="task-instruction" id="taskInstruction"></div>
         </div>
         <div class="terminal-container" id="terminal"></div>
     </div>
@@ -243,13 +285,39 @@ LinuxTerminal.init('LM-09', '#terminal', {
 const MODULE_ID = 'lm-09-copy-move';
 const tasks = { 'cp': false, 'cp-r': false, 'mv': false, 'mv-rename': false };
 
+const TASK_ORDER = ['cp', 'cp-r', 'mv', 'mv-rename'];
+const TASK_INSTRUCTIONS = {
+    'cp': { number: 1, title: 'Copy a File', description: 'Type the command below to copy a file to a new name.', command: 'cp file1.txt file2.txt', expect: 'Creates a copy named file2.txt' },
+    'cp-r': { number: 2, title: 'Copy a Directory', description: 'Type the command below to copy a directory and all its contents.', command: 'cp -r mydir mydir_backup', expect: 'Copies the directory and all contents recursively' },
+    'mv': { number: 3, title: 'Move a File', description: 'Type the command below to move a file into a directory.', command: 'mv file2.txt mydir/', expect: 'Moves file2.txt into the mydir directory' },
+    'mv-rename': { number: 4, title: 'Rename a File', description: 'Type the command below to rename a file (mv doubles as rename).', command: 'mv oldname.txt newname.txt', expect: 'Renames the file from oldname.txt to newname.txt' }
+};
+
+function showTaskInstruction(taskId) {
+    const info = TASK_INSTRUCTIONS[taskId];
+    if (!info) return;
+    const el = document.getElementById('taskInstruction');
+    el.innerHTML = `<div class="task-number">Task ${info.number}: ${info.title}</div><div>${info.description}</div><div class="task-cmd">${info.command}</div><div class="task-expect">${info.expect}</div>`;
+    el.classList.add('visible');
+    document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+    const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+    if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+}
+
+function getNextIncompleteTask() { return TASK_ORDER.find(t => !tasks[t]) || null; }
+
 function completeTask(id) {
     if (tasks[id]) return;
     tasks[id] = true;
-    document.querySelector(`.task-chip[data-task="${id}"]`)?.classList.add('completed');
+    const chip = document.querySelector(`.task-chip[data-task="${id}"]`);
+    if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
     updateProgress();
     saveProgress();
-    if (Object.values(tasks).every(v => v)) {
+    const next = getNextIncompleteTask();
+    if (next) { showTaskInstruction(next); } else {
+        const el = document.getElementById('taskInstruction');
+        el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Great work! You can copy, move, and rename files.</div>';
+        el.classList.add('visible');
         ModuleProgress.complete('script', 'script-lm-09-copy-move', { returnUrl: 'script-lm-10-viewing-files.module.html' });
     }
 }
@@ -278,6 +346,8 @@ function saveProgress() {
         saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
         updateProgress();
     }
+    const next = getNextIncompleteTask();
+    if (next) showTaskInstruction(next);
 })();
 </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

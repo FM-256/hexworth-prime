@@ -34,7 +34,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -158,6 +159,16 @@
             border-color: var(--gold);
             color: var(--gold);
         }
+
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
+
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
         .terminal-container {
             flex: 1;
@@ -541,10 +552,15 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="review">review</span>
-                    <span class="task-chip" data-task="badge">claim-badge</span>
-                    <span class="task-chip" data-task="paths">explore-paths</span>
+                    <span class="task-chip" data-task="review">1</span>
+                    <span class="task-chip" data-task="badge">2</span>
+                    <span class="task-chip" data-task="paths">3</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 3 &mdash; Course Review</div>
+                <div class="task-desc">Type <code>review</code> to see a summary of everything you've learned in Linux Mastery.</div>
+                <div class="task-hint">Run: <code>review</code></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -744,24 +760,77 @@
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
-                if (cmd === 'review') completeTask('review');
+                if (cmd === 'review') {
+                    LinuxTerminal.print('Linux Mastery Course Review\n============================\nSections completed:\n  1. Terminal Basics (LM-01 to LM-05)\n  2. File System (LM-06 to LM-12)\n  3. Text Processing (LM-13 to LM-20)\n  4. Users & Permissions (LM-21 to LM-27)\n  5. Process Management (LM-28 to LM-34)\n  6. Networking (LM-35 to LM-40)\n  7. Shell Scripting (LM-41 to LM-48)\n  8. Advanced Topics (LM-49 to LM-53)\n\nYou\'ve covered 53 modules. Well done!');
+                    completeTask('review');
+                    return true;
+                }
                 if (cmd === 'claim-badge') {
+                    LinuxTerminal.print('Linux Apprentice badge unlocked!\nThis badge has been saved to your profile.');
                     saveBadge();
                     completeTask('badge');
+                    return true;
                 }
-                if (cmd === 'explore-paths') completeTask('paths');
+                if (cmd === 'explore-paths') {
+                    LinuxTerminal.print('Recommended Learning Paths\n==========================\n  > CompTIA Linux+ certification prep\n  > Advanced shell scripting & automation\n  > System administration & server management\n  > Network security & hardening\n  > Docker & container fundamentals\n  > Cloud infrastructure (AWS/GCP/Azure CLI)\n\nCheck the Course Home page for more modules.');
+                    completeTask('paths');
+                    return true;
+                }
             }
         });
 
         const MODULE_ID = 'lm-53-next-steps';
-        const tasks = { 'review': false, 'badge': false, 'paths': false };
+        const TASK_ORDER = ["review","badge","paths"];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'review': {
+                num: '1 of 3 &mdash; Course Review',
+                desc: 'Type <code>review</code> to see a summary of everything you\'ve learned in Linux Mastery.',
+                hint: 'Run: <code>review</code>'
+            },
+            'badge': {
+                num: '2 of 3 &mdash; Claim Your Badge',
+                desc: 'You earned it! Type <code>claim-badge</code> to receive the Linux Apprentice badge.',
+                hint: 'Run: <code>claim-badge</code>'
+            },
+            'paths': {
+                num: '3 of 3 &mdash; Explore Paths',
+                desc: 'See what\'s next on your learning journey after Linux Mastery.',
+                hint: 'Run: <code>explore-paths</code>'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.remove('active');
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) setTimeout(() => showTaskInstruction(next), 400);
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-53-next-steps', { returnUrl: 'index.html' });
             }
@@ -795,6 +864,13 @@
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
@@ -802,6 +878,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

@@ -236,7 +236,7 @@ const FactionlessTree = (function() {
                 border-radius: 10px;
             }
             .ft-title-label {
-                font-size: 0.65rem; color: #666; letter-spacing: 0.3em;
+                font-size: 0.65rem; color: #8a8a8a; letter-spacing: 0.3em;
                 text-transform: uppercase; margin-bottom: 6px;
             }
             .ft-title {
@@ -276,7 +276,7 @@ const FactionlessTree = (function() {
                 text-transform: uppercase;
             }
             .ft-tier-locked {
-                background: rgba(255, 255, 255, 0.05); color: #555;
+                background: rgba(255, 255, 255, 0.05); color: #808080;
                 border: 1px solid #333;
             }
             .ft-tier-1 {
@@ -305,7 +305,7 @@ const FactionlessTree = (function() {
                 transition: width 0.6s ease;
             }
             .ft-progress-text {
-                font-size: 0.7rem; color: #555;
+                font-size: 0.7rem; color: #808080;
                 display: flex; justify-content: space-between;
             }
             .ft-houses {

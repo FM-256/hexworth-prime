@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -152,6 +153,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         /* Terminal fills remaining space */
         .terminal-container {
@@ -326,12 +336,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="sort">sort</span>
-                    <span class="task-chip" data-task="sort-n">sort -n</span>
-                    <span class="task-chip" data-task="uniq">uniq</span>
-                    <span class="task-chip" data-task="uniq-c">uniq -c</span>
+                    <span class="task-chip" data-task="sort" onclick="showTaskInstruction('sort')">1</span>
+                    <span class="task-chip" data-task="sort-n" onclick="showTaskInstruction('sort-n')">2</span>
+                    <span class="task-chip" data-task="uniq" onclick="showTaskInstruction('uniq')">3</span>
+                    <span class="task-chip" data-task="uniq-c" onclick="showTaskInstruction('uniq-c')">4</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -496,6 +507,52 @@
             }
         });
 
+        const TASK_ORDER = ['sort', 'sort-n', 'uniq', 'uniq-c'];
+        const TASK_INSTRUCTIONS = {
+    'sort': {
+        num: '1 of 4 &mdash; Sort Alphabetically',
+        desc: 'Sort the lines of a file in alphabetical order.',
+        hint: 'Run: <code>sort names.txt</code>',
+        expected: 'Sorts lines A-Z'
+    },
+    'sort-n': {
+        num: '2 of 4 &mdash; Sort Numerically',
+        desc: 'Use <code>-n</code> to sort by numeric value instead of string order.',
+        hint: 'Run: <code>sort -n numbers.txt</code>',
+        expected: 'Sorts by number value, not string'
+    },
+    'uniq': {
+        num: '3 of 4 &mdash; Remove Duplicates',
+        desc: 'Pipe sorted output through <code>uniq</code> to remove consecutive duplicates.',
+        hint: 'Run: <code>sort names.txt | uniq</code>',
+        expected: 'Removes consecutive duplicate lines'
+    },
+    'uniq-c': {
+        num: '4 of 4 &mdash; Count Duplicates',
+        desc: 'Use <code>uniq -c</code> to count how many times each unique line appears.',
+        hint: 'Run: <code>sort names.txt | uniq -c</code>',
+        expected: 'Shows count of each unique line'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-17-sort-uniq';
         const tasks = { 'sort': false, 'sort-n': false, 'uniq': false, 'uniq-c': false };
 
@@ -505,6 +562,13 @@
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-17-sort-uniq', { returnUrl: 'script-lm-18-cut-paste.module.html' });
             }
@@ -534,6 +598,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

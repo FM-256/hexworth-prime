@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -156,6 +157,53 @@
             background: var(--accent-dim);
             border-color: var(--accent);
             color: var(--accent);
+        }
+
+        .task-chip.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(78, 201, 176, 0.1);
+        }
+
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+
+        .task-instruction {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: none;
+        }
+
+        .task-instruction.visible { display: block; }
+
+        .task-instruction .task-number {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+
+        .task-instruction .task-cmd {
+            background: var(--bg-terminal);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+            margin: 6px 0;
+            display: inline-block;
+        }
+
+        .task-instruction .task-expect {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 4px;
+            font-style: italic;
         }
 
         .terminal-container {
@@ -436,12 +484,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="ps-basic">ps</span>
-                    <span class="task-chip" data-task="ps-aux">ps aux</span>
-                    <span class="task-chip" data-task="ps-grep">ps | grep</span>
-                    <span class="task-chip" data-task="top">top</span>
-                    <span class="task-chip" data-task="pgrep">pgrep</span>
+                    <span class="task-chip" data-task="ps-basic" onclick="showTaskInstruction('ps-basic')">1</span>
+                    <span class="task-chip" data-task="ps-aux" onclick="showTaskInstruction('ps-aux')">2</span>
+                    <span class="task-chip" data-task="ps-grep" onclick="showTaskInstruction('ps-grep')">3</span>
+                    <span class="task-chip" data-task="top" onclick="showTaskInstruction('top')">4</span>
+                    <span class="task-chip" data-task="pgrep" onclick="showTaskInstruction('pgrep')">5</span>
                 </div>
+                <div class="task-instruction" id="taskInstruction"></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -631,24 +680,96 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
+        const TASK_ORDER = ['ps-basic', 'ps-aux', 'ps-grep', 'top', 'pgrep'];
+
+        const TASK_INSTRUCTIONS = {
+            'ps-basic': {
+                number: 1,
+                title: 'List Your Processes',
+                description: 'Run the <code>ps</code> command by itself to see processes running in your current terminal session.',
+                command: 'ps',
+                expect: 'You should see a short list with columns PID, TTY, TIME, and CMD — including bash and ps itself.'
+            },
+            'ps-aux': {
+                number: 2,
+                title: 'List All System Processes',
+                description: 'Run <code>ps aux</code> to see every process running on the system, from all users. The "a" shows all users, "u" adds user/CPU/memory columns, and "x" includes background processes.',
+                command: 'ps aux',
+                expect: 'You should see a large list with USER, PID, %CPU, %MEM, STAT, and COMMAND columns — processes from root, www-data, student, and more.'
+            },
+            'ps-grep': {
+                number: 3,
+                title: 'Filter Processes with grep',
+                description: 'Pipe the process list through <code>grep</code> to find a specific process. Search for "nginx" — a common web server.',
+                command: 'ps aux | grep nginx',
+                expect: 'You should see only lines containing "nginx" — the master and worker processes owned by root and www-data.'
+            },
+            'top': {
+                number: 4,
+                title: 'Monitor Processes in Real-Time',
+                description: 'Run the <code>top</code> command to see a live, updating view of system processes sorted by resource usage. Press <strong>q</strong> to quit when done.',
+                command: 'top',
+                expect: 'You should see a header with uptime, CPU/memory stats, and a live process table. Press q to exit.'
+            },
+            'pgrep': {
+                number: 5,
+                title: 'Find a Process ID by Name',
+                description: 'Use <code>pgrep</code> to quickly find the PID of a process by name. Search for "nginx" to get its process ID without the full ps output.',
+                command: 'pgrep nginx',
+                expect: 'You should see one or more PIDs (numbers) — these are the process IDs of the running nginx processes.'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-number">Task ${info.number}: ${info.title}</div>
+                <div>${info.description}</div>
+                <div class="task-cmd">${info.command}</div>
+                <div class="task-expect">${info.expect}</div>
+            `;
+            el.classList.add('visible');
+            // Update active chip highlight
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         LinuxTerminal.init('LM-29', '#terminal', {
             user: 'learner',
             hostname: 'linux-mastery',
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
-                if (cmd === 'ps') {
+                // Task 1: bare ps
+                if (cmd === 'ps' && !args.includes('aux') && !args.includes('-aux')) {
                     completeTask('ps-basic');
-                    if (args.includes('aux') || args.includes('-aux')) completeTask('ps-aux');
                 }
-                if (cmd === 'pipe' && /ps.*grep/.test(cmdLine)) {
+                // Task 2: ps aux
+                if (cmd === 'ps' && (args.includes('aux') || args.includes('-aux'))) {
+                    completeTask('ps-basic');
+                    completeTask('ps-aux');
+                }
+                // Task 3: ps aux | grep (pipe command)
+                if (cmd === 'pipe' && /ps.*\|.*grep/.test(cmdLine)) {
                     completeTask('ps-basic');
                     completeTask('ps-aux');
                     completeTask('ps-grep');
                 }
-                if (cmd === 'grep') completeTask('ps-grep');
-                if (cmd === 'top' || cmd === 'htop') completeTask('top');
-                if (cmd === 'pgrep') completeTask('pgrep');
+                // Task 4: top or htop
+                if (cmd === 'top' || cmd === 'htop') {
+                    completeTask('top');
+                }
+                // Task 5: pgrep
+                if (cmd === 'pgrep') {
+                    completeTask('pgrep');
+                }
             }
         });
 
@@ -658,10 +779,19 @@
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
-            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
             updateProgress();
             saveProgress();
-            if (Object.values(tasks).every(v => v)) {
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                showTaskInstruction(next);
+            } else {
+                // All done
+                const el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Great work! You can now view and filter processes like a pro.</div>';
+                el.classList.add('visible');
                 ModuleProgress.complete('script', 'script-lm-29-ps-top', { returnUrl: 'script-lm-30-background-jobs.module.html' });
             }
         }
@@ -690,6 +820,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction on load
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

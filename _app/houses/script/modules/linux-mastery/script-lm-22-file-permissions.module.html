@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -157,6 +158,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         .terminal-container {
             flex: 1;
@@ -507,13 +517,14 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="ls-l">ls -l</span>
-                    <span class="task-chip" data-task="ls-la">ls -la</span>
-                    <span class="task-chip" data-task="identify-dir">find directory</span>
-                    <span class="task-chip" data-task="identify-exec">find executable</span>
-                    <span class="task-chip" data-task="stat">stat</span>
+                    <span class="task-chip" data-task="ls-l" onclick="showTaskInstruction('ls-l')">1</span>
+                    <span class="task-chip" data-task="ls-la" onclick="showTaskInstruction('ls-la')">2</span>
+                    <span class="task-chip" data-task="identify-dir" onclick="showTaskInstruction('identify-dir')">3</span>
+                    <span class="task-chip" data-task="identify-exec" onclick="showTaskInstruction('identify-exec')">4</span>
+                    <span class="task-chip" data-task="stat" onclick="showTaskInstruction('stat')">5</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -740,6 +751,58 @@
             }
         });
 
+        const TASK_ORDER = ['ls-l', 'ls-la', 'identify-dir', 'identify-exec', 'stat'];
+        const TASK_INSTRUCTIONS = {
+    'ls-l': {
+        num: '1 of 5 &mdash; Long Listing',
+        desc: 'Use <code>ls -l</code> to see file permission strings.',
+        hint: 'Run: <code>ls -l</code>',
+        expected: 'Shows permission strings like -rwxr-xr-x'
+    },
+    'ls-la': {
+        num: '2 of 5 &mdash; Show Hidden Files',
+        desc: 'Add the <code>-a</code> flag to also show hidden files.',
+        hint: 'Run: <code>ls -la</code>',
+        expected: 'Shows hidden files with permissions'
+    },
+    'identify-dir': {
+        num: '3 of 5 &mdash; Identify Directories',
+        desc: 'List the root directory to see directory entries (starting with <code>d</code>).',
+        hint: 'Run: <code>ls -l /</code>',
+        expected: 'Directories start with d in the permission string'
+    },
+    'identify-exec': {
+        num: '4 of 5 &mdash; Identify Executables',
+        desc: 'List files in <code>/usr/bin</code> to see executables (with <code>x</code> permission).',
+        hint: 'Run: <code>ls -l /usr/bin</code>',
+        expected: 'Executables have x in permission string'
+    },
+    'stat': {
+        num: '5 of 5 &mdash; File Details',
+        desc: 'Use <code>stat</code> to see detailed file info including octal permissions.',
+        hint: 'Run: <code>stat /etc/passwd</code>',
+        expected: 'Shows detailed file info including octal permissions'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-22-file-permissions';
         const tasks = { 'ls-l': false, 'ls-la': false, 'identify-dir': false, 'identify-exec': false, 'stat': false };
 
@@ -749,6 +812,13 @@
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-22-file-permissions', { returnUrl: 'script-lm-23-chmod.module.html' });
             }
@@ -778,6 +848,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

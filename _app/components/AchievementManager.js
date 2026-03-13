@@ -1259,7 +1259,7 @@ const AchievementManager = (function() {
             styles.id = 'achievement-notif-styles';
             styles.textContent = `
                 .achievement-notification {
-                    position: fixed;
+                    position: absolute;
                     top: 20px;
                     right: 20px;
                     background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(20,20,20,0.98));

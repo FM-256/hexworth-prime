@@ -864,7 +864,7 @@ class UpdateManager {
         style.textContent = `
             /* ===== UPDATE BANNER ===== */
             .update-banner {
-                position: fixed;
+                position: absolute;
                 top: 0;
                 left: 0;
                 right: 0;
@@ -972,7 +972,7 @@ class UpdateManager {
 
             /* ===== UPDATE MODAL ===== */
             .update-modal-overlay {
-                position: fixed;
+                position: absolute;
                 top: 0;
                 left: 0;
                 right: 0;
@@ -1402,7 +1402,7 @@ class UpdateManager {
 
             /* ===== TOAST ===== */
             .update-toast {
-                position: fixed;
+                position: absolute;
                 bottom: 30px;
                 left: 50%;
                 transform: translateX(-50%) translateY(20px);

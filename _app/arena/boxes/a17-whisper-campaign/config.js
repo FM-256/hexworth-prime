@@ -288,11 +288,11 @@ const A17Config = {
                         <div style="color:#888; font-size:0.78rem; font-style:italic;">"Truth speaks in frequencies only the awakened can hear"</div>
                     </div>
 
-                    <div style="max-width:680px; margin:0 auto; font-size:0.82rem; color:#555; line-height:1.7;">
+                    <div style="max-width:680px; margin:0 auto; font-size:0.82rem; color:#808080; line-height:1.7;">
 
                         <div style="background:rgba(155,89,182,0.06); border:1px solid rgba(155,89,182,0.2); border-radius:6px; padding:16px 20px; margin-bottom:24px;">
                             <div style="color:#9b59b6; font-size:0.72rem; font-weight:700; letter-spacing:0.12em; margin-bottom:8px;">&#9670; LATEST BROADCAST &mdash; CYCLE 47</div>
-                            <p style="margin:0 0 8px; color:#555;">Brothers and sisters of the Eye &mdash; the new materials have been distributed through our public channels. The landscape speaks. The nature recording soothes. The historical text educates. All is as it appears... and more.</p>
+                            <p style="margin:0 0 8px; color:#808080;">Brothers and sisters of the Eye &mdash; the new materials have been distributed through our public channels. The landscape speaks. The nature recording soothes. The historical text educates. All is as it appears... and more.</p>
                             <p style="margin:0; color:#777; font-size:0.75rem;">Remember: <em>The unawakened see only the surface. We see the layers beneath.</em></p>
                         </div>
 
@@ -307,7 +307,7 @@ const A17Config = {
                                         <div style="color:#999; font-size:0.7rem;">1920 &times; 1080 &mdash; 2.4 MB &mdash; "Morning Serenity"</div>
                                     </div>
                                 </div>
-                                <p style="margin:0; color:#666; font-size:0.78rem;">A breathtaking panoramic landscape. Perfect for desktop wallpapers and meditation backgrounds.</p>
+                                <p style="margin:0; color:#8a8a8a; font-size:0.78rem;">A breathtaking panoramic landscape. Perfect for desktop wallpapers and meditation backgrounds.</p>
                             </div>
 
                             <div style="background:#f8f9fb; border:1px solid #e0e0e6; border-radius:6px; padding:14px 18px;">
@@ -318,7 +318,7 @@ const A17Config = {
                                         <div style="color:#999; font-size:0.7rem;">3:42 &mdash; 44100 Hz Stereo &mdash; 38.2 MB</div>
                                     </div>
                                 </div>
-                                <p style="margin:0; color:#666; font-size:0.78rem;">Relaxing nature ambient sounds. Birds, flowing water, gentle wind. Ideal for focus and concentration.</p>
+                                <p style="margin:0; color:#8a8a8a; font-size:0.78rem;">Relaxing nature ambient sounds. Birds, flowing water, gentle wind. Ideal for focus and concentration.</p>
                             </div>
 
                             <div style="background:#f8f9fb; border:1px solid #e0e0e6; border-radius:6px; padding:14px 18px;">
@@ -329,7 +329,7 @@ const A17Config = {
                                         <div style="color:#999; font-size:0.7rem;">12 pages &mdash; 1.8 MB &mdash; "The Art of Silent Communication"</div>
                                     </div>
                                 </div>
-                                <p style="margin:0; color:#666; font-size:0.78rem;">A scholarly essay on the history of cryptographic communication from ancient Rome to modern intelligence agencies.</p>
+                                <p style="margin:0; color:#8a8a8a; font-size:0.78rem;">A scholarly essay on the history of cryptographic communication from ancient Rome to modern intelligence agencies.</p>
                             </div>
 
                             <div style="background:#f8f9fb; border:1px solid #e0e0e6; border-radius:6px; padding:14px 18px;">
@@ -340,13 +340,13 @@ const A17Config = {
                                         <div style="color:#999; font-size:0.7rem;">Encrypted &mdash; 4.7 KB &mdash; "Members Only"</div>
                                     </div>
                                 </div>
-                                <p style="margin:0; color:#666; font-size:0.78rem;">Restricted archive for verified members. Password required. <em>"Those who have listened will know the key."</em></p>
+                                <p style="margin:0; color:#8a8a8a; font-size:0.78rem;">Restricted archive for verified members. Password required. <em>"Those who have listened will know the key."</em></p>
                             </div>
                         </div>
 
                         <div style="color:#444; font-size:0.78rem; font-weight:700; letter-spacing:0.1em; margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid #eef;">&#9670; PHILOSOPHY</div>
 
-                        <div style="background:rgba(155,89,182,0.04); border-left:3px solid #9b59b6; padding:12px 16px; margin-bottom:20px; color:#666; font-size:0.78rem; line-height:1.7;">
+                        <div style="background:rgba(155,89,182,0.04); border-left:3px solid #9b59b6; padding:12px 16px; margin-bottom:20px; color:#8a8a8a; font-size:0.78rem; line-height:1.7;">
                             <p style="margin:0 0 8px;">"In an age of surveillance, the wise do not shout &mdash; they whisper. The Whispering Eye embeds truth within the ordinary. A photograph carries more than color. A recording holds more than sound. A document contains more than words."</p>
                             <p style="margin:0; color:#999; font-size:0.72rem;">&mdash; The Founder, Cycle 1 Address</p>
                         </div>
@@ -367,13 +367,13 @@ const A17Config = {
                         <h1 style="color:#9b59b6; font-size:1.3rem; font-family:Georgia,serif; letter-spacing:0.06em;">About The Whispering Eye</h1>
                     </div>
 
-                    <div style="max-width:620px; margin:0 auto; font-size:0.82rem; color:#555; line-height:1.8;">
+                    <div style="max-width:620px; margin:0 auto; font-size:0.82rem; color:#808080; line-height:1.8;">
                         <p>Founded in Cycle 1, The Whispering Eye is a collective of truth-seekers who believe that information must flow freely, even through hostile territory.</p>
 
                         <p>Our methods are rooted in the ancient art of <strong>steganography</strong> &mdash; the practice of concealing messages within ordinary-looking media. Where cryptography makes a message unreadable, steganography makes it <em>invisible</em>.</p>
 
                         <h3 style="color:#9b59b6; font-size:0.9rem; margin-top:20px;">Our Techniques</h3>
-                        <ul style="color:#666; padding-left:20px;">
+                        <ul style="color:#8a8a8a; padding-left:20px;">
                             <li><strong>Visual Embedding:</strong> Messages woven into the least significant bits of images</li>
                             <li><strong>Acoustic Layering:</strong> Data encoded within audio frequencies beyond casual perception</li>
                             <li><strong>Textual Concealment:</strong> Hidden layers within documents that only the trained eye can detect</li>

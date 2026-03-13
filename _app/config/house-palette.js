@@ -77,12 +77,12 @@ const HousePalette = {
         border: 'rgba(192, 132, 252, 0.2)'
     },
     'dark-arts': {
-        primary: '#6b21a8',
-        secondary: '#581c87',
+        primary: '#9b59d0',
+        secondary: '#7c3aad',
         accent: '#9333ea',
-        glow: 'rgba(107, 33, 168, 0.3)',
-        bg: 'rgba(107, 33, 168, 0.05)',
-        border: 'rgba(107, 33, 168, 0.25)',
+        glow: 'rgba(155, 89, 208, 0.3)',
+        bg: 'rgba(155, 89, 208, 0.05)',
+        border: 'rgba(155, 89, 208, 0.25)',
         terminal: '#00ff41'
     },
     divergent: {

@@ -3092,7 +3092,7 @@ DigitalLife.THEMES = {
     },
     'dark-arts': {
         name: 'Dark Arts',
-        accent: '#6b21a8',
+        accent: '#9b59d0',
         glow: 'rgba(107, 33, 168, 0.3)'
     },
     divergent: {

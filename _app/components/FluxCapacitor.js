@@ -78,7 +78,7 @@
         { id: 'key', name: 'Key', icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#f472b6', path: 'houses/key/index.html' },
         { id: 'eye', name: 'Eye', icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#c084fc', path: 'houses/eye/index.html' },
         { id: 'ai', name: 'Machine', icon: '<img src="/assets/images/icons/icon-robot.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#a855f7', path: 'houses/ai/index.html' },
-        { id: 'dark-arts', name: 'Dark Arts', icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#6b21a8', path: 'houses/dark-arts/index.html' },
+        { id: 'dark-arts', name: 'Dark Arts', icon: '<img src="/assets/images/icons/icon-skull-crossbones.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#9b59d0', path: 'houses/dark-arts/index.html' },
         { id: 'matrix', name: 'The Matrix', icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#00ff41', path: 'houses/matrix/index.html' }
     ];
 
@@ -100,7 +100,7 @@
 
         /* Floating Button */
         .flux-btn {
-            position: fixed;
+            position: absolute;
             bottom: 24px;
             right: 24px;
             width: 64px;
@@ -174,7 +174,7 @@
 
         /* Modal Overlay */
         .flux-overlay {
-            position: fixed;
+            position: absolute;
             inset: 0;
             background: rgba(0, 0, 0, 0.92);
             backdrop-filter: blur(12px);
@@ -213,7 +213,7 @@
         }
 
         .flux-subtitle {
-            color: #666;
+            color: #8a8a8a;
             font-size: 0.85rem;
             margin-bottom: 30px;
         }
@@ -370,7 +370,7 @@
 
         /* Warp Animation */
         .flux-warp {
-            position: fixed;
+            position: absolute;
             inset: 0;
             background: var(--flux-green);
             z-index: 99999;

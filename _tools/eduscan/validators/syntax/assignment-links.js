@@ -76,12 +76,20 @@ class AssignmentLinkValidator {
             return { issues, stats };
         }
 
-        // Load and parse PATH_HOUSE_MAP from handler-dashboard.html
+        // Load and parse PATH_HOUSE_MAP from handler-dashboard.html or its JS file
         const handlerAbsPath = path.resolve(this.rootPath, this.handlerDashboardFile);
         let pathHouseMap = {};
         if (fs.existsSync(handlerAbsPath)) {
             const handlerContent = fs.readFileSync(handlerAbsPath, 'utf8');
             pathHouseMap = this.parsePathHouseMap(handlerContent);
+            // If not found in HTML, check the external JS file
+            if (Object.keys(pathHouseMap).length === 0) {
+                const jsPath = path.resolve(this.rootPath, './js/handler-dashboard.js');
+                if (fs.existsSync(jsPath)) {
+                    const jsContent = fs.readFileSync(jsPath, 'utf8');
+                    pathHouseMap = this.parsePathHouseMap(jsContent);
+                }
+            }
             if (this.verbose) {
                 console.log(`[ASGN] PATH_HOUSE_MAP: ${Object.keys(pathHouseMap).length} entries`);
             }

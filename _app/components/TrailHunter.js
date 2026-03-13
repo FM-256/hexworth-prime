@@ -228,7 +228,7 @@
         /* Trail Hunter - Patronus System */
 
         .patronus-container {
-            position: fixed;
+            position: absolute;
             pointer-events: none;
             z-index: 9997;
             top: 0;
@@ -362,7 +362,7 @@
 
         /* Hunt notification toast */
         .hunt-toast {
-            position: fixed;
+            position: absolute;
             bottom: 80px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
@@ -405,7 +405,7 @@
 
         /* Hunt progress panel */
         .hunt-progress {
-            position: fixed;
+            position: absolute;
             top: 20px;
             right: 20px;
             background: rgba(15, 15, 25, 0.95);

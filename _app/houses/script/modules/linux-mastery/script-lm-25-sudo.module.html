@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -147,11 +148,21 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
+        .task-chip:hover { border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
         .task-chip.completed {
-            background: var(--accent-dim);
-            border-color: var(--accent);
-            color: var(--accent);
+            background: rgba(78, 201, 176, 0.1);
+            border-color: var(--green);
+            color: var(--green);
         }
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
 
         /* Terminal fills remaining space */
         .terminal-container {
@@ -477,16 +488,24 @@
             <div class="panel-tasks">
                 <div class="panel-tasks-header">
                     <span class="panel-tasks-title">Tasks</span>
-                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 7</span>
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="sudo-basic">sudo cmd</span>
-                    <span class="task-chip" data-task="sudo-whoami">sudo whoami</span>
-                    <span class="task-chip" data-task="sudo-u">sudo -u</span>
-                    <span class="task-chip" data-task="sudo-l">sudo -l</span>
-                    <span class="task-chip" data-task="read-protected">read protected</span>
+                    <span class="task-chip active" data-task="denied">1</span>
+                    <span class="task-chip" data-task="sudo-read">2</span>
+                    <span class="task-chip" data-task="sudo-whoami">3</span>
+                    <span class="task-chip" data-task="sudo-cached">4</span>
+                    <span class="task-chip" data-task="sudo-u">5</span>
+                    <span class="task-chip" data-task="sudo-l">6</span>
+                    <span class="task-chip" data-task="sudo-k">7</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 7 &mdash; See the Problem</div>
+                <div class="task-desc">Try to read the password file <strong>/etc/shadow</strong> without sudo. You should get <em>Permission denied</em>.</div>
+                <div class="task-hint">Run: <code>cat /etc/shadow</code></div>
+                <div class="task-expected">This fails because /etc/shadow is owned by root and not readable by normal users</div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -501,6 +520,12 @@
                     <li>Know the difference between sudo and su</li>
                     <li>Run commands as other users with sudo -u</li>
                 </ul>
+            </div>
+
+            <div class="warning-box" style="background: rgba(78, 201, 176, 0.08); border-left-color: var(--green); margin-bottom: 25px;">
+                <strong style="color: var(--green);">Lab Credentials</strong><br>
+                When prompted for a password, use: <code style="color: var(--accent); font-size: 1rem; font-weight: 600;">P@55w0rd!!</code><br>
+                <span style="font-size: 0.82rem;">In a real system, this would be YOUR user password — not the root password.</span>
             </div>
 
             <section class="section">
@@ -671,55 +696,157 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
-        // Simulated protected files
-        const protectedFiles = {
-            '/etc/shadow': 'root:$6$hash:19000:0:99999:7:::\ndaemon:*:19000:0:99999:7:::\nstudent:$6$hash:19000:0:99999:7:::',
-            '/etc/sudoers': '# sudoers file\nroot ALL=(ALL:ALL) ALL\n%sudo ALL=(ALL:ALL) ALL\nstudent ALL=(ALL:ALL) ALL'
-        };
-
         LinuxTerminal.init('LM-25', '#terminal', {
             user: 'learner',
             hostname: 'linux-mastery',
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
+                // Task 1: Try to read protected file WITHOUT sudo
+                if (cmd === 'cat' && (cmdLine.includes('/etc/shadow') || cmdLine.includes('/etc/sudoers'))) {
+                    if (typeof output === 'string' && output.includes('Permission denied')) {
+                        completeTask('denied');
+                    }
+                }
+
                 if (cmd === 'sudo') {
-                    completeTask('sudo-basic');
-                    if (args[0] === '-l') completeTask('sudo-l');
-                    if (args[0] === '-u') completeTask('sudo-u');
-                    if (args.includes('whoami')) completeTask('sudo-whoami');
-                    if (args.includes('cat') && (args.includes('/etc/shadow') || args.includes('/etc/sudoers'))) {
-                        completeTask('read-protected');
+                    const joined = args.join(' ');
+
+                    // Task 2: Read a protected file WITH sudo
+                    if (args.includes('cat') && (joined.includes('/etc/shadow') || joined.includes('/etc/sudoers'))) {
+                        completeTask('sudo-read');
+                    }
+
+                    // Task 3: sudo whoami
+                    if (args.includes('whoami') && !joined.includes('-u')) {
+                        completeTask('sudo-whoami');
+                    }
+
+                    // Task 4: Run another sudo command (password should be cached)
+                    if (tasks['sudo-whoami'] || tasks['sudo-read']) {
+                        completeTask('sudo-cached');
+                    }
+
+                    // Task 5: sudo -u
+                    if (joined.includes('-u')) {
+                        completeTask('sudo-u');
+                    }
+
+                    // Task 6: sudo -l
+                    if (args[0] === '-l') {
+                        completeTask('sudo-l');
+                    }
+
+                    // Task 7: sudo -k
+                    if (args[0] === '-k') {
+                        completeTask('sudo-k');
                     }
                 }
             }
         });
 
         // Add protected files to virtual filesystem
-        const fs = LinuxTerminal.getFs();
         LinuxTerminal.addFilesystem({
             '/etc/shadow': {
                 type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
                 size: 512,
-                content: protectedFiles['/etc/shadow']
+                content: 'root:$6$rounds=656000$salt$longhash:19000:0:99999:7:::\ndaemon:*:19000:0:99999:7:::\nbin:*:19000:0:99999:7:::\nlearner:$6$rounds=656000$salt$anotherhash:19365:0:99999:7:::\nwww-data:*:19000:0:99999:7:::'
             },
             '/etc/sudoers': {
                 type: 'file', perms: '-r--r-----', owner: 'root', group: 'root',
                 size: 256,
-                content: protectedFiles['/etc/sudoers']
+                content: '# /etc/sudoers — ALWAYS use visudo to edit this file!\n#\n# Host alias specification\n# User alias specification\n# Cmnd alias specification\n\n# User privilege specification\nroot\tALL=(ALL:ALL) ALL\n\n# Members of the admin group may gain root privileges\n%admin ALL=(ALL) ALL\n\n# Allow members of group sudo to execute any command\n%sudo\tALL=(ALL:ALL) ALL\n\n# Student account\nlearner\tALL=(ALL:ALL) ALL'
             }
         });
 
+        // Also add /etc/shadow to /etc children so ls shows it
+        const etcNode = LinuxTerminal.getFs()['/etc'];
+        if (etcNode && !etcNode.children.includes('shadow')) etcNode.children.push('shadow');
+        if (etcNode && !etcNode.children.includes('sudoers')) etcNode.children.push('sudoers');
+
         const MODULE_ID = 'lm-25-sudo';
         const MODULE_KEY = 'script-lm-25-sudo';
-        const tasks = { 'sudo-basic': false, 'sudo-whoami': false, 'sudo-u': false, 'sudo-l': false, 'read-protected': false };
+        const TASK_ORDER = ['denied', 'sudo-read', 'sudo-whoami', 'sudo-cached', 'sudo-u', 'sudo-l', 'sudo-k'];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'denied': {
+                num: '1 of 7 &mdash; See the Problem',
+                desc: 'Try to read the password file <strong>/etc/shadow</strong> without sudo. You should get <em>Permission denied</em>.',
+                hint: 'Run: <code>cat /etc/shadow</code>',
+                expected: 'This fails because /etc/shadow is owned by root and not readable by normal users'
+            },
+            'sudo-read': {
+                num: '2 of 7 &mdash; Read with sudo',
+                desc: 'Now use <strong>sudo</strong> to read the same file. When prompted, enter the password: <code>P@55w0rd!!</code>',
+                hint: 'Run: <code>sudo cat /etc/shadow</code>',
+                expected: 'You should see password hashes for root, daemon, learner, etc.'
+            },
+            'sudo-whoami': {
+                num: '3 of 7 &mdash; Who Are You Now?',
+                desc: 'Use sudo to run <strong>whoami</strong>. This tells you what user the command executes as.',
+                hint: 'Run: <code>sudo whoami</code>',
+                expected: 'Should print "root" — because sudo runs the command as the superuser'
+            },
+            'sudo-cached': {
+                num: '4 of 7 &mdash; Password Caching',
+                desc: 'Run another sudo command. Notice it does <strong>not</strong> ask for your password again — sudo caches your credentials.',
+                hint: 'Run: <code>sudo cat /etc/sudoers</code>',
+                expected: 'No password prompt this time! sudo remembers you for ~15 minutes'
+            },
+            'sudo-u': {
+                num: '5 of 7 &mdash; Run as Another User',
+                desc: 'Use <code>-u</code> to run a command as a <strong>different user</strong>, not root. Try running whoami as the web server user.',
+                hint: 'Run: <code>sudo -u www-data whoami</code>',
+                expected: 'Should print "www-data" — you ran the command as the web server account'
+            },
+            'sudo-l': {
+                num: '6 of 7 &mdash; Check Your Privileges',
+                desc: 'Use <code>-l</code> to list what commands you\'re allowed to run with sudo.',
+                hint: 'Run: <code>sudo -l</code>',
+                expected: 'Shows "(ALL : ALL) ALL" — you can run anything as anyone'
+            },
+            'sudo-k': {
+                num: '7 of 7 &mdash; Clear the Cache',
+                desc: 'Use <code>-k</code> to clear the cached password. The next sudo command will require your password again.',
+                hint: 'Run: <code>sudo -k</code>',
+                expected: 'Credential cache cleared. Try "sudo whoami" again — it will ask for the password!'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+                <div class="task-expected">${info.expected}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
-            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) { chip.classList.remove('active'); chip.classList.add('completed'); }
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', MODULE_KEY, { returnUrl: 'script-lm-26-special-permissions.module.html' });
             }
@@ -742,13 +869,27 @@
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        // Click chips to view task instructions
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
             if (saved?.completed) {
-                saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) { chip.classList.remove('active'); chip.classList.add('completed'); }
+                });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

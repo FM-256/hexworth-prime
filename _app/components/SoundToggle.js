@@ -252,7 +252,7 @@ class SoundToggle {
         style.id = 'sound-toggle-styles';
         style.textContent = `
             .sound-toggle {
-                position: fixed;
+                position: absolute;
                 width: ${this.options.size}px;
                 height: ${this.options.size}px;
                 border-radius: 50%;

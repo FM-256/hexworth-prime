@@ -13390,7 +13390,7 @@ WantedBy=multi-user.target`;
         const modal = document.createElement('div');
         modal.id = 'systemd-timer-modal';
         modal.innerHTML = `
-            <div style="position:fixed;inset:0;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
+            <div style="position:absolute;top:${window.scrollY}px;left:0;width:100%;height:${window.innerHeight}px;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
                 <div style="background:#0d1117;border:2px solid #8b5cf6;border-radius:12px;width:95%;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;">
                     <div style="padding:15px 20px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;">
                         <span style="color:#8b5cf6;font-weight:bold;">SYSTEMD TIMER EDITOR - ${timerName}</span>
@@ -13706,7 +13706,7 @@ Usage:  crontab -l         (list crontab)
         const modal = document.createElement('div');
         modal.id = 'crontab-editor-modal';
         modal.innerHTML = `
-            <div style="position:fixed;inset:0;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
+            <div style="position:absolute;top:${window.scrollY}px;left:0;width:100%;height:${window.innerHeight}px;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
                 <div style="background:#0d1117;border:2px solid #00ff41;border-radius:12px;width:90%;max-width:800px;max-height:90vh;display:flex;flex-direction:column;">
                     <div style="padding:15px 20px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;">
                         <span style="color:#00ff41;font-weight:bold;">CRONTAB EDITOR - ${user}</span>
@@ -13936,7 +13936,7 @@ Usage:  crontab -l         (list crontab)
         const modal = document.createElement('div');
         modal.id = 'at-editor-modal';
         modal.innerHTML = `
-            <div style="position:fixed;inset:0;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
+            <div style="position:absolute;top:${window.scrollY}px;left:0;width:100%;height:${window.innerHeight}px;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
                 <div style="background:#0d1117;border:2px solid #f59e0b;border-radius:12px;width:90%;max-width:700px;max-height:80vh;display:flex;flex-direction:column;">
                     <div style="padding:15px 20px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;">
                         <span style="color:#f59e0b;font-weight:bold;">AT JOB EDITOR</span>
@@ -15192,11 +15192,11 @@ Number of days of warning before password expires       : 7`;
 
         // Header line (like vim)
         const fileName = this._vimFile ? this._vimFile.split('/').pop() : '[No Name]';
-        html += `<div style="color: #666; margin-bottom: 5px;">${fileName}${this._vimModified ? ' [+]' : ''}</div>`;
+        html += `<div style="color: #8a8a8a; margin-bottom: 5px;">${fileName}${this._vimModified ? ' [+]' : ''}</div>`;
 
         // Content lines with cursor
         for (let i = startLine; i < endLine; i++) {
-            const lineNum = this._vimShowLineNumbers ? `<span style="color: #666; margin-right: 10px;">${String(i + 1).padStart(3)}</span>` : '';
+            const lineNum = this._vimShowLineNumbers ? `<span style="color: #8a8a8a; margin-right: 10px;">${String(i + 1).padStart(3)}</span>` : '';
             const line = this._vimContent[i] || '';
 
             if (i === this._vimCursorLine) {
@@ -16431,7 +16431,7 @@ ${matrix}
             style.id = 'clh-achievement-styles';
             style.textContent = `
                 .clh-achievement-popup {
-                    position: fixed;
+                    position: absolute;
                     bottom: 20px;
                     right: 20px;
                     background: linear-gradient(135deg, #1a1a2e, #16213e);

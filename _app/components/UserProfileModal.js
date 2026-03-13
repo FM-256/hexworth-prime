@@ -506,7 +506,7 @@
             }
             .upm-house-domain {
                 font-size: 0.68rem;
-                color: #555;
+                color: #808080;
                 margin-top: 2px;
                 letter-spacing: 0.04em;
             }
@@ -625,7 +625,7 @@
             .upm-stat-label {
                 display: block;
                 font-size: 0.55rem;
-                color: #555;
+                color: #808080;
                 text-transform: uppercase;
                 letter-spacing: 0.08em;
                 margin-top: 4px;
@@ -685,7 +685,7 @@
             .upm-loading {
                 text-align: center;
                 padding: 60px 20px;
-                color: #666;
+                color: #8a8a8a;
             }
             .upm-spinner {
                 width: 36px;

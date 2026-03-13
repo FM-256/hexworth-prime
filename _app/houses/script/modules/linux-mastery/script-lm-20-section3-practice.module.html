@@ -31,7 +31,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -154,6 +155,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         /* Terminal fills remaining space */
         .terminal-container {
@@ -368,16 +378,17 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="c1">grep</span>
-                    <span class="task-chip" data-task="c2">awk</span>
-                    <span class="task-chip" data-task="c3">sed</span>
-                    <span class="task-chip" data-task="c4">sort</span>
-                    <span class="task-chip" data-task="c5">cut</span>
-                    <span class="task-chip" data-task="c6">uniq -c</span>
-                    <span class="task-chip" data-task="c7">pipe+wc</span>
-                    <span class="task-chip" data-task="c8">complex</span>
+                    <span class="task-chip" data-task="c1" onclick="showTaskInstruction('c1')">1</span>
+                    <span class="task-chip" data-task="c2" onclick="showTaskInstruction('c2')">2</span>
+                    <span class="task-chip" data-task="c3" onclick="showTaskInstruction('c3')">3</span>
+                    <span class="task-chip" data-task="c4" onclick="showTaskInstruction('c4')">4</span>
+                    <span class="task-chip" data-task="c5" onclick="showTaskInstruction('c5')">5</span>
+                    <span class="task-chip" data-task="c6" onclick="showTaskInstruction('c6')">6</span>
+                    <span class="task-chip" data-task="c7" onclick="showTaskInstruction('c7')">7</span>
+                    <span class="task-chip" data-task="c8" onclick="showTaskInstruction('c8')">8</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -549,6 +560,76 @@
             }
         });
 
+        const TASK_ORDER = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
+        const TASK_INSTRUCTIONS = {
+    'c1': {
+        num: '1 of 8 &mdash; Find Error Lines',
+        desc: 'Use <code>grep</code> to find all lines containing "ERROR" in <strong>app.log</strong>.',
+        hint: 'Run: <code>grep "ERROR" app.log</code>',
+        expected: 'Shows only lines with ERROR'
+    },
+    'c2': {
+        num: '2 of 8 &mdash; Extract First Column',
+        desc: 'Use <code>awk</code> to print only the first column (timestamps) from <strong>app.log</strong>.',
+        hint: 'Run: <code>awk \'{print $1}\' app.log</code>',
+        expected: 'Shows just the timestamps'
+    },
+    'c3': {
+        num: '3 of 8 &mdash; Replace Text',
+        desc: 'Use <code>sed</code> to replace "ERROR" with "ALERT" in <strong>app.log</strong>.',
+        hint: 'Run: <code>sed \'s/ERROR/ALERT/g\' app.log</code>',
+        expected: 'All ERROR replaced with ALERT'
+    },
+    'c4': {
+        num: '4 of 8 &mdash; Sort the Log',
+        desc: 'Sort <strong>app.log</strong> alphabetically.',
+        hint: 'Run: <code>sort app.log</code>',
+        expected: 'Lines sorted A-Z'
+    },
+    'c5': {
+        num: '5 of 8 &mdash; Extract Field from CSV',
+        desc: 'Use <code>cut</code> to extract the second column from <strong>data.csv</strong>.',
+        hint: 'Run: <code>cut -d\',\' -f2 data.csv</code>',
+        expected: 'Shows only the age column'
+    },
+    'c6': {
+        num: '6 of 8 &mdash; Count Unique Values',
+        desc: 'Use <code>sort</code> and <code>uniq</code> to count unique log levels.',
+        hint: 'Run: <code>awk \'{print $2}\' app.log | sort | uniq -c</code>',
+        expected: 'Shows count of each log level'
+    },
+    'c7': {
+        num: '7 of 8 &mdash; Pipeline: Filter and Count',
+        desc: 'Find errors and count them using a pipeline.',
+        hint: 'Run: <code>grep "ERROR" app.log | wc -l</code>',
+        expected: 'Shows the number of error lines'
+    },
+    'c8': {
+        num: '8 of 8 &mdash; Complex Pipeline',
+        desc: 'Extract IPs, sort, and show top occurrences.',
+        hint: 'Run: <code>awk \'{print $3}\' app.log | sort | uniq -c | sort -rn</code>',
+        expected: 'Shows IPs ranked by frequency'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-20-section3-practice';
         const TOTAL = 8;
         const challengeMap = { 1: 'c1', 2: 'c2', 3: 'c3', 4: 'c4', 5: 'c5', 6: 'c6', 7: 'c7', 8: 'c8' };
@@ -577,6 +658,7 @@
                 if (!tasks[tid]) {
                     const next = document.querySelector(`[data-challenge="${i}"]`);
                     if (next && !next.classList.contains('completed')) next.classList.add('active');
+                    setTimeout(() => showTaskInstruction(challengeMap[i]), 400);
                     break;
                 }
             }
@@ -650,6 +732,9 @@
                 document.getElementById('completionBanner').classList.add('show');
                 document.getElementById('progressFill').classList.add('complete');
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

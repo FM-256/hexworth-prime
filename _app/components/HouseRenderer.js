@@ -136,7 +136,7 @@ const HouseRenderer = (function() {
 
             body::before {
                 content: '';
-                position: fixed;
+                position: absolute;
                 top: 0; left: 0; right: 0; bottom: 0;
                 background:
                     radial-gradient(ellipse at 20% 20%, var(--house-bg) 0%, transparent 50%),
@@ -284,7 +284,7 @@ const HouseRenderer = (function() {
 
             .hero-mascot-species {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
                 letter-spacing: 0.2em;
                 text-transform: uppercase;
                 text-align: center;
@@ -292,7 +292,7 @@ const HouseRenderer = (function() {
 
             .hero-mascot-quote {
                 font-size: 0.85rem;
-                color: #555;
+                color: #808080;
                 font-style: italic;
                 max-width: 500px;
                 margin: 15px 0 0;
@@ -353,7 +353,7 @@ const HouseRenderer = (function() {
                 left: 14px;
                 top: 50%;
                 transform: translateY(-50%);
-                color: #555;
+                color: #808080;
                 font-size: 1rem;
                 pointer-events: none;
                 z-index: 1;
@@ -377,11 +377,11 @@ const HouseRenderer = (function() {
                 box-shadow: 0 0 0 3px var(--house-glow);
             }
 
-            .hr-top-search-input::placeholder { color: #555; }
+            .hr-top-search-input::placeholder { color: #808080; }
 
             .hr-top-search-count {
                 font-size: 0.75rem;
-                color: #555;
+                color: #808080;
                 white-space: nowrap;
                 position: absolute;
                 right: 14px;
@@ -392,7 +392,7 @@ const HouseRenderer = (function() {
 
             .hr-top-search-kbd {
                 font-size: 0.6rem;
-                color: #444;
+                color: #808080;
                 background: rgba(255, 255, 255, 0.05);
                 border: 1px solid rgba(255, 255, 255, 0.08);
                 border-radius: 4px;
@@ -423,7 +423,7 @@ const HouseRenderer = (function() {
 
             .stat-label {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
                 letter-spacing: 0.15em;
                 text-transform: uppercase;
                 margin-top: 5px;
@@ -451,7 +451,7 @@ const HouseRenderer = (function() {
                 background: transparent;
                 border: 1px solid transparent;
                 border-radius: 8px;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 0.8rem;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -533,7 +533,7 @@ const HouseRenderer = (function() {
 
             .path-cert {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .path-progress {
@@ -594,11 +594,11 @@ const HouseRenderer = (function() {
                 border-color: var(--house-primary);
             }
 
-            .hr-filter-input::placeholder { color: #555; }
+            .hr-filter-input::placeholder { color: #808080; }
 
             .hr-filter-count {
                 font-size: 0.75rem;
-                color: #555;
+                color: #808080;
                 white-space: nowrap;
             }
 
@@ -607,7 +607,7 @@ const HouseRenderer = (function() {
                 background: rgba(255,255,255,0.04);
                 border: 1px solid rgba(255,255,255,0.1);
                 border-radius: 6px;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 0.8rem;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -698,7 +698,7 @@ const HouseRenderer = (function() {
 
             .module-status.coming-soon {
                 background: rgba(255, 255, 255, 0.05);
-                color: #666;
+                color: #8a8a8a;
             }
 
             .module-status.completed {
@@ -744,7 +744,7 @@ const HouseRenderer = (function() {
 
             .module-description {
                 font-size: 0.75rem;
-                color: #666;
+                color: #8a8a8a;
                 line-height: 1.5;
                 margin-bottom: 12px;
             }
@@ -766,7 +766,7 @@ const HouseRenderer = (function() {
             .hr-no-results {
                 text-align: center;
                 padding: 40px 20px;
-                color: #555;
+                color: #808080;
                 font-size: 0.9rem;
             }
 
@@ -774,7 +774,7 @@ const HouseRenderer = (function() {
             .hr-explore-info {
                 text-align: center;
                 padding: 20px;
-                color: #555;
+                color: #808080;
                 font-size: 0.8rem;
                 margin-bottom: 20px;
             }
@@ -834,7 +834,7 @@ const HouseRenderer = (function() {
             .hr-feature-icon img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
             .hr-feature-icon { font-size: 1.6rem; margin-bottom: 10px; }
             .hr-feature-name { font-size: 0.9rem; font-family: 'Segoe UI', sans-serif; font-weight: 600; margin-bottom: 6px; }
-            .hr-feature-desc { font-size: 0.72rem; color: #666; font-family: 'Segoe UI', sans-serif; line-height: 1.5; }
+            .hr-feature-desc { font-size: 0.72rem; color: #8a8a8a; font-family: 'Segoe UI', sans-serif; line-height: 1.5; }
 
             /* Course hub cards in content panel */
             .hr-hub-section { margin-bottom: 25px; }
@@ -919,7 +919,7 @@ const HouseRenderer = (function() {
 
             .hr-profile-card-label {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
                 letter-spacing: 0.15em;
                 text-transform: uppercase;
             }
@@ -946,7 +946,7 @@ const HouseRenderer = (function() {
 
             .hr-xp-bar-xp {
                 font-size: 0.75rem;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .hr-xp-bar-track {
@@ -966,7 +966,7 @@ const HouseRenderer = (function() {
             .hr-profile-empty {
                 text-align: center;
                 padding: 60px 20px;
-                color: #555;
+                color: #808080;
             }
 
             .hr-profile-empty-icon {
@@ -982,14 +982,14 @@ const HouseRenderer = (function() {
 
             .hr-profile-empty-hint {
                 font-size: 0.75rem;
-                color: #444;
+                color: #808080;
             }
 
             /* Instructor panel */
             .hr-instructor-loading {
                 text-align: center;
                 padding: 60px 20px;
-                color: #555;
+                color: #808080;
             }
 
             .hr-spinner {
@@ -1670,7 +1670,7 @@ const HouseRenderer = (function() {
                     </a>
                     <a href="https://colosseum-arena.web.app" target="_blank" rel="noopener" class="hr-feature-card feat-colosseum" role="listitem" aria-label="The Colosseum - opens in new tab">
                         <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="The Colosseum" onerror="this.onerror=null;this.src='/assets/images/icons/icon-institution.webp'"></div>
-                        <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#555;font-weight:400;" aria-hidden="true">↗</span></div>
+                        <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#808080;font-weight:400;" aria-hidden="true">↗</span></div>
                         <div class="hr-feature-desc">Incident response card game — live multiplayer cybersecurity battle simulator</div>
                     </a>
                 </div>

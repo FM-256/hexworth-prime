@@ -119,7 +119,7 @@ const AchievementPanel = (function() {
 
             .ap-cat-count {
                 font-size: 0.65rem;
-                color: #666;
+                color: #8a8a8a;
                 margin-left: 8px;
                 flex-shrink: 0;
             }
@@ -174,7 +174,7 @@ const AchievementPanel = (function() {
             }
 
             .ap-search::placeholder {
-                color: #666;
+                color: #8a8a8a;
             }
 
             .ap-filter-group {
@@ -235,7 +235,7 @@ const AchievementPanel = (function() {
 
             .ap-stat-label {
                 font-size: 0.6rem;
-                color: #666;
+                color: #8a8a8a;
                 letter-spacing: 0.1em;
             }
 
@@ -497,7 +497,7 @@ const AchievementPanel = (function() {
 
             .ap-card-date {
                 font-size: 0.5rem;
-                color: #555;
+                color: #808080;
                 margin-top: 2px;
             }
 
@@ -507,7 +507,7 @@ const AchievementPanel = (function() {
             }
 
             .ap-card.secret.locked .ap-card-name {
-                color: #666;
+                color: #8a8a8a;
             }
 
             /* Style variants */
@@ -567,7 +567,7 @@ const AchievementPanel = (function() {
 
             .ap-page-info {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
             }
 
             /* Title display */
@@ -579,7 +579,7 @@ const AchievementPanel = (function() {
 
             .ap-title-label {
                 font-size: 0.6rem;
-                color: #666;
+                color: #8a8a8a;
                 letter-spacing: 0.15em;
                 margin-bottom: 4px;
             }
@@ -594,7 +594,7 @@ const AchievementPanel = (function() {
             .ap-empty {
                 text-align: center;
                 padding: 40px;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 0.85rem;
             }
 
@@ -842,7 +842,7 @@ const AchievementPanel = (function() {
                 <span class="ap-page-info">${_state.page + 1} / ${totalPages} (${allFiltered.length} achievements)</span>
                 <button class="ap-page-btn" data-page="next" ${_state.page >= totalPages - 1 ? 'disabled' : ''}>Next <img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></button>
             </div>
-        ` : `<div class="ap-page-info" style="text-align:center;padding:5px;color:#666;font-size:0.7rem;">${allFiltered.length} achievements</div>`;
+        ` : `<div class="ap-page-info" style="text-align:center;padding:5px;color:#8a8a8a;font-size:0.7rem;">${allFiltered.length} achievements</div>`;
 
         // Full layout
         container.innerHTML = `

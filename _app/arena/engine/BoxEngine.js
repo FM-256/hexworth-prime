@@ -706,62 +706,11 @@ const BoxEngine = {
 
     // ────────────────────────────────────────────────
     // BOOT SEQUENCE
+    // _startBoot() is defined in the blue team extension block
+    // below (search "WINRE BOOT SEQUENCE VARIANT") — it routes to
+    // the WinRE flow when config.bootSequence === 'winre', otherwise
+    // falls through to the original Linux/BIOS sequence.
     // ────────────────────────────────────────────────
-
-    _startBoot() {
-        if (this.state.godMode) {
-            this.state.booted = true;
-            this.save();
-            this._showDesktop();
-            return;
-        }
-
-        this._bootEl.style.display = 'flex';
-        const textEl = document.getElementById('bootText');
-        const bootLines = this.config.boot?.biosLines || ['Booting...'];
-        let lineIdx = 0;
-        let charIdx = 0;
-        let currentText = '';
-        const speed = 12;
-
-        const skipBoot = () => {
-            this._bootEl.removeEventListener('click', skipBoot);
-            document.removeEventListener('keydown', skipBoot);
-            this.state.booted = true;
-            this.save();
-            this._bootEl.classList.add('fade-out');
-            setTimeout(() => {
-                this._bootEl.style.display = 'none';
-                this._showDesktop();
-            }, 600);
-        };
-
-        this._bootEl.addEventListener('click', skipBoot);
-        document.addEventListener('keydown', skipBoot);
-
-        const typeLine = () => {
-            if (lineIdx >= bootLines.length) {
-                // Move to GRUB
-                setTimeout(() => this._showGrub(skipBoot), 400);
-                return;
-            }
-
-            const line = bootLines[lineIdx];
-            if (charIdx < line.length) {
-                currentText += line[charIdx];
-                textEl.innerHTML = currentText + '<span class="boot-cursor"></span>';
-                charIdx++;
-                setTimeout(typeLine, speed + Math.random() * 10);
-            } else {
-                currentText += '\n';
-                lineIdx++;
-                charIdx = 0;
-                setTimeout(typeLine, 80 + Math.random() * 60);
-            }
-        };
-
-        typeLine();
-    },
 
     _showGrub(skipHandler) {
         this._bootEl.style.display = 'none';
@@ -816,6 +765,9 @@ const BoxEngine = {
 
         // Init phase system (no-op if no phases configured)
         this._initPhases();
+
+        // Init blue team phase bar (no-op if blueTeamMode not set)
+        this._initBlueTeam();
 
         // Fresh session: log box_start and show pre-survey
         if (this.state.events && this.state.events.length === 0 && !this.state.preSurvey) {
@@ -1165,6 +1117,67 @@ const BoxEngine = {
     },
 
     /**
+     * SEC-9: Server-side flag validation with local hash fallback.
+     *
+     * Calls the validateFlag Cloud Function to check the submitted flag
+     * against the server-side flag_registry (Firestore). If the server
+     * is unavailable (offline, auth error, timeout), falls back to local
+     * SHA-256 hash comparison using pre-computed _flagHashes.
+     *
+     * Config option: config.serverFlagValidation (default: true when
+     * FirebaseAuth is available and user is signed in).
+     *
+     * @param {string} boxId      - The box registryId
+     * @param {string} scenarioId - Optional scenario ID (dispatch boxes)
+     * @param {string} submission - The raw flag text submitted by the user
+     * @returns {Promise<{correct: boolean, flagId: string|null, source: string}>}
+     */
+    async _validateFlagViaServer(boxId, scenarioId, submission) {
+        const serverEnabled = this.config.serverFlagValidation !== false;
+        const hasAuth = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
+
+        // Attempt server validation if enabled and authenticated
+        if (serverEnabled && hasAuth && boxId) {
+            try {
+                const payload = { boxId, submission: submission.trim() };
+                if (scenarioId) payload.flagId = scenarioId;
+                if (this.state._sessionId) payload.sessionId = this.state._sessionId;
+
+                const result = await FirebaseAuth.callFunction('validateFlag', payload);
+                const data = result.data || result;
+
+                return {
+                    correct: !!data.correct,
+                    flagId: data.flagId || null,
+                    source: 'server'
+                };
+            } catch (err) {
+                console.warn('[ARENA] Server flag validation unavailable, falling back to local hash:', err.message);
+                // Fall through to local hash comparison
+            }
+        }
+
+        // Fallback: local SHA-256 hash comparison
+        const seed = this.state._sessionSeed;
+        if (!seed || !this._flagHashes || this._flagHashes.length === 0) {
+            return { correct: false, flagId: null, source: 'local_no_hashes' };
+        }
+
+        try {
+            const submittedHash = await this._hashFlag(submission, seed);
+            for (const fh of this._flagHashes) {
+                if (submittedHash === fh.hash) {
+                    return { correct: true, flagId: fh.id, source: 'local_hash' };
+                }
+            }
+            return { correct: false, flagId: null, source: 'local_hash' };
+        } catch (e) {
+            console.error('[ARENA] Local hash fallback failed:', e);
+            return { correct: false, flagId: null, source: 'local_error' };
+        }
+    },
+
+    /**
      * Rate limiting for flag submissions.
      * 3 wrong → 30s cooldown. 6 wrong → 60s cooldown. 10 wrong → page refresh required.
      */
@@ -1271,6 +1284,20 @@ const BoxEngine = {
         if (!raw) {
             msg.innerHTML = '<span style="color:#e74c3c;">Enter a flag to submit.</span>';
             return;
+        }
+
+        // TripWire: Decoy flag detection
+        if (typeof raw === 'string' && /^FLAG\{NICE_TRY/i.test(raw)) {
+            if (window.TripWire && window.TripWire._dispatch) {
+                window.TripWire._dispatch({
+                    sensor: 'decoy',
+                    category: 'honeypot_access',
+                    detail: 'Submitted honeypot flag in CTF box: ' + raw.substring(0, 30),
+                    timestamp: new Date().toISOString(),
+                    page: window.location.pathname
+                });
+            }
+            // Still show wrong flag feedback (don't reveal it's a decoy in the UI)
         }
 
         // Rate limiting check (client-side, prevents unnecessary server calls)
@@ -2928,5 +2955,968 @@ const BoxEngine = {
             // Animate the reveal of the next step
             this._revealNextStep(this.tutorial.currentStep);
         }
+    },
+
+    // ============================================================
+    // BLUE TEAM STATE MACHINE
+    // Opt-in via config: blueTeamMode: true, btPhases: ['triage', ...]
+    // Provides a phase indicator bar at the top of the desktop and
+    // methods for IR/forensics/hardening dispatch boxes to drive
+    // scenario flow. All methods are no-ops when blueTeamMode is not set.
+    // ============================================================
+
+    /**
+     * Initialize the blue team phase system from config.
+     * Called from _showDesktop after DOM is ready, alongside _initPhases().
+     * No-op if config.blueTeamMode is not true.
+     */
+    _initBlueTeam() {
+        if (!this.config.blueTeamMode) return;
+
+        // Valid phase names — config may provide a subset or reorder
+        const VALID_PHASES = ['triage', 'diagnosis', 'remediation', 'verification', 'documentation'];
+        const configPhases = this.config.btPhases || ['triage', 'diagnosis', 'remediation', 'verification'];
+
+        // Validate and sanitize
+        this._btPhaseList = configPhases.filter(p => VALID_PHASES.includes(p));
+        if (this._btPhaseList.length === 0) {
+            this._btPhaseList = ['triage', 'diagnosis', 'remediation', 'verification'];
+        }
+
+        // Restore or initialize blue team state
+        if (!this.state._btPhaseIndex) this.state._btPhaseIndex = 0;
+        if (!this.state._btPhaseTimestamps) this.state._btPhaseTimestamps = {};
+
+        // Record start time for initial phase
+        const currentPhase = this._btPhaseList[this.state._btPhaseIndex];
+        if (currentPhase && !this.state._btPhaseTimestamps[currentPhase]) {
+            this.state._btPhaseTimestamps[currentPhase] = { started: Date.now() };
+        }
+
+        this.save();
+        this._renderPhaseBar();
+
+        this._logEvent('bt_init', {
+            phases: this._btPhaseList,
+            currentPhase: this._getPhase()
+        });
+
+        console.log(`%c[ARENA] Blue team mode active — phase: ${this._getPhase()}`, 'color: #27ae60');
+    },
+
+    /**
+     * Return the current blue team phase name.
+     * Returns null if blue team mode is not active.
+     */
+    _getPhase() {
+        if (!this.config.blueTeamMode || !this._btPhaseList) return null;
+        const idx = this.state._btPhaseIndex || 0;
+        return this._btPhaseList[idx] || null;
+    },
+
+    /**
+     * Jump to a named phase. Useful for config boxes that need to
+     * programmatically set phase based on scenario conditions.
+     * No-op if phase name is not in the phase list.
+     */
+    _setPhase(name) {
+        if (!this.config.blueTeamMode || !this._btPhaseList) return;
+        const idx = this._btPhaseList.indexOf(name);
+        if (idx === -1) return;
+
+        const prev = this._getPhase();
+        this.state._btPhaseIndex = idx;
+
+        // Record timestamp for new phase
+        if (!this.state._btPhaseTimestamps[name]) {
+            this.state._btPhaseTimestamps[name] = { started: Date.now() };
+        }
+
+        this.save();
+        this._renderPhaseBar();
+        this._logEvent('bt_phase_set', { from: prev, to: name });
+    },
+
+    /**
+     * Advance to the next phase in sequence.
+     * Records completion timestamp for the outgoing phase.
+     * Fires config.onPhaseComplete(phaseName, engine) callback if defined.
+     * No-op if already on the final phase.
+     */
+    _advancePhase() {
+        if (!this.config.blueTeamMode || !this._btPhaseList) return;
+
+        const currentIdx = this.state._btPhaseIndex || 0;
+        const currentPhase = this._btPhaseList[currentIdx];
+
+        if (currentIdx >= this._btPhaseList.length - 1) {
+            // Already on last phase — notify and bail
+            this.notify('All phases complete.', 'success');
+            return;
+        }
+
+        // Record completion timestamp for outgoing phase
+        if (!this.state._btPhaseTimestamps) this.state._btPhaseTimestamps = {};
+        if (!this.state._btPhaseTimestamps[currentPhase]) {
+            this.state._btPhaseTimestamps[currentPhase] = { started: this.state.startTime };
+        }
+        this.state._btPhaseTimestamps[currentPhase].completed = Date.now();
+
+        // Move to next phase
+        const nextIdx = currentIdx + 1;
+        const nextPhase = this._btPhaseList[nextIdx];
+        this.state._btPhaseIndex = nextIdx;
+
+        // Record start for incoming phase
+        if (!this.state._btPhaseTimestamps[nextPhase]) {
+            this.state._btPhaseTimestamps[nextPhase] = { started: Date.now() };
+        }
+
+        this.save();
+        this._renderPhaseBar();
+
+        this._logEvent('bt_phase_advance', { from: currentPhase, to: nextPhase });
+        this.notify('Phase advanced: ' + nextPhase.toUpperCase(), 'success');
+
+        // Fire config callback
+        if (typeof this.config.onPhaseComplete === 'function') {
+            try { this.config.onPhaseComplete(currentPhase, this); } catch (e) { /* silent */ }
+        }
+    },
+
+    /**
+     * Build or rebuild the blue team phase bar shown above the desktop icons.
+     * The bar is a horizontal stepper with phase names and a progress indicator.
+     */
+    _renderPhaseBar() {
+        if (!this.config.blueTeamMode || !this._btPhaseList) return;
+
+        const arena = document.getElementById('arena');
+        if (!arena) return;
+
+        // Remove existing bar before rebuilding
+        const existing = document.getElementById('btPhaseBar');
+        if (existing) existing.remove();
+
+        const bar = document.createElement('div');
+        bar.className = 'bt-phase-bar';
+        bar.id = 'btPhaseBar';
+
+        const currentIdx = this.state._btPhaseIndex || 0;
+
+        // Phase label map — human-readable names
+        const LABELS = {
+            triage: 'Triage',
+            diagnosis: 'Diagnosis',
+            remediation: 'Remediation',
+            verification: 'Verification',
+            documentation: 'Documentation'
+        };
+
+        let stepsHtml = '';
+        this._btPhaseList.forEach(function(phase, idx) {
+            var status = 'pending';
+            if (idx < currentIdx) status = 'done';
+            else if (idx === currentIdx) status = 'active';
+
+            stepsHtml += '<div class="bt-phase-step ' + status + '" data-phase="' + phase + '">';
+            stepsHtml += '<div class="bt-phase-dot"><span class="bt-phase-dot-inner">' + (idx + 1) + '</span></div>';
+            stepsHtml += '<div class="bt-phase-label">' + (LABELS[phase] || phase) + '</div>';
+            stepsHtml += '</div>';
+
+            if (idx < this._btPhaseList.length - 1) {
+                stepsHtml += '<div class="bt-phase-connector ' + (idx < currentIdx ? 'done' : '') + '"></div>';
+            }
+        }, this);
+
+        bar.innerHTML = '<div class="bt-phase-bar-inner">' + stepsHtml + '</div>';
+
+        // Insert above desktop icons, inside .arena-desktop
+        const desktop = this._desktopEl;
+        if (desktop) {
+            desktop.insertBefore(bar, desktop.firstChild);
+        }
+    },
+
+    // ============================================================
+    // GUI WINDOW FRAMEWORK EXTENSIONS
+    // New window types: event_viewer, tree_panel, properties, hardware_inspector
+    // Used by openWindow via the _openWindow helper below.
+    // Config boxes call BoxEngine.openGuiWindow(id, type, config).
+    // ============================================================
+
+    /**
+     * Unified entry point for typed GUI windows.
+     * Usage: BoxEngine.openGuiWindow('evtlog', 'event_viewer', { title, icon, eventLog: [...] })
+     *
+     * Falls through to openWindow() with the appropriate content element.
+     * Opts boxes into the draggable/resizable window chrome automatically.
+     */
+    openGuiWindow(appId, type, cfg) {
+        // If already open, just focus it
+        if (this._windows[appId]) {
+            this._focusWindow(appId);
+            const existing = this._windows[appId];
+            if (existing.el.classList.contains('minimized')) {
+                existing.el.classList.remove('minimized');
+            }
+            return existing;
+        }
+
+        var contentEl = document.createElement('div');
+        contentEl.className = 'gui-window-content';
+
+        switch (type) {
+            case 'event_viewer':
+                contentEl.innerHTML = this._buildEventViewerWindow(cfg);
+                this._attachEventViewerHandlers(contentEl, cfg);
+                break;
+            case 'tree_panel':
+                contentEl.innerHTML = this._buildTreePanelWindow(cfg);
+                this._attachTreePanelHandlers(contentEl, cfg);
+                break;
+            case 'properties':
+                contentEl.innerHTML = this._buildPropertiesDialog(cfg);
+                this._attachPropertiesHandlers(contentEl, cfg);
+                break;
+            case 'hardware_inspector':
+                contentEl.innerHTML = this._buildHardwareInspector(cfg);
+                this._attachHardwareInspectorHandlers(contentEl, cfg);
+                break;
+            default:
+                contentEl.textContent = 'Unknown window type: ' + type;
+        }
+
+        var win = this.openWindow(appId, cfg.title || type, cfg.icon || '', contentEl);
+        this._logEvent('gui_window_open', { type: type, appId: appId });
+        return win;
+    },
+
+    /**
+     * Build HTML for an Event Viewer window.
+     * Renders a filterable log table with expandable rows.
+     *
+     * Config shape:
+     *   eventLog: [{ timestamp, eventId, source, category, description, detail }]
+     */
+    _buildEventViewerWindow(cfg) {
+        var events = cfg.eventLog || [];
+
+        // Build unique Event ID list for filter dropdown
+        var ids = [];
+        events.forEach(function(ev) {
+            if (ev.eventId && ids.indexOf(String(ev.eventId)) === -1) ids.push(String(ev.eventId));
+        });
+        ids.sort();
+
+        var idOptions = '<option value="">All Event IDs</option>';
+        ids.forEach(function(id) { idOptions += '<option value="' + id + '">' + id + '</option>'; });
+
+        var rowsHtml = '';
+        events.forEach(function(ev, idx) {
+            var catClass = ev.category ? 'evcat-' + ev.category.toLowerCase().replace(/\s+/g, '-') : '';
+            rowsHtml += '<tr class="ev-row ' + catClass + '" data-idx="' + idx + '">';
+            rowsHtml += '<td class="ev-ts">' + (ev.timestamp || '') + '</td>';
+            rowsHtml += '<td class="ev-id">' + (ev.eventId || '') + '</td>';
+            rowsHtml += '<td class="ev-src">' + (ev.source || '') + '</td>';
+            rowsHtml += '<td class="ev-cat">' + (ev.category || '') + '</td>';
+            rowsHtml += '<td class="ev-desc">' + (ev.description || '') + '</td>';
+            rowsHtml += '</tr>';
+            if (ev.detail) {
+                rowsHtml += '<tr class="ev-detail-row" data-for="' + idx + '" style="display:none;">';
+                rowsHtml += '<td colspan="5" class="ev-detail-cell">' + ev.detail + '</td>';
+                rowsHtml += '</tr>';
+            }
+        });
+
+        return '<div class="ev-viewer">' +
+            '<div class="ev-toolbar">' +
+            '<select class="ev-filter-id" title="Filter by Event ID">' + idOptions + '</select>' +
+            '<input class="ev-filter-src" type="text" placeholder="Filter source..." title="Filter by source IP or host">' +
+            '<span class="ev-count" id="evCount_all">' + events.length + ' events</span>' +
+            '</div>' +
+            '<div class="ev-table-wrap">' +
+            '<table class="ev-table">' +
+            '<thead><tr>' +
+            '<th>Timestamp</th><th>Event ID</th><th>Source</th><th>Category</th><th>Description</th>' +
+            '</tr></thead>' +
+            '<tbody id="evTbody">' + rowsHtml + '</tbody>' +
+            '</table>' +
+            '</div>' +
+            '</div>';
+    },
+
+    /**
+     * Wire up event viewer filter controls and row expand/collapse.
+     */
+    _attachEventViewerHandlers(el, cfg) {
+        var self = this;
+        var events = cfg.eventLog || [];
+
+        var filterById = function() {
+            var idVal = el.querySelector('.ev-filter-id').value;
+            var srcVal = el.querySelector('.ev-filter-src').value.toLowerCase().trim();
+            var rows = el.querySelectorAll('.ev-row');
+            var visible = 0;
+            rows.forEach(function(row) {
+                var idx = parseInt(row.dataset.idx, 10);
+                var ev = events[idx] || {};
+                var idMatch = !idVal || String(ev.eventId) === idVal;
+                var srcMatch = !srcVal || (ev.source || '').toLowerCase().includes(srcVal);
+                var show = idMatch && srcMatch;
+                row.style.display = show ? '' : 'none';
+                // Keep detail row hidden regardless — expand toggle handles it
+                var detail = el.querySelector('.ev-detail-row[data-for="' + idx + '"]');
+                if (detail && !show) detail.style.display = 'none';
+                if (show) visible++;
+            });
+            var counter = el.querySelector('.ev-count');
+            if (counter) counter.textContent = visible + ' events';
+        };
+
+        el.querySelector('.ev-filter-id').addEventListener('change', filterById);
+        el.querySelector('.ev-filter-src').addEventListener('input', filterById);
+
+        // Row click: expand/collapse detail
+        el.querySelector('#evTbody').addEventListener('click', function(e) {
+            var row = e.target.closest('.ev-row');
+            if (!row) return;
+            var idx = row.dataset.idx;
+            var detail = el.querySelector('.ev-detail-row[data-for="' + idx + '"]');
+            if (!detail) return;
+            var isOpen = detail.style.display !== 'none';
+            detail.style.display = isOpen ? 'none' : 'table-row';
+            row.classList.toggle('ev-row-expanded', !isOpen);
+            self._logEvent('ev_viewer_expand', { eventIdx: parseInt(idx, 10) });
+        });
+    },
+
+    /**
+     * Build HTML for a Tree Panel window.
+     * Left panel: expandable/collapsible tree. Right panel: node details.
+     *
+     * Config shape:
+     *   tree: { root: { label, children: [{ label, data, children }] } }
+     *   onSelect: function(node, engine) — optional callback
+     */
+    _buildTreePanelWindow(cfg) {
+        var tree = cfg.tree || {};
+        var root = tree.root || { label: 'Root', children: [] };
+
+        var buildNode = function(node, depth) {
+            var hasChildren = node.children && node.children.length > 0;
+            var indent = depth * 14;
+            var html = '<div class="tp-node' + (hasChildren ? ' tp-has-children' : '') + '" data-node="' + (node.id || '') + '" style="padding-left:' + indent + 'px">';
+            if (hasChildren) {
+                html += '<span class="tp-toggle">&#9654;</span>';
+            } else {
+                html += '<span class="tp-toggle-spacer"></span>';
+            }
+            html += '<span class="tp-node-label">' + node.label + '</span>';
+            html += '</div>';
+            if (hasChildren) {
+                html += '<div class="tp-children" style="display:none;">';
+                node.children.forEach(function(child) {
+                    html += buildNode(child, depth + 1);
+                });
+                html += '</div>';
+            }
+            return html;
+        };
+
+        var treeHtml = buildNode(root, 0);
+
+        return '<div class="tp-panel">' +
+            '<div class="tp-left">' +
+            '<div class="tp-tree-header">Object Tree</div>' +
+            '<div class="tp-tree">' + treeHtml + '</div>' +
+            '</div>' +
+            '<div class="tp-divider"></div>' +
+            '<div class="tp-right">' +
+            '<div class="tp-detail-header">Details</div>' +
+            '<div class="tp-detail-body" id="tpDetailBody">Select an item to view details.</div>' +
+            '</div>' +
+            '</div>';
+    },
+
+    /**
+     * Wire up tree expand/collapse and node selection.
+     * Builds a flat node map so selection lookup is O(1).
+     */
+    _attachTreePanelHandlers(el, cfg) {
+        var self = this;
+
+        // Flatten the tree into a map by label (simple key for config boxes)
+        var nodeMap = {};
+        var flattenTree = function(node) {
+            nodeMap[node.label] = node;
+            if (node.id) nodeMap[node.id] = node;
+            if (node.children) node.children.forEach(flattenTree);
+        };
+        if (cfg.tree && cfg.tree.root) flattenTree(cfg.tree.root);
+
+        el.addEventListener('click', function(e) {
+            var toggle = e.target.closest('.tp-toggle');
+            var nodeEl = e.target.closest('.tp-node');
+
+            // Expand/collapse on toggle click
+            if (toggle && nodeEl) {
+                var childrenEl = nodeEl.nextElementSibling;
+                if (childrenEl && childrenEl.classList.contains('tp-children')) {
+                    var isOpen = childrenEl.style.display !== 'none';
+                    childrenEl.style.display = isOpen ? 'none' : 'block';
+                    toggle.innerHTML = isOpen ? '&#9654;' : '&#9660;';
+                }
+                return;
+            }
+
+            // Node selection
+            if (nodeEl) {
+                // Deselect previous
+                el.querySelectorAll('.tp-node.selected').forEach(function(n) { n.classList.remove('selected'); });
+                nodeEl.classList.add('selected');
+
+                var label = nodeEl.querySelector('.tp-node-label');
+                var labelText = label ? label.textContent : '';
+                var node = nodeMap[labelText] || {};
+                var detailBody = el.querySelector('#tpDetailBody');
+
+                // Render node data in right panel
+                if (detailBody) {
+                    if (node.data) {
+                        var html = '<table class="tp-detail-table">';
+                        Object.keys(node.data).forEach(function(key) {
+                            html += '<tr><td class="tp-detail-key">' + key + '</td><td class="tp-detail-val">' + node.data[key] + '</td></tr>';
+                        });
+                        html += '</table>';
+                        detailBody.innerHTML = html;
+                    } else {
+                        detailBody.textContent = 'No details for: ' + labelText;
+                    }
+                }
+
+                self._logEvent('tp_node_select', { label: labelText });
+
+                // Fire config callback
+                if (typeof cfg.onSelect === 'function') {
+                    try { cfg.onSelect(node, self); } catch (e2) { /* silent */ }
+                }
+            }
+        });
+    },
+
+    /**
+     * Build HTML for a Properties dialog window.
+     * Tabbed property sheet — each tab has a list of fields.
+     *
+     * Config shape:
+     *   tabs: [{ label, fields: [{ name, value, editable, type }] }]
+     *   onSave: function(tabLabel, field, value, engine) — optional
+     */
+    _buildPropertiesDialog(cfg) {
+        var tabs = cfg.tabs || [];
+        if (tabs.length === 0) return '<div class="pd-empty">No properties configured.</div>';
+
+        var tabBtns = '';
+        var tabPanels = '';
+        tabs.forEach(function(tab, idx) {
+            var active = idx === 0 ? ' active' : '';
+            tabBtns += '<button class="pd-tab-btn' + active + '" data-tab="' + idx + '">' + tab.label + '</button>';
+
+            var fields = tab.fields || [];
+            var fieldsHtml = '';
+            fields.forEach(function(field) {
+                var inputHtml;
+                if (field.editable) {
+                    if (field.type === 'select' && field.options) {
+                        inputHtml = '<select class="pd-field-input" data-field="' + field.name + '">';
+                        field.options.forEach(function(opt) {
+                            var sel = opt === field.value ? ' selected' : '';
+                            inputHtml += '<option' + sel + '>' + opt + '</option>';
+                        });
+                        inputHtml += '</select>';
+                    } else if (field.type === 'checkbox') {
+                        var chk = field.value ? ' checked' : '';
+                        inputHtml = '<input type="checkbox" class="pd-field-checkbox" data-field="' + field.name + '"' + chk + '>';
+                    } else {
+                        inputHtml = '<input type="text" class="pd-field-input" data-field="' + field.name + '" value="' + (field.value || '') + '">';
+                    }
+                } else {
+                    inputHtml = '<span class="pd-field-value">' + (field.value || '') + '</span>';
+                }
+                fieldsHtml += '<div class="pd-field-row"><label class="pd-field-label">' + field.name + ':</label>' + inputHtml + '</div>';
+            });
+
+            tabPanels += '<div class="pd-tab-panel' + active + '" data-panel="' + idx + '">' + fieldsHtml + '</div>';
+        });
+
+        return '<div class="pd-dialog">' +
+            '<div class="pd-tab-bar">' + tabBtns + '</div>' +
+            '<div class="pd-tab-content">' + tabPanels + '</div>' +
+            '<div class="pd-actions">' +
+            '<button class="pd-apply-btn">Apply</button>' +
+            '<button class="pd-ok-btn">OK</button>' +
+            '</div>' +
+            '</div>';
+    },
+
+    /**
+     * Wire tab switching and Apply/OK for the properties dialog.
+     */
+    _attachPropertiesHandlers(el, cfg) {
+        var self = this;
+        var tabs = cfg.tabs || [];
+
+        // Tab switching
+        el.querySelectorAll('.pd-tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var tabIdx = btn.dataset.tab;
+                el.querySelectorAll('.pd-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                el.querySelectorAll('.pd-tab-panel').forEach(function(p) { p.classList.remove('active'); });
+                btn.classList.add('active');
+                el.querySelector('.pd-tab-panel[data-panel="' + tabIdx + '"]').classList.add('active');
+            });
+        });
+
+        var collectAndFire = function() {
+            el.querySelectorAll('.pd-field-input, .pd-field-checkbox').forEach(function(input) {
+                var fieldName = input.dataset.field;
+                var value = input.type === 'checkbox' ? input.checked : input.value;
+                var activePanelIdx = parseInt(el.querySelector('.pd-tab-btn.active').dataset.tab, 10);
+                var tabLabel = (tabs[activePanelIdx] || {}).label || '';
+                self._logEvent('pd_field_change', { tab: tabLabel, field: fieldName, value: value });
+                if (typeof cfg.onSave === 'function') {
+                    try { cfg.onSave(tabLabel, fieldName, value, self); } catch (e) { /* silent */ }
+                }
+            });
+        };
+
+        el.querySelector('.pd-apply-btn').addEventListener('click', collectAndFire);
+        el.querySelector('.pd-ok-btn').addEventListener('click', function() {
+            collectAndFire();
+            // OK closes the window — find parent window appId from data-app
+            var win = el.closest('.arena-window');
+            if (win && win.dataset.app) self.closeWindow(win.dataset.app);
+        });
+    },
+
+    /**
+     * Build HTML for a Hardware Inspector window.
+     * Renders an SVG-based component overview with status indicators.
+     * Clicking a component fires its clickAction callback.
+     *
+     * Config shape:
+     *   components: [{ id, label, x, y, w, h, status, detail }]
+     *   onComponentClick: function(component, engine)
+     */
+    _buildHardwareInspector(cfg) {
+        var components = cfg.components || [];
+
+        // Status color map
+        var STATUS_COLORS = {
+            ok: '#2ecc71',
+            warn: '#f39c12',
+            fail: '#e74c3c',
+            unknown: '#555'
+        };
+
+        var svgItems = '';
+        var listItems = '';
+
+        components.forEach(function(comp) {
+            var x = comp.x || 0;
+            var y = comp.y || 0;
+            var w = comp.w || 120;
+            var h = comp.h || 60;
+            var color = STATUS_COLORS[comp.status] || STATUS_COLORS.unknown;
+            var label = comp.label || comp.id;
+
+            // SVG component block
+            svgItems += '<g class="hw-component" data-comp-id="' + comp.id + '" style="cursor:pointer">';
+            svgItems += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"';
+            svgItems += ' rx="4" fill="rgba(20,20,30,0.9)" stroke="' + color + '" stroke-width="1.5"/>';
+            // Status dot
+            svgItems += '<circle cx="' + (x + w - 10) + '" cy="' + (y + 10) + '" r="4" fill="' + color + '"/>';
+            // Label text
+            svgItems += '<text x="' + (x + w / 2) + '" y="' + (y + h / 2) + '"';
+            svgItems += ' text-anchor="middle" dominant-baseline="middle" fill="#ccc" font-size="10" font-family="Courier New, monospace">' + label + '</text>';
+            svgItems += '</g>';
+
+            // Sidebar list entry
+            listItems += '<div class="hw-list-item" data-comp-id="' + comp.id + '">';
+            listItems += '<span class="hw-status-dot" style="background:' + color + '"></span>';
+            listItems += '<span class="hw-list-label">' + label + '</span>';
+            listItems += '<span class="hw-list-status">' + (comp.status || 'unknown') + '</span>';
+            listItems += '</div>';
+        });
+
+        return '<div class="hw-inspector">' +
+            '<div class="hw-svg-wrap">' +
+            '<svg class="hw-svg" viewBox="0 0 680 360" xmlns="http://www.w3.org/2000/svg">' +
+            // Motherboard background
+            '<rect x="10" y="10" width="660" height="340" rx="8" fill="#0a0a12" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+            svgItems +
+            '</svg>' +
+            '</div>' +
+            '<div class="hw-sidebar">' +
+            '<div class="hw-sidebar-header">Components</div>' +
+            '<div class="hw-list">' + listItems + '</div>' +
+            '<div class="hw-detail-panel" id="hwDetailPanel">Click a component for details.</div>' +
+            '</div>' +
+            '</div>';
+    },
+
+    /**
+     * Wire SVG and list clicks for the hardware inspector.
+     */
+    _attachHardwareInspectorHandlers(el, cfg) {
+        var self = this;
+        var components = cfg.components || [];
+
+        var compMap = {};
+        components.forEach(function(c) { compMap[c.id] = c; });
+
+        var selectComp = function(id) {
+            var comp = compMap[id];
+            if (!comp) return;
+
+            // Highlight SVG item
+            el.querySelectorAll('.hw-component').forEach(function(g) {
+                g.classList.toggle('selected', g.dataset.compId === id);
+            });
+            // Highlight list item
+            el.querySelectorAll('.hw-list-item').forEach(function(item) {
+                item.classList.toggle('selected', item.dataset.compId === id);
+            });
+
+            // Render detail panel
+            var detail = el.querySelector('#hwDetailPanel');
+            if (detail) {
+                var html = '<strong>' + comp.label + '</strong>';
+                html += '<div class="hw-detail-status hw-status-' + (comp.status || 'unknown') + '">' + (comp.status || 'unknown').toUpperCase() + '</div>';
+                if (comp.detail) html += '<div class="hw-detail-text">' + comp.detail + '</div>';
+                detail.innerHTML = html;
+            }
+
+            self._logEvent('hw_component_click', { id: id, status: comp.status });
+
+            if (typeof cfg.onComponentClick === 'function') {
+                try { cfg.onComponentClick(comp, self); } catch (e) { /* silent */ }
+            }
+        };
+
+        // SVG click delegation
+        el.querySelector('.hw-svg').addEventListener('click', function(e) {
+            var g = e.target.closest('.hw-component');
+            if (g) selectComp(g.dataset.compId);
+        });
+
+        // Sidebar list click delegation
+        el.querySelector('.hw-list').addEventListener('click', function(e) {
+            var item = e.target.closest('.hw-list-item');
+            if (item) selectComp(item.dataset.compId);
+        });
+    },
+
+    // ============================================================
+    // WINRE BOOT SEQUENCE VARIANT
+    // Activated by config: bootSequence: 'winre'
+    // Shows BSOD -> restart -> "Preparing Automatic Repair" ->
+    // "Choose an option" menu with Troubleshoot -> Advanced Options.
+    // Each Advanced Options item may be wired to config.winreCallbacks.
+    // ============================================================
+
+    /**
+     * Check config.bootSequence and route to the correct boot handler.
+     * Called in place of _startBoot() when bootSequence is set.
+     * Currently supports: 'winre' | default (Linux/BIOS flow).
+     */
+    _startBoot() {
+        if (this.state.godMode) {
+            this.state.booted = true;
+            this.save();
+            this._showDesktop();
+            return;
+        }
+
+        if (this.config.bootSequence === 'winre') {
+            this._bootWinRE();
+            return;
+        }
+
+        // Default: original Linux/BIOS boot flow
+        this._bootEl.style.display = 'flex';
+        const textEl = document.getElementById('bootText');
+        const bootLines = this.config.boot?.biosLines || ['Booting...'];
+        let lineIdx = 0;
+        let charIdx = 0;
+        let currentText = '';
+        const speed = 12;
+
+        const skipBoot = () => {
+            this._bootEl.removeEventListener('click', skipBoot);
+            document.removeEventListener('keydown', skipBoot);
+            this.state.booted = true;
+            this.save();
+            this._bootEl.classList.add('fade-out');
+            setTimeout(() => {
+                this._bootEl.style.display = 'none';
+                this._showDesktop();
+            }, 600);
+        };
+
+        this._bootEl.addEventListener('click', skipBoot);
+        document.addEventListener('keydown', skipBoot);
+
+        const typeLine = () => {
+            if (lineIdx >= bootLines.length) {
+                setTimeout(() => this._showGrub(skipBoot), 400);
+                return;
+            }
+
+            const line = bootLines[lineIdx];
+            if (charIdx < line.length) {
+                currentText += line[charIdx];
+                textEl.innerHTML = currentText + '<span class="boot-cursor"></span>';
+                charIdx++;
+                setTimeout(typeLine, speed + Math.random() * 10);
+            } else {
+                currentText += '\n';
+                lineIdx++;
+                charIdx = 0;
+                setTimeout(typeLine, 80 + Math.random() * 60);
+            }
+        };
+
+        typeLine();
+    },
+
+    /**
+     * WinRE boot sequence.
+     * Phase 1: Blue screen of death (2.5s or click to skip)
+     * Phase 2: "Restarting" spinner (1.5s)
+     * Phase 3: "Preparing Automatic Repair" spinner (2s)
+     * Phase 4: "Choose an option" menu
+     * Phase 5: Troubleshoot -> Advanced Options sub-menu
+     *
+     * Config hooks:
+     *   config.winreCallbacks: {
+     *     startupRepair: function(engine),
+     *     startupSettings: function(engine),
+     *     systemRestore: function(engine),
+     *     uninstallUpdates: function(engine),
+     *     commandPrompt: function(engine)
+     *   }
+     */
+    _bootWinRE() {
+        var self = this;
+        var arena = document.getElementById('arena');
+
+        // Helper: remove all WinRE screens
+        var clearWinRE = function() {
+            var existing = arena.querySelectorAll('.winre-screen');
+            existing.forEach(function(el) { el.remove(); });
+        };
+
+        // ── Phase 1: BSOD ──
+        var bsod = document.createElement('div');
+        bsod.className = 'winre-screen winre-bsod';
+        bsod.innerHTML =
+            '<div class="winre-bsod-inner">' +
+            '<div class="winre-bsod-sad">:&#40;</div>' +
+            '<div class="winre-bsod-title">Your PC ran into a problem and needs to restart.</div>' +
+            '<div class="winre-bsod-detail">We\'re collecting some error info, and then we\'ll restart for you.</div>' +
+            '<div class="winre-bsod-progress">' +
+            '<div class="winre-bsod-bar"><div class="winre-bsod-bar-fill" id="bsodBarFill"></div></div>' +
+            '<span class="winre-bsod-pct" id="bsodPct">0%</span> complete' +
+            '</div>' +
+            '<div class="winre-bsod-code">CRITICAL_PROCESS_DIED</div>' +
+            '</div>';
+        arena.appendChild(bsod);
+
+        // Animate progress bar 0 -> 100% over 2.5s
+        var pct = 0;
+        var barFill = bsod.querySelector('#bsodBarFill');
+        var bsodPct = bsod.querySelector('#bsodPct');
+        var bsodInterval = setInterval(function() {
+            pct = Math.min(100, pct + Math.floor(Math.random() * 8) + 3);
+            if (barFill) barFill.style.width = pct + '%';
+            if (bsodPct) bsodPct.textContent = pct + '%';
+            if (pct >= 100) {
+                clearInterval(bsodInterval);
+                setTimeout(showRestart, 400);
+            }
+        }, 80);
+
+        // ── Phase 2: Restarting ──
+        var showRestart = function() {
+            clearWinRE();
+            var restart = document.createElement('div');
+            restart.className = 'winre-screen winre-restart';
+            restart.innerHTML =
+                '<div class="winre-spinner"></div>' +
+                '<div class="winre-restart-label">Restarting...</div>';
+            arena.appendChild(restart);
+            setTimeout(showPreparing, 1500);
+        };
+
+        // ── Phase 3: Preparing Automatic Repair ──
+        var showPreparing = function() {
+            clearWinRE();
+            var prep = document.createElement('div');
+            prep.className = 'winre-screen winre-preparing';
+            prep.innerHTML =
+                '<div class="winre-win-logo">' +
+                '<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
+                '<rect x="0" y="0" width="20" height="20" fill="#f35325"/>' +
+                '<rect x="24" y="0" width="20" height="20" fill="#81bc06"/>' +
+                '<rect x="0" y="24" width="20" height="20" fill="#05a6f0"/>' +
+                '<rect x="24" y="24" width="20" height="20" fill="#ffba08"/>' +
+                '</svg>' +
+                '</div>' +
+                '<div class="winre-preparing-label">Preparing Automatic Repair</div>' +
+                '<div class="winre-spinner"></div>';
+            arena.appendChild(prep);
+            setTimeout(showChooseOption, 2000);
+        };
+
+        // ── Phase 4: Choose an option ──
+        var showChooseOption = function() {
+            clearWinRE();
+            var choose = document.createElement('div');
+            choose.className = 'winre-screen winre-choose';
+            choose.innerHTML =
+                '<div class="winre-choose-inner">' +
+                '<div class="winre-choose-title">Choose an option</div>' +
+                '<div class="winre-choose-options">' +
+                '<button class="winre-opt-btn" id="winreContinue">' +
+                '<div class="winre-opt-icon winre-opt-icon-continue">&#10148;</div>' +
+                '<div><div class="winre-opt-label">Continue</div>' +
+                '<div class="winre-opt-sub">Exit and continue to Windows</div></div>' +
+                '</button>' +
+                '<button class="winre-opt-btn" id="winreTroubleshoot">' +
+                '<div class="winre-opt-icon winre-opt-icon-trouble">&#128295;</div>' +
+                '<div><div class="winre-opt-label">Troubleshoot</div>' +
+                '<div class="winre-opt-sub">Reset your PC or see advanced options</div></div>' +
+                '</button>' +
+                '<button class="winre-opt-btn" id="winreShutdown">' +
+                '<div class="winre-opt-icon winre-opt-icon-off">&#9211;</div>' +
+                '<div><div class="winre-opt-label">Turn off your PC</div>' +
+                '<div class="winre-opt-sub"></div></div>' +
+                '</button>' +
+                '</div>' +
+                '</div>';
+            arena.appendChild(choose);
+
+            choose.querySelector('#winreContinue').addEventListener('click', function() {
+                clearWinRE();
+                self.state.booted = true;
+                self.save();
+                self._showDesktop();
+            });
+            choose.querySelector('#winreTroubleshoot').addEventListener('click', showTroubleshoot);
+            choose.querySelector('#winreShutdown').addEventListener('click', function() {
+                clearWinRE();
+                // Show shutdown screen
+                var off = document.createElement('div');
+                off.className = 'winre-screen winre-shutdown';
+                off.innerHTML = '<div class="winre-shutdown-label">Shutting down...</div>';
+                arena.appendChild(off);
+            });
+        };
+
+        // ── Phase 5: Troubleshoot ──
+        var showTroubleshoot = function() {
+            clearWinRE();
+            var trouble = document.createElement('div');
+            trouble.className = 'winre-screen winre-troubleshoot';
+            trouble.innerHTML =
+                '<div class="winre-choose-inner">' +
+                '<div class="winre-choose-title">Troubleshoot</div>' +
+                '<div class="winre-choose-options">' +
+                '<button class="winre-opt-btn" id="winreAdvanced">' +
+                '<div class="winre-opt-icon winre-opt-icon-advanced">&#9881;</div>' +
+                '<div><div class="winre-opt-label">Advanced options</div>' +
+                '<div class="winre-opt-sub">Startup Repair, Command Prompt and more</div></div>' +
+                '</button>' +
+                '</div>' +
+                '<button class="winre-back-btn" id="winreBackToChoose">&#8592; Back</button>' +
+                '</div>';
+            arena.appendChild(trouble);
+
+            trouble.querySelector('#winreAdvanced').addEventListener('click', showAdvancedOptions);
+            trouble.querySelector('#winreBackToChoose').addEventListener('click', showChooseOption);
+        };
+
+        // ── Phase 6: Advanced Options ──
+        var showAdvancedOptions = function() {
+            clearWinRE();
+            var callbacks = self.config.winreCallbacks || {};
+
+            var advanced = document.createElement('div');
+            advanced.className = 'winre-screen winre-advanced';
+            advanced.innerHTML =
+                '<div class="winre-choose-inner winre-advanced-inner">' +
+                '<div class="winre-choose-title">Advanced options</div>' +
+                '<div class="winre-advanced-grid">' +
+                '<button class="winre-adv-btn" data-action="startupRepair">' +
+                '<div class="winre-adv-icon">&#128295;</div>' +
+                '<div class="winre-adv-label">Startup Repair</div>' +
+                '<div class="winre-adv-sub">Fix problems that keep Windows from loading</div>' +
+                '</button>' +
+                '<button class="winre-adv-btn" data-action="startupSettings">' +
+                '<div class="winre-adv-icon">&#128196;</div>' +
+                '<div class="winre-adv-label">Startup Settings</div>' +
+                '<div class="winre-adv-sub">Change Windows startup behavior</div>' +
+                '</button>' +
+                '<button class="winre-adv-btn" data-action="systemRestore">' +
+                '<div class="winre-adv-icon">&#128347;</div>' +
+                '<div class="winre-adv-label">System Restore</div>' +
+                '<div class="winre-adv-sub">Use a restore point to fix issues</div>' +
+                '</button>' +
+                '<button class="winre-adv-btn" data-action="uninstallUpdates">' +
+                '<div class="winre-adv-icon">&#128465;</div>' +
+                '<div class="winre-adv-label">Uninstall Updates</div>' +
+                '<div class="winre-adv-sub">Remove recently installed quality or feature updates</div>' +
+                '</button>' +
+                '<button class="winre-adv-btn" data-action="commandPrompt">' +
+                '<div class="winre-adv-icon">&#62;_</div>' +
+                '<div class="winre-adv-label">Command Prompt</div>' +
+                '<div class="winre-adv-sub">Use the Command Prompt for advanced troubleshooting</div>' +
+                '</button>' +
+                '</div>' +
+                '<button class="winre-back-btn" id="winreBackToTrouble">&#8592; Back</button>' +
+                '</div>';
+            arena.appendChild(advanced);
+
+            advanced.querySelector('#winreBackToTrouble').addEventListener('click', showTroubleshoot);
+
+            advanced.querySelectorAll('.winre-adv-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var action = btn.dataset.action;
+                    self._logEvent('winre_action', { action: action });
+
+                    if (typeof callbacks[action] === 'function') {
+                        try {
+                            callbacks[action](self);
+                        } catch (e) {
+                            console.error('[ARENA] WinRE callback error:', action, e);
+                        }
+                    } else {
+                        // Default: Command Prompt transitions to desktop
+                        if (action === 'commandPrompt') {
+                            clearWinRE();
+                            self.state.booted = true;
+                            self.save();
+                            self._showDesktop();
+                        } else {
+                            self.notify('No handler configured for: ' + action, 'warning');
+                        }
+                    }
+                });
+            });
+        };
     }
+
 };
+

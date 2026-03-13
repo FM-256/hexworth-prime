@@ -132,7 +132,7 @@
 
     const STYLES = `
         .gs-overlay {
-            position: fixed;
+            position: absolute;
             inset: 0;
             background: rgba(0, 0, 0, 0.92);
             backdrop-filter: blur(12px);
@@ -195,12 +195,12 @@
         }
 
         .gs-input::placeholder {
-            color: #555;
+            color: #808080;
         }
 
         .gs-esc-hint {
             font-size: 0.7rem;
-            color: #555;
+            color: #808080;
             background: rgba(255, 255, 255, 0.06);
             padding: 3px 8px;
             border-radius: 4px;
@@ -326,7 +326,7 @@
         }
 
         .gs-item-desc {
-            color: #666;
+            color: #8a8a8a;
             font-size: 0.7rem;
             white-space: nowrap;
             overflow: hidden;
@@ -360,7 +360,7 @@
         /* Empty / loading states */
         .gs-empty {
             text-align: center;
-            color: #555;
+            color: #808080;
             padding: 32px 16px;
             font-size: 0.85rem;
             font-family: 'Segoe UI', system-ui, sans-serif;
@@ -368,7 +368,7 @@
 
         .gs-loading {
             text-align: center;
-            color: #555;
+            color: #808080;
             padding: 32px 16px;
             font-size: 0.85rem;
         }

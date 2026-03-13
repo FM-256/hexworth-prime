@@ -322,43 +322,43 @@ const A6Config = {
                         <div style="background:#1a0a2e; border:1px solid #4a2d7a; border-left:3px solid #e74c3c; border-radius:6px; padding:14px 16px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <span style="color:#e74c3c; font-size:0.72rem; font-weight:700; letter-spacing:0.08em;">MESSAGE #1 — CIPHER: ROT13</span>
-                                <span style="color:#666; font-size:0.68rem;">From: <strong style="color:#aaa;">cipher_warden</strong> &nbsp;&bull;&nbsp; 2026-02-14 09:17</span>
+                                <span style="color:#8a8a8a; font-size:0.68rem;">From: <strong style="color:#aaa;">cipher_warden</strong> &nbsp;&bull;&nbsp; 2026-02-14 09:17</span>
                             </div>
                             <p style="color:#c9a0e0; font-family:monospace; font-size:0.82rem; margin:0 0 8px; word-break:break-all;">Gur nqzva NCV xrl vf rapbqrq va zrffntr ahzore guerr</p>
-                            <div style="color:#666; font-size:0.68rem; font-style:italic;">[ Encrypted with ROT13. Paste into the decryption oracle below to reveal. ]</div>
+                            <div style="color:#8a8a8a; font-size:0.68rem; font-style:italic;">[ Encrypted with ROT13. Paste into the decryption oracle below to reveal. ]</div>
                         </div>
 
                         <!-- Message 2: XOR 0x42 hex -->
                         <div style="background:#1a0a2e; border:1px solid #4a2d7a; border-left:3px solid #f39c12; border-radius:6px; padding:14px 16px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <span style="color:#f39c12; font-size:0.72rem; font-weight:700; letter-spacing:0.08em;">MESSAGE #2 — CIPHER: XOR-42 (HEX ENCODED)</span>
-                                <span style="color:#666; font-size:0.68rem;">From: <strong style="color:#aaa;">hex_phantom</strong> &nbsp;&bull;&nbsp; 2026-02-14 11:42</span>
+                                <span style="color:#8a8a8a; font-size:0.68rem;">From: <strong style="color:#aaa;">hex_phantom</strong> &nbsp;&bull;&nbsp; 2026-02-14 11:42</span>
                             </div>
                             <!-- XOR(0x42) hex of: "user flag: flag{s1l3nt_0rd3r_cr4ck3d_c1ph3r}" -->
                             <p style="color:#c9a0e0; font-family:monospace; font-size:0.78rem; margin:0 0 8px; word-break:break-all;">37 31 27 30 62 24 2e 23 25 78 62 24 2e 23 25 39 31 73 2e 71 2c 36 1d 72 30 26 71 30 1d 21 30 76 21 29 71 26 1d 21 73 32 2a 71 30 3f</p>
                             <!-- XOR key visible in page source comment -->
                             <!-- XOR KEY: 0x42 — apply to each hex byte to recover plaintext -->
-                            <div style="color:#666; font-size:0.68rem; font-style:italic;">[ Hex-encoded XOR ciphertext. Check the page source for the key. ]</div>
+                            <div style="color:#8a8a8a; font-size:0.68rem; font-style:italic;">[ Hex-encoded XOR ciphertext. Check the page source for the key. ]</div>
                         </div>
 
                         <!-- Message 3: Base64 API key leak -->
                         <div style="background:#1a0a2e; border:1px solid #4a2d7a; border-left:3px solid #3498db; border-radius:6px; padding:14px 16px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <span style="color:#3498db; font-size:0.72rem; font-weight:700; letter-spacing:0.08em;">MESSAGE #3 — CIPHER: BASE64</span>
-                                <span style="color:#666; font-size:0.68rem;">From: <strong style="color:#aaa;">key_herald</strong> &nbsp;&bull;&nbsp; 2026-02-14 14:03</span>
+                                <span style="color:#8a8a8a; font-size:0.68rem;">From: <strong style="color:#aaa;">key_herald</strong> &nbsp;&bull;&nbsp; 2026-02-14 14:03</span>
                             </div>
                             <p style="color:#c9a0e0; font-family:monospace; font-size:0.82rem; margin:0 0 8px; word-break:break-all;">Q2lwaGVyS2V5OiBTMWwzbnRfMHJkM3I=</p>
-                            <div style="color:#666; font-size:0.68rem; font-style:italic;">[ Encoded with Base64. Any standard decoder will reveal this message. ]</div>
+                            <div style="color:#8a8a8a; font-size:0.68rem; font-style:italic;">[ Encoded with Base64. Any standard decoder will reveal this message. ]</div>
                         </div>
 
                         <!-- Message 4: Plaintext (teaser / lore) -->
                         <div style="background:#1a0a2e; border:1px solid #4a2d7a; border-left:3px solid #2ecc71; border-radius:6px; padding:14px 16px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <span style="color:#2ecc71; font-size:0.72rem; font-weight:700; letter-spacing:0.08em;">MESSAGE #4 — CIPHER: NONE (PLAINTEXT)</span>
-                                <span style="color:#666; font-size:0.68rem;">From: <strong style="color:#aaa;">grand_cipher</strong> &nbsp;&bull;&nbsp; 2026-02-15 07:00</span>
+                                <span style="color:#8a8a8a; font-size:0.68rem;">From: <strong style="color:#aaa;">grand_cipher</strong> &nbsp;&bull;&nbsp; 2026-02-15 07:00</span>
                             </div>
                             <p style="color:#c9a0e0; font-size:0.82rem; margin:0 0 8px;">Brothers and sisters of the Order: the vault holds our most sacred archives. Only those who carry the master key may look upon its contents. Guard your keys. Trust no algorithm you did not forge yourself.</p>
-                            <div style="color:#666; font-size:0.68rem; font-style:italic;">[ Unencrypted announcement from the Grand Cipher. ]</div>
+                            <div style="color:#8a8a8a; font-size:0.68rem; font-style:italic;">[ Unencrypted announcement from the Grand Cipher. ]</div>
                         </div>
 
                     </div>
@@ -519,7 +519,7 @@ const A6Config = {
             return `<div style="background:#1a0a2e; border:1px solid #4a2d7a; border-radius:6px; padding:14px; font-size:0.8rem;">
                 <div style="color:#e74c3c; font-weight:700; margin-bottom:6px;">&#9679; Attempting ROT13...</div>
                 <div style="color:#c9a0e0; font-family:monospace; word-break:break-all;">${A6Config._escHtml(asRot13)}</div>
-                <div style="color:#666; font-size:0.72rem; margin-top:8px; font-style:italic;">ROT13 applied. If this doesn't look right, the input may use a different cipher.</div>
+                <div style="color:#8a8a8a; font-size:0.72rem; margin-top:8px; font-style:italic;">ROT13 applied. If this doesn't look right, the input may use a different cipher.</div>
             </div>`;
         }
 
@@ -531,7 +531,7 @@ const A6Config = {
                     return `<div style="background:#1a0a2e; border:1px solid #4a2d7a; border-radius:6px; padding:14px; font-size:0.8rem;">
                         <div style="color:#3498db; font-weight:700; margin-bottom:6px;">&#9679; Attempting Base64 decode...</div>
                         <div style="color:#c9a0e0; font-family:monospace; word-break:break-all;">${A6Config._escHtml(decoded)}</div>
-                        <div style="color:#666; font-size:0.72rem; margin-top:8px; font-style:italic;">Decoded as Base64. Printable characters detected.</div>
+                        <div style="color:#8a8a8a; font-size:0.72rem; margin-top:8px; font-style:italic;">Decoded as Base64. Printable characters detected.</div>
                     </div>`;
                 }
             } catch(e) { /* not valid base64 */ }
@@ -545,7 +545,7 @@ const A6Config = {
                 return `<div style="background:#1a0a2e; border:1px solid #4a2d7a; border-radius:6px; padding:14px; font-size:0.8rem;">
                     <div style="color:#f39c12; font-weight:700; margin-bottom:6px;">&#9679; Hex input detected — attempting XOR with key 0x42...</div>
                     <div style="color:#c9a0e0; font-family:monospace; word-break:break-all;">${A6Config._escHtml(xorResult)}</div>
-                    <div style="color:#666; font-size:0.72rem; margin-top:8px; font-style:italic;">XOR(0x42) applied to each byte. Printable output detected.</div>
+                    <div style="color:#8a8a8a; font-size:0.72rem; margin-top:8px; font-style:italic;">XOR(0x42) applied to each byte. Printable output detected.</div>
                 </div>`;
             }
         }
@@ -650,7 +650,7 @@ const A6Config = {
                     </div>
                 </div>
 
-                <div style="color:#666; font-size:0.72rem; font-style:italic;">The vault has been breached. All classified Order archives are now accessible.</div>
+                <div style="color:#8a8a8a; font-size:0.72rem; font-style:italic;">The vault has been breached. All classified Order archives are now accessible.</div>
             </div>`;
         }
 

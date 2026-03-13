@@ -1040,7 +1040,7 @@
         // Create goose container
         _gooseEl = document.createElement('div');
         _gooseEl.id = 'hexworth-goose';
-        _gooseEl.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none;width:80px;height:80px;transition:none;';
+        _gooseEl.style.cssText = 'position:absolute;z-index:2147483647;pointer-events:none;width:80px;height:80px;transition:none;';
 
         // SVG goose
         _gooseEl.innerHTML = '<svg viewBox="0 0 80 80" width="80" height="80" xmlns="http://www.w3.org/2000/svg">'
@@ -1071,7 +1071,7 @@
 
         // Create honk bubble
         _honkBubble = document.createElement('div');
-        _honkBubble.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:2px solid #333;border-radius:12px;padding:6px 12px;font-family:Comic Sans MS,cursive,sans-serif;font-size:14px;font-weight:bold;color:#333;display:none;pointer-events:none;white-space:nowrap;box-shadow:2px 2px 6px rgba(0,0,0,0.3);';
+        _honkBubble.style.cssText = 'position:absolute;z-index:2147483647;background:#fff;border:2px solid #333;border-radius:12px;padding:6px 12px;font-family:Comic Sans MS,cursive,sans-serif;font-size:14px;font-weight:bold;color:#333;display:none;pointer-events:none;white-space:nowrap;box-shadow:2px 2px 6px rgba(0,0,0,0.3);';
         document.body.appendChild(_honkBubble);
 
         // Inject goose CSS
@@ -1079,7 +1079,7 @@
         gooseStyle.textContent = ''
             + '@keyframes gooseWaddle { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }'
             + '@keyframes gooseBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }'
-            + '.goose-footprint { position:fixed; z-index:2147483640; opacity:0.3; pointer-events:none; font-size:10px; color:#e8a020; }'
+            + '.goose-footprint { position:absolute; z-index:2147483640; opacity:0.3; pointer-events:none; font-size:10px; color:#e8a020; }'
             + '.goose-footprint-fade { animation: footprintFade 8s ease forwards; }'
             + '@keyframes footprintFade { 0% { opacity:0.3; } 100% { opacity:0; } }';
         document.head.appendChild(gooseStyle);

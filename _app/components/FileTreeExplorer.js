@@ -340,7 +340,7 @@ const FileTreeExplorerStyles = `
     background: transparent;
     border: 1px solid #1a3a1a;
     border-radius: 4px;
-    color: #666;
+    color: #8a8a8a;
     font-family: inherit;
     font-size: 0.75rem;
     cursor: pointer;
@@ -381,7 +381,7 @@ const FileTreeExplorerStyles = `
 
 .fte-prompt::before {
     content: '$ ';
-    color: #666;
+    color: #8a8a8a;
 }
 
 .fte-tree {
@@ -437,7 +437,7 @@ const FileTreeExplorerStyles = `
 }
 
 .fte-folder-count {
-    color: #666;
+    color: #8a8a8a;
     font-size: 0.75rem;
     margin-left: 5px;
 }
@@ -491,7 +491,7 @@ const FileTreeExplorerStyles = `
 }
 
 .fte-item.available .fte-item-status {
-    color: #666;
+    color: #8a8a8a;
 }
 
 .fte-item.locked .fte-item-status {

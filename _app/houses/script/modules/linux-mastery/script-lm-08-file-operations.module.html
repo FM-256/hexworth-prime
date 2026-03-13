@@ -159,6 +159,46 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+        .task-chip.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(78, 201, 176, 0.1);
+        }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: none;
+        }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+        .task-instruction .task-cmd {
+            background: var(--bg-terminal);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+            margin: 6px 0;
+            display: inline-block;
+        }
+        .task-instruction .task-expect {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 4px;
+            font-style: italic;
+        }
 
         /* Terminal fills remaining space */
         .terminal-container {
@@ -357,12 +397,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="touch">touch</span>
-                    <span class="task-chip" data-task="mkdir">mkdir</span>
-                    <span class="task-chip" data-task="mkdir-p">mkdir -p</span>
-                    <span class="task-chip" data-task="rm">rm</span>
-                    <span class="task-chip" data-task="rmdir">rmdir</span>
+                    <span class="task-chip" data-task="touch" onclick="showTaskInstruction('touch')">1</span>
+                    <span class="task-chip" data-task="mkdir" onclick="showTaskInstruction('mkdir')">2</span>
+                    <span class="task-chip" data-task="mkdir-p" onclick="showTaskInstruction('mkdir-p')">3</span>
+                    <span class="task-chip" data-task="rm" onclick="showTaskInstruction('rm')">4</span>
+                    <span class="task-chip" data-task="rmdir" onclick="showTaskInstruction('rmdir')">5</span>
                 </div>
+                <div class="task-instruction" id="taskInstruction"></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -565,13 +606,40 @@
         const MODULE_ID = 'lm-08-file-operations';
         const tasks = { 'touch': false, 'mkdir': false, 'mkdir-p': false, 'rm': false, 'rmdir': false };
 
+        const TASK_ORDER = ['touch', 'mkdir', 'mkdir-p', 'rm', 'rmdir'];
+        const TASK_INSTRUCTIONS = {
+            'touch': { number: 1, title: 'Create a File', description: 'Type the command below to create an empty file.', command: 'touch myfile.txt', expect: 'Creates an empty file named myfile.txt' },
+            'mkdir': { number: 2, title: 'Create a Directory', description: 'Type the command below to create a new directory.', command: 'mkdir mydir', expect: 'Creates a directory named mydir' },
+            'mkdir-p': { number: 3, title: 'Create Nested Directories', description: 'Type the command below to create a full directory path at once.', command: 'mkdir -p parent/child/grandchild', expect: 'Creates the entire path parent/child/grandchild at once' },
+            'rm': { number: 4, title: 'Remove a File', description: 'Type the command below to permanently delete the file you created.', command: 'rm myfile.txt', expect: 'Deletes myfile.txt (no undo!)' },
+            'rmdir': { number: 5, title: 'Remove Empty Directory', description: 'Type the command below to remove the empty directory you created.', command: 'rmdir mydir', expect: 'Removes the empty directory mydir' }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `<div class="task-number">Task ${info.number}: ${info.title}</div><div>${info.description}</div><div class="task-cmd">${info.command}</div><div class="task-expect">${info.expect}</div>`;
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() { return TASK_ORDER.find(t => !tasks[t]) || null; }
+
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
-            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
             updateProgress();
             saveProgress();
-            if (Object.values(tasks).every(v => v)) {
+            const next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                const el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Great work! You can create and remove files and directories.</div>';
+                el.classList.add('visible');
                 ModuleProgress.complete('script', 'script-lm-08-file-operations', { returnUrl: 'script-lm-09-copy-move.module.html' });
             }
         }
@@ -600,6 +668,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

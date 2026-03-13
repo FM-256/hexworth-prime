@@ -42,6 +42,8 @@
                     mainEl.innerHTML = _savedMainHTML;
                     mainEl.style.opacity = '1';
                     _savedMainHTML = null;
+                    // Restore active tab state after DOM is rebuilt
+                    switchTab(_activeTab);
                 }, 150);
                 _currentView = null;
                 const bc = document.getElementById('hd-breadcrumb');
@@ -86,6 +88,38 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // TAB SYSTEM
+        // ═══════════════════════════════════════════════════════════════
+
+        let _activeTab = 'overview';
+        let _analyticsRendered = false;
+        let _ailabRendered = false;
+
+        function switchTab(tab) {
+            _activeTab = tab;
+            document.querySelectorAll('.hd-tab-panel').forEach(function(p) { p.classList.remove('active'); });
+            document.querySelectorAll('.hd-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            const panel = document.querySelector('.hd-tab-panel[data-tab="' + tab + '"]');
+            const btn = document.querySelector('.hd-tab-btn[data-tab="' + tab + '"]');
+            if (panel) panel.classList.add('active');
+            if (btn) btn.classList.add('active');
+            // Lazy-render charts only when tab first shown
+            if (tab === 'analytics' && !_analyticsRendered) { _renderAnalyticsTab(); _analyticsRendered = true; }
+            if (tab === 'ailab' && !_ailabRendered) { loadAiLabData(); _ailabRendered = true; }
+        }
+
+        function _renderAnalyticsTab() {
+            renderCompletionTrendChart();
+            renderTimeOnTask();
+            renderPerfChart();
+            renderStudentStatusDonut();
+            renderAssignmentCompletionDonut();
+            renderScoreDistDonut();
+            renderLowestScores();
+            renderHeatmap();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // THEME
         // ═══════════════════════════════════════════════════════════════
 
@@ -103,7 +137,7 @@
             localStorage.setItem('hd-theme', next);
             const btn = document.getElementById('hdThemeToggle');
             if (btn) btn.textContent = next === 'light' ? '\u263E' : '\u2600';
-            if (typeof renderAnalytics === 'function') renderAnalytics();
+            if (_activeTab === 'analytics' && _analyticsRendered) { _renderAnalyticsTab(); }
         }
         (function applyStoredTheme() {
             const saved = localStorage.getItem('hd-theme');
@@ -272,6 +306,11 @@
 
             // Right panel
             document.getElementById('rightClassCode').textContent = cls.classCode;
+
+            // Reset tab state for new class
+            _analyticsRendered = false;
+            _ailabRendered = false;
+            switchTab('overview');
 
             // Load assignments, roster, and progress
             loadAssignments(classId);
@@ -784,7 +823,11 @@
                 updateCompletionDisplay();
                 renderAssignments(); // Re-render to show completion badges
                 renderActivityFeed(); // Show recent activity
-                renderAnalytics(); // Update charts and leaderboard
+                renderEarlyWarnings(); // Always render warnings (overview tab)
+                renderGradeBreakdown(); // Always render (assignments tab)
+                renderAssignmentHealth(); // Always render (assignments tab)
+                // Analytics charts lazy-render when Analytics tab is opened
+                if (_activeTab === 'analytics') { _renderAnalyticsTab(); _analyticsRendered = true; }
             } catch (error) {
                 console.error('Failed to load progress:', error);
                 classProgressData = [];
@@ -2335,42 +2378,50 @@
 
         // Map non-house path keys to their parent house for filtering
         const PATH_HOUSE_MAP = {
-            'wsa': 'cloud',
-            'devops-fundamentals': 'code',
-            'linux-mastery': 'script',
-            'comptia-linux': 'script',
+            'ai-builder': 'ai',
+            'ai-foundations': 'ai',
+            'ai-security': 'ai',
             'aplus-core1': 'forge',
             'aplus-core2': 'forge',
-            'security-plus': 'shield',
-            'cysa-plus': 'shield',
-            'casp-plus': 'shield',
-            'comptia-network': 'web',
-            'ccna': 'web',
-            'cryptography-track': 'key',
-            'security-plus-crypto': 'key',
+            'arctic-advanced-topics': 'arctic',
+            'arctic-arena': 'arctic',
+            'arctic-clh-advanced': 'arctic',
+            'arctic-clh-fundamentals': 'arctic',
+            'arctic-clh-intermediate': 'arctic',
+            'arctic-cli-fundamentals': 'arctic',
+            'arctic-databases': 'arctic',
+            'arctic-hardening': 'arctic',
+            'arctic-incident-response': 'arctic',
+            'arctic-linux-admin': 'arctic',
+            'arctic-log-analysis': 'arctic',
+            'arctic-networking': 'arctic',
+            'arctic-offensive-tools': 'arctic',
+            'arctic-shell-scripting': 'arctic',
+            'arctic-sysadmin': 'arctic',
+            'arctic-text-processing': 'arctic',
             'aws-ccp': 'cloud',
+            'aws-developer': 'cloud',
             'azure-fundamentals': 'cloud',
-            'aws-developer': 'code',
-            'security-operations': 'eye',
-            'python-fundamentals': 'script',
-            'md-100': 'forge',
-            'openstack': 'cloud',
+            'casp-plus': 'shield',
+            'ccna': 'web',
+            'comptia-linux': 'script',
+            'comptia-network': 'web',
+            'cryptography-track': 'key',
             'cse': 'cloud',
             'cyber-framework': 'shield',
-            'linux-admin': 'script',
             'cysa': 'eye',
-            'ai-foundations': 'ai',
-            'ai-builder': 'ai',
-            'ai-security': 'ai',
-            'python-engineering': 'code',
-            'arctic-cli-fundamentals': 'arctic', 'arctic-shell-scripting': 'arctic',
-            'arctic-text-processing': 'arctic', 'arctic-sysadmin': 'arctic',
-            'arctic-advanced-topics': 'arctic', 'arctic-linux-admin': 'arctic',
-            'arctic-databases': 'arctic', 'arctic-networking': 'arctic',
-            'arctic-log-analysis': 'arctic', 'arctic-hardening': 'arctic',
-            'arctic-incident-response': 'arctic', 'arctic-offensive-tools': 'arctic',
-            'arctic-clh-fundamentals': 'arctic', 'arctic-clh-intermediate': 'arctic',
-            'arctic-clh-advanced': 'arctic', 'arctic-arena': 'arctic'
+            'cysa-plus': 'eye',
+            'devops-fundamentals': 'code',
+            'linux-admin': 'script',
+            'linux-mastery': 'script',
+            'md-100': 'forge',
+            'openstack': 'cloud',
+            'python-engineering': 'script',
+            'python-fundamentals': 'script',
+            'security-operations': 'eye',
+            'security-plus': 'shield',
+            'security-plus-crypto': 'key',
+            'wsa': 'cloud'
         };
 
         function cbIconImg(val) {
@@ -2776,7 +2827,7 @@
         const HOUSE_COLORS = {
             web: '#60a5fa', shield: '#f87171', cloud: '#38bdf8', forge: '#fbbf24',
             script: '#a78bfa', code: '#4ade80', key: '#f472b6', eye: '#c084fc',
-            'dark-arts': '#6b21a8', divergent: '#ff00ff',
+            'dark-arts': '#9b59d0', divergent: '#ff00ff',
             arctic: '#3ab8e0'
         };
 
@@ -2815,8 +2866,8 @@
                 renderCommsPanel();
                 loadSentMessages(classId);
 
-                // Load AI Exploit Lab analytics (depends on rosterMembers)
-                loadAiLabData();
+                // AI Lab analytics load lazily when AI Lab tab is opened
+                if (_activeTab === 'ailab') { loadAiLabData(); _ailabRendered = true; }
             } catch (error) {
                 console.error('Failed to load roster:', error);
                 container.innerHTML = `
@@ -3826,13 +3877,15 @@
         function _renderProfileTab(container, member, tab) {
             if (tab === 'class') {
                 container.innerHTML = _buildClassProfileHTML(member);
+                _renderClassSparklineIfNeeded(member.uid);
             } else {
                 container.innerHTML = _buildGlobalProfileHTML(member);
             }
         }
 
         function _buildClassProfileHTML(member) {
-            const { completed, total, pct } = getStudentCompletion(member.uid);
+            const detail = getStudentDetailedProgress(member.uid);
+            const { totalCompleted: completed, totalModules: total, pct, avgScore, totalDuration, lastActiveDate, assignments } = detail;
             const riskLabel = pct < 40 ? 'At Risk' : pct < 70 ? 'Watch' : 'On Track';
             const riskClass = pct < 40 ? 'hd-risk-high' : pct < 70 ? 'hd-risk-medium' : 'hd-risk-low';
             const colorClass = total > 0 ? progressColorClass(pct) : 'none';
@@ -3841,7 +3894,7 @@
 
             let html = '';
 
-            // Summary row
+            // A. Summary row (kept from original)
             html += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">';
             html += '<div>';
             html += '<div style="font-size:0.75rem;color:var(--hd-text-muted,#888);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Assignment Progress</div>';
@@ -3858,40 +3911,168 @@
             html += '</div>';
             html += '</div>';
 
-            // Per-assignment table
+            // B. Mini-Stat Cards
+            var durationStr = '--';
+            if (totalDuration > 0) {
+                var hrs = Math.floor(totalDuration / 3600);
+                var mins = Math.round((totalDuration % 3600) / 60);
+                durationStr = hrs > 0 ? hrs + 'h ' + mins + 'm' : mins + 'm';
+            }
+            var lastActiveStr = '--';
+            if (lastActiveDate) {
+                var now = new Date();
+                var diffMs = now - lastActiveDate;
+                var diffDays = Math.floor(diffMs / 86400000);
+                if (diffDays === 0) lastActiveStr = 'Today';
+                else if (diffDays === 1) lastActiveStr = 'Yesterday';
+                else if (diffDays < 7) lastActiveStr = diffDays + 'd ago';
+                else lastActiveStr = lastActiveDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+            var overdueCount = assignments.filter(function(a) {
+                if (!a.isOverdue) return false;
+                if (a.isPath) return a.pathCompleted < a.pathTotal;
+                return !a.completed;
+            }).length;
+
+            html += '<div class="hd-mini-stats-row">';
+            html += '<div class="hd-mini-stat"><div class="hd-mini-stat-value">' + (avgScore != null ? avgScore + '%' : '--') + '</div><div class="hd-mini-stat-label">Avg Score</div></div>';
+            html += '<div class="hd-mini-stat"><div class="hd-mini-stat-value">' + durationStr + '</div><div class="hd-mini-stat-label">Time Invested</div></div>';
+            html += '<div class="hd-mini-stat"><div class="hd-mini-stat-value">' + lastActiveStr + '</div><div class="hd-mini-stat-label">Last Active</div></div>';
+            html += '<div class="hd-mini-stat"><div class="hd-mini-stat-value" style="color:' + (overdueCount > 0 ? '#f85149' : 'var(--hd-text)') + '">' + overdueCount + '</div><div class="hd-mini-stat-label">Overdue</div></div>';
+            html += '</div>';
+
+            // C. Score Sparkline
+            var scores = [];
+            assignments.forEach(function(a) {
+                if (a.isPath && a.modules) {
+                    a.modules.forEach(function(m) { if (m.score != null) scores.push(m.score); });
+                } else if (a.score != null) {
+                    scores.push(a.score);
+                }
+            });
+            if (scores.length > 1) {
+                html += '<div class="hd-sparkline-wrap">';
+                html += '<div class="hd-sparkline-title">Score Trajectory</div>';
+                html += '<div id="hd-class-sparkline-' + escapeHtml(member.uid) + '"></div>';
+                html += '</div>';
+            }
+
+            // D. Enhanced Assignment Table
             if (classAssignments.length === 0) {
                 html += '<div style="color:var(--hd-text-muted,#888);font-size:0.85rem;">No assignments configured for this class.</div>';
                 return html;
             }
 
-            const studentProgress = classProgressData.find(function(p) { return p.id === member.uid; });
-            const completions = studentProgress ? (studentProgress.completions || {}) : {};
+            html += '<table class="hd-asgn-table">';
+            html += '<thead><tr><th>Status</th><th>Assignment</th><th>Progress / Score</th><th>Duration</th><th>Date</th></tr></thead>';
+            html += '<tbody>';
+            assignments.forEach(function(a, idx) {
+                var isDone = a.isPath ? (a.pathCompleted === a.pathTotal) : a.completed;
+                var statusDot = '<div class="hd-asgn-dot ' + (isDone ? 'complete' : 'incomplete') + '" style="display:inline-block;vertical-align:middle"></div>';
+                var overdueTag = '';
+                if (a.isOverdue && !isDone) overdueTag = '<span class="hd-asgn-overdue-tag">OVERDUE</span>';
 
-            html += '<div class="hd-assignment-status">';
-            classAssignments.forEach(function(a) {
-                const result = resolveAssignmentProgress(a, completions);
-                const isDone = result.pct === 100;
-                const comp = studentProgress && completions[a.contentId];
-                const score = comp && comp.score != null ? comp.score + '%' : '--';
-                const dateStr = comp && comp.completedAt
-                    ? (comp.completedAt.toDate
-                        ? comp.completedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                        : new Date(comp.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
-                    : '--';
-                html += '<div class="hd-asgn-row">';
-                html += '<div class="hd-asgn-dot ' + (isDone ? 'complete' : 'incomplete') + '"></div>';
-                html += '<div class="hd-asgn-name" title="' + escapeHtml(a.title) + '">' + escapeHtml(a.title) + '</div>';
-                if (a.assignmentType === 'path') {
-                    html += '<div class="hd-asgn-score" style="color:var(--hd-text-muted,#888);font-size:0.7rem;">' + result.completed + '/' + result.total + '</div>';
-                } else {
-                    html += '<div class="hd-asgn-score">' + (isDone ? score : '--') + '</div>';
+                var scoreCell = '--';
+                if (a.isPath) {
+                    scoreCell = a.pathCompleted + '/' + a.pathTotal;
+                } else if (a.score != null) {
+                    var sc = a.score;
+                    var scClass = sc >= 80 ? 'hd-score-green' : sc >= 60 ? 'hd-score-yellow' : 'hd-score-red';
+                    scoreCell = '<span class="' + scClass + '">' + sc + '%</span>';
                 }
-                html += '<div class="hd-asgn-date">' + (isDone ? dateStr : '--') + '</div>';
-                html += '</div>';
+
+                var durCell = '--';
+                if (a.isPath && a.modules) {
+                    var pathDur = a.modules.reduce(function(s, m) { return s + (m.duration || 0); }, 0);
+                    if (pathDur > 0) {
+                        var pH = Math.floor(pathDur / 3600);
+                        var pM = Math.round((pathDur % 3600) / 60);
+                        durCell = pH > 0 ? pH + 'h ' + pM + 'm' : pM + 'm';
+                    }
+                } else if (a.duration > 0) {
+                    var aH = Math.floor(a.duration / 3600);
+                    var aM = Math.round((a.duration % 3600) / 60);
+                    durCell = aH > 0 ? aH + 'h ' + aM + 'm' : aM + 'm';
+                }
+
+                var dateCell = '--';
+                if (a.completedAt) {
+                    var d = a.completedAt.toDate ? a.completedAt.toDate() : new Date(a.completedAt);
+                    dateCell = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                } else if (a.isPath && a.modules) {
+                    var lastMod = a.modules.filter(function(m) { return m.completedAt; }).pop();
+                    if (lastMod) {
+                        var ld = lastMod.completedAt.toDate ? lastMod.completedAt.toDate() : new Date(lastMod.completedAt);
+                        dateCell = ld.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }
+                }
+
+                var expandBtn = '';
+                if (a.isPath && a.modules && a.modules.length > 0) {
+                    expandBtn = ' <button class="hd-asgn-expand-btn" onclick="this.dataset.open=this.dataset.open===\'1\'?\'0\':\'1\';document.querySelectorAll(\'.hd-sub-' + idx + '\').forEach(function(r){r.style.display=this.dataset.open===\'1\'?\'\':\' none\'}.bind(this));this.textContent=this.dataset.open===\'1\'?\'-\':\'...\'" data-open="0">...</button>';
+                }
+
+                html += '<tr>';
+                html += '<td>' + statusDot + '</td>';
+                html += '<td>' + escapeHtml(a.title || a.contentId) + overdueTag + expandBtn + '</td>';
+                html += '<td>' + scoreCell + '</td>';
+                html += '<td>' + durCell + '</td>';
+                html += '<td>' + dateCell + '</td>';
+                html += '</tr>';
+
+                // Sub-rows for path modules
+                if (a.isPath && a.modules) {
+                    a.modules.forEach(function(m) {
+                        var mDone = m.completed;
+                        var mDot = '<div class="hd-asgn-dot ' + (mDone ? 'complete' : 'incomplete') + '" style="display:inline-block;vertical-align:middle;width:6px;height:6px"></div>';
+                        var mScore = '--';
+                        if (m.score != null) {
+                            var msc = m.score;
+                            var mscClass = msc >= 80 ? 'hd-score-green' : msc >= 60 ? 'hd-score-yellow' : 'hd-score-red';
+                            mScore = '<span class="' + mscClass + '">' + msc + '%</span>';
+                        }
+                        var mDur = '--';
+                        if (m.duration > 0) {
+                            var mH = Math.floor(m.duration / 3600);
+                            var mM = Math.round((m.duration % 3600) / 60);
+                            mDur = mH > 0 ? mH + 'h ' + mM + 'm' : mM + 'm';
+                        }
+                        var mDate = '--';
+                        if (m.completedAt) {
+                            var md = m.completedAt.toDate ? m.completedAt.toDate() : new Date(m.completedAt);
+                            mDate = md.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        }
+                        html += '<tr class="hd-asgn-sub-row hd-sub-' + idx + '" style="display:none">';
+                        html += '<td>' + mDot + '</td>';
+                        html += '<td>' + escapeHtml(m.title || m.id) + '</td>';
+                        html += '<td>' + mScore + '</td>';
+                        html += '<td>' + mDur + '</td>';
+                        html += '<td>' + mDate + '</td>';
+                        html += '</tr>';
+                    });
+                }
             });
-            html += '</div>';
+            html += '</tbody></table>';
 
             return html;
+        }
+
+        // Render sparkline after DOM is built (called from _renderProfileTab)
+        function _renderClassSparklineIfNeeded(uid) {
+            var el = document.getElementById('hd-class-sparkline-' + uid);
+            if (!el) return;
+            var detail = getStudentDetailedProgress(uid);
+            var scores = [];
+            detail.assignments.forEach(function(a) {
+                if (a.isPath && a.modules) {
+                    a.modules.forEach(function(m) { if (m.score != null) scores.push(m.score); });
+                } else if (a.score != null) {
+                    scores.push(a.score);
+                }
+            });
+            if (scores.length > 1 && typeof HandlerCharts !== 'undefined') {
+                HandlerCharts.sparkline(el, scores, { width: 240, height: 40, color: '#d4a017' });
+            }
         }
 
         function _buildGlobalProfileHTML(member) {

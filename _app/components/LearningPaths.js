@@ -26,7 +26,7 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'shield-cia-triad-quiz',
+                    id: 'shield-cia-quiz',
                     title: 'CIA Triad Challenge',
                     type: 'quiz',
                     difficulty: 'beginner',
@@ -41,7 +41,7 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'presentations/shield-security.presentation.html',
-                    prerequisites: ['shield-cia-triad-quiz']
+                    prerequisites: ['shield-cia-quiz']
                 },
                 {
                     id: 'shield-access-control',
@@ -53,7 +53,7 @@ class LearningPaths {
                     prerequisites: ['shield-security-fundamentals']
                 },
                 {
-                    id: 'shield-threats',
+                    id: 'shield-threat-actors',
                     title: 'Threat Landscape',
                     type: 'applet',
                     difficulty: 'intermediate',
@@ -62,13 +62,13 @@ class LearningPaths {
                     prerequisites: ['shield-access-control']
                 },
                 {
-                    id: 'shield-risk',
+                    id: 'shield-risk-management',
                     title: 'Risk Assessment',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/shield/applets/risk/risk_management/shield-risk-management.applet.html',
-                    prerequisites: ['shield-threats']
+                    prerequisites: ['shield-threat-actors']
                 },
                 {
                     id: 'shield-network-security',
@@ -77,7 +77,7 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/applets/network/shield-home-network-security.applet.html',
-                    prerequisites: ['shield-risk']
+                    prerequisites: ['shield-risk-management']
                 },
                 {
                     id: 'shield-crypto-intro',
@@ -134,7 +134,7 @@ class LearningPaths {
                     prerequisites: ['web-osi-quiz']
                 },
                 {
-                    id: 'web-subnetting',
+                    id: 'web-subnetting-pres',
                     title: 'Subnetting Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
@@ -149,10 +149,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'quizzes/web-subnetting.quiz.html',
-                    prerequisites: ['web-subnetting']
+                    prerequisites: ['web-subnetting-pres']
                 },
                 {
-                    id: 'web-switching',
+                    id: 'web-switch-ops-pres',
                     title: 'Network Switching',
                     type: 'presentation',
                     difficulty: 'intermediate',
@@ -161,31 +161,31 @@ class LearningPaths {
                     prerequisites: ['web-subnetting-quiz']
                 },
                 {
-                    id: 'web-vlan',
+                    id: 'web-switching',
                     title: 'VLAN Configuration',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-vlan.presentation.html',
-                    prerequisites: ['web-switching']
+                    prerequisites: ['web-switch-ops-pres']
                 },
                 {
-                    id: 'web-routing',
+                    id: 'web-topologies-pres',
                     title: 'Routing Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-topologies.presentation.html',
-                    prerequisites: ['web-vlan']
+                    prerequisites: ['web-switching']
                 },
                 {
-                    id: 'web-ospf',
+                    id: 'web-routing',
                     title: 'OSPF Protocol',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/web/presentations/web-ospf.presentation.html',
-                    prerequisites: ['web-routing']
+                    prerequisites: ['web-topologies-pres']
                 },
                 {
                     id: 'web-network-simulator',
@@ -194,7 +194,7 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '60 min',
                     href: 'simulators/web-interactive-network-simulatorv2.simulator.html',
-                    prerequisites: ['web-ospf']
+                    prerequisites: ['web-routing']
                 }
             ]
         },
@@ -251,7 +251,7 @@ class LearningPaths {
                     prerequisites: ['forge-admin-tools']
                 },
                 {
-                    id: 'forge-hardware',
+                    id: 'forge-hardware-fundamentals',
                     title: 'Hardware Components',
                     type: 'applet',
                     difficulty: 'intermediate',
@@ -260,22 +260,22 @@ class LearningPaths {
                     prerequisites: ['forge-system-tools']
                 },
                 {
-                    id: 'forge-macos-linux',
+                    id: 'forge-macos-linux-basics',
                     title: 'macOS & Linux Basics',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'presentations/forge-macos-linux-basics.presentation.html',
-                    prerequisites: ['forge-hardware']
+                    prerequisites: ['forge-hardware-fundamentals']
                 },
                 {
-                    id: 'windows-admin',
+                    id: 'forge-windows-admin-quiz',
                     title: 'Windows Admin Challenge',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'quizzes/forge-windows-admin.quiz.html',
-                    prerequisites: ['forge-macos-linux']
+                    prerequisites: ['forge-macos-linux-basics']
                 }
             ]
         },
@@ -287,7 +287,7 @@ class LearningPaths {
             color: '#22c55e',
             modules: [
                 {
-                    id: 'script-basics',
+                    id: 'script-scripting-basics',
                     title: 'Scripting Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -296,13 +296,13 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'script-linux-commands',
+                    id: 'script-linux-basics',
                     title: 'Linux Command Simulator',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/script/tools/script-linux-command.tool.html',
-                    prerequisites: ['script-basics']
+                    prerequisites: ['script-scripting-basics']
                 },
                 {
                     id: 'script-linux-filesystem',
@@ -311,7 +311,7 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'applets/linux/script-linux-filesystem-navigator.applet.html',
-                    prerequisites: ['script-linux-commands']
+                    prerequisites: ['script-linux-basics']
                 },
                 {
                     id: 'script-linux-permissions',
@@ -323,7 +323,7 @@ class LearningPaths {
                     prerequisites: ['script-linux-filesystem']
                 },
                 {
-                    id: 'script-bash',
+                    id: 'script-bash-scripting',
                     title: 'Bash Scripting',
                     type: 'applet',
                     difficulty: 'intermediate',
@@ -332,22 +332,22 @@ class LearningPaths {
                     prerequisites: ['script-linux-permissions']
                 },
                 {
-                    id: 'script-powershell',
+                    id: 'script-powershell-basics',
                     title: 'PowerShell Playground',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'applets/powershell/script-powershell-playground.applet.html',
-                    prerequisites: ['script-bash']
+                    prerequisites: ['script-bash-scripting']
                 },
                 {
-                    id: 'script-python-intro',
+                    id: 'script-python-basics',
                     title: 'Python: Getting Started',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'applets/python/script-python-chapter1.applet.html',
-                    prerequisites: ['script-basics']
+                    prerequisites: ['script-scripting-basics']
                 },
                 {
                     id: 'script-python-strings',
@@ -356,10 +356,10 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'applets/python/script-python-chapter2-strings.applet.html',
-                    prerequisites: ['script-python-intro']
+                    prerequisites: ['script-python-basics']
                 },
                 {
-                    id: 'script-python-flow',
+                    id: 'script-python-flow-control',
                     title: 'Python: Flow Control',
                     type: 'applet',
                     difficulty: 'intermediate',
@@ -368,13 +368,13 @@ class LearningPaths {
                     prerequisites: ['script-python-strings']
                 },
                 {
-                    id: 'script-automation',
+                    id: 'script-automation-concepts',
                     title: 'Automation Visualizer',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/tools/script-automation.tool.html',
-                    prerequisites: ['script-powershell', 'script-python-flow']
+                    prerequisites: ['script-powershell-basics', 'script-python-flow-control']
                 },
                 {
                     id: 'script-linux-quiz',
@@ -383,7 +383,7 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'quizzes/script-linux-basics.quiz.html',
-                    prerequisites: ['script-automation']
+                    prerequisites: ['script-automation-concepts']
                 }
             ]
         },
@@ -413,7 +413,7 @@ class LearningPaths {
                     prerequisites: ['cloud-concepts']
                 },
                 {
-                    id: 'cloud-aws-fundamentals',
+                    id: 'cloud-aws-fundamentals-pres',
                     title: 'AWS Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -428,7 +428,7 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/cloud/tools/cloud-ch02-aws-account.tool.html',
-                    prerequisites: ['cloud-aws-fundamentals']
+                    prerequisites: ['cloud-aws-fundamentals-pres']
                 },
                 {
                     id: 'cloud-aws-regions',
@@ -440,7 +440,7 @@ class LearningPaths {
                     prerequisites: ['cloud-aws-account']
                 },
                 {
-                    id: 'cloud-aws-iam',
+                    id: 'cloud-aws-security',
                     title: 'AWS IAM Security',
                     type: 'applet',
                     difficulty: 'intermediate',
@@ -455,7 +455,7 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/tools/cloud-ch07-compute-services.tool.html',
-                    prerequisites: ['cloud-aws-iam']
+                    prerequisites: ['cloud-aws-security']
                 },
                 {
                     id: 'cloud-aws-storage',
@@ -467,7 +467,7 @@ class LearningPaths {
                     prerequisites: ['cloud-aws-compute']
                 },
                 {
-                    id: 'cloud-azure',
+                    id: 'cloud-azure-fundamentals',
                     title: 'Azure Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
@@ -482,7 +482,7 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'applets/architecture/cloud-architecture-designer.applet.html',
-                    prerequisites: ['cloud-azure']
+                    prerequisites: ['cloud-azure-fundamentals']
                 },
                 {
                     id: 'cloud-aws-quiz',
@@ -530,7 +530,7 @@ class LearningPaths {
                     prerequisites: ['code-agile']
                 },
                 {
-                    id: 'code-cicd',
+                    id: 'code-cicd-fundamentals',
                     title: 'CI/CD Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
@@ -539,13 +539,13 @@ class LearningPaths {
                     prerequisites: ['code-agile-quiz']
                 },
                 {
-                    id: 'code-pipeline',
+                    id: 'code-pipeline-builder',
                     title: 'Pipeline Builder',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'applets/code-pipeline-builder.applet.html',
-                    prerequisites: ['code-cicd']
+                    prerequisites: ['code-cicd-fundamentals']
                 },
                 {
                     id: 'code-docker',
@@ -554,7 +554,7 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'presentations/code-docker-fundamentals.presentation.html',
-                    prerequisites: ['code-pipeline']
+                    prerequisites: ['code-cicd']
                 },
                 {
                     id: 'code-docker-playground',
@@ -575,7 +575,7 @@ class LearningPaths {
                     prerequisites: ['code-docker-playground']
                 },
                 {
-                    id: 'code-terraform',
+                    id: 'code-terraform-fundamentals',
                     title: 'Terraform Fundamentals',
                     type: 'presentation',
                     difficulty: 'advanced',
@@ -584,7 +584,7 @@ class LearningPaths {
                     prerequisites: ['code-kubernetes']
                 },
                 {
-                    id: 'code-terraform-visualizer',
+                    id: 'code-terraform',
                     title: 'Terraform Visualizer',
                     type: 'applet',
                     difficulty: 'advanced',
@@ -649,7 +649,7 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'key-symmetric',
+                    id: 'key-symmetric-vs-asymmetric',
                     title: 'Symmetric Encryption',
                     type: 'presentation',
                     difficulty: 'intermediate',
@@ -664,10 +664,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'tools/key-aes.tool.html',
-                    prerequisites: ['key-symmetric']
+                    prerequisites: ['key-symmetric-vs-asymmetric']
                 },
                 {
-                    id: 'key-ecc',
+                    id: 'key-elliptic-curve',
                     title: 'Elliptic Curve Cryptography',
                     type: 'presentation',
                     difficulty: 'advanced',
@@ -676,40 +676,40 @@ class LearningPaths {
                     prerequisites: ['key-aes-explorer']
                 },
                 {
-                    id: 'key-kdf',
+                    id: 'key-key-derivation',
                     title: 'Key Derivation Functions',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'presentations/key-derivation.presentation.html',
-                    prerequisites: ['key-ecc']
+                    prerequisites: ['key-elliptic-curve']
                 },
                 {
-                    id: 'key-hmac',
+                    id: 'key-message-auth',
                     title: 'Message Authentication',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'presentations/key-message-authentication.presentation.html',
-                    prerequisites: ['key-kdf']
+                    prerequisites: ['key-key-derivation']
                 },
                 {
-                    id: 'key-certificates',
+                    id: 'key-pki-deep-dive',
                     title: 'Digital Certificates',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'presentations/key-certificates.presentation.html',
-                    prerequisites: ['key-hmac']
+                    prerequisites: ['key-message-auth']
                 },
                 {
-                    id: 'key-pqc',
+                    id: 'key-post-quantum',
                     title: 'Post-Quantum Cryptography',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'presentations/key-post-quantum.presentation.html',
-                    prerequisites: ['key-certificates']
+                    prerequisites: ['key-pki-deep-dive']
                 }
             ]
         },
@@ -721,7 +721,7 @@ class LearningPaths {
             color: '#6366f1',
             modules: [
                 {
-                    id: 'eye-log-basics',
+                    id: 'eye-log-analysis',
                     title: 'Log Analysis Basics',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -736,7 +736,7 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'presentations/eye-soc-operations.presentation.html',
-                    prerequisites: ['eye-log-basics']
+                    prerequisites: ['eye-log-analysis']
                 },
                 {
                     id: 'eye-soc-simulator',
@@ -748,7 +748,7 @@ class LearningPaths {
                     prerequisites: ['eye-soc-operations']
                 },
                 {
-                    id: 'eye-siem',
+                    id: 'eye-siem-intro',
                     title: 'SIEM Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
@@ -763,7 +763,7 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'presentations/eye-log-correlation.presentation.html',
-                    prerequisites: ['eye-siem']
+                    prerequisites: ['eye-siem-intro']
                 },
                 {
                     id: 'eye-correlation-engine',
@@ -793,7 +793,7 @@ class LearningPaths {
                     prerequisites: ['eye-threat-hunting']
                 },
                 {
-                    id: 'eye-traffic-analysis',
+                    id: 'eye-network-traffic',
                     title: 'Network Traffic Analysis',
                     type: 'presentation',
                     difficulty: 'advanced',
@@ -822,7 +822,7 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'python-ch1-immersive',
+                    id: 'script-python-immersive-chapter1',
                     title: 'Chapter 1: Immersive Lab',
                     type: 'lab',
                     difficulty: 'beginner',
@@ -837,10 +837,10 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/script/presentations/python/script-python-chapter2.presentation.html',
-                    prerequisites: ['python-ch1-immersive']
+                    prerequisites: ['script-python-immersive-chapter1']
                 },
                 {
-                    id: 'python-ch2-immersive',
+                    id: 'script-python-immersive-chapter2',
                     title: 'Chapter 2: Immersive Lab',
                     type: 'lab',
                     difficulty: 'beginner',
@@ -855,10 +855,10 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '35 min',
                     href: 'houses/script/presentations/python/script-python-chapter3.presentation.html',
-                    prerequisites: ['python-ch2-immersive']
+                    prerequisites: ['script-python-immersive-chapter2']
                 },
                 {
-                    id: 'python-ch3-immersive',
+                    id: 'script-python-immersive-chapter3',
                     title: 'Chapter 3: Immersive Lab',
                     type: 'lab',
                     difficulty: 'beginner',
@@ -873,10 +873,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/presentations/python/script-python-chapter4.presentation.html',
-                    prerequisites: ['python-ch3-immersive']
+                    prerequisites: ['script-python-immersive-chapter3']
                 },
                 {
-                    id: 'python-ch4-immersive',
+                    id: 'script-python-immersive-chapter4',
                     title: 'Chapter 4: Immersive Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
@@ -891,10 +891,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/presentations/python/script-python-chapter5.presentation.html',
-                    prerequisites: ['python-ch4-immersive']
+                    prerequisites: ['script-python-immersive-chapter4']
                 },
                 {
-                    id: 'python-ch5-immersive',
+                    id: 'script-python-immersive-chapter5',
                     title: 'Chapter 5: Immersive Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
@@ -909,10 +909,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/presentations/python/script-python-chapter6.presentation.html',
-                    prerequisites: ['python-ch5-immersive']
+                    prerequisites: ['script-python-immersive-chapter5']
                 },
                 {
-                    id: 'python-ch6-immersive',
+                    id: 'script-python-immersive-chapter6',
                     title: 'Chapter 6: Immersive Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
@@ -927,10 +927,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/presentations/python/script-python-chapter7.presentation.html',
-                    prerequisites: ['python-ch6-immersive']
+                    prerequisites: ['script-python-immersive-chapter6']
                 },
                 {
-                    id: 'python-ch7-immersive',
+                    id: 'script-python-immersive-chapter7',
                     title: 'Chapter 7: Immersive Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
@@ -945,10 +945,10 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/script/presentations/python/script-python-chapter8.presentation.html',
-                    prerequisites: ['python-ch7-immersive']
+                    prerequisites: ['script-python-immersive-chapter7']
                 },
                 {
-                    id: 'python-ch8-immersive',
+                    id: 'script-python-immersive-chapter8',
                     title: 'Chapter 8: Immersive Lab',
                     type: 'lab',
                     difficulty: 'advanced',
@@ -967,7 +967,7 @@ class LearningPaths {
             courseHref: 'houses/devops-fundamentals/index.html',
             modules: [
                 {
-                    id: 'devops-git-basics',
+                    id: 'code-git-basics',
                     title: 'Git Basics',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -976,76 +976,76 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'devops-agile',
+                    id: 'code-agile-sdlc',
                     title: 'Agile & SDLC',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/code/presentations/code-agile-sdlc.presentation.html',
-                    prerequisites: ['devops-git-basics']
+                    prerequisites: ['code-git-basics']
                 },
                 {
-                    id: 'devops-cicd',
+                    id: 'code-cicd-fundamentals',
                     title: 'CI/CD Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/code/presentations/code-cicd-fundamentals.presentation.html',
-                    prerequisites: ['devops-agile']
+                    prerequisites: ['code-agile-sdlc']
                 },
                 {
-                    id: 'devops-pipeline',
+                    id: 'code-cicd',
                     title: 'Pipeline Builder',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/code/applets/code-pipeline-builder.applet.html',
-                    prerequisites: ['devops-cicd']
+                    prerequisites: ['code-cicd-fundamentals']
                 },
                 {
-                    id: 'devops-docker',
+                    id: 'code-docker-basics',
                     title: 'Docker Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/code/presentations/code-docker-fundamentals.presentation.html',
-                    prerequisites: ['devops-pipeline']
+                    prerequisites: ['code-cicd']
                 },
                 {
-                    id: 'devops-docker-playground',
+                    id: 'code-docker',
                     title: 'Docker Playground',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/code/applets/code-docker-playground.applet.html',
-                    prerequisites: ['devops-docker']
+                    prerequisites: ['code-docker-basics']
                 },
                 {
-                    id: 'devops-kubernetes',
+                    id: 'code-kubernetes-fundamentals',
                     title: 'Kubernetes Fundamentals',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/code/presentations/code-kubernetes-fundamentals.presentation.html',
-                    prerequisites: ['devops-docker-playground']
+                    prerequisites: ['code-docker']
                 },
                 {
-                    id: 'devops-terraform',
+                    id: 'code-terraform-fundamentals',
                     title: 'Terraform Fundamentals',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/code/presentations/code-terraform-fundamentals.presentation.html',
-                    prerequisites: ['devops-kubernetes']
+                    prerequisites: ['code-kubernetes-fundamentals']
                 },
                 {
-                    id: 'devops-terraform-visualizer',
+                    id: 'code-terraform',
                     title: 'Terraform Visualizer',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/code/tools/code-terraform.tool.html',
-                    prerequisites: ['devops-terraform']
+                    prerequisites: ['code-terraform-fundamentals']
                 }
             ]
         },
@@ -1059,7 +1059,7 @@ class LearningPaths {
             modules: [
                 // Section 1: Getting Started
                 {
-                    id: 'lm-01-welcome',
+                    id: 'script-lm-01-welcome',
                     title: 'Welcome to Linux',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -1068,479 +1068,479 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'lm-02-first-commands',
+                    id: 'script-lm-02-first-commands',
                     title: 'Your First Commands',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-02-first-commands.module.html',
-                    prerequisites: ['lm-01-welcome']
+                    prerequisites: ['script-lm-01-welcome']
                 },
                 {
-                    id: 'lm-03-getting-help',
+                    id: 'script-lm-03-getting-help',
                     title: 'Getting Help',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html',
-                    prerequisites: ['lm-02-first-commands']
+                    prerequisites: ['script-lm-02-first-commands']
                 },
                 {
-                    id: 'lm-04-terminal-environment',
+                    id: 'script-lm-04-terminal-environment',
                     title: 'The Terminal Environment',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html',
-                    prerequisites: ['lm-03-getting-help']
+                    prerequisites: ['script-lm-03-getting-help']
                 },
                 {
-                    id: 'lm-05-section1-practice',
+                    id: 'script-lm-05-section1-practice',
                     title: 'Section 1 Practice',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-05-section1-practice.module.html',
-                    prerequisites: ['lm-04-terminal-environment']
+                    prerequisites: ['script-lm-04-terminal-environment']
                 },
                 // Section 2: Navigation & Files
                 {
-                    id: 'lm-06-navigation',
+                    id: 'script-lm-06-navigation',
                     title: 'Directory Navigation',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-06-navigation.module.html',
-                    prerequisites: ['lm-05-section1-practice']
+                    prerequisites: ['script-lm-05-section1-practice']
                 },
                 {
-                    id: 'lm-07-listing-files',
+                    id: 'script-lm-07-listing-files',
                     title: 'Listing Files',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-07-listing-files.module.html',
-                    prerequisites: ['lm-06-navigation']
+                    prerequisites: ['script-lm-06-navigation']
                 },
                 {
-                    id: 'lm-08-file-operations',
+                    id: 'script-lm-08-file-operations',
                     title: 'File Operations',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html',
-                    prerequisites: ['lm-07-listing-files']
+                    prerequisites: ['script-lm-07-listing-files']
                 },
                 {
-                    id: 'lm-09-copy-move',
+                    id: 'script-lm-09-copy-move',
                     title: 'Copy and Move',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html',
-                    prerequisites: ['lm-08-file-operations']
+                    prerequisites: ['script-lm-08-file-operations']
                 },
                 {
-                    id: 'lm-10-viewing-files',
+                    id: 'script-lm-10-viewing-files',
                     title: 'Viewing Files',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html',
-                    prerequisites: ['lm-09-copy-move']
+                    prerequisites: ['script-lm-09-copy-move']
                 },
                 {
-                    id: 'lm-11-finding-files',
+                    id: 'script-lm-11-finding-files',
                     title: 'Finding Files',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html',
-                    prerequisites: ['lm-10-viewing-files']
+                    prerequisites: ['script-lm-10-viewing-files']
                 },
                 {
-                    id: 'lm-12-section2-practice',
+                    id: 'script-lm-12-section2-practice',
                     title: 'Section 2 Practice',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html',
-                    prerequisites: ['lm-11-finding-files']
+                    prerequisites: ['script-lm-11-finding-files']
                 },
                 // Section 3: Text Processing
                 {
-                    id: 'lm-13-grep-basics',
+                    id: 'script-lm-13-grep-basics',
                     title: 'grep Basics',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-13-grep-basics.module.html',
-                    prerequisites: ['lm-12-section2-practice']
+                    prerequisites: ['script-lm-12-section2-practice']
                 },
                 {
-                    id: 'lm-14-regular-expressions',
+                    id: 'script-lm-14-regular-expressions',
                     title: 'Regular Expressions',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-14-regular-expressions.module.html',
-                    prerequisites: ['lm-13-grep-basics']
+                    prerequisites: ['script-lm-13-grep-basics']
                 },
                 {
-                    id: 'lm-15-sed-editor',
+                    id: 'script-lm-15-sed-editor',
                     title: 'sed Stream Editor',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-15-sed-editor.module.html',
-                    prerequisites: ['lm-14-regular-expressions']
+                    prerequisites: ['script-lm-14-regular-expressions']
                 },
                 {
-                    id: 'lm-16-awk-processing',
+                    id: 'script-lm-16-awk-processing',
                     title: 'awk Processing',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-16-awk-processing.module.html',
-                    prerequisites: ['lm-15-sed-editor']
+                    prerequisites: ['script-lm-15-sed-editor']
                 },
                 {
-                    id: 'lm-17-sort-uniq',
+                    id: 'script-lm-17-sort-uniq',
                     title: 'sort and uniq',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-17-sort-uniq.module.html',
-                    prerequisites: ['lm-16-awk-processing']
+                    prerequisites: ['script-lm-16-awk-processing']
                 },
                 {
-                    id: 'lm-18-cut-paste',
+                    id: 'script-lm-18-cut-paste',
                     title: 'cut and paste',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-18-cut-paste.module.html',
-                    prerequisites: ['lm-17-sort-uniq']
+                    prerequisites: ['script-lm-17-sort-uniq']
                 },
                 {
-                    id: 'lm-19-text-pipelines',
+                    id: 'script-lm-19-text-pipelines',
                     title: 'Text Pipelines',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-19-text-pipelines.module.html',
-                    prerequisites: ['lm-18-cut-paste']
+                    prerequisites: ['script-lm-18-cut-paste']
                 },
                 {
-                    id: 'lm-20-section3-practice',
+                    id: 'script-lm-20-section3-practice',
                     title: 'Section 3 Practice',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-20-section3-practice.module.html',
-                    prerequisites: ['lm-19-text-pipelines']
+                    prerequisites: ['script-lm-19-text-pipelines']
                 },
                 // Section 4: Permissions & Users
                 {
-                    id: 'lm-21-users-groups',
+                    id: 'script-lm-21-users-groups',
                     title: 'Users and Groups',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html',
-                    prerequisites: ['lm-20-section3-practice']
+                    prerequisites: ['script-lm-20-section3-practice']
                 },
                 {
-                    id: 'lm-22-file-permissions',
+                    id: 'script-lm-22-file-permissions',
                     title: 'File Permissions',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-22-file-permissions.module.html',
-                    prerequisites: ['lm-21-users-groups']
+                    prerequisites: ['script-lm-21-users-groups']
                 },
                 {
-                    id: 'lm-23-chmod',
+                    id: 'script-lm-23-chmod',
                     title: 'chmod',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-23-chmod.module.html',
-                    prerequisites: ['lm-22-file-permissions']
+                    prerequisites: ['script-lm-22-file-permissions']
                 },
                 {
-                    id: 'lm-24-chown',
+                    id: 'script-lm-24-chown',
                     title: 'chown',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-24-chown.module.html',
-                    prerequisites: ['lm-23-chmod']
+                    prerequisites: ['script-lm-23-chmod']
                 },
                 {
-                    id: 'lm-25-sudo',
+                    id: 'script-lm-25-sudo',
                     title: 'sudo',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-25-sudo.module.html',
-                    prerequisites: ['lm-24-chown']
+                    prerequisites: ['script-lm-24-chown']
                 },
                 {
-                    id: 'lm-26-special-permissions',
+                    id: 'script-lm-26-special-permissions',
                     title: 'Special Permissions',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-26-special-permissions.module.html',
-                    prerequisites: ['lm-25-sudo']
+                    prerequisites: ['script-lm-25-sudo']
                 },
                 {
-                    id: 'lm-27-section4-practice',
+                    id: 'script-lm-27-section4-practice',
                     title: 'Section 4 Practice',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html',
-                    prerequisites: ['lm-26-special-permissions']
+                    prerequisites: ['script-lm-26-special-permissions']
                 },
                 // Section 5: Processes
                 {
-                    id: 'lm-28-process-basics',
+                    id: 'script-lm-28-process-basics',
                     title: 'Process Basics',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-28-process-basics.module.html',
-                    prerequisites: ['lm-27-section4-practice']
+                    prerequisites: ['script-lm-27-section4-practice']
                 },
                 {
-                    id: 'lm-29-ps-top',
+                    id: 'script-lm-29-ps-top',
                     title: 'ps and top',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html',
-                    prerequisites: ['lm-28-process-basics']
+                    prerequisites: ['script-lm-28-process-basics']
                 },
                 {
-                    id: 'lm-30-background-jobs',
+                    id: 'script-lm-30-background-jobs',
                     title: 'Background Jobs',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-30-background-jobs.module.html',
-                    prerequisites: ['lm-29-ps-top']
+                    prerequisites: ['script-lm-29-ps-top']
                 },
                 {
-                    id: 'lm-31-signals-kill',
+                    id: 'script-lm-31-signals-kill',
                     title: 'Signals and kill',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-31-signals-kill.module.html',
-                    prerequisites: ['lm-30-background-jobs']
+                    prerequisites: ['script-lm-30-background-jobs']
                 },
                 {
-                    id: 'lm-32-cron',
+                    id: 'script-lm-32-cron',
                     title: 'cron',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-32-cron.module.html',
-                    prerequisites: ['lm-31-signals-kill']
+                    prerequisites: ['script-lm-31-signals-kill']
                 },
                 {
-                    id: 'lm-33-systemd',
+                    id: 'script-lm-33-systemd',
                     title: 'systemd',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-33-systemd.module.html',
-                    prerequisites: ['lm-32-cron']
+                    prerequisites: ['script-lm-32-cron']
                 },
                 {
-                    id: 'lm-34-section5-practice',
+                    id: 'script-lm-34-section5-practice',
                     title: 'Section 5 Practice',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html',
-                    prerequisites: ['lm-33-systemd']
+                    prerequisites: ['script-lm-33-systemd']
                 },
                 // Section 6: Networking Basics
                 {
-                    id: 'lm-35-network-info',
+                    id: 'script-lm-35-network-info',
                     title: 'Network Info',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-35-network-info.module.html',
-                    prerequisites: ['lm-34-section5-practice']
+                    prerequisites: ['script-lm-34-section5-practice']
                 },
                 {
-                    id: 'lm-36-connectivity',
+                    id: 'script-lm-36-connectivity',
                     title: 'Connectivity',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html',
-                    prerequisites: ['lm-35-network-info']
+                    prerequisites: ['script-lm-35-network-info']
                 },
                 {
-                    id: 'lm-37-dns-tools',
+                    id: 'script-lm-37-dns-tools',
                     title: 'DNS Tools',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html',
-                    prerequisites: ['lm-36-connectivity']
+                    prerequisites: ['script-lm-36-connectivity']
                 },
                 {
-                    id: 'lm-38-downloading',
+                    id: 'script-lm-38-downloading',
                     title: 'Downloading',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-38-downloading.module.html',
-                    prerequisites: ['lm-37-dns-tools']
+                    prerequisites: ['script-lm-37-dns-tools']
                 },
                 {
-                    id: 'lm-39-ssh-basics',
+                    id: 'script-lm-39-ssh-basics',
                     title: 'SSH Basics',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html',
-                    prerequisites: ['lm-38-downloading']
+                    prerequisites: ['script-lm-38-downloading']
                 },
                 {
-                    id: 'lm-40-section6-practice',
+                    id: 'script-lm-40-section6-practice',
                     title: 'Section 6 Practice',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-40-section6-practice.module.html',
-                    prerequisites: ['lm-39-ssh-basics']
+                    prerequisites: ['script-lm-39-ssh-basics']
                 },
                 // Section 7: Shell Scripting
                 {
-                    id: 'lm-41-first-script',
+                    id: 'script-lm-41-first-script',
                     title: 'First Script',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-41-first-script.module.html',
-                    prerequisites: ['lm-40-section6-practice']
+                    prerequisites: ['script-lm-40-section6-practice']
                 },
                 {
-                    id: 'lm-42-variables',
+                    id: 'script-lm-42-variables',
                     title: 'Variables',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-42-variables.module.html',
-                    prerequisites: ['lm-41-first-script']
+                    prerequisites: ['script-lm-41-first-script']
                 },
                 {
-                    id: 'lm-43-user-input',
+                    id: 'script-lm-43-user-input',
                     title: 'User Input',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-43-user-input.module.html',
-                    prerequisites: ['lm-42-variables']
+                    prerequisites: ['script-lm-42-variables']
                 },
                 {
-                    id: 'lm-44-conditionals',
+                    id: 'script-lm-44-conditionals',
                     title: 'Conditionals',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-44-conditionals.module.html',
-                    prerequisites: ['lm-43-user-input']
+                    prerequisites: ['script-lm-43-user-input']
                 },
                 {
-                    id: 'lm-45-loops',
+                    id: 'script-lm-45-loops',
                     title: 'Loops',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-45-loops.module.html',
-                    prerequisites: ['lm-44-conditionals']
+                    prerequisites: ['script-lm-44-conditionals']
                 },
                 {
-                    id: 'lm-46-functions',
+                    id: 'script-lm-46-functions',
                     title: 'Functions',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-46-functions.module.html',
-                    prerequisites: ['lm-45-loops']
+                    prerequisites: ['script-lm-45-loops']
                 },
                 {
-                    id: 'lm-47-practical-scripts',
+                    id: 'script-lm-47-practical-scripts',
                     title: 'Practical Scripts',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-47-practical-scripts.module.html',
-                    prerequisites: ['lm-46-functions']
+                    prerequisites: ['script-lm-46-functions']
                 },
                 {
-                    id: 'lm-48-section7-practice',
+                    id: 'script-lm-48-section7-practice',
                     title: 'Section 7 Practice',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html',
-                    prerequisites: ['lm-47-practical-scripts']
+                    prerequisites: ['script-lm-47-practical-scripts']
                 },
                 // Section 8: Beyond Basics
                 {
-                    id: 'lm-49-links',
+                    id: 'script-lm-49-links',
                     title: 'Links',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-49-links.module.html',
-                    prerequisites: ['lm-48-section7-practice']
+                    prerequisites: ['script-lm-48-section7-practice']
                 },
                 {
-                    id: 'lm-50-text-editors',
+                    id: 'script-lm-50-text-editors',
                     title: 'Text Editors',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-50-text-editors.module.html',
-                    prerequisites: ['lm-49-links']
+                    prerequisites: ['script-lm-49-links']
                 },
                 {
-                    id: 'lm-51-package-management',
+                    id: 'script-lm-51-package-management',
                     title: 'Package Management',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-51-package-management.module.html',
-                    prerequisites: ['lm-50-text-editors']
+                    prerequisites: ['script-lm-50-text-editors']
                 },
                 {
-                    id: 'lm-52-environment-path',
+                    id: 'script-lm-52-environment-path',
                     title: 'Environment & PATH',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html',
-                    prerequisites: ['lm-51-package-management']
+                    prerequisites: ['script-lm-51-package-management']
                 },
                 {
-                    id: 'lm-53-next-steps',
+                    id: 'script-lm-53-next-steps',
                     title: 'Next Steps',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/script/modules/linux-mastery/script-lm-53-next-steps.module.html',
-                    prerequisites: ['lm-52-environment-path']
+                    prerequisites: ['script-lm-52-environment-path']
                 }
             ]
         },
@@ -1555,7 +1555,7 @@ class LearningPaths {
             modules: [
                 // Section 1: Linux Fundamentals
                 {
-                    id: 'linux-section1-intro',
+                    id: 'script-ubuntu-components',
                     title: 'Section 1: Linux System Overview',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -1564,99 +1564,99 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'linux-section1-quiz',
+                    id: 'script-linux-quiz',
                     title: 'Section 1 Quiz: Linux Fundamentals',
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/script/quizzes/script-linux-basics.quiz.html',
-                    prerequisites: ['linux-section1-intro']
+                    prerequisites: ['script-ubuntu-components']
                 },
                 // Section 2: Command Line Essentials
                 {
-                    id: 'linux-section2-cli',
+                    id: 'script-linux-basics',
                     title: 'Section 2: Command Line Essentials',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/script/tools/script-linux-command.tool.html',
-                    prerequisites: ['linux-section1-quiz']
+                    prerequisites: ['script-linux-quiz']
                 },
                 {
-                    id: 'linux-section2-quiz',
+                    id: 'script-linux-quiz-s2',
                     title: 'Section 2 Quiz: CLI Commands',
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/script/quizzes/script-linux-basics.quiz.html',
-                    prerequisites: ['linux-section2-cli']
+                    prerequisites: ['script-linux-basics']
                 },
                 // Section 3: File System Navigation
                 {
-                    id: 'linux-section3-filesystem',
+                    id: 'script-linux-filesystem',
                     title: 'Section 3: File System Navigation',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/applets/linux/script-linux-filesystem-navigator.applet.html',
-                    prerequisites: ['linux-section2-quiz']
+                    prerequisites: ['script-linux-quiz-s2']
                 },
                 {
-                    id: 'linux-section3-lab',
+                    id: 'script-linux-lab-002',
                     title: 'Section 3 Lab: File Navigation',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/applets/linux/script-linux-lab-002-file-navigation.applet.html',
-                    prerequisites: ['linux-section3-filesystem']
+                    prerequisites: ['script-linux-filesystem']
                 },
                 // Section 4: Permissions & Security
                 {
-                    id: 'linux-section4-permissions',
+                    id: 'script-linux-permissions',
                     title: 'Section 4: Linux Permissions',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/tools/script-linux-permissions.tool.html',
-                    prerequisites: ['linux-section3-lab']
+                    prerequisites: ['script-linux-lab-002']
                 },
                 {
-                    id: 'linux-section4-lab',
+                    id: 'script-linux-lab-001',
                     title: 'Section 4 Lab: User Identity',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/applets/linux/script-linux-lab-001-user-identity.applet.html',
-                    prerequisites: ['linux-section4-permissions']
+                    prerequisites: ['script-linux-permissions']
                 },
                 // Section 5: Scripting & Automation
                 {
-                    id: 'linux-section5-bash',
+                    id: 'script-bash-scripting',
                     title: 'Section 5: Bash Scripting',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/script/applets/linux/script-bash-scripting-playground.applet.html',
-                    prerequisites: ['linux-section4-lab']
+                    prerequisites: ['script-linux-lab-001']
                 },
                 {
-                    id: 'linux-section5-quiz',
+                    id: 'script-linux-bash-quiz',
                     title: 'Section 5 Quiz: Bash Scripting',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/quizzes/script-linux-bash.quiz.html',
-                    prerequisites: ['linux-section5-bash']
+                    prerequisites: ['script-bash-scripting']
                 },
                 // Section 6: Cross-Platform
                 {
-                    id: 'linux-section6-macos',
+                    id: 'script-macos-linux-lab',
                     title: 'Section 6: macOS & Linux',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/applets/linux/script-lab-macos-linux.applet.html',
-                    prerequisites: ['linux-section5-quiz']
+                    prerequisites: ['script-linux-bash-quiz']
                 }
             ]
         },
@@ -1670,73 +1670,73 @@ class LearningPaths {
             courseHref: 'houses/forge/applets/comptia-aplus/core-1/index.html',
             modules: [
                 {
-                    id: 'aplus-core1-ch01',
+                    id: 'forge-aplus-core1-ch01',
                     title: 'Motherboards',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch01-motherboards/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch02',
+                    id: 'forge-aplus-core1-ch02',
                     title: 'Expansion Cards & Storage',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch02-expansion-storage/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch03',
+                    id: 'forge-aplus-core1-ch03',
                     title: 'Peripherals & Connectors',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch03-peripherals/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch04',
+                    id: 'forge-aplus-core1-ch04',
                     title: 'Printers & Multifunction Devices',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch04-printers/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch05',
+                    id: 'forge-aplus-core1-ch05',
                     title: 'Networking Fundamentals',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch05-networking/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch06',
+                    id: 'forge-aplus-core1-ch06',
                     title: 'TCP/IP & Network Services',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch06-tcpip/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch07',
+                    id: 'forge-aplus-core1-ch07',
                     title: 'Wireless Networking',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch07-wireless/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch08',
+                    id: 'forge-aplus-core1-ch08',
                     title: 'Cloud & Virtualization',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch08-cloud/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch09',
+                    id: 'forge-aplus-core1-ch09',
                     title: 'Laptops & Mobile Devices',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch09-laptops/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch10',
+                    id: 'forge-aplus-core1-ch10',
                     title: 'Mobile Device Configuration',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch10-mobile/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch11',
+                    id: 'forge-aplus-core1-ch11',
                     title: 'Troubleshooting Methodology',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch11-troubleshooting/index.html'
                 },
                 {
-                    id: 'aplus-core1-ch12',
+                    id: 'forge-aplus-core1-ch12',
                     title: 'Hardware & Network Troubleshooting',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch12-hw-network-troubleshooting/index.html'
@@ -1753,73 +1753,73 @@ class LearningPaths {
             courseHref: 'houses/forge/applets/comptia-aplus/core-2/index.html',
             modules: [
                 {
-                    id: 'aplus-core2-ch13',
+                    id: 'forge-aplus-core2-ch13',
                     title: 'Windows Editions & Features',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch13-windows-editions/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch14',
+                    id: 'forge-aplus-core2-ch14',
                     title: 'Windows Settings & Configuration',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch14-windows-settings/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch15',
+                    id: 'forge-aplus-core2-ch15',
                     title: 'Administrative Tools',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch15-admin-tools/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch16',
+                    id: 'forge-aplus-core2-ch16',
                     title: 'System Utilities',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch16-system-tools/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch17',
+                    id: 'forge-aplus-core2-ch17',
                     title: 'macOS & Linux Basics',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch17-macos-linux/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch18',
+                    id: 'forge-aplus-core2-ch18',
                     title: 'Users, Groups & Permissions',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch18-users-groups/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch19',
+                    id: 'forge-aplus-core2-ch19',
                     title: 'Security Fundamentals',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch19-security/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch20',
+                    id: 'forge-aplus-core2-ch20',
                     title: 'Malware Detection & Removal',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch20-malware/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch21',
+                    id: 'forge-aplus-core2-ch21',
                     title: 'Physical Security',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch21-physical-security/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch22',
+                    id: 'forge-aplus-core2-ch22',
                     title: 'Incident Response',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch22-incident-response/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch23',
+                    id: 'forge-aplus-core2-ch23',
                     title: 'Change Management',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch23-change-management/index.html'
                 },
                 {
-                    id: 'aplus-core2-ch24',
+                    id: 'forge-aplus-core2-ch24',
                     title: 'Documentation & Professionalism',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch24-documentation/index.html'
@@ -2058,21 +2058,21 @@ class LearningPaths {
             color: '#10b981',
             courseHref: 'houses/shield/cyber-framework/index.html',
             modules: [
-                { id: 'shield-cf-mm01', title: 'MM1: Introduction to Legal/Regulatory/Policy Issues', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm01-intro.presentation.html' },
+                { id: 'shield-cf-mm01-pres', title: 'MM1: Introduction to Legal/Regulatory/Policy Issues', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm01-intro.presentation.html' },
                 { id: 'shield-cf-mm01-lab', title: 'MM1 Lab: Cybersecurity Law Foundations', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm01-intro.lab.html' },
-                { id: 'shield-cf-mm02', title: 'MM2: Government Agency Roles & Responsibilities', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm02-gov-agencies.presentation.html' },
+                { id: 'shield-cf-mm02-pres', title: 'MM2: Government Agency Roles & Responsibilities', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm02-gov-agencies.presentation.html' },
                 { id: 'shield-cf-mm02-lab', title: 'MM2 Lab: Government Agencies in Cybersecurity', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm02-gov-agencies.lab.html' },
-                { id: 'shield-cf-mm03', title: 'MM3: Major Cybersecurity Legislation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm03-legislation.presentation.html' },
+                { id: 'shield-cf-mm03-pres', title: 'MM3: Major Cybersecurity Legislation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm03-legislation.presentation.html' },
                 { id: 'shield-cf-mm03-lab', title: 'MM3 Lab: CFAA & Data Breach Notification', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm03-legislation.lab.html' },
-                { id: 'shield-cf-mm04', title: 'MM4: Major Regulatory Frameworks', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm04-regulatory.presentation.html' },
+                { id: 'shield-cf-mm04-pres', title: 'MM4: Major Regulatory Frameworks', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm04-regulatory.presentation.html' },
                 { id: 'shield-cf-mm04-lab', title: 'MM4 Lab: Regulatory Compliance', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm04-regulatory.lab.html' },
-                { id: 'shield-cf-mm05', title: 'MM5: Critical Infrastructure & NIST CSF', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm05-nist-cip.presentation.html' },
+                { id: 'shield-cf-mm05-pres', title: 'MM5: Critical Infrastructure & NIST CSF', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm05-nist-cip.presentation.html' },
                 { id: 'shield-cf-mm05-lab', title: 'MM5 Lab: NIST Framework Application', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm05-nist-cip.lab.html' },
-                { id: 'shield-cf-mm06', title: 'MM6: Encryption Law & Policy', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm06-encryption.presentation.html' },
+                { id: 'shield-cf-mm06-pres', title: 'MM6: Encryption Law & Policy', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm06-encryption.presentation.html' },
                 { id: 'shield-cf-mm06-lab', title: 'MM6 Lab: Encryption Policy Analysis', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm06-encryption.lab.html' },
-                { id: 'shield-cf-mm07', title: 'MM7: Data Breach Litigation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm07-breach-litigation.presentation.html' },
+                { id: 'shield-cf-mm07-pres', title: 'MM7: Data Breach Litigation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm07-breach-litigation.presentation.html' },
                 { id: 'shield-cf-mm07-lab', title: 'MM7 Lab: Breach Litigation Analysis', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm07-breach-litigation.lab.html' },
-                { id: 'shield-cf-mm08', title: 'MM8: International Law & Cyber War', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm08-cyber-war.presentation.html' },
+                { id: 'shield-cf-mm08-pres', title: 'MM8: International Law & Cyber War', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm08-cyber-war.presentation.html' },
                 { id: 'shield-cf-mm08-lab', title: 'MM8 Lab: International Cyber Law', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm08-cyber-war.lab.html' }
             ]
         },
@@ -2085,42 +2085,42 @@ class LearningPaths {
             color: '#22c55e',
             courseHref: 'houses/script/linux/index.html',
             modules: [
-                { id: 'script-la-ch01', title: 'Introduction to Linux', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch01-intro.presentation.html' },
+                { id: 'script-la-ch01-pres', title: 'Introduction to Linux', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch01-intro.presentation.html' },
                 { id: 'script-la-ch01-lab', title: 'Linux Basics Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch01-intro.lab.html' },
-                { id: 'la-ch01-quiz', title: 'Ch 1 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch01-quiz.quiz.html' },
-                { id: 'script-la-ch02', title: 'Linux Distributions & Uses', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch02-distros.presentation.html' },
+                { id: 'script-la-ch01-quiz', title: 'Ch 1 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch01-quiz.quiz.html' },
+                { id: 'script-la-ch02-pres', title: 'Linux Distributions & Uses', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch02-distros.presentation.html' },
                 { id: 'script-la-ch02-lab', title: 'Distributions Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch02-distros.lab.html' },
-                { id: 'la-ch02-quiz', title: 'Ch 2 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch02-quiz.quiz.html' },
-                { id: 'script-la-ch03', title: 'Grep, Pipes & Text Processing', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch03-grep-pipes.presentation.html' },
+                { id: 'script-la-ch02-quiz', title: 'Ch 2 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch02-quiz.quiz.html' },
+                { id: 'script-la-ch03-pres', title: 'Grep, Pipes & Text Processing', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch03-grep-pipes.presentation.html' },
                 { id: 'script-la-ch03-lab', title: 'Grep & Pipes Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch03-grep-pipes.lab.html' },
-                { id: 'la-ch03-quiz', title: 'Ch 3 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch03-quiz.quiz.html' },
-                { id: 'script-la-ch04', title: 'Process Management & Nice Values', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch04-processes.presentation.html' },
+                { id: 'script-la-ch03-quiz', title: 'Ch 3 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch03-quiz.quiz.html' },
+                { id: 'script-la-ch04-pres', title: 'Process Management & Nice Values', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch04-processes.presentation.html' },
                 { id: 'script-la-ch04-lab', title: 'Process Management Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch04-processes.lab.html' },
-                { id: 'la-ch04-quiz', title: 'Ch 4 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch04-quiz.quiz.html' },
-                { id: 'script-la-ch05', title: 'Daemons & Services', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch05-daemons.presentation.html' },
+                { id: 'script-la-ch04-quiz', title: 'Ch 4 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch04-quiz.quiz.html' },
+                { id: 'script-la-ch05-pres', title: 'Daemons & Services', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch05-daemons.presentation.html' },
                 { id: 'script-la-ch05-lab', title: 'Daemons Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch05-daemons.lab.html' },
-                { id: 'la-ch05-quiz', title: 'Ch 5 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch05-quiz.quiz.html' },
-                { id: 'script-la-ch06', title: 'Initialization, X Windows & Localization', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch06-init-xwindows.presentation.html' },
+                { id: 'script-la-ch05-quiz', title: 'Ch 5 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch05-quiz.quiz.html' },
+                { id: 'script-la-ch06-pres', title: 'Initialization, X Windows & Localization', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch06-init-xwindows.presentation.html' },
                 { id: 'script-la-ch06-lab', title: 'Init & X Windows Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch06-init-xwindows.lab.html' },
-                { id: 'la-ch06-quiz', title: 'Ch 6 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch06-quiz.quiz.html' },
-                { id: 'script-la-ch07', title: 'Display Managers & User Sessions', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch07-display-mgr.presentation.html' },
+                { id: 'script-la-ch06-quiz', title: 'Ch 6 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch06-quiz.quiz.html' },
+                { id: 'script-la-ch07-pres', title: 'Display Managers & User Sessions', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch07-display-mgr.presentation.html' },
                 { id: 'script-la-ch07-lab', title: 'Display Managers Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch07-display-mgr.lab.html' },
-                { id: 'la-ch07-quiz', title: 'Ch 7 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch07-quiz.quiz.html' },
-                { id: 'script-la-ch08', title: 'Network Interface Configuration', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch08-network.presentation.html' },
+                { id: 'script-la-ch07-quiz', title: 'Ch 7 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch07-quiz.quiz.html' },
+                { id: 'script-la-ch08-pres', title: 'Network Interface Configuration', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch08-network.presentation.html' },
                 { id: 'script-la-ch08-lab', title: 'Network Configuration Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch08-network.lab.html' },
-                { id: 'la-ch08-quiz', title: 'Ch 8 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch08-quiz.quiz.html' },
-                { id: 'script-la-ch09', title: 'IPv4 Protocol & Networking', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch09-ipv4.presentation.html' },
+                { id: 'script-la-ch08-quiz', title: 'Ch 8 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch08-quiz.quiz.html' },
+                { id: 'script-la-ch09-pres', title: 'IPv4 Protocol & Networking', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch09-ipv4.presentation.html' },
                 { id: 'script-la-ch09-lab', title: 'IPv4 Networking Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch09-ipv4.lab.html' },
-                { id: 'la-ch09-quiz', title: 'Ch 9 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch09-quiz.quiz.html' },
-                { id: 'script-la-ch10', title: 'File Compression & Archiving', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch10-compression.presentation.html' },
+                { id: 'script-la-ch09-quiz', title: 'Ch 9 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch09-quiz.quiz.html' },
+                { id: 'script-la-ch10-pres', title: 'File Compression & Archiving', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch10-compression.presentation.html' },
                 { id: 'script-la-ch10-lab', title: 'Compression Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch10-compression.lab.html' },
-                { id: 'la-ch10-quiz', title: 'Ch 10 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch10-quiz.quiz.html' },
-                { id: 'script-la-ch11', title: 'Linux Encryption', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch11-encryption.presentation.html' },
+                { id: 'script-la-ch10-quiz', title: 'Ch 10 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch10-quiz.quiz.html' },
+                { id: 'script-la-ch11-pres', title: 'Linux Encryption', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch11-encryption.presentation.html' },
                 { id: 'script-la-ch11-lab', title: 'Encryption Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch11-encryption.lab.html' },
-                { id: 'la-ch11-quiz', title: 'Ch 11 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch11-quiz.quiz.html' },
-                { id: 'script-la-ch12', title: 'Compiling Source Code', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch12-compile.presentation.html' },
+                { id: 'script-la-ch11-quiz', title: 'Ch 11 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch11-quiz.quiz.html' },
+                { id: 'script-la-ch12-pres', title: 'Compiling Source Code', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch12-compile.presentation.html' },
                 { id: 'script-la-ch12-lab', title: 'Source Compilation Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch12-compile.lab.html' },
-                { id: 'la-ch12-quiz', title: 'Ch 12 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch12-quiz.quiz.html' }
+                { id: 'script-la-ch12-quiz', title: 'Ch 12 Quiz', type: 'quiz', href: 'houses/script/linux/quizzes/script-la-ch12-quiz.quiz.html' }
             ]
         },
 
@@ -2132,37 +2132,37 @@ class LearningPaths {
             color: '#a855f7',
             courseHref: 'houses/eye/cysa/index.html',
             modules: [
-                { id: 'eye-cysa-ch01', title: 'Ch 1: Today\'s Cybersecurity Analyst', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch01-analyst.presentation.html' },
+                { id: 'eye-cysa-ch01-pres', title: 'Ch 1: Today\'s Cybersecurity Analyst', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch01-analyst.presentation.html' },
                 { id: 'eye-cysa-ch01-lab', title: 'Ch 1 Lab: Cybersecurity Analyst Foundations', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch01-analyst.lab.html' },
-                { id: 'eye-cysa-ch02', title: 'Ch 2: Using Threat Intelligence', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch02-threat-intel.presentation.html' },
+                { id: 'eye-cysa-ch02-pres', title: 'Ch 2: Using Threat Intelligence', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch02-threat-intel.presentation.html' },
                 { id: 'eye-cysa-ch02-lab', title: 'Ch 2 Lab: Threat Intelligence Analysis', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch02-threat-intel.lab.html' },
-                { id: 'eye-cysa-ch03', title: 'Ch 3: Reconnaissance & Intelligence Gathering', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch03-recon.presentation.html' },
+                { id: 'eye-cysa-ch03-pres', title: 'Ch 3: Reconnaissance & Intelligence Gathering', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch03-recon.presentation.html' },
                 { id: 'eye-cysa-ch03-lab', title: 'Ch 3 Lab: Reconnaissance Techniques', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch03-recon.lab.html' },
-                { id: 'eye-cysa-ch04', title: 'Ch 4: Vulnerability Management Program', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch04-vuln-mgmt.presentation.html' },
+                { id: 'eye-cysa-ch04-pres', title: 'Ch 4: Vulnerability Management Program', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch04-vuln-mgmt.presentation.html' },
                 { id: 'eye-cysa-ch04-lab', title: 'Ch 4 Lab: Vulnerability Management', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch04-vuln-mgmt.lab.html' },
-                { id: 'eye-cysa-ch05', title: 'Ch 5: Analyzing Vulnerability Scans', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch05-vuln-scans.presentation.html' },
+                { id: 'eye-cysa-ch05-pres', title: 'Ch 5: Analyzing Vulnerability Scans', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch05-vuln-scans.presentation.html' },
                 { id: 'eye-cysa-ch05-lab', title: 'Ch 5 Lab: Vulnerability Scan Analysis', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch05-vuln-scans.lab.html' },
-                { id: 'eye-cysa-ch06', title: 'Ch 6: Cloud Security', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch06-cloud.presentation.html' },
+                { id: 'eye-cysa-ch06-pres', title: 'Ch 6: Cloud Security', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch06-cloud.presentation.html' },
                 { id: 'eye-cysa-ch06-lab', title: 'Ch 6 Lab: Cloud Security Controls', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch06-cloud.lab.html' },
-                { id: 'eye-cysa-ch07', title: 'Ch 7: Infrastructure Security & Controls', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch07-infra.presentation.html' },
+                { id: 'eye-cysa-ch07-pres', title: 'Ch 7: Infrastructure Security & Controls', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch07-infra.presentation.html' },
                 { id: 'eye-cysa-ch07-lab', title: 'Ch 7 Lab: Infrastructure Security', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch07-infra.lab.html' },
-                { id: 'eye-cysa-ch08', title: 'Ch 8: Identity & Access Management', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch08-iam.presentation.html' },
+                { id: 'eye-cysa-ch08-pres', title: 'Ch 8: Identity & Access Management', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch08-iam.presentation.html' },
                 { id: 'eye-cysa-ch08-lab', title: 'Ch 8 Lab: IAM Security', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch08-iam.lab.html' },
-                { id: 'eye-cysa-ch09', title: 'Ch 9: Software & Hardware Development Security', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch09-dev-security.presentation.html' },
+                { id: 'eye-cysa-ch09-pres', title: 'Ch 9: Software & Hardware Development Security', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch09-dev-security.presentation.html' },
                 { id: 'eye-cysa-ch09-lab', title: 'Ch 9 Lab: Development Security', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch09-dev-security.lab.html' },
-                { id: 'eye-cysa-ch10', title: 'Ch 10: Security Operations & Monitoring', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch10-secops.presentation.html' },
+                { id: 'eye-cysa-ch10-pres', title: 'Ch 10: Security Operations & Monitoring', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch10-secops.presentation.html' },
                 { id: 'eye-cysa-ch10-lab', title: 'Ch 10 Lab: Security Operations', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch10-secops.lab.html' },
-                { id: 'eye-cysa-ch11', title: 'Ch 11: Building an Incident Response Program', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch11-ir.presentation.html' },
+                { id: 'eye-cysa-ch11-pres', title: 'Ch 11: Building an Incident Response Program', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch11-ir.presentation.html' },
                 { id: 'eye-cysa-ch11-lab', title: 'Ch 11 Lab: Incident Response', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch11-ir.lab.html' },
-                { id: 'eye-cysa-ch12', title: 'Ch 12: Analyzing Indicators of Compromise', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch12-ioc.presentation.html' },
+                { id: 'eye-cysa-ch12-pres', title: 'Ch 12: Analyzing Indicators of Compromise', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch12-ioc.presentation.html' },
                 { id: 'eye-cysa-ch12-lab', title: 'Ch 12 Lab: IOC Analysis', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch12-ioc.lab.html' },
-                { id: 'eye-cysa-ch13', title: 'Ch 13: Forensic Analysis & Techniques', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch13-forensics.presentation.html' },
+                { id: 'eye-cysa-ch13-pres', title: 'Ch 13: Forensic Analysis & Techniques', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch13-forensics.presentation.html' },
                 { id: 'eye-cysa-ch13-lab', title: 'Ch 13 Lab: Digital Forensics', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch13-forensics.lab.html' },
-                { id: 'eye-cysa-ch14', title: 'Ch 14: Containment, Eradication & Recovery', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch14-recovery.presentation.html' },
+                { id: 'eye-cysa-ch14-pres', title: 'Ch 14: Containment, Eradication & Recovery', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch14-recovery.presentation.html' },
                 { id: 'eye-cysa-ch14-lab', title: 'Ch 14 Lab: Incident Recovery', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch14-recovery.lab.html' },
-                { id: 'eye-cysa-ch15', title: 'Ch 15: Risk Management', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch15-risk.presentation.html' },
+                { id: 'eye-cysa-ch15-pres', title: 'Ch 15: Risk Management', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch15-risk.presentation.html' },
                 { id: 'eye-cysa-ch15-lab', title: 'Ch 15 Lab: Risk Management', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch15-risk.lab.html' },
-                { id: 'eye-cysa-ch16', title: 'Ch 16: Policy & Compliance', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch16-compliance.presentation.html' },
+                { id: 'eye-cysa-ch16-pres', title: 'Ch 16: Policy & Compliance', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch16-compliance.presentation.html' },
                 { id: 'eye-cysa-ch16-lab', title: 'Ch 16 Lab: Policy & Compliance', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch16-compliance.lab.html' }
             ]
         },
@@ -2176,7 +2176,7 @@ class LearningPaths {
             modules: [
                 // Phase 1: Foundation & Core Services
                 {
-                    id: 'wsa-m01-fundamentals',
+                    id: 'wsa-module01',
                     title: 'Server Installation & Configuration',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -2185,177 +2185,177 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'wsa-m02-active-directory',
+                    id: 'wsa-module02',
                     title: 'Active Directory Domain Services',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '50 min',
                     href: 'houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m01-fundamentals']
+                    prerequisites: ['wsa-module01']
                 },
                 {
-                    id: 'wsa-m03-storage',
+                    id: 'wsa-module03',
                     title: 'Storage & File Systems',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m02-active-directory']
+                    prerequisites: ['wsa-module02']
                 },
                 {
-                    id: 'wsa-m04-hyperv',
+                    id: 'wsa-module04',
                     title: 'Hyper-V Virtualization',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '50 min',
                     href: 'houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m03-storage']
+                    prerequisites: ['wsa-module03']
                 },
                 {
-                    id: 'wsa-m05-containers',
+                    id: 'wsa-module05',
                     title: 'Docker Containers',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m04-hyperv']
+                    prerequisites: ['wsa-module04']
                 },
                 {
-                    id: 'wsa-m06-clustering',
+                    id: 'wsa-module06',
                     title: 'Failover Clustering',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m05-containers']
+                    prerequisites: ['wsa-module05']
                 },
                 {
-                    id: 'wsa-m07-monitoring',
+                    id: 'wsa-module07',
                     title: 'Monitoring & Performance',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m06-clustering']
+                    prerequisites: ['wsa-module06']
                 },
                 {
-                    id: 'wsa-m08-dns',
+                    id: 'wsa-module08',
                     title: 'DNS & Name Resolution',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m07-monitoring']
+                    prerequisites: ['wsa-module07']
                 },
                 {
-                    id: 'wsa-m09-dhcp',
+                    id: 'wsa-module09',
                     title: 'DHCP Services',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m08-dns']
+                    prerequisites: ['wsa-module08']
                 },
                 {
-                    id: 'wsa-m10-group-policy',
+                    id: 'wsa-module10',
                     title: 'Group Policy',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '50 min',
                     href: 'houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m09-dhcp']
+                    prerequisites: ['wsa-module09']
                 },
                 // Phase 2: Advanced Services & Operations
                 {
-                    id: 'wsa-m11-iis',
+                    id: 'wsa-module11',
                     title: 'IIS & Web Services',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m10-group-policy']
+                    prerequisites: ['wsa-module10']
                 },
                 {
-                    id: 'wsa-m12-remote-desktop',
+                    id: 'wsa-module12',
                     title: 'Remote Desktop Services',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m11-iis']
+                    prerequisites: ['wsa-module11']
                 },
                 {
-                    id: 'wsa-m13-certificate-services',
+                    id: 'wsa-module13',
                     title: 'Certificate Services (PKI)',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m12-remote-desktop']
+                    prerequisites: ['wsa-module12']
                 },
                 {
-                    id: 'wsa-m14-advanced-networking',
+                    id: 'wsa-module14',
                     title: 'Advanced Networking',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m13-certificate-services']
+                    prerequisites: ['wsa-module13']
                 },
                 {
-                    id: 'wsa-m15-ad-sites',
+                    id: 'wsa-module15',
                     title: 'AD Sites & Replication',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m14-advanced-networking']
+                    prerequisites: ['wsa-module14']
                 },
                 {
-                    id: 'wsa-m16-backup-recovery',
+                    id: 'wsa-module16',
                     title: 'Backup & Disaster Recovery',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m15-ad-sites']
+                    prerequisites: ['wsa-module15']
                 },
                 {
-                    id: 'wsa-m17-firewall-security',
+                    id: 'wsa-module17',
                     title: 'Windows Firewall & Security',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m16-backup-recovery']
+                    prerequisites: ['wsa-module16']
                 },
                 {
-                    id: 'wsa-m18-powershell-automation',
+                    id: 'wsa-module18',
                     title: 'PowerShell Automation',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '50 min',
                     href: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m17-firewall-security']
+                    prerequisites: ['wsa-module17']
                 },
                 {
-                    id: 'wsa-m19-troubleshooting',
+                    id: 'wsa-module19',
                     title: 'Troubleshooting & Migration',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html',
-                    prerequisites: ['wsa-m18-powershell-automation']
+                    prerequisites: ['wsa-module18']
                 },
                 // Capstone
                 {
-                    id: 'wsa-m20-capstone',
+                    id: 'wsa-module20-failsafe',
                     title: 'Failsafe Protocol (Capstone)',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '90 min',
                     href: 'houses/cloud/modules/wsa/m20-failsafe-capstone/index.html',
-                    prerequisites: ['wsa-m19-troubleshooting']
+                    prerequisites: ['wsa-module19']
                 }
             ]
         },
@@ -2370,7 +2370,7 @@ class LearningPaths {
             modules: [
                 // Domain 1: General Security Concepts
                 {
-                    id: 'secplus-cia-triad',
+                    id: 'shield-cia-triad',
                     title: 'CIA Triad Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -2379,279 +2379,279 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'secplus-cia-quiz',
+                    id: 'shield-cia-quiz',
                     title: 'CIA Triad Challenge',
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/shield/quizzes/shield-cia-triad.quiz.html',
-                    prerequisites: ['secplus-cia-triad']
+                    prerequisites: ['shield-cia-triad']
                 },
                 {
-                    id: 'secplus-security-fundamentals',
+                    id: 'shield-security-pres',
                     title: 'Security Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/shield/presentations/shield-security.presentation.html',
-                    prerequisites: ['secplus-cia-quiz']
+                    prerequisites: ['shield-cia-quiz']
                 },
                 {
-                    id: 'secplus-security-controls',
+                    id: 'shield-controls',
                     title: 'Cybersecurity Controls',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/shield/applets/fundamentals/cybersecurity_controls/shield-cybersecurity-controls.applet.html',
-                    prerequisites: ['secplus-security-fundamentals']
+                    prerequisites: ['shield-security-pres']
                 },
                 {
-                    id: 'secplus-design-principles',
+                    id: 'shield-design-principles',
                     title: 'Security Design Principles',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/fundamentals/design_principles/shield-cybersecuritydesignprinciples.applet.html',
-                    prerequisites: ['secplus-security-controls']
+                    prerequisites: ['shield-controls']
                 },
                 {
-                    id: 'secplus-security-fundamentals-lab',
+                    id: 'shield-fundamentals-lab',
                     title: 'Security Fundamentals Lab',
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/shield/labs/shield-security-fundamentals.lab.html',
-                    prerequisites: ['secplus-design-principles']
+                    prerequisites: ['shield-design-principles']
                 },
                 // Domain 2: Threats, Vulnerabilities, and Mitigations
                 {
-                    id: 'secplus-threat-types',
+                    id: 'shield-threat-types',
                     title: 'Threats & Attacks',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/applets/threats/attacks_malware/shield-threat-attacks-malware.applet.html',
-                    prerequisites: ['secplus-security-fundamentals-lab']
+                    prerequisites: ['shield-fundamentals-lab']
                 },
                 {
-                    id: 'secplus-social-engineering',
+                    id: 'shield-phishing',
                     title: 'Social Engineering',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/threats/phishing/shield-threat-phishing.applet.html',
-                    prerequisites: ['secplus-threat-types']
+                    prerequisites: ['shield-threat-types']
                 },
                 {
-                    id: 'secplus-web-attacks',
+                    id: 'shield-threat-xss',
                     title: 'Web Application Attacks',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/applets/threats/xss/shield-threat-xss.applet.html',
-                    prerequisites: ['secplus-social-engineering']
+                    prerequisites: ['shield-phishing']
                 },
                 {
-                    id: 'secplus-threats-quiz',
+                    id: 'shield-threats-quiz',
                     title: 'Threats & Vulnerabilities Challenge',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/shield/quizzes/shield-threats.quiz.html',
-                    prerequisites: ['secplus-web-attacks']
+                    prerequisites: ['shield-threat-xss']
                 },
                 {
-                    id: 'secplus-threats-lab',
+                    id: 'shield-threats-lab',
                     title: 'Threats Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/shield/labs/shield-threats.lab.html',
-                    prerequisites: ['secplus-threats-quiz']
+                    prerequisites: ['shield-threats-quiz']
                 },
                 // Domain 3: Security Architecture
                 {
-                    id: 'secplus-network-security',
+                    id: 'shield-network-security',
                     title: 'Network Security',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/applets/network/firewalls/shield-firewalls.applet.html',
-                    prerequisites: ['secplus-threats-lab']
+                    prerequisites: ['shield-threats-lab']
                 },
                 {
-                    id: 'secplus-ids-ips',
+                    id: 'shield-ids-ips',
                     title: 'IDS/IPS',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/network/ids_ips/shield-ids-ips.applet.html',
-                    prerequisites: ['secplus-network-security']
+                    prerequisites: ['shield-network-security']
                 },
                 {
-                    id: 'secplus-vpn',
+                    id: 'shield-vpn',
                     title: 'VPN Technologies',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/network/vpn/shield-vpn.applet.html',
-                    prerequisites: ['secplus-ids-ips']
+                    prerequisites: ['shield-ids-ips']
                 },
                 {
-                    id: 'secplus-cryptography',
+                    id: 'shield-crypto-intro',
                     title: 'Cryptography Essentials',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/shield/applets/crypto/cryptography_intro/shield-crypto-cryptography-intro.applet.html',
-                    prerequisites: ['secplus-vpn']
+                    prerequisites: ['shield-vpn']
                 },
                 {
-                    id: 'secplus-network-security-quiz',
+                    id: 'shield-network-quiz',
                     title: 'Network Security Challenge',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/shield/quizzes/shield-network-security.quiz.html',
-                    prerequisites: ['secplus-cryptography']
+                    prerequisites: ['shield-crypto-intro']
                 },
                 {
-                    id: 'secplus-network-security-lab',
+                    id: 'shield-network-lab',
                     title: 'Network Security Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/shield/labs/shield-network-security.lab.html',
-                    prerequisites: ['secplus-network-security-quiz']
+                    prerequisites: ['shield-network-quiz']
                 },
                 // Domain 4: Security Operations
                 {
-                    id: 'secplus-access-control',
+                    id: 'shield-access-control',
                     title: 'Access Control',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/access/access_control/shield-access-control.applet.html',
-                    prerequisites: ['secplus-network-security-lab']
+                    prerequisites: ['shield-network-lab']
                 },
                 {
-                    id: 'secplus-biometrics',
+                    id: 'shield-biometrics',
                     title: 'Biometrics',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/shield/applets/access/biometrics/shield-biometrics.applet.html',
-                    prerequisites: ['secplus-access-control']
+                    prerequisites: ['shield-access-control']
                 },
                 {
-                    id: 'secplus-kerberos',
+                    id: 'shield-kerberos',
                     title: 'Kerberos Authentication',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/shield/applets/access/kerberos/shield-kerberos.applet.html',
-                    prerequisites: ['secplus-biometrics']
+                    prerequisites: ['shield-biometrics']
                 },
                 {
-                    id: 'secplus-incident-response',
+                    id: 'shield-incident-sim',
                     title: 'Incident Response',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/tools/shield-incident-response.tool.html',
-                    prerequisites: ['secplus-kerberos']
+                    prerequisites: ['shield-kerberos']
                 },
                 {
-                    id: 'secplus-monitoring',
+                    id: 'cse-06-monitoring',
                     title: 'Security Monitoring & Incident Response',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/presentations/shield-cse-06-security-monitoring-incident-response.presentation.html',
-                    prerequisites: ['secplus-incident-response']
+                    prerequisites: ['shield-incident-sim']
                 },
                 {
-                    id: 'secplus-access-control-quiz',
+                    id: 'shield-access-quiz',
                     title: 'Access Control Challenge',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/shield/quizzes/shield-access-control.quiz.html',
-                    prerequisites: ['secplus-monitoring']
+                    prerequisites: ['cse-06-monitoring']
                 },
                 {
-                    id: 'secplus-access-control-lab',
+                    id: 'shield-access-lab',
                     title: 'Access Control Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/labs/shield-access-control.lab.html',
-                    prerequisites: ['secplus-access-control-quiz']
+                    prerequisites: ['shield-access-quiz']
                 },
                 // Domain 5: Security Program Management
                 {
-                    id: 'secplus-risk-management',
+                    id: 'shield-risk-management',
                     title: 'Risk Management',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/applets/risk/risk_management/shield-risk-management.applet.html',
-                    prerequisites: ['secplus-access-control-lab']
+                    prerequisites: ['shield-access-lab']
                 },
                 {
-                    id: 'secplus-risk-analysis',
+                    id: 'shield-risk-analysis',
                     title: 'Risk Analysis',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html',
-                    prerequisites: ['secplus-risk-management']
+                    prerequisites: ['shield-risk-management']
                 },
                 {
-                    id: 'secplus-risk-assessment',
+                    id: 'cse-07-risk',
                     title: 'Risk Assessment & Management',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/presentations/shield-cse-07-risk-assessment-management.presentation.html',
-                    prerequisites: ['secplus-risk-analysis']
+                    prerequisites: ['shield-risk-analysis']
                 },
                 {
-                    id: 'secplus-compliance',
+                    id: 'cse-08-compliance',
                     title: 'Compliance & Governance',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/presentations/shield-cse-08-compliance-governance.presentation.html',
-                    prerequisites: ['secplus-risk-assessment']
+                    prerequisites: ['cse-07-risk']
                 },
                 {
-                    id: 'secplus-frameworks',
+                    id: 'shield-framework-selector',
                     title: 'Security Frameworks',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/compliance/shield-framework-selector.applet.html',
-                    prerequisites: ['secplus-compliance']
+                    prerequisites: ['cse-08-compliance']
                 },
                 {
-                    id: 'secplus-compliance-lab',
+                    id: 'shield-compliance-lab',
                     title: 'Compliance Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/labs/shield-compliance.lab.html',
-                    prerequisites: ['secplus-frameworks']
+                    prerequisites: ['shield-framework-selector']
                 },
                 // Final Assessment
                 {
-                    id: 'secplus-final-quiz',
+                    id: 'shield-fundamentals-quiz',
                     title: 'Security+ Comprehensive Challenge',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/quizzes/shield-security-fundamentals.quiz.html',
-                    prerequisites: ['secplus-compliance-lab']
+                    prerequisites: ['shield-compliance-lab']
                 }
             ]
         },
@@ -2666,7 +2666,7 @@ class LearningPaths {
             modules: [
                 // Domain 1: Networking Concepts
                 {
-                    id: 'netplus-osi-model',
+                    id: 'web-osi-model-pres',
                     title: 'OSI Model Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -2675,261 +2675,261 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'netplus-osi-quiz',
+                    id: 'web-osi-quiz',
                     title: 'OSI Model Challenge',
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/web/quizzes/web-osi.quiz.html',
-                    prerequisites: ['netplus-osi-model']
+                    prerequisites: ['web-osi-model-pres']
                 },
                 {
-                    id: 'netplus-tcp',
+                    id: 'web-tcpip',
                     title: 'TCP/IP Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-tcp.presentation.html',
-                    prerequisites: ['netplus-osi-quiz']
+                    prerequisites: ['web-osi-quiz']
                 },
                 {
-                    id: 'netplus-ip-addressing',
+                    id: 'web-ip-binary-ip',
                     title: 'IP Addressing',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/web/applets/ip-addressing/binary-ip/web-ip-binary-ip.applet.html',
-                    prerequisites: ['netplus-tcp']
+                    prerequisites: ['web-tcpip']
                 },
                 {
-                    id: 'netplus-subnetting',
+                    id: 'web-subnetting-pres',
                     title: 'Subnetting Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/web/presentations/web-subnetting.presentation.html',
-                    prerequisites: ['netplus-ip-addressing']
+                    prerequisites: ['web-ip-binary-ip']
                 },
                 {
-                    id: 'netplus-subnetting-quiz',
+                    id: 'web-subnetting-quiz',
                     title: 'Subnetting Challenge',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/web/quizzes/web-subnetting.quiz.html',
-                    prerequisites: ['netplus-subnetting']
+                    prerequisites: ['web-subnetting-pres']
                 },
                 {
-                    id: 'netplus-ipv6',
+                    id: 'web-ipv6-pres',
                     title: 'IPv6 Addressing',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-ipv6.presentation.html',
-                    prerequisites: ['netplus-subnetting-quiz']
+                    prerequisites: ['web-subnetting-quiz']
                 },
                 {
-                    id: 'netplus-ports',
+                    id: 'web-ports-pres',
                     title: 'Ports & Protocols',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-ports.presentation.html',
-                    prerequisites: ['netplus-ipv6']
+                    prerequisites: ['web-ipv6-pres']
                 },
                 {
-                    id: 'netplus-ports-quiz',
+                    id: 'web-ports-quiz',
                     title: 'Ports & Protocols Challenge',
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/web/quizzes/web-networking-fundamentals-ports.quiz.html',
-                    prerequisites: ['netplus-ports']
+                    prerequisites: ['web-ports-pres']
                 },
                 // Domain 2: Network Implementation
                 {
-                    id: 'netplus-cables',
+                    id: 'web-cables-pres',
                     title: 'Network Cabling',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/web/presentations/web-cables.presentation.html',
-                    prerequisites: ['netplus-ports-quiz']
+                    prerequisites: ['web-ports-quiz']
                 },
                 {
-                    id: 'netplus-devices',
+                    id: 'web-devices-pres',
                     title: 'Network Devices',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-devices.presentation.html',
-                    prerequisites: ['netplus-cables']
+                    prerequisites: ['web-cables-pres']
                 },
                 {
-                    id: 'netplus-switching',
+                    id: 'web-switch-ops-pres',
                     title: 'Network Switching',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-switch-operations.presentation.html',
-                    prerequisites: ['netplus-devices']
+                    prerequisites: ['web-devices-pres']
                 },
                 {
-                    id: 'netplus-vlan',
+                    id: 'web-switching',
                     title: 'VLAN Configuration',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-vlan.presentation.html',
-                    prerequisites: ['netplus-switching']
+                    prerequisites: ['web-switch-ops-pres']
                 },
                 {
-                    id: 'netplus-stp',
+                    id: 'web-stp',
                     title: 'Spanning Tree Protocol',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-stp.presentation.html',
-                    prerequisites: ['netplus-vlan']
+                    prerequisites: ['web-switching']
                 },
                 {
-                    id: 'netplus-routing',
+                    id: 'web-topologies-pres',
                     title: 'Routing Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-topologies.presentation.html',
-                    prerequisites: ['netplus-stp']
+                    prerequisites: ['web-stp']
                 },
                 {
-                    id: 'netplus-ospf',
+                    id: 'web-routing',
                     title: 'OSPF Protocol',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/web/presentations/web-ospf.presentation.html',
-                    prerequisites: ['netplus-routing']
+                    prerequisites: ['web-topologies-pres']
                 },
                 {
-                    id: 'netplus-wireless',
+                    id: 'web-wireless',
                     title: 'Wireless Networking',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-wireless.presentation.html',
-                    prerequisites: ['netplus-ospf']
+                    prerequisites: ['web-routing']
                 },
                 {
-                    id: 'netplus-wireless-arch',
+                    id: 'web-wireless-arch-pres',
                     title: 'Wireless Architecture',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-wireless-architecture.presentation.html',
-                    prerequisites: ['netplus-wireless']
+                    prerequisites: ['web-wireless']
                 },
                 // Domain 3: Network Operations
                 {
-                    id: 'netplus-dns',
+                    id: 'web-dns-pres',
                     title: 'DNS Services',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-dns.presentation.html',
-                    prerequisites: ['netplus-wireless-arch']
+                    prerequisites: ['web-wireless-arch-pres']
                 },
                 {
-                    id: 'netplus-dhcp',
+                    id: 'web-dhcp-pres',
                     title: 'DHCP Services',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/web/presentations/web-dhcp.presentation.html',
-                    prerequisites: ['netplus-dns']
+                    prerequisites: ['web-dns-pres']
                 },
                 {
-                    id: 'netplus-nat',
+                    id: 'web-nat-pres',
                     title: 'NAT & PAT',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-nat.presentation.html',
-                    prerequisites: ['netplus-dhcp']
+                    prerequisites: ['web-dhcp-pres']
                 },
                 {
-                    id: 'netplus-networking-quiz',
+                    id: 'web-networking-ch7-10',
                     title: 'Networking Chapters 7-10 Challenge',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/quizzes/web-networking-ch7-10.quiz.html',
-                    prerequisites: ['netplus-nat']
+                    prerequisites: ['web-nat-pres']
                 },
                 // Domain 4: Network Security
                 {
-                    id: 'netplus-security',
+                    id: 'web-security-viz',
                     title: 'Network Security Tools',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/tools/web-security.tool.html',
-                    prerequisites: ['netplus-networking-quiz']
+                    prerequisites: ['web-networking-ch7-10']
                 },
                 {
-                    id: 'netplus-acl',
+                    id: 'web-acl-viz',
                     title: 'Access Control Lists',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/tools/web-acl.tool.html',
-                    prerequisites: ['netplus-security']
+                    prerequisites: ['web-security-viz']
                 },
                 // Domain 5: Network Troubleshooting
                 {
-                    id: 'netplus-troubleshooting',
+                    id: 'web-troubleshoot-pres',
                     title: 'Network Troubleshooting',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-troubleshooting.presentation.html',
-                    prerequisites: ['netplus-acl']
+                    prerequisites: ['web-acl-viz']
                 },
                 {
-                    id: 'netplus-troubleshooting-tool',
+                    id: 'web-troubleshooting',
                     title: 'Troubleshooting Toolkit',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/tools/web-troubleshooting.tool.html',
-                    prerequisites: ['netplus-troubleshooting']
+                    prerequisites: ['web-troubleshoot-pres']
                 },
                 {
-                    id: 'netplus-static-routes-lab',
+                    id: 'web-static-routes-lab',
                     title: 'Static Routes Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/labs/web-static-routes.lab.html',
-                    prerequisites: ['netplus-troubleshooting-tool']
+                    prerequisites: ['web-troubleshooting']
                 },
                 // Hands-on & Final
                 {
-                    id: 'netplus-network-simulator',
+                    id: 'web-network-sim-v2',
                     title: 'Network Simulator Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '60 min',
                     href: 'houses/web/simulators/web-interactive-network-simulatorv2.simulator.html',
-                    prerequisites: ['netplus-static-routes-lab']
+                    prerequisites: ['web-static-routes-lab']
                 },
                 {
-                    id: 'netplus-final-review',
+                    id: 'web-networking-final',
                     title: 'Network+ Final Review',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/web/quizzes/web-networking-final-review.quiz.html',
-                    prerequisites: ['netplus-network-simulator']
+                    prerequisites: ['web-network-sim-v2']
                 }
             ]
         },
@@ -2944,7 +2944,7 @@ class LearningPaths {
             modules: [
                 // Foundation
                 {
-                    id: 'crypto-encryption-basics',
+                    id: 'key-encryption-basics',
                     title: 'Encryption Basics',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -2953,318 +2953,318 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'crypto-fundamentals',
+                    id: 'key-cryptography-fundamentals',
                     title: 'Cryptography Fundamentals (CEH)',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '35 min',
                     href: 'houses/key/presentations/key-cryptography-fundamentals.presentation.html',
-                    prerequisites: ['crypto-encryption-basics']
+                    prerequisites: ['key-encryption-basics']
                 },
                 // Symmetric Encryption
                 {
-                    id: 'crypto-symmetric',
+                    id: 'key-symmetric-vs-asymmetric',
                     title: 'Symmetric Encryption',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/key/presentations/key-advanced-symmetric.presentation.html',
-                    prerequisites: ['crypto-fundamentals']
+                    prerequisites: ['key-cryptography-fundamentals']
                 },
                 {
-                    id: 'crypto-aes-explorer',
+                    id: 'key-aes-explorer',
                     title: 'AES Explorer',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/key/tools/key-aes.tool.html',
-                    prerequisites: ['crypto-symmetric']
+                    prerequisites: ['key-symmetric-vs-asymmetric']
                 },
                 {
-                    id: 'crypto-aes-lab',
+                    id: 'key-aes-lab',
                     title: 'AES Encryption Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/key/labs/key-aes.lab.html',
-                    prerequisites: ['crypto-aes-explorer']
+                    prerequisites: ['key-aes-explorer']
                 },
                 {
-                    id: 'crypto-symmetric-quiz',
+                    id: 'key-symmetric-quiz',
                     title: 'Symmetric Encryption Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-symmetric.quiz.html',
-                    prerequisites: ['crypto-aes-lab']
+                    prerequisites: ['key-aes-lab']
                 },
                 // Hashing & Integrity
                 {
-                    id: 'crypto-hash-stego-intro',
+                    id: 'key-hash-stego-intro',
                     title: 'Hash & Steganography Intro',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/key/modules/key-hash-stego-intro.module.html',
-                    prerequisites: ['crypto-symmetric-quiz']
+                    prerequisites: ['key-symmetric-quiz']
                 },
                 {
-                    id: 'crypto-hmac',
+                    id: 'shield-crypto-hmac',
                     title: 'Message Authentication (HMAC)',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/key/presentations/key-message-authentication.presentation.html',
-                    prerequisites: ['crypto-hash-stego-intro']
+                    prerequisites: ['key-hash-stego-intro']
                 },
                 {
-                    id: 'crypto-hmac-tool',
+                    id: 'key-hashing-integrity',
                     title: 'HMAC Tool',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/key/tools/key-hmac.tool.html',
-                    prerequisites: ['crypto-hmac']
+                    prerequisites: ['shield-crypto-hmac']
                 },
                 {
-                    id: 'crypto-hmac-lab',
+                    id: 'key-hmac-lab',
                     title: 'HMAC Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/key/labs/key-hmac.lab.html',
-                    prerequisites: ['crypto-hmac-tool']
+                    prerequisites: ['key-hashing-integrity']
                 },
                 {
-                    id: 'crypto-mac-quiz',
+                    id: 'key-mac-quiz',
                     title: 'Message Authentication Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-mac.quiz.html',
-                    prerequisites: ['crypto-hmac-lab']
+                    prerequisites: ['key-hmac-lab']
                 },
                 // Asymmetric / ECC
                 {
-                    id: 'crypto-ecc',
+                    id: 'key-elliptic-curve',
                     title: 'Elliptic Curve Cryptography',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'houses/key/presentations/key-elliptic-curve.presentation.html',
-                    prerequisites: ['crypto-mac-quiz']
+                    prerequisites: ['key-mac-quiz']
                 },
                 {
-                    id: 'crypto-ecc-visualizer',
+                    id: 'key-ecc-visualizer',
                     title: 'ECC Visualizer',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/key/tools/key-ecc.tool.html',
-                    prerequisites: ['crypto-ecc']
+                    prerequisites: ['key-elliptic-curve']
                 },
                 {
-                    id: 'crypto-ecc-lab',
+                    id: 'key-ecc-lab',
                     title: 'Elliptic Curve Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/key/labs/key-ecc.lab.html',
-                    prerequisites: ['crypto-ecc-visualizer']
+                    prerequisites: ['key-ecc-visualizer']
                 },
                 {
-                    id: 'crypto-ecc-quiz',
+                    id: 'key-ecc-quiz',
                     title: 'ECC Quiz',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-ecc.quiz.html',
-                    prerequisites: ['crypto-ecc-lab']
+                    prerequisites: ['key-ecc-lab']
                 },
                 // PKI & Digital Signatures
                 {
-                    id: 'crypto-certificates',
+                    id: 'key-pki-deep-dive',
                     title: 'Digital Certificates & PKI',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/key/presentations/key-certificates.presentation.html',
-                    prerequisites: ['crypto-ecc-quiz']
+                    prerequisites: ['key-ecc-quiz']
                 },
                 {
-                    id: 'crypto-cert-tool',
+                    id: 'key-digital-signatures',
                     title: 'Certificate Tool',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/key/tools/key-cert.tool.html',
-                    prerequisites: ['crypto-certificates']
+                    prerequisites: ['key-pki-deep-dive']
                 },
                 {
-                    id: 'crypto-cert-lab',
+                    id: 'key-cert-lab',
                     title: 'Certificate Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/key/labs/key-cert.lab.html',
-                    prerequisites: ['crypto-cert-tool']
+                    prerequisites: ['key-digital-signatures']
                 },
                 {
-                    id: 'crypto-cert-quiz',
+                    id: 'key-cert-quiz',
                     title: 'Certificates Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-cert.quiz.html',
-                    prerequisites: ['crypto-cert-lab']
+                    prerequisites: ['key-cert-lab']
                 },
                 // Key Derivation & Management
                 {
-                    id: 'crypto-kdf',
+                    id: 'key-key-derivation',
                     title: 'Key Derivation Functions',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/key/presentations/key-derivation.presentation.html',
-                    prerequisites: ['crypto-cert-quiz']
+                    prerequisites: ['key-cert-quiz']
                 },
                 {
-                    id: 'crypto-kdf-tool',
+                    id: 'key-kdf-analyzer',
                     title: 'KDF Analyzer',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/key/tools/key-kdf.tool.html',
-                    prerequisites: ['crypto-kdf']
+                    prerequisites: ['key-key-derivation']
                 },
                 {
-                    id: 'crypto-kdf-lab',
+                    id: 'key-kdf-lab',
                     title: 'Key Derivation Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/key/labs/key-kdf.lab.html',
-                    prerequisites: ['crypto-kdf-tool']
+                    prerequisites: ['key-kdf-analyzer']
                 },
                 {
-                    id: 'crypto-kdf-quiz',
+                    id: 'key-kdf-quiz',
                     title: 'KDF Quiz',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-kdf.quiz.html',
-                    prerequisites: ['crypto-kdf-lab']
+                    prerequisites: ['key-kdf-lab']
                 },
                 {
-                    id: 'crypto-key-management',
+                    id: 'key-key-management',
                     title: 'Key Management',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/key/presentations/key-management.presentation.html',
-                    prerequisites: ['crypto-kdf-quiz']
+                    prerequisites: ['key-kdf-quiz']
                 },
                 {
-                    id: 'crypto-lifecycle',
+                    id: 'key-lifecycle',
                     title: 'Key Lifecycle Manager',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/key/tools/key-lifecycle.tool.html',
-                    prerequisites: ['crypto-key-management']
+                    prerequisites: ['key-key-management']
                 },
                 // HSM
                 {
-                    id: 'crypto-hsm-lab',
+                    id: 'key-hsm-lab',
                     title: 'Hardware Security Module Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/key/labs/key-hsm.lab.html',
-                    prerequisites: ['crypto-lifecycle']
+                    prerequisites: ['key-lifecycle']
                 },
                 {
-                    id: 'crypto-hsm-quiz',
+                    id: 'key-hsm-quiz',
                     title: 'HSM Quiz',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-hsm.quiz.html',
-                    prerequisites: ['crypto-hsm-lab']
+                    prerequisites: ['key-hsm-lab']
                 },
                 // Cryptanalysis & Attacks
                 {
-                    id: 'crypto-cryptanalysis',
+                    id: 'key-cryptanalysis',
                     title: 'Cryptanalysis',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/key/presentations/key-cryptanalysis.presentation.html',
-                    prerequisites: ['crypto-hsm-quiz']
+                    prerequisites: ['key-hsm-quiz']
                 },
                 {
-                    id: 'crypto-cryptanalysis-lab',
+                    id: 'key-cryptanalysis-tool',
                     title: 'Cryptanalysis Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/key/labs/key-cryptanalysis.lab.html',
-                    prerequisites: ['crypto-cryptanalysis']
+                    prerequisites: ['key-cryptanalysis']
                 },
                 {
-                    id: 'crypto-attack-lab',
+                    id: 'key-attack-lab',
                     title: 'Cryptographic Attack Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/key/labs/key-attack.lab.html',
-                    prerequisites: ['crypto-cryptanalysis-lab']
+                    prerequisites: ['key-cryptanalysis-tool']
                 },
                 {
-                    id: 'crypto-cryptanalysis-quiz',
+                    id: 'key-cryptanalysis-quiz',
                     title: 'Cryptanalysis Quiz',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-cryptanalysis.quiz.html',
-                    prerequisites: ['crypto-attack-lab']
+                    prerequisites: ['key-attack-lab']
                 },
                 // Post-Quantum
                 {
-                    id: 'crypto-post-quantum',
+                    id: 'key-post-quantum',
                     title: 'Post-Quantum Cryptography',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'houses/key/presentations/key-post-quantum.presentation.html',
-                    prerequisites: ['crypto-cryptanalysis-quiz']
+                    prerequisites: ['key-cryptanalysis-quiz']
                 },
                 {
-                    id: 'crypto-pqc-explorer',
+                    id: 'key-pqc-explorer',
                     title: 'PQC Explorer',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/key/tools/key-pqc.tool.html',
-                    prerequisites: ['crypto-post-quantum']
+                    prerequisites: ['key-post-quantum']
                 },
                 {
-                    id: 'crypto-pqc-lab',
+                    id: 'key-pqc-lab',
                     title: 'Post-Quantum Crypto Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/key/labs/key-pqc.lab.html',
-                    prerequisites: ['crypto-pqc-explorer']
+                    prerequisites: ['key-pqc-explorer']
                 },
                 {
-                    id: 'crypto-pqc-quiz',
+                    id: 'key-pqc-quiz',
                     title: 'PQC Quiz',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-pqc.quiz.html',
-                    prerequisites: ['crypto-pqc-lab']
+                    prerequisites: ['key-pqc-lab']
                 }
             ]
         },
@@ -3280,7 +3280,7 @@ class LearningPaths {
             modules: [
                 // Crypto Foundations (maps to SY0-701 Domain 1.4)
                 {
-                    id: 'spc-encryption-basics',
+                    id: 'key-encryption-basics',
                     title: 'Encryption Basics',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -3290,125 +3290,125 @@ class LearningPaths {
                 },
                 // Symmetric Encryption (maps to SY0-701 3.7)
                 {
-                    id: 'spc-symmetric',
+                    id: 'key-symmetric-vs-asymmetric',
                     title: 'Symmetric Encryption',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/key/presentations/key-advanced-symmetric.presentation.html',
-                    prerequisites: ['spc-encryption-basics']
+                    prerequisites: ['key-encryption-basics']
                 },
                 {
-                    id: 'spc-aes-explorer',
+                    id: 'key-aes-explorer',
                     title: 'AES Explorer',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/key/tools/key-aes.tool.html',
-                    prerequisites: ['spc-symmetric']
+                    prerequisites: ['key-symmetric-vs-asymmetric']
                 },
                 {
-                    id: 'spc-symmetric-quiz',
+                    id: 'key-symmetric-quiz',
                     title: 'Symmetric Encryption Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-symmetric.quiz.html',
-                    prerequisites: ['spc-aes-explorer']
+                    prerequisites: ['key-aes-explorer']
                 },
                 // Hashing (maps to SY0-701 1.4)
                 {
-                    id: 'spc-hashing',
+                    id: 'key-message-auth',
                     title: 'Hashing & Message Authentication',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/key/presentations/key-message-authentication.presentation.html',
-                    prerequisites: ['spc-symmetric-quiz']
+                    prerequisites: ['key-symmetric-quiz']
                 },
                 {
-                    id: 'spc-hmac-tool',
+                    id: 'key-hashing-integrity',
                     title: 'HMAC Tool',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/key/tools/key-hmac.tool.html',
-                    prerequisites: ['spc-hashing']
+                    prerequisites: ['key-message-auth']
                 },
                 {
-                    id: 'spc-mac-quiz',
+                    id: 'key-mac-quiz',
                     title: 'Message Authentication Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-mac.quiz.html',
-                    prerequisites: ['spc-hmac-tool']
+                    prerequisites: ['key-hashing-integrity']
                 },
                 // Asymmetric / Key Exchange (maps to SY0-701 3.7)
                 {
-                    id: 'spc-ecc',
+                    id: 'key-elliptic-curve',
                     title: 'Asymmetric Encryption & ECC',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/key/presentations/key-elliptic-curve.presentation.html',
-                    prerequisites: ['spc-mac-quiz']
+                    prerequisites: ['key-mac-quiz']
                 },
                 {
-                    id: 'spc-ecc-quiz',
+                    id: 'key-ecc-quiz',
                     title: 'ECC Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-ecc.quiz.html',
-                    prerequisites: ['spc-ecc']
+                    prerequisites: ['key-elliptic-curve']
                 },
                 // PKI & Digital Signatures (maps to SY0-701 1.4, 3.7)
                 {
-                    id: 'spc-certificates',
+                    id: 'key-pki-deep-dive',
                     title: 'PKI & Digital Certificates',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/key/presentations/key-certificates.presentation.html',
-                    prerequisites: ['spc-ecc-quiz']
+                    prerequisites: ['key-ecc-quiz']
                 },
                 {
-                    id: 'spc-cert-tool',
+                    id: 'key-digital-signatures',
                     title: 'Certificate Tool',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/key/tools/key-cert.tool.html',
-                    prerequisites: ['spc-certificates']
+                    prerequisites: ['key-pki-deep-dive']
                 },
                 {
-                    id: 'spc-cert-quiz',
+                    id: 'key-cert-quiz',
                     title: 'Certificates Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/key/quizzes/key-cert.quiz.html',
-                    prerequisites: ['spc-cert-tool']
+                    prerequisites: ['key-digital-signatures']
                 },
                 // Key Management (maps to SY0-701 1.4)
                 {
-                    id: 'spc-key-management',
+                    id: 'key-key-management',
                     title: 'Key Management',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/key/presentations/key-management.presentation.html',
-                    prerequisites: ['spc-cert-quiz']
+                    prerequisites: ['key-cert-quiz']
                 },
                 {
-                    id: 'spc-lifecycle',
+                    id: 'key-lifecycle',
                     title: 'Key Lifecycle Manager',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/key/tools/key-lifecycle.tool.html',
-                    prerequisites: ['spc-key-management']
+                    prerequisites: ['key-key-management']
                 }
             ]
         },
@@ -3423,7 +3423,7 @@ class LearningPaths {
             modules: [
                 // Domain 1: Security Operations
                 {
-                    id: 'cysa-soc-operations',
+                    id: 'eye-soc-operations',
                     title: 'SOC Operations',
                     type: 'presentation',
                     difficulty: 'intermediate',
@@ -3432,187 +3432,187 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'cysa-soc-simulator',
+                    id: 'eye-soc-simulator',
                     title: 'SOC Simulator',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/eye/tools/eye-soc.tool.html',
-                    prerequisites: ['cysa-soc-operations']
+                    prerequisites: ['eye-soc-operations']
                 },
                 {
-                    id: 'cysa-soc-overview',
+                    id: 'cyberops-soc-overview',
                     title: 'SOC Overview',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-soc-overview.applet.html',
-                    prerequisites: ['cysa-soc-simulator']
+                    prerequisites: ['eye-soc-simulator']
                 },
                 {
-                    id: 'cysa-soc-metrics',
+                    id: 'cyberops-soc-metrics',
                     title: 'SOC Metrics',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-soc-metrics.applet.html',
-                    prerequisites: ['cysa-soc-overview']
+                    prerequisites: ['cyberops-soc-overview']
                 },
                 {
-                    id: 'cysa-soc-quiz',
+                    id: 'eye-soc-quiz',
                     title: 'SOC Operations Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/eye/quizzes/eye-soc.quiz.html',
-                    prerequisites: ['cysa-soc-metrics']
+                    prerequisites: ['cyberops-soc-metrics']
                 },
                 {
-                    id: 'cysa-soc-lab',
+                    id: 'eye-soc-lab',
                     title: 'SOC Operations Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/eye/labs/eye-soc.lab.html',
-                    prerequisites: ['cysa-soc-quiz']
+                    prerequisites: ['eye-soc-quiz']
                 },
                 // Domain 2: Vulnerability Management
                 {
-                    id: 'cysa-risk-management',
+                    id: 'shield-risk-management',
                     title: 'Risk Management',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/applets/risk/risk_management/shield-risk-management.applet.html',
-                    prerequisites: ['cysa-soc-lab']
+                    prerequisites: ['eye-soc-lab']
                 },
                 {
-                    id: 'cysa-risk-analysis',
+                    id: 'shield-risk-analysis',
                     title: 'Risk Analysis',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html',
-                    prerequisites: ['cysa-risk-management']
+                    prerequisites: ['shield-risk-management']
                 },
                 {
-                    id: 'cysa-risk-rating',
+                    id: 'cyberops-risk-rating',
                     title: 'Risk Rating & CVSS',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-risk-rating.applet.html',
-                    prerequisites: ['cysa-risk-analysis']
+                    prerequisites: ['shield-risk-analysis']
                 },
                 {
-                    id: 'cysa-cvss',
+                    id: 'cyberops-cvss-terminology',
                     title: 'CVSS Terminology',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-cvss-terminology.applet.html',
-                    prerequisites: ['cysa-risk-rating']
+                    prerequisites: ['cyberops-risk-rating']
                 },
                 {
-                    id: 'cysa-attack-surface',
+                    id: 'cyberops-attack-surface-vuln',
                     title: 'Attack Surface & Vulnerabilities',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/eye/applets/cyberops/eye-attack-surface-vuln.applet.html',
-                    prerequisites: ['cysa-cvss']
+                    prerequisites: ['cyberops-cvss-terminology']
                 },
                 {
-                    id: 'cysa-cve-lookup',
+                    id: 'shield-cve-lookup',
                     title: 'CVE Lookup Tool',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/shield/tools/shield-cve-lookup.tool.html',
-                    prerequisites: ['cysa-attack-surface']
+                    prerequisites: ['cyberops-attack-surface-vuln']
                 },
                 // Domain 3: Incident Response & Management
                 {
-                    id: 'cysa-incident-response',
+                    id: 'shield-incident-sim',
                     title: 'Incident Response',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/tools/shield-incident-response.tool.html',
-                    prerequisites: ['cysa-cve-lookup']
+                    prerequisites: ['shield-cve-lookup']
                 },
                 {
-                    id: 'cysa-irp-elements',
+                    id: 'cyberops-irp-elements',
                     title: 'Incident Response Plan Elements',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-irp-elements.applet.html',
-                    prerequisites: ['cysa-incident-response']
+                    prerequisites: ['shield-incident-sim']
                 },
                 {
-                    id: 'cysa-ir-forensics',
+                    id: 'shield-ir-forensics',
                     title: 'IR & Forensics Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/shield/labs/shield-ir-forensics.lab.html',
-                    prerequisites: ['cysa-irp-elements']
+                    prerequisites: ['cyberops-irp-elements']
                 },
                 {
-                    id: 'cysa-nist-forensics',
+                    id: 'cyberops-nist-800-86',
                     title: 'NIST 800-86 Forensics',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-nist-800-86.applet.html',
-                    prerequisites: ['cysa-ir-forensics']
+                    prerequisites: ['shield-ir-forensics']
                 },
                 {
-                    id: 'cysa-evidence-types',
+                    id: 'cyberops-evidence-types',
                     title: 'Evidence Types',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-evidence-types.applet.html',
-                    prerequisites: ['cysa-nist-forensics']
+                    prerequisites: ['cyberops-nist-800-86']
                 },
                 // Domain 4: Reporting & Communication
                 {
-                    id: 'cysa-monitoring',
+                    id: 'cse-06-monitoring',
                     title: 'Security Monitoring & Incident Response',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/presentations/shield-cse-06-security-monitoring-incident-response.presentation.html',
-                    prerequisites: ['cysa-evidence-types']
+                    prerequisites: ['cyberops-evidence-types']
                 },
                 {
-                    id: 'cysa-risk-assessment',
+                    id: 'cse-07-risk',
                     title: 'Risk Assessment & Management',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/presentations/shield-cse-07-risk-assessment-management.presentation.html',
-                    prerequisites: ['cysa-monitoring']
+                    prerequisites: ['cse-06-monitoring']
                 },
                 {
-                    id: 'cysa-compliance',
+                    id: 'cse-08-compliance',
                     title: 'Compliance & Governance',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/shield/presentations/shield-cse-08-compliance-governance.presentation.html',
-                    prerequisites: ['cysa-risk-assessment']
+                    prerequisites: ['cse-07-risk']
                 },
                 {
-                    id: 'cysa-analyst-toolkit',
+                    id: 'shield-cysa-toolkit',
                     title: 'CySA+ Analyst Toolkit',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html',
-                    prerequisites: ['cysa-compliance']
+                    prerequisites: ['cse-08-compliance']
                 }
             ]
         },
@@ -3627,7 +3627,7 @@ class LearningPaths {
             modules: [
                 // Domain 1: Security Architecture
                 {
-                    id: 'casp-security-fundamentals',
+                    id: 'shield-security-pres',
                     title: 'Security Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
@@ -3636,205 +3636,205 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'casp-design-principles',
+                    id: 'shield-design-principles',
                     title: 'Security Design Principles',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/shield/applets/fundamentals/design_principles/shield-cybersecuritydesignprinciples.applet.html',
-                    prerequisites: ['casp-security-fundamentals']
+                    prerequisites: ['shield-security-pres']
                 },
                 {
-                    id: 'casp-zero-trust',
+                    id: 'shield-zero-trust',
                     title: 'Zero Trust Architecture',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'houses/shield/tools/shield-zero-trust.tool.html',
-                    prerequisites: ['casp-design-principles']
+                    prerequisites: ['shield-design-principles']
                 },
                 {
-                    id: 'casp-security-models',
+                    id: 'shield-security-models',
                     title: 'Security Models',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/tools/shield-security-models.tool.html',
-                    prerequisites: ['casp-zero-trust']
+                    prerequisites: ['shield-zero-trust']
                 },
                 {
-                    id: 'casp-governance',
+                    id: 'shield-governance-dashboard',
                     title: 'Security Governance Dashboard',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html',
-                    prerequisites: ['casp-security-models']
+                    prerequisites: ['shield-security-models']
                 },
                 // Domain 2: Security Operations
                 {
-                    id: 'casp-firewalls',
+                    id: 'shield-network-security',
                     title: 'Enterprise Firewalls',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/applets/network/firewalls/shield-firewalls.applet.html',
-                    prerequisites: ['casp-governance']
+                    prerequisites: ['shield-governance-dashboard']
                 },
                 {
-                    id: 'casp-ids-ips',
+                    id: 'shield-ids-ips',
                     title: 'IDS/IPS Systems',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/shield/applets/network/ids_ips/shield-ids-ips.applet.html',
-                    prerequisites: ['casp-firewalls']
+                    prerequisites: ['shield-network-security']
                 },
                 {
-                    id: 'casp-vpn',
+                    id: 'shield-vpn',
                     title: 'Enterprise VPN',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/shield/applets/network/vpn/shield-vpn.applet.html',
-                    prerequisites: ['casp-ids-ips']
+                    prerequisites: ['shield-ids-ips']
                 },
                 {
-                    id: 'casp-linux-firewall',
+                    id: 'shield-linux-firewall',
                     title: 'Linux Firewall Builder',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'houses/shield/applets/network/shield-linux-firewall-builder.applet.html',
-                    prerequisites: ['casp-vpn']
+                    prerequisites: ['shield-vpn']
                 },
                 {
-                    id: 'casp-incident-response',
+                    id: 'shield-incident-sim',
                     title: 'Incident Response',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/tools/shield-incident-response.tool.html',
-                    prerequisites: ['casp-linux-firewall']
+                    prerequisites: ['shield-linux-firewall']
                 },
                 {
-                    id: 'casp-ir-forensics',
+                    id: 'shield-ir-forensics',
                     title: 'IR & Forensics Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/shield/labs/shield-ir-forensics.lab.html',
-                    prerequisites: ['casp-incident-response']
+                    prerequisites: ['shield-incident-sim']
                 },
                 // Domain 3: Security Engineering & Cryptography
                 {
-                    id: 'casp-cryptography',
+                    id: 'shield-crypto-intro',
                     title: 'Cryptography Essentials',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'houses/shield/applets/crypto/cryptography_intro/shield-crypto-cryptography-intro.applet.html',
-                    prerequisites: ['casp-ir-forensics']
+                    prerequisites: ['shield-ir-forensics']
                 },
                 {
-                    id: 'casp-pki',
+                    id: 'shield-pki',
                     title: 'PKI Infrastructure',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/applets/crypto/pki/shield-crypto-pki.applet.html',
-                    prerequisites: ['casp-cryptography']
+                    prerequisites: ['shield-crypto-intro']
                 },
                 {
-                    id: 'casp-blockchain',
+                    id: 'shield-blockchain',
                     title: 'Blockchain Security',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/shield/applets/crypto/blockchain/shield-crypto-blockchain.applet.html',
-                    prerequisites: ['casp-pki']
+                    prerequisites: ['shield-pki']
                 },
                 {
-                    id: 'casp-crypto-lab',
+                    id: 'shield-crypto-lab',
                     title: 'Cryptography Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/shield/labs/shield-cryptography.lab.html',
-                    prerequisites: ['casp-blockchain']
+                    prerequisites: ['shield-blockchain']
                 },
                 // Domain 4: Governance, Risk, and Compliance
                 {
-                    id: 'casp-risk-management',
+                    id: 'shield-risk-management',
                     title: 'Enterprise Risk Management',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/applets/risk/risk_management/shield-risk-management.applet.html',
-                    prerequisites: ['casp-crypto-lab']
+                    prerequisites: ['shield-crypto-lab']
                 },
                 {
-                    id: 'casp-risk-analysis',
+                    id: 'shield-risk-analysis',
                     title: 'Risk Analysis',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html',
-                    prerequisites: ['casp-risk-management']
+                    prerequisites: ['shield-risk-management']
                 },
                 {
-                    id: 'casp-bcp',
+                    id: 'shield-business-continuity',
                     title: 'Business Continuity Planning',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/applets/risk/shield-business-continuity-planner.applet.html',
-                    prerequisites: ['casp-risk-analysis']
+                    prerequisites: ['shield-risk-analysis']
                 },
                 {
-                    id: 'casp-bia',
+                    id: 'shield-bia-calculator',
                     title: 'Business Impact Analysis',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/shield/tools/shield-bia.tool.html',
-                    prerequisites: ['casp-bcp']
+                    prerequisites: ['shield-business-continuity']
                 },
                 {
-                    id: 'casp-frameworks',
+                    id: 'shield-framework-selector',
                     title: 'Security Frameworks',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/shield/applets/compliance/shield-framework-selector.applet.html',
-                    prerequisites: ['casp-bia']
+                    prerequisites: ['shield-bia-calculator']
                 },
                 {
-                    id: 'casp-laws',
+                    id: 'shield-laws-regulations',
                     title: 'Laws & Regulations',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/shield/applets/compliance/shield-laws-regulations.applet.html',
-                    prerequisites: ['casp-frameworks']
+                    prerequisites: ['shield-framework-selector']
                 },
                 {
-                    id: 'casp-cism',
+                    id: 'shield-cism-dashboard',
                     title: 'CISM Management Dashboard',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/applets/governance/shield-cism-management-dashboard.applet.html',
-                    prerequisites: ['casp-laws']
+                    prerequisites: ['shield-laws-regulations']
                 },
                 {
-                    id: 'casp-compliance-lab',
+                    id: 'shield-compliance-lab',
                     title: 'Compliance Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/shield/labs/shield-compliance.lab.html',
-                    prerequisites: ['casp-cism']
+                    prerequisites: ['shield-cism-dashboard']
                 }
             ]
         },
@@ -3849,7 +3849,7 @@ class LearningPaths {
             modules: [
                 // Domain 1: Network Fundamentals
                 {
-                    id: 'ccna-osi-model',
+                    id: 'web-osi-model-pres',
                     title: 'OSI Model Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -3858,288 +3858,288 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'ccna-osi-deep-dive',
+                    id: 'web-osi-deep-pres',
                     title: 'OSI Model Deep Dive',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-osi-deep-dive.presentation.html',
-                    prerequisites: ['ccna-osi-model']
+                    prerequisites: ['web-osi-model-pres']
                 },
                 {
-                    id: 'ccna-tcp',
+                    id: 'web-tcpip',
                     title: 'TCP/IP Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-tcp.presentation.html',
-                    prerequisites: ['ccna-osi-deep-dive']
+                    prerequisites: ['web-osi-deep-pres']
                 },
                 {
-                    id: 'ccna-ip-addressing',
+                    id: 'web-ip-binary-ip',
                     title: 'IP Addressing',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/web/applets/ip-addressing/binary-ip/web-ip-binary-ip.applet.html',
-                    prerequisites: ['ccna-tcp']
+                    prerequisites: ['web-tcpip']
                 },
                 {
-                    id: 'ccna-subnetting',
+                    id: 'web-subnetting-pres',
                     title: 'Subnetting Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/web/presentations/web-subnetting.presentation.html',
-                    prerequisites: ['ccna-ip-addressing']
+                    prerequisites: ['web-ip-binary-ip']
                 },
                 {
-                    id: 'ccna-vlsm',
+                    id: 'web-ip-vlsm',
                     title: 'VLSM Challenge',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/applets/ip-addressing/vlsm/web-ip-vlsm.applet.html',
-                    prerequisites: ['ccna-subnetting']
+                    prerequisites: ['web-subnetting-pres']
                 },
                 {
-                    id: 'ccna-ipv6',
+                    id: 'web-ipv6-pres',
                     title: 'IPv6 Addressing',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-ipv6.presentation.html',
-                    prerequisites: ['ccna-vlsm']
+                    prerequisites: ['web-ip-vlsm']
                 },
                 {
-                    id: 'ccna-cables',
+                    id: 'web-cables-pres',
                     title: 'Network Cabling',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/web/presentations/web-cables.presentation.html',
-                    prerequisites: ['ccna-ipv6']
+                    prerequisites: ['web-ipv6-pres']
                 },
                 {
-                    id: 'ccna-devices',
+                    id: 'web-devices-pres',
                     title: 'Network Devices',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-devices.presentation.html',
-                    prerequisites: ['ccna-cables']
+                    prerequisites: ['web-cables-pres']
                 },
                 // Domain 2: Network Access
                 {
-                    id: 'ccna-switching',
+                    id: 'web-switch-ops-pres',
                     title: 'Switch Operations',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-switch-operations.presentation.html',
-                    prerequisites: ['ccna-devices']
+                    prerequisites: ['web-devices-pres']
                 },
                 {
-                    id: 'ccna-vlan',
+                    id: 'web-switching',
                     title: 'VLAN Configuration',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-vlan.presentation.html',
-                    prerequisites: ['ccna-switching']
+                    prerequisites: ['web-switch-ops-pres']
                 },
                 {
-                    id: 'ccna-stp',
+                    id: 'web-stp',
                     title: 'Spanning Tree Protocol',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-stp.presentation.html',
-                    prerequisites: ['ccna-vlan']
+                    prerequisites: ['web-switching']
                 },
                 {
-                    id: 'ccna-etherchannel',
+                    id: 'web-etherchannel-pres',
                     title: 'EtherChannel',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-etherchannel.presentation.html',
-                    prerequisites: ['ccna-stp']
+                    prerequisites: ['web-stp']
                 },
                 {
-                    id: 'ccna-wireless',
+                    id: 'web-wireless',
                     title: 'Wireless Networking',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-wireless.presentation.html',
-                    prerequisites: ['ccna-etherchannel']
+                    prerequisites: ['web-etherchannel-pres']
                 },
                 {
-                    id: 'ccna-wireless-arch',
+                    id: 'web-wireless-arch-pres',
                     title: 'Wireless Architecture',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-wireless-architecture.presentation.html',
-                    prerequisites: ['ccna-wireless']
+                    prerequisites: ['web-wireless']
                 },
                 // Domain 3: IP Connectivity
                 {
-                    id: 'ccna-routing',
+                    id: 'web-topologies-pres',
                     title: 'Routing Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-topologies.presentation.html',
-                    prerequisites: ['ccna-wireless-arch']
+                    prerequisites: ['web-wireless-arch-pres']
                 },
                 {
-                    id: 'ccna-ospf',
+                    id: 'web-routing',
                     title: 'OSPF Protocol',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/web/presentations/web-ospf.presentation.html',
-                    prerequisites: ['ccna-routing']
+                    prerequisites: ['web-topologies-pres']
                 },
                 {
-                    id: 'ccna-eigrp',
+                    id: 'web-eigrp-pres',
                     title: 'EIGRP Protocol',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-eigrp.presentation.html',
-                    prerequisites: ['ccna-ospf']
+                    prerequisites: ['web-routing']
                 },
                 {
-                    id: 'ccna-fhrp',
+                    id: 'web-fhrp',
                     title: 'First Hop Redundancy Protocols',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/web/presentations/web-fhrp.presentation.html',
-                    prerequisites: ['ccna-eigrp']
+                    prerequisites: ['web-eigrp-pres']
                 },
                 {
-                    id: 'ccna-static-routes',
+                    id: 'web-static-routes-lab',
                     title: 'Static Routes Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/labs/web-static-routes.lab.html',
-                    prerequisites: ['ccna-fhrp']
+                    prerequisites: ['web-fhrp']
                 },
                 // Domain 4: IP Services
                 {
-                    id: 'ccna-dns',
+                    id: 'web-dns-pres',
                     title: 'DNS Services',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-dns.presentation.html',
-                    prerequisites: ['ccna-static-routes']
+                    prerequisites: ['web-static-routes-lab']
                 },
                 {
-                    id: 'ccna-dhcp',
+                    id: 'web-dhcp-pres',
                     title: 'DHCP Services',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/web/presentations/web-dhcp.presentation.html',
-                    prerequisites: ['ccna-dns']
+                    prerequisites: ['web-dns-pres']
                 },
                 {
-                    id: 'ccna-nat',
+                    id: 'web-nat-pres',
                     title: 'NAT & PAT',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/presentations/web-nat.presentation.html',
-                    prerequisites: ['ccna-dhcp']
+                    prerequisites: ['web-dhcp-pres']
                 },
                 {
-                    id: 'ccna-ntp',
+                    id: 'web-ntp-pres',
                     title: 'NTP Services',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/web/presentations/web-ntp.presentation.html',
-                    prerequisites: ['ccna-nat']
+                    prerequisites: ['web-nat-pres']
                 },
                 {
-                    id: 'ccna-arp',
+                    id: 'web-arp-pres',
                     title: 'ARP Protocol',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/web/presentations/web-arp.presentation.html',
-                    prerequisites: ['ccna-ntp']
+                    prerequisites: ['web-ntp-pres']
                 },
                 {
-                    id: 'ccna-qos',
+                    id: 'web-qos-viz',
                     title: 'QoS Fundamentals',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/tools/web-qos.tool.html',
-                    prerequisites: ['ccna-arp']
+                    prerequisites: ['web-arp-pres']
                 },
                 // Domain 5: Security Fundamentals
                 {
-                    id: 'ccna-security',
+                    id: 'web-security-viz',
                     title: 'Network Security Tools',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/tools/web-security.tool.html',
-                    prerequisites: ['ccna-qos']
+                    prerequisites: ['web-qos-viz']
                 },
                 {
-                    id: 'ccna-acl',
+                    id: 'web-acl-viz',
                     title: 'Access Control Lists',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/web/tools/web-acl.tool.html',
-                    prerequisites: ['ccna-security']
+                    prerequisites: ['web-security-viz']
                 },
                 // Domain 6: Automation & Programmability
                 {
-                    id: 'ccna-troubleshooting',
+                    id: 'web-troubleshoot-pres',
                     title: 'Network Troubleshooting',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/web/presentations/web-troubleshooting.presentation.html',
-                    prerequisites: ['ccna-acl']
+                    prerequisites: ['web-acl-viz']
                 },
                 {
-                    id: 'ccna-network-simulator',
+                    id: 'web-network-sim-v2',
                     title: 'Network Simulator Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '60 min',
                     href: 'houses/web/simulators/web-interactive-network-simulatorv2.simulator.html',
-                    prerequisites: ['ccna-troubleshooting']
+                    prerequisites: ['web-troubleshoot-pres']
                 },
                 {
-                    id: 'ccna-packet-tracer',
+                    id: 'web-network-simulator',
                     title: 'Packet Tracer Lite',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '60 min',
                     href: 'houses/web/simulators/web-packet-tracer-lite-v3.simulator.html',
-                    prerequisites: ['ccna-network-simulator']
+                    prerequisites: ['web-network-sim-v2']
                 },
                 {
-                    id: 'ccna-final-review',
+                    id: 'web-networking-final',
                     title: 'CCNA Final Review',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/web/quizzes/web-networking-final-review.quiz.html',
-                    prerequisites: ['ccna-packet-tracer']
+                    prerequisites: ['web-network-simulator']
                 }
             ]
         },
@@ -4154,7 +4154,7 @@ class LearningPaths {
             modules: [
                 // Domain 1: Cloud Concepts
                 {
-                    id: 'awsccp-cloud-concepts',
+                    id: 'cloud-concepts',
                     title: 'Cloud Computing Concepts',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -4163,205 +4163,205 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'awsccp-cloud-models',
+                    id: 'cloud-models',
                     title: 'Cloud Service & Deployment Models',
                     type: 'tool',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/cloud/tools/cloud-ch01-cloud-models.tool.html',
-                    prerequisites: ['awsccp-cloud-concepts']
+                    prerequisites: ['cloud-concepts']
                 },
                 {
-                    id: 'awsccp-cloud-fundamentals-quiz',
+                    id: 'cloud-fundamentals-quiz',
                     title: 'Cloud Fundamentals Quiz',
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-ch01-cloud-fundamentals.quiz.html',
-                    prerequisites: ['awsccp-cloud-models']
+                    prerequisites: ['cloud-models']
                 },
                 {
-                    id: 'awsccp-provider-comparison',
+                    id: 'cloud-providers',
                     title: 'Cloud Provider Comparison',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html',
-                    prerequisites: ['awsccp-cloud-fundamentals-quiz']
+                    prerequisites: ['cloud-fundamentals-quiz']
                 },
                 // Domain 2: Security & Compliance
                 {
-                    id: 'awsccp-aws-fundamentals',
+                    id: 'cloud-aws-fundamentals-pres',
                     title: 'AWS Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/cloud/presentations/cloud-aws-fundamentals.presentation.html',
-                    prerequisites: ['awsccp-provider-comparison']
+                    prerequisites: ['cloud-providers']
                 },
                 {
-                    id: 'awsccp-aws-account',
+                    id: 'cloud-aws-account',
                     title: 'AWS Account & Setup',
                     type: 'tool',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/cloud/tools/cloud-ch02-aws-account.tool.html',
-                    prerequisites: ['awsccp-aws-fundamentals']
+                    prerequisites: ['cloud-aws-fundamentals-pres']
                 },
                 {
-                    id: 'awsccp-support-plans',
+                    id: 'cloud-aws-support',
                     title: 'AWS Support Plans',
                     type: 'tool',
                     difficulty: 'beginner',
                     duration: '15 min',
                     href: 'houses/cloud/tools/cloud-ch03-support-plans.tool.html',
-                    prerequisites: ['awsccp-aws-account']
+                    prerequisites: ['cloud-aws-account']
                 },
                 {
-                    id: 'awsccp-regions',
+                    id: 'cloud-aws-regions',
                     title: 'AWS Global Infrastructure',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/cloud/tools/cloud-ch04-aws-regions.tool.html',
-                    prerequisites: ['awsccp-support-plans']
+                    prerequisites: ['cloud-aws-support']
                 },
                 {
-                    id: 'awsccp-iam-security',
+                    id: 'cloud-aws-security',
                     title: 'IAM & Security',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/cloud/tools/cloud-ch05-security.tool.html',
-                    prerequisites: ['awsccp-regions']
+                    prerequisites: ['cloud-aws-regions']
                 },
                 {
-                    id: 'awsccp-iam-quiz',
+                    id: 'cloud-iam-quiz',
                     title: 'IAM Security Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-ch05-iam-security.quiz.html',
-                    prerequisites: ['awsccp-iam-security']
+                    prerequisites: ['cloud-aws-security']
                 },
                 // Domain 3: Cloud Technology & Services
                 {
-                    id: 'awsccp-aws-tools',
+                    id: 'cloud-aws-tools',
                     title: 'AWS Management Tools',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/cloud/tools/cloud-ch06-aws-tools.tool.html',
-                    prerequisites: ['awsccp-iam-quiz']
+                    prerequisites: ['cloud-iam-quiz']
                 },
                 {
-                    id: 'awsccp-compute',
+                    id: 'cloud-aws-compute',
                     title: 'AWS Compute Services',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/tools/cloud-ch07-compute-services.tool.html',
-                    prerequisites: ['awsccp-aws-tools']
+                    prerequisites: ['cloud-aws-tools']
                 },
                 {
-                    id: 'awsccp-ec2',
+                    id: 'cloud-aws-ec2',
                     title: 'EC2 Instance Explorer',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/cloud/tools/cloud-ch07-ec2-instance.tool.html',
-                    prerequisites: ['awsccp-compute']
+                    prerequisites: ['cloud-aws-compute']
                 },
                 {
-                    id: 'awsccp-storage',
+                    id: 'cloud-aws-storage',
                     title: 'AWS Storage Services',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/tools/cloud-ch08-storage-services.tool.html',
-                    prerequisites: ['awsccp-ec2']
+                    prerequisites: ['cloud-aws-ec2']
                 },
                 {
-                    id: 'awsccp-storage-quiz',
+                    id: 'cloud-storage-quiz',
                     title: 'Storage Services Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-ch08-storage.quiz.html',
-                    prerequisites: ['awsccp-storage']
+                    prerequisites: ['cloud-aws-storage']
                 },
                 {
-                    id: 'awsccp-database',
+                    id: 'cloud-aws-database',
                     title: 'AWS Database Services',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/tools/cloud-ch09-database-services.tool.html',
-                    prerequisites: ['awsccp-storage-quiz']
+                    prerequisites: ['cloud-storage-quiz']
                 },
                 {
-                    id: 'awsccp-database-quiz',
+                    id: 'cloud-database-quiz',
                     title: 'Database Services Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-ch09-database.quiz.html',
-                    prerequisites: ['awsccp-database']
+                    prerequisites: ['cloud-aws-database']
                 },
                 {
-                    id: 'awsccp-networking',
+                    id: 'cloud-aws-networking',
                     title: 'VPC & Networking',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/tools/cloud-ch10-vpc-networking.tool.html',
-                    prerequisites: ['awsccp-database-quiz']
+                    prerequisites: ['cloud-database-quiz']
                 },
                 {
-                    id: 'awsccp-networking-quiz',
+                    id: 'cloud-networking-quiz',
                     title: 'Networking Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-ch10-networking.quiz.html',
-                    prerequisites: ['awsccp-networking']
+                    prerequisites: ['cloud-aws-networking']
                 },
                 // Domain 4: Billing, Pricing & Support
                 {
-                    id: 'awsccp-automation',
+                    id: 'cloud-aws-automation',
                     title: 'Automation & Infrastructure',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/cloud/tools/cloud-ch11-automation.tool.html',
-                    prerequisites: ['awsccp-networking-quiz']
+                    prerequisites: ['cloud-networking-quiz']
                 },
                 {
-                    id: 'awsccp-use-cases',
+                    id: 'cloud-aws-use-cases',
                     title: 'AWS Use Cases & Architecture',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/cloud/tools/cloud-ch12-use-cases.tool.html',
-                    prerequisites: ['awsccp-automation']
+                    prerequisites: ['cloud-aws-automation']
                 },
                 {
-                    id: 'awsccp-architecture',
+                    id: 'cloud-architecture',
                     title: 'Cloud Architecture Designer',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/applets/architecture/cloud-architecture-designer.applet.html',
-                    prerequisites: ['awsccp-use-cases']
+                    prerequisites: ['cloud-aws-use-cases']
                 },
                 {
-                    id: 'awsccp-final-exam',
+                    id: 'cloud-aws-practitioner',
                     title: 'AWS CCP Practice Exam',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/quizzes/cloud-ch12-aws-practitioner-final.quiz.html',
-                    prerequisites: ['awsccp-architecture']
+                    prerequisites: ['cloud-architecture']
                 }
             ]
         },
@@ -4376,7 +4376,7 @@ class LearningPaths {
             modules: [
                 // Cloud Concepts
                 {
-                    id: 'az900-cloud-concepts',
+                    id: 'cloud-concepts',
                     title: 'Cloud Computing Concepts',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -4385,133 +4385,133 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'az900-cloud-models',
+                    id: 'cloud-models',
                     title: 'Cloud Models & Deployment',
                     type: 'tool',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/cloud/tools/cloud-ch01-cloud-models.tool.html',
-                    prerequisites: ['az900-cloud-concepts']
+                    prerequisites: ['cloud-concepts']
                 },
                 {
-                    id: 'az900-provider-comparison',
+                    id: 'cloud-providers',
                     title: 'Cloud Provider Comparison',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html',
-                    prerequisites: ['az900-cloud-models']
+                    prerequisites: ['cloud-models']
                 },
                 // Azure Core Services
                 {
-                    id: 'az900-azure-fundamentals',
+                    id: 'cloud-azure-fundamentals',
                     title: 'Azure Fundamentals',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/cloud/presentations/cloud-azure-fundamentals.presentation.html',
-                    prerequisites: ['az900-provider-comparison']
+                    prerequisites: ['cloud-providers']
                 },
                 {
-                    id: 'az900-azure-quiz',
+                    id: 'cloud-aws-quiz',
                     title: 'Azure Fundamentals Quiz',
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/cloud/quizzes/cloud-aws-fundamentals.quiz.html',
-                    prerequisites: ['az900-azure-fundamentals']
+                    prerequisites: ['cloud-azure-fundamentals']
                 },
                 // Cloud Security
                 {
-                    id: 'az900-cloud-security',
+                    id: 'cse-01-fundamentals',
                     title: 'Cloud Security Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/presentations/cloud-cse-01-cloud-fundamentals.presentation.html',
-                    prerequisites: ['az900-azure-quiz']
+                    prerequisites: ['cloud-aws-quiz']
                 },
                 {
-                    id: 'az900-iam',
+                    id: 'cse-02-iam',
                     title: 'Identity & Access Management',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/presentations/cloud-cse-02-identity-access-management.presentation.html',
-                    prerequisites: ['az900-cloud-security']
+                    prerequisites: ['cse-01-fundamentals']
                 },
                 {
-                    id: 'az900-iam-quiz',
+                    id: 'cse-02-quiz',
                     title: 'IAM Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-cse-02.quiz.html',
-                    prerequisites: ['az900-iam']
+                    prerequisites: ['cse-02-iam']
                 },
                 {
-                    id: 'az900-data-protection',
+                    id: 'cse-03-encryption',
                     title: 'Data Protection & Encryption',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/presentations/cloud-cse-03-data-protection-encryption.presentation.html',
-                    prerequisites: ['az900-iam-quiz']
+                    prerequisites: ['cse-02-quiz']
                 },
                 {
-                    id: 'az900-data-quiz',
+                    id: 'cse-03-quiz',
                     title: 'Data Protection Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-cse-03.quiz.html',
-                    prerequisites: ['az900-data-protection']
+                    prerequisites: ['cse-03-encryption']
                 },
                 // Compliance & Pricing
                 {
-                    id: 'az900-network-security',
+                    id: 'cse-04-network',
                     title: 'Cloud Network Security',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/presentations/cloud-cse-04-network-security.presentation.html',
-                    prerequisites: ['az900-data-quiz']
+                    prerequisites: ['cse-03-quiz']
                 },
                 {
-                    id: 'az900-network-quiz',
+                    id: 'cse-04-quiz',
                     title: 'Network Security Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-cse-04.quiz.html',
-                    prerequisites: ['az900-network-security']
+                    prerequisites: ['cse-04-network']
                 },
                 {
-                    id: 'az900-compliance',
+                    id: 'cloud-cse-08-compliance',
                     title: 'Cloud Compliance & Governance',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/cloud/presentations/cloud-cse-08-compliance-governance.presentation.html',
-                    prerequisites: ['az900-network-quiz']
+                    prerequisites: ['cse-04-quiz']
                 },
                 {
-                    id: 'az900-compliance-quiz',
+                    id: 'cloud-cse-08-quiz',
                     title: 'Compliance Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/cloud/quizzes/cloud-cse-08.quiz.html',
-                    prerequisites: ['az900-compliance']
+                    prerequisites: ['cloud-cse-08-compliance']
                 },
                 {
-                    id: 'az900-architecture',
+                    id: 'cloud-architecture',
                     title: 'Cloud Architecture Designer',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/applets/architecture/cloud-architecture-designer.applet.html',
-                    prerequisites: ['az900-compliance-quiz']
+                    prerequisites: ['cloud-cse-08-quiz']
                 }
             ]
         },
@@ -4526,7 +4526,7 @@ class LearningPaths {
             modules: [
                 // Domain 1: Development with AWS Services
                 {
-                    id: 'awsdev-git-basics',
+                    id: 'code-git-basics',
                     title: 'Git Basics',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -4535,187 +4535,187 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'awsdev-agile',
+                    id: 'code-agile-sdlc',
                     title: 'Agile & SDLC',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/code/presentations/code-agile-sdlc.presentation.html',
-                    prerequisites: ['awsdev-git-basics']
+                    prerequisites: ['code-git-basics']
                 },
                 {
-                    id: 'awsdev-unit-testing',
+                    id: 'code-unit-testing',
                     title: 'Unit Testing',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/code/presentations/code-unit-testing.presentation.html',
-                    prerequisites: ['awsdev-agile']
+                    prerequisites: ['code-agile-sdlc']
                 },
                 {
-                    id: 'awsdev-unit-testing-lab',
+                    id: 'code-unit-testing-lab',
                     title: 'Unit Testing Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/code/labs/code-unit-testing.lab.html',
-                    prerequisites: ['awsdev-unit-testing']
+                    prerequisites: ['code-unit-testing']
                 },
                 {
-                    id: 'awsdev-api',
+                    id: 'code-api-explorer',
                     title: 'API Development',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/code/tools/code-api.tool.html',
-                    prerequisites: ['awsdev-unit-testing-lab']
+                    prerequisites: ['code-unit-testing-lab']
                 },
                 // Domain 2: Deployment
                 {
-                    id: 'awsdev-cicd',
+                    id: 'code-cicd-fundamentals',
                     title: 'CI/CD Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/code/presentations/code-cicd-fundamentals.presentation.html',
-                    prerequisites: ['awsdev-api']
+                    prerequisites: ['code-api-explorer']
                 },
                 {
-                    id: 'awsdev-pipeline',
+                    id: 'code-cicd',
                     title: 'Pipeline Builder',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/code/applets/code-pipeline-builder.applet.html',
-                    prerequisites: ['awsdev-cicd']
+                    prerequisites: ['code-cicd-fundamentals']
                 },
                 {
-                    id: 'awsdev-cicd-lab',
+                    id: 'code-cicd-lab',
                     title: 'CI/CD Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/code/labs/code-cicd.lab.html',
-                    prerequisites: ['awsdev-pipeline']
+                    prerequisites: ['code-cicd']
                 },
                 {
-                    id: 'awsdev-docker',
+                    id: 'code-docker-basics',
                     title: 'Docker Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/code/presentations/code-docker-fundamentals.presentation.html',
-                    prerequisites: ['awsdev-cicd-lab']
+                    prerequisites: ['code-cicd-lab']
                 },
                 {
-                    id: 'awsdev-docker-playground',
+                    id: 'code-docker',
                     title: 'Docker Playground',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/code/applets/code-docker-playground.applet.html',
-                    prerequisites: ['awsdev-docker']
+                    prerequisites: ['code-docker-basics']
                 },
                 {
-                    id: 'awsdev-docker-lab',
+                    id: 'code-docker-lab',
                     title: 'Docker Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/code/labs/code-docker.lab.html',
-                    prerequisites: ['awsdev-docker-playground']
+                    prerequisites: ['code-docker']
                 },
                 // Domain 3: Security
                 {
-                    id: 'awsdev-iam-security',
+                    id: 'cloud-aws-security',
                     title: 'AWS IAM Security',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/cloud/tools/cloud-ch05-security.tool.html',
-                    prerequisites: ['awsdev-docker-lab']
+                    prerequisites: ['code-docker-lab']
                 },
                 // Domain 4: Troubleshooting & Optimization
                 {
-                    id: 'awsdev-automation',
+                    id: 'code-automation-devops',
                     title: 'Automation & DevOps',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/code/presentations/code-automation.presentation.html',
-                    prerequisites: ['awsdev-iam-security']
+                    prerequisites: ['cloud-aws-security']
                 },
                 {
-                    id: 'awsdev-cloudformation',
+                    id: 'code-cloudformation-fundamentals',
                     title: 'CloudFormation Fundamentals',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'houses/code/presentations/code-cloudformation-fundamentals.presentation.html',
-                    prerequisites: ['awsdev-automation']
+                    prerequisites: ['code-automation-devops']
                 },
                 {
-                    id: 'awsdev-cloudformation-designer',
+                    id: 'code-cloudformation',
                     title: 'CloudFormation Designer',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/code/applets/code-cloudformation-designer.applet.html',
-                    prerequisites: ['awsdev-cloudformation']
+                    prerequisites: ['code-cloudformation-fundamentals']
                 },
                 {
-                    id: 'awsdev-cloudformation-lab',
+                    id: 'code-cloudformation-lab',
                     title: 'CloudFormation Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/code/labs/code-cloudformation.lab.html',
-                    prerequisites: ['awsdev-cloudformation-designer']
+                    prerequisites: ['code-cloudformation']
                 },
                 {
-                    id: 'awsdev-kubernetes',
+                    id: 'code-kubernetes-fundamentals',
                     title: 'Kubernetes (EKS)',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/code/presentations/code-kubernetes-fundamentals.presentation.html',
-                    prerequisites: ['awsdev-cloudformation-lab']
+                    prerequisites: ['code-cloudformation-lab']
                 },
                 {
-                    id: 'awsdev-kubernetes-sim',
+                    id: 'code-kubernetes',
                     title: 'Kubernetes Cluster Simulator',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/code/applets/code-kubernetes-cluster-sim.applet.html',
-                    prerequisites: ['awsdev-kubernetes']
+                    prerequisites: ['code-kubernetes-fundamentals']
                 },
                 {
-                    id: 'awsdev-kubernetes-lab',
+                    id: 'code-kubernetes-lab',
                     title: 'Kubernetes Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/code/labs/code-kubernetes.lab.html',
-                    prerequisites: ['awsdev-kubernetes-sim']
+                    prerequisites: ['code-kubernetes']
                 },
                 {
-                    id: 'awsdev-terraform',
+                    id: 'code-terraform-fundamentals',
                     title: 'Terraform & IaC',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/code/presentations/code-terraform-fundamentals.presentation.html',
-                    prerequisites: ['awsdev-kubernetes-lab']
+                    prerequisites: ['code-kubernetes-lab']
                 },
                 {
-                    id: 'awsdev-terraform-lab',
+                    id: 'code-terraform-lab',
                     title: 'Terraform Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/code/labs/code-terraform.lab.html',
-                    prerequisites: ['awsdev-terraform']
+                    prerequisites: ['code-terraform-fundamentals']
                 }
             ]
         },
@@ -4730,7 +4730,7 @@ class LearningPaths {
             modules: [
                 // Tier 1: Log Analysis & Triage
                 {
-                    id: 'secops-log-basics',
+                    id: 'eye-log-analysis',
                     title: 'Log Analysis Basics',
                     type: 'presentation',
                     difficulty: 'beginner',
@@ -4739,277 +4739,277 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'secops-soc-operations',
+                    id: 'eye-soc-operations',
                     title: 'SOC Operations',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
                     href: 'houses/eye/presentations/eye-soc-operations.presentation.html',
-                    prerequisites: ['secops-log-basics']
+                    prerequisites: ['eye-log-analysis']
                 },
                 {
-                    id: 'secops-soc-overview',
+                    id: 'cyberops-soc-overview',
                     title: 'SOC Overview',
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-soc-overview.applet.html',
-                    prerequisites: ['secops-soc-operations']
+                    prerequisites: ['eye-soc-operations']
                 },
                 {
-                    id: 'secops-security-approaches',
+                    id: 'cyberops-security-approaches',
                     title: 'Security Approaches',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-security-approaches.applet.html',
-                    prerequisites: ['secops-soc-overview']
+                    prerequisites: ['cyberops-soc-overview']
                 },
                 {
-                    id: 'secops-security-policy',
+                    id: 'cyberops-security-policy',
                     title: 'Security Policy',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-security-policy.applet.html',
-                    prerequisites: ['secops-security-approaches']
+                    prerequisites: ['cyberops-security-approaches']
                 },
                 {
-                    id: 'secops-soc-simulator',
+                    id: 'eye-soc-simulator',
                     title: 'SOC Simulator',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/eye/tools/eye-soc.tool.html',
-                    prerequisites: ['secops-security-policy']
+                    prerequisites: ['cyberops-security-policy']
                 },
                 {
-                    id: 'secops-soc-quiz',
+                    id: 'eye-soc-quiz',
                     title: 'SOC Operations Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/eye/quizzes/eye-soc.quiz.html',
-                    prerequisites: ['secops-soc-simulator']
+                    prerequisites: ['eye-soc-simulator']
                 },
                 {
-                    id: 'secops-soc-lab',
+                    id: 'eye-soc-lab',
                     title: 'SOC Operations Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/eye/labs/eye-soc.lab.html',
-                    prerequisites: ['secops-soc-quiz']
+                    prerequisites: ['eye-soc-quiz']
                 },
                 // Tier 2: SIEM & Correlation
                 {
-                    id: 'secops-siem',
+                    id: 'eye-siem-intro',
                     title: 'SIEM Fundamentals',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
                     href: 'houses/eye/presentations/eye-siem-fundamentals.presentation.html',
-                    prerequisites: ['secops-soc-lab']
+                    prerequisites: ['eye-soc-lab']
                 },
                 {
-                    id: 'secops-siem-overview',
+                    id: 'cyberops-siem-overview',
                     title: 'SIEM Overview',
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-siem-overview.applet.html',
-                    prerequisites: ['secops-siem']
+                    prerequisites: ['eye-siem-intro']
                 },
                 {
-                    id: 'secops-siem-tool',
+                    id: 'eye-splunk-basics',
                     title: 'SIEM Tool',
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/eye/tools/eye-siem.tool.html',
-                    prerequisites: ['secops-siem-overview']
+                    prerequisites: ['cyberops-siem-overview']
                 },
                 {
-                    id: 'secops-siem-quiz',
+                    id: 'eye-siem-quiz',
                     title: 'SIEM Quiz',
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '15 min',
                     href: 'houses/eye/quizzes/eye-siem.quiz.html',
-                    prerequisites: ['secops-siem-tool']
+                    prerequisites: ['eye-splunk-basics']
                 },
                 {
-                    id: 'secops-siem-lab',
+                    id: 'eye-siem-lab',
                     title: 'SIEM Lab',
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/eye/labs/eye-siem.lab.html',
-                    prerequisites: ['secops-siem-quiz']
+                    prerequisites: ['eye-siem-quiz']
                 },
                 {
-                    id: 'secops-log-correlation',
+                    id: 'eye-log-correlation',
                     title: 'Log Correlation',
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/eye/presentations/eye-log-correlation.presentation.html',
-                    prerequisites: ['secops-siem-lab']
+                    prerequisites: ['eye-siem-lab']
                 },
                 {
-                    id: 'secops-correlation-engine',
+                    id: 'eye-correlation-engine',
                     title: 'Correlation Engine',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/eye/tools/eye-correlation.tool.html',
-                    prerequisites: ['secops-log-correlation']
+                    prerequisites: ['eye-log-correlation']
                 },
                 {
-                    id: 'secops-correlation-quiz',
+                    id: 'eye-correlation-quiz',
                     title: 'Correlation Quiz',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '15 min',
                     href: 'houses/eye/quizzes/eye-correlation.quiz.html',
-                    prerequisites: ['secops-correlation-engine']
+                    prerequisites: ['eye-correlation-engine']
                 },
                 {
-                    id: 'secops-correlation-lab',
+                    id: 'eye-incident-timeline',
                     title: 'Correlation Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/eye/labs/eye-correlation.lab.html',
-                    prerequisites: ['secops-correlation-quiz']
+                    prerequisites: ['eye-correlation-quiz']
                 },
                 // Tier 3: Network Traffic & Threat Detection
                 {
-                    id: 'secops-traffic-analysis',
+                    id: 'eye-network-traffic',
                     title: 'Network Traffic Analysis',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/eye/presentations/eye-network-traffic-analysis.presentation.html',
-                    prerequisites: ['secops-correlation-lab']
+                    prerequisites: ['eye-incident-timeline']
                 },
                 {
-                    id: 'secops-nsm-data',
+                    id: 'cyberops-nsm-data-types',
                     title: 'NSM Data Types',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-nsm-data-types.applet.html',
-                    prerequisites: ['secops-traffic-analysis']
+                    prerequisites: ['eye-network-traffic']
                 },
                 {
-                    id: 'secops-5tuple',
+                    id: 'cyberops-5-tuple-approach',
                     title: '5-Tuple Approach',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html',
-                    prerequisites: ['secops-nsm-data']
+                    prerequisites: ['cyberops-nsm-data-types']
                 },
                 {
-                    id: 'secops-tcpdump',
+                    id: 'cyberops-tcpdump-netflow',
                     title: 'tcpdump & NetFlow',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '25 min',
                     href: 'houses/eye/applets/cyberops/eye-tcpdump-netflow.applet.html',
-                    prerequisites: ['secops-5tuple']
+                    prerequisites: ['cyberops-5-tuple-approach']
                 },
                 {
-                    id: 'secops-wireshark',
+                    id: 'eye-wireshark-training',
                     title: 'Wireshark Analysis',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/eye/tools/eye-wireshark.tool.html',
-                    prerequisites: ['secops-tcpdump']
+                    prerequisites: ['cyberops-tcpdump-netflow']
                 },
                 {
-                    id: 'secops-packet-tool',
+                    id: 'eye-packet-analyzer',
                     title: 'Packet Inspector',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'houses/eye/tools/eye-packet.tool.html',
-                    prerequisites: ['secops-wireshark']
+                    prerequisites: ['eye-wireshark-training']
                 },
                 {
-                    id: 'secops-traffic-quiz',
+                    id: 'eye-traffic-quiz',
                     title: 'Traffic Analysis Quiz',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '15 min',
                     href: 'houses/eye/quizzes/eye-traffic.quiz.html',
-                    prerequisites: ['secops-packet-tool']
+                    prerequisites: ['eye-packet-analyzer']
                 },
                 {
-                    id: 'secops-traffic-lab',
+                    id: 'eye-traffic-lab',
                     title: 'Traffic Analysis Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/eye/labs/eye-traffic.lab.html',
-                    prerequisites: ['secops-traffic-quiz']
+                    prerequisites: ['eye-traffic-quiz']
                 },
                 // Tier 4: Threat Hunting
                 {
-                    id: 'secops-threat-hunting',
+                    id: 'eye-threat-hunting',
                     title: 'Threat Hunting',
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
                     href: 'houses/eye/presentations/eye-threat-hunting.presentation.html',
-                    prerequisites: ['secops-traffic-lab']
+                    prerequisites: ['eye-traffic-lab']
                 },
                 {
-                    id: 'secops-detection-methods',
+                    id: 'cyberops-detection-methods',
                     title: 'Detection Methods',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-detection-methods.applet.html',
-                    prerequisites: ['secops-threat-hunting']
+                    prerequisites: ['eye-threat-hunting']
                 },
                 {
-                    id: 'secops-evasion',
+                    id: 'cyberops-evasion-obfuscation',
                     title: 'Evasion & Obfuscation',
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '20 min',
                     href: 'houses/eye/applets/cyberops/eye-evasion-obfuscation.applet.html',
-                    prerequisites: ['secops-detection-methods']
+                    prerequisites: ['cyberops-detection-methods']
                 },
                 {
-                    id: 'secops-hunt-workbench',
+                    id: 'eye-hunt-workbench',
                     title: 'Hunt Workbench',
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '50 min',
                     href: 'houses/eye/tools/eye-hunt.tool.html',
-                    prerequisites: ['secops-evasion']
+                    prerequisites: ['cyberops-evasion-obfuscation']
                 },
                 {
-                    id: 'secops-hunting-quiz',
+                    id: 'eye-hunting-quiz',
                     title: 'Threat Hunting Quiz',
                     type: 'quiz',
                     difficulty: 'advanced',
                     duration: '15 min',
                     href: 'houses/eye/quizzes/eye-hunting.quiz.html',
-                    prerequisites: ['secops-hunt-workbench']
+                    prerequisites: ['eye-hunt-workbench']
                 },
                 {
-                    id: 'secops-hunting-lab',
+                    id: 'eye-hunting-lab',
                     title: 'Threat Hunting Lab',
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/eye/labs/eye-hunting.lab.html',
-                    prerequisites: ['secops-hunting-quiz']
+                    prerequisites: ['eye-hunting-quiz']
                 }
             ]
         },

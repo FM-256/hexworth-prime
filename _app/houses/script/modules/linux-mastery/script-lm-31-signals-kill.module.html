@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -157,6 +158,16 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
+
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
         .terminal-container {
             flex: 1;
@@ -450,12 +461,17 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="ps">find PID</span>
-                    <span class="task-chip" data-task="kill">kill</span>
-                    <span class="task-chip" data-task="kill9">kill -9</span>
-                    <span class="task-chip" data-task="killall">killall</span>
-                    <span class="task-chip" data-task="pkill">pkill</span>
+                    <span class="task-chip" data-task="ps">1</span>
+                    <span class="task-chip" data-task="kill">2</span>
+                    <span class="task-chip" data-task="kill9">3</span>
+                    <span class="task-chip" data-task="killall">4</span>
+                    <span class="task-chip" data-task="pkill">5</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 5 &mdash; Find Process ID</div>
+                <div class="task-desc">Use <code>ps</code>, <code>pgrep</code>, or <code>pidof</code> to find the PID of a running process.</div>
+                <div class="task-hint">Run: <code>ps aux</code></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -629,14 +645,67 @@
         });
 
         const MODULE_ID = 'lm-31-signals-kill';
-        const tasks = { 'ps': false, 'kill': false, 'kill9': false, 'killall': false, 'pkill': false };
+        const TASK_ORDER = ["ps","kill","kill9","killall","pkill"];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'ps': {
+                num: '1 of 5 &mdash; Find Process ID',
+                desc: 'Use <code>ps</code>, <code>pgrep</code>, or <code>pidof</code> to find the PID of a running process.',
+                hint: 'Run: <code>ps aux</code>'
+            },
+            'kill': {
+                num: '2 of 5 &mdash; Send SIGTERM',
+                desc: 'Terminate a process gracefully using <code>kill</code> (default SIGTERM signal).',
+                hint: 'Run: <code>kill 1234</code> (replace with a PID)'
+            },
+            'kill9': {
+                num: '3 of 5 &mdash; Force Kill',
+                desc: 'Force-kill a process with <strong>SIGKILL</strong> when SIGTERM doesn\'t work.',
+                hint: 'Run: <code>kill -9 1234</code>'
+            },
+            'killall': {
+                num: '4 of 5 &mdash; Kill by Name',
+                desc: 'Terminate all processes matching an exact name using <code>killall</code>.',
+                hint: 'Run: <code>killall firefox</code>'
+            },
+            'pkill': {
+                num: '5 of 5 &mdash; Kill by Pattern',
+                desc: 'Kill processes by pattern match using <code>pkill</code>.',
+                hint: 'Run: <code>pkill fire</code>'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.remove('active');
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) setTimeout(() => showTaskInstruction(next), 400);
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-31-signals-kill', { returnUrl: 'script-lm-32-cron.module.html' });
             }
@@ -659,6 +728,13 @@
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
@@ -666,6 +742,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

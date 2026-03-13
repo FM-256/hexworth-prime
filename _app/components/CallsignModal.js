@@ -133,7 +133,7 @@ const CallsignModal = (function() {
         styles.id = 'callsign-modal-styles';
         styles.textContent = `
             .callsign-modal-overlay {
-                position: fixed;
+                position: absolute;
                 inset: 0;
                 background: rgba(0, 0, 0, 0.9);
                 backdrop-filter: blur(10px);
@@ -265,7 +265,7 @@ const CallsignModal = (function() {
             }
 
             .callsign-rules span {
-                color: #555;
+                color: #808080;
                 font-size: 0.75rem;
             }
 
@@ -274,7 +274,7 @@ const CallsignModal = (function() {
             }
 
             .callsign-suggestions p {
-                color: #666;
+                color: #8a8a8a;
                 font-size: 0.85rem;
                 margin-bottom: 12px;
             }
@@ -307,7 +307,7 @@ const CallsignModal = (function() {
             .refresh-suggestions {
                 background: none;
                 border: none;
-                color: #555;
+                color: #808080;
                 cursor: pointer;
                 font-size: 0.8rem;
                 padding: 5px 10px;
@@ -345,13 +345,13 @@ const CallsignModal = (function() {
 
             .callsign-btn-primary:disabled {
                 background: #333;
-                color: #666;
+                color: #8a8a8a;
                 cursor: not-allowed;
                 box-shadow: none;
             }
 
             .callsign-warning {
-                color: #666;
+                color: #8a8a8a;
                 font-size: 0.8rem;
                 display: flex;
                 align-items: center;

@@ -311,9 +311,11 @@ const ModuleProgress = (function() {
         const isFirstModule = !hasCompletedAnyModule(progress);
 
         // Save this module's progress (flat format)
+        const now = new Date().toISOString();
         progress[houseId][moduleId] = {
             completed: true,
-            date: new Date().toISOString(),
+            date: now,
+            completedAt: now,
             timeSpent: timeSpent
         };
 
@@ -418,10 +420,12 @@ const ModuleProgress = (function() {
         const isFirstQuiz = passed && !hasPassedAnyQuiz(progress);
 
         // Save quiz progress
+        const now = new Date().toISOString();
         progress[houseId][quizId] = {
             completed: passed,
             score: score,
-            date: new Date().toISOString(),
+            date: now,
+            completedAt: now,
             attempts: (progress[houseId][quizId]?.attempts || 0) + 1
         };
 
@@ -584,7 +588,7 @@ const ModuleProgress = (function() {
             styles.id = 'module-progress-styles';
             styles.textContent = `
                 .module-complete-notification {
-                    position: fixed;
+                    position: absolute;
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);
@@ -626,7 +630,7 @@ const ModuleProgress = (function() {
                 }
 
                 .quiz-notification {
-                    position: fixed;
+                    position: absolute;
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);

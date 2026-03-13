@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -157,6 +158,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         .terminal-container {
             flex: 1;
@@ -452,13 +462,14 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="chown-user">chown user</span>
-                    <span class="task-chip" data-task="chown-group">chown :group</span>
-                    <span class="task-chip" data-task="chown-both">chown u:g</span>
-                    <span class="task-chip" data-task="chgrp">chgrp</span>
-                    <span class="task-chip" data-task="ls-owner">ls -l</span>
+                    <span class="task-chip" data-task="chown-user" onclick="showTaskInstruction('chown-user')">1</span>
+                    <span class="task-chip" data-task="chown-group" onclick="showTaskInstruction('chown-group')">2</span>
+                    <span class="task-chip" data-task="chown-both" onclick="showTaskInstruction('chown-both')">3</span>
+                    <span class="task-chip" data-task="chgrp" onclick="showTaskInstruction('chgrp')">4</span>
+                    <span class="task-chip" data-task="ls-owner" onclick="showTaskInstruction('ls-owner')">5</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -472,6 +483,11 @@
                     <li>Change owner and group simultaneously</li>
                     <li>Apply ownership changes recursively</li>
                 </ul>
+            </div>
+
+            <div class="info-box" style="margin-bottom: 1.5rem;">
+                <strong>Sudo Credentials</strong><br>
+                Most <code>chown</code> and <code>chgrp</code> commands require root privileges. When prompted for a password in the terminal, enter: <code>P@55w0rd!!</code>
             </div>
 
             <section class="section">
@@ -691,6 +707,58 @@
             }
         });
 
+        const TASK_ORDER = ['chown-user', 'chown-group', 'chown-both', 'chgrp', 'ls-owner'];
+        const TASK_INSTRUCTIONS = {
+    'chown-user': {
+        num: '1 of 5 &mdash; Change Owner',
+        desc: 'Change the owner of a file using <code>chown</code>. Requires <code>sudo</code>.',
+        hint: 'Run: <code>sudo chown root file.txt</code>',
+        expected: 'Changes file owner to root'
+    },
+    'chown-group': {
+        num: '2 of 5 &mdash; Change Group',
+        desc: 'Change only the group by prefixing with a colon.',
+        hint: 'Run: <code>sudo chown :staff file.txt</code>',
+        expected: 'Changes file group to staff'
+    },
+    'chown-both': {
+        num: '3 of 5 &mdash; Change Both',
+        desc: 'Change both owner and group in one command.',
+        hint: 'Run: <code>sudo chown root:staff file.txt</code>',
+        expected: 'Changes owner AND group'
+    },
+    'chgrp': {
+        num: '4 of 5 &mdash; chgrp Command',
+        desc: 'Use <code>chgrp</code> as a shortcut to change just the group.',
+        hint: 'Run: <code>sudo chgrp staff file.txt</code>',
+        expected: 'Changes group using chgrp'
+    },
+    'ls-owner': {
+        num: '5 of 5 &mdash; Verify Ownership',
+        desc: 'Use <code>ls -l</code> to verify the owner and group columns.',
+        hint: 'Run: <code>ls -l file.txt</code>',
+        expected: 'Shows owner and group columns'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-24-chown';
         const tasks = { 'chown-user': false, 'chown-group': false, 'chown-both': false, 'chgrp': false, 'ls-owner': false };
 
@@ -700,6 +768,13 @@
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-24-chown', { returnUrl: 'script-lm-25-sudo.module.html' });
             }
@@ -729,6 +804,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

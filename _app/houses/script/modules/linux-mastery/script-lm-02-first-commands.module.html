@@ -130,6 +130,46 @@
         }
 
         .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(78, 201, 176, 0.1);
+        }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: none;
+        }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+        .task-instruction .task-cmd {
+            background: var(--bg-terminal);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+            margin: 6px 0;
+            display: inline-block;
+        }
+        .task-instruction .task-expect {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 4px;
+            font-style: italic;
+        }
 
         .terminal-container { flex: 1; min-height: 0; }
 
@@ -313,12 +353,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="whoami">whoami</span>
-                    <span class="task-chip" data-task="id">id</span>
-                    <span class="task-chip" data-task="pwd">pwd</span>
-                    <span class="task-chip" data-task="date">date</span>
-                    <span class="task-chip" data-task="clear">clear</span>
+                    <span class="task-chip" data-task="whoami" onclick="showTaskInstruction('whoami')">1</span>
+                    <span class="task-chip" data-task="id" onclick="showTaskInstruction('id')">2</span>
+                    <span class="task-chip" data-task="pwd" onclick="showTaskInstruction('pwd')">3</span>
+                    <span class="task-chip" data-task="date" onclick="showTaskInstruction('date')">4</span>
+                    <span class="task-chip" data-task="clear" onclick="showTaskInstruction('clear')">5</span>
                 </div>
+                <div class="task-instruction" id="taskInstruction"></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -489,13 +530,40 @@
         const MODULE_ID = 'lm-02-first-commands';
         const tasks = { 'whoami': false, 'id': false, 'pwd': false, 'date': false, 'clear': false };
 
+        const TASK_ORDER = ['whoami', 'id', 'pwd', 'date', 'clear'];
+        const TASK_INSTRUCTIONS = {
+            'whoami': { number: 1, title: 'Run whoami', description: 'Type the command below to display your current username.', command: 'whoami', expect: 'Shows your username (e.g. learner)' },
+            'id': { number: 2, title: 'Check Your ID', description: 'Type the command below to see your user ID, group ID, and group memberships.', command: 'id', expect: 'Shows user ID, group ID, and group memberships' },
+            'pwd': { number: 3, title: 'Print Working Directory', description: 'Type the command below to see your current directory path.', command: 'pwd', expect: 'Shows your current directory path (e.g. /home/learner)' },
+            'date': { number: 4, title: 'Check the Date', description: 'Type the command below to display the current date and time.', command: 'date', expect: 'Shows current date and time' },
+            'clear': { number: 5, title: 'Clear the Screen', description: 'Type the command below to clear all output from the terminal.', command: 'clear', expect: 'Terminal screen is cleared' }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `<div class="task-number">Task ${info.number}: ${info.title}</div><div>${info.description}</div><div class="task-cmd">${info.command}</div><div class="task-expect">${info.expect}</div>`;
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() { return TASK_ORDER.find(t => !tasks[t]) || null; }
+
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
-            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
             updateProgress();
             saveProgress();
-            if (Object.values(tasks).every(v => v)) {
+            const next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                const el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Great work! You know the essential identity and utility commands.</div>';
+                el.classList.add('visible');
                 ModuleProgress.complete('script', 'script-lm-02-first-commands', { returnUrl: 'script-lm-03-getting-help.module.html' });
             }
         }
@@ -524,6 +592,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

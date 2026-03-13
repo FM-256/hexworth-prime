@@ -218,7 +218,7 @@ class HouseProgressPanel {
 
             .hpp-stat-label {
                 font-size: 0.65rem;
-                color: #666;
+                color: #8a8a8a;
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
             }
@@ -240,7 +240,7 @@ class HouseProgressPanel {
 
             .hpp-next-label {
                 font-size: 0.65rem;
-                color: #666;
+                color: #8a8a8a;
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
                 margin-bottom: 4px;
@@ -309,7 +309,7 @@ class HouseProgressPanel {
 
             .hpp-complete-subtext {
                 font-size: 0.8rem;
-                color: #666;
+                color: #8a8a8a;
             }
 
             /* Responsive */
@@ -360,7 +360,7 @@ class HouseProgressPanel {
         const profile = ProgressManager.getProfile();
 
         if (!houseProgress) {
-            this.panel.innerHTML = '<p style="color: #666; text-align: center;">Progress data unavailable</p>';
+            this.panel.innerHTML = '<p style="color: #8a8a8a; text-align: center;">Progress data unavailable</p>';
             return;
         }
 

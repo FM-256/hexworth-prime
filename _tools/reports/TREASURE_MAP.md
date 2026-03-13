@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-03-11 4:23:36 AM
+                    Scanned: 2026-03-13 4:59:55 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 2336 |
-| Directories | 587 |
-| Content Files | 2336 |
-| Scan Duration | 284ms |
+| Files Scanned | 2354 |
+| Directories | 599 |
+| Content Files | 2354 |
+| Scan Duration | 306ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 1014 |
-| html | 630 |
-| lab | 397 |
+| presentation | 986 |
+| html | 648 |
+| lab | 398 |
 | quiz | 241 |
-| applet | 54 |
+| applet | 81 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1709 |
-| Available | 1697 |
+| Total Modules | 1833 |
+| Available | 1821 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 100 |
+| Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 67 |
-| Warning | 458 |
-| Info | 309 |
-| **Total** | **5405** |
+| Suspect | 13 |
+| Warning | 589 |
+| Info | 338 |
+| **Total** | **4160** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1702 |
-| Not Ready | 4 |
-| Unknown | 630 |
+| Ready | 1701 |
+| Not Ready | 5 |
+| Unknown | 648 |
 
 
 ## FILE HIERARCHY
@@ -143,6 +143,8 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 a9-rusted-lock
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 nt1-network-troubleshoot
+│   │   │   └── 📍 index.html
 │   │   └── 📁 pr7-red-vs-blue
 │   │       └── 📍 index.html
 │   ├── 📁 engine
@@ -171,6 +173,7 @@
 │       │   ├── 📁 labs [labs]
 │       │   │   ├── 🔬 bh-lab-ai-exploit.html
 │       │   │   ├── 🔬 bh-lab-api.html
+│       │   │   ├── 🔬 bh-lab-bounty-sim.html
 │       │   │   ├── 🔬 bh-lab-chaining.html
 │       │   │   ├── 🔬 bh-lab-cloud.html
 │       │   │   ├── 🔬 bh-lab-full-scope.html
@@ -186,12 +189,15 @@
 │       │   │   └── 🔬 bh-lab-xss.html
 │       │   ├── 📁 modules [modules]
 │       │   │   ├── 📄 bh-mod-advanced-web.html
+│       │   │   ├── 📄 bh-mod-ai-bounty.html
 │       │   │   ├── 📄 bh-mod-ai-exploit.html
 │       │   │   ├── 📄 bh-mod-ai-hunting.html
 │       │   │   ├── 📄 bh-mod-api-security.html
 │       │   │   ├── 📄 bh-mod-auth-access.html
 │       │   │   ├── 📄 bh-mod-automation.html
 │       │   │   ├── 📄 bh-mod-blockchain.html
+│       │   │   ├── 📄 bh-mod-bounty-economics.html
+│       │   │   ├── 📄 bh-mod-bounty-process.html
 │       │   │   ├── 📄 bh-mod-case-studies.html
 │       │   │   ├── 📄 bh-mod-chaining.html
 │       │   │   ├── 📄 bh-mod-cloud.html
@@ -201,11 +207,13 @@
 │       │   │   ├── 📄 bh-mod-mobile.html
 │       │   │   ├── 📄 bh-mod-network.html
 │       │   │   ├── 📄 bh-mod-recon-adv.html
+│       │   │   ├── 📄 bh-mod-recon-tools.html
 │       │   │   ├── 📄 bh-mod-recon.html
 │       │   │   ├── 📄 bh-mod-reporting.html
 │       │   │   ├── 📄 bh-mod-resources.html
 │       │   │   ├── 📄 bh-mod-source-review.html
 │       │   │   ├── 📄 bh-mod-supply-chain.html
+│       │   │   ├── 📄 bh-mod-vuln-reporting.html
 │       │   │   └── 📄 bh-mod-web-vulns.html
 │       │   ├── 📁 quizzes [quizzes]
 │       │   │   ├── ❓ bh-quiz-ai.html
@@ -411,6 +419,19 @@
 │   ├── 📁 events
 │   ├── 📁 interactions
 │   └── 📁 meta
+├── 📁 dispatch
+│   ├── 📁 boxes
+│   │   ├── 📁 ad001-lockout-storm
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 hw001-dead-workstation
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 nt1-network-troubleshoot
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 os001-boot-failure
+│   │   │   └── 📍 index.html
+│   │   └── 📁 pr001-printer-nightmare
+│   │       └── 📍 index.html
+│   └── 📍 index.html
 ├── 📁 docs
 │   └── 📁 features
 ├── 📄 faq.html
@@ -2846,10 +2867,13 @@
 │       │   └── 🔬 web-lab-troubleshooting.reference.html
 │       └── 📁 tutorials
 ├── 📍 index.html
+├── 📁 js
 ├── 📁 oasis
 │   ├── 📄 challenge.html
 │   └── 📍 index.html
 ├── 📁 operator
+│   ├── 📁 configs [config]
+│   ├── 📁 engine
 │   ├── 📍 index.html
 │   └── 📁 missions
 │       ├── 📄 crypto-01.mission.html
@@ -2858,10 +2882,13 @@
 │       ├── 📄 firewall-02.mission.html
 │       ├── 📄 forensics-01.mission.html
 │       ├── 📄 forensics-02.mission.html
+│       ├── 📄 forensics-03.mission.html
 │       ├── 📄 incident-response-01.mission.html
 │       ├── 📄 incident-response-02.mission.html
+│       ├── 📄 incident-response-03.mission.html
 │       ├── 📄 linux-fs-01.mission.html
 │       ├── 📄 linux-fs-02.mission.html
+│       ├── 📄 linux-fs-03.mission.html
 │       ├── 📄 log-analysis-01.mission.html
 │       ├── 📄 log-analysis-02.mission.html
 │       ├── 📄 python-01.mission.html
@@ -2870,6 +2897,7 @@
 │       ├── 📄 python-04.mission.html
 │       ├── 📄 recon-01.mission.html
 │       ├── 📄 recon-02.mission.html
+│       ├── 📄 recon-03.mission.html
 │       ├── 📄 windows-cmd-01.mission.html
 │       └── 📄 windows-cmd-02.mission.html
 ├── 📄 path-view.html
@@ -2967,6 +2995,8 @@
 ├── 📁 utils
 ├── 📁 vendor
 │   └── 📁 skulpt
+├── 📁 wall-of-shame
+│   └── 📍 index.html
 └── 📁 workshop
     ├── 📁 a1-ancient-ledger
     │   └── 📄 current.html
@@ -2993,11 +3023,8 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| ai-agent-builder.applet | presentation | ✓ | 0 |
-| ai-guardrail-challenge.applet | presentation | ✓ | 0 |
-| ai-red-team-challenge.applet | presentation | ✓ | 0 |
-| ai-text-adventure-singularity | presentation | ✓ | 0 |
-| ai-triage-trainer.applet | presentation | ✓ | 0 |
+| ai-agent-builder.applet | applet | ✓ | 1 |
+| ai-triage-trainer.applet | presentation | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | ai-agent-workflow.lab | presentation | ✓ | 0 |
 | ai-ethics-debate.lab | presentation | ✓ | 0 |
@@ -3049,8 +3076,8 @@
 | cloud-api-foundations-lab.applet | applet | ✓ | 1 |
 | cloud-architect | presentation | ✓ | 0 |
 | cloud-destroyer.applet | applet | ✓ | 1 |
-| cloud-hop-vertical.applet | presentation | ✓ | 0 |
-| cloud-hop.applet | presentation | ✓ | 0 |
+| cloud-hop-vertical.applet | applet | ✓ | 1 |
+| cloud-hop.applet | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | cloud-architecture.lab | lab | ✓ | 0 |
 | cloud-aws-services.lab | lab | ✓ | 0 |
@@ -3314,8 +3341,8 @@
 | do-34-dev-containers | presentation | ✓ | 0 |
 | do-35-networking-basics | presentation | ✓ | 0 |
 | code-build-breaker.applet | applet | ✓ | 1 |
-| code-git-blame | presentation | ✓ | 0 |
-| code-kill-nine.applet | presentation | ✓ | 0 |
+| code-git-blame | applet | ✓ | 1 |
+| code-kill-nine.applet | applet | ✓ | 1 |
 | code-kubernetes-rescue.applet | presentation | ✓ | 0 |
 | code-cicd.lab | presentation | ✓ | 0 |
 | code-cloudformation.lab | presentation | ✓ | 0 |
@@ -3500,14 +3527,14 @@
 | eye-cysa-ch15-quiz | quiz | ✓ | 0 |
 | eye-cysa-ch16-quiz | quiz | ✓ | 0 |
 | eye-cysa-comprehensive-review | presentation | ✓ | 0 |
-| eye-alert-triage | presentation | ✓ | 0 |
+| eye-alert-triage | applet | ✓ | 1 |
 | eye-detection-engineering.applet | applet | ✓ | 1 |
 | eye-log-analysis-lab.applet | applet | ✓ | 1 |
-| eye-log-centipede.applet | presentation | ✓ | 0 |
-| eye-memory-forensics.applet | presentation | ✓ | 0 |
+| eye-log-centipede.applet | applet | ✓ | 1 |
+| eye-memory-forensics.applet | applet | ✓ | 1 |
 | eye-security-onion-soc.applet | applet | ✓ | 1 |
 | eye-threat-hunting-lab.applet | applet | ✓ | 1 |
-| eye-threat-modeler | presentation | ✓ | 0 |
+| eye-threat-modeler | applet | ✓ | 1 |
 | eye-hunting.lab | presentation | ✓ | 0 |
 | eye-siem.lab | presentation | ✓ | 0 |
 | eye-log-basics.presentation | presentation | ✓ | 0 |
@@ -3653,11 +3680,11 @@
 | forge-hard-drive-geometry-native.applet | presentation | ✓ | 0 |
 | forge-multimeter-jedit-v1.applet | presentation | ✓ | 0 |
 | forge-peripheral-devices.applet | presentation | ✓ | 0 |
-| forge-bit-dash.applet | presentation | ✓ | 0 |
-| forge-chip-match.applet | presentation | ✓ | 0 |
+| forge-bit-dash.applet | applet | ✓ | 1 |
+| forge-chip-match.applet | applet | ✓ | 1 |
 | forge-rack-stack.applet | applet | ✓ | 1 |
-| forge-raid-calculator.applet | presentation | ✓ | 0 |
-| forge-root-access.applet | presentation | ✓ | 0 |
+| forge-raid-calculator.applet | applet | ✓ | 1 |
+| forge-root-access.applet | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-control-panel.lab | lab | ✓ | 0 |
 | forge-hardware-essentials.lab | lab | ✓ | 0 |
@@ -3770,7 +3797,7 @@
 | key-cipher-bubbles.applet | applet | ✓ | 1 |
 | key-cipher-cracker.presentation | presentation | ✓ | 0 |
 | key-crypto-pong.applet | applet | ✓ | 1 |
-| key-dont-leak-the-key | presentation | ✓ | 0 |
+| key-dont-leak-the-key | applet | ✓ | 1 |
 | key-aes.lab | presentation | ✓ | 0 |
 | key-attack.lab | presentation | ✓ | 0 |
 | key-cert.lab | presentation | ✓ | 0 |
@@ -3912,7 +3939,7 @@
 | clh-012 | quiz | ✓ | 0 |
 | script-clh-013-intro.applet | presentation | ✓ | 0 |
 | script-clh-013.lab | lab | ✓ | 0 |
-| clh-013 | quiz | ✓ | 0 |
+| clh-013 | quiz | ✓ | 1 |
 | script-clh-014-intro.applet | presentation | ✓ | 0 |
 | script-clh-014.lab | lab | ✓ | 0 |
 | clh-014 | quiz | ✓ | 0 |
@@ -3931,7 +3958,7 @@
 | clh-020 | quiz | ✓ | 0 |
 | script-clh-021.lab | lab | ✓ | 0 |
 | clh-021 | quiz | ✓ | 0 |
-| script-clh-022-intro.applet | presentation | ✓ | 0 |
+| script-clh-022-intro.applet | applet | ✓ | 1 |
 | script-clh-022.lab | lab | ✓ | 0 |
 | clh-022 | quiz | ✓ | 0 |
 | script-clh-023.lab | lab | ✓ | 0 |
@@ -4047,9 +4074,9 @@
 | script-lab.lab | lab | ✓ | 0 |
 | clh-031 | quiz | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| script-dont-kill-the-server | presentation | ✓ | 0 |
+| script-dont-kill-the-server | applet | ✓ | 1 |
 | script-pipe-snake.applet | applet | ✓ | 1 |
-| script-shell-sprint.applet | presentation | ✓ | 0 |
+| script-shell-sprint.applet | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | script-bash-arrays.lab | lab | ✓ | 0 |
 | script-bash-basics.lab | lab | ✓ | 0 |
@@ -4293,7 +4320,7 @@
 | shield-security-best-practices.applet | presentation | ✓ | 0 |
 | shield-security-governance-dashboard.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| shield-hangman-native.applet | presentation | ✓ | 0 |
+| shield-hangman-native.applet | applet | ✓ | 1 |
 | shield-browser-security-hardening.applet | presentation | ✓ | 0 |
 | shield-home-network-security.applet | presentation | ✓ | 0 |
 | shield-linux-firewall-builder.applet | presentation | ✓ | 0 |
@@ -4330,14 +4357,14 @@
 | shield-cf-mm08 | quiz | ✓ | 0 |
 | shield-cf-comprehensive-review | presentation | ✓ | 0 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
-| shield-contra.applet | presentation | ✓ | 0 |
+| shield-contra.applet | applet | ✓ | 1 |
 | shield-debugger.applet | applet | ✓ | 1 |
 | shield-dr-malware.applet | applet | ✓ | 1 |
-| shield-life-force.applet | presentation | ✓ | 0 |
-| shield-malware-zoo.lab | lab | ✓ | 0 |
-| shield-threat-runner.applet | presentation | ✓ | 0 |
+| shield-life-force.applet | applet | ✓ | 1 |
+| shield-malware-zoo.lab | lab | ✓ | 1 |
+| shield-threat-runner.applet | applet | ✓ | 1 |
 | shield-threat-swarm.applet | applet | ✓ | 1 |
-| shield-threatdex.applet | presentation | ✓ | 0 |
+| shield-threatdex.applet | applet | ✓ | 1 |
 | shield-web-security-headers-lab.applet | applet | ✓ | 1 |
 | shield-linux-audit-drill.lab | lab | ✓ | 0 |
 | shield-linux-audit.lab | lab | ✓ | 0 |
@@ -4410,6 +4437,7 @@
 | index | applet | ✓ | 1 |
 | bh-lab-ai-exploit | presentation | ✓ | 0 |
 | bh-lab-api | lab | ✓ | 0 |
+| bh-lab-bounty-sim | lab | ✓ | 0 |
 | bh-lab-chaining | lab | ✓ | 0 |
 | bh-lab-cloud | lab | ✓ | 0 |
 | bh-lab-full-scope | lab | ✓ | 0 |
@@ -4424,12 +4452,15 @@
 | bh-lab-subdomain | lab | ✓ | 0 |
 | bh-lab-xss | presentation | ✓ | 0 |
 | bh-mod-advanced-web | presentation | ✓ | 0 |
+| bh-mod-ai-bounty | presentation | ✓ | 0 |
 | bh-mod-ai-exploit | presentation | ✓ | 0 |
 | bh-mod-ai-hunting | presentation | ✓ | 0 |
 | bh-mod-api-security | presentation | ✓ | 0 |
 | bh-mod-auth-access | presentation | ✓ | 0 |
 | bh-mod-automation | presentation | ✓ | 0 |
 | bh-mod-blockchain | presentation | ✓ | 0 |
+| bh-mod-bounty-economics | presentation | ✓ | 0 |
+| bh-mod-bounty-process | presentation | ✓ | 0 |
 | bh-mod-case-studies | presentation | ✓ | 0 |
 | bh-mod-chaining | presentation | ✓ | 0 |
 | bh-mod-cloud | presentation | ✓ | 0 |
@@ -4439,11 +4470,13 @@
 | bh-mod-mobile | presentation | ✓ | 0 |
 | bh-mod-network | presentation | ✓ | 0 |
 | bh-mod-recon-adv | presentation | ✓ | 0 |
+| bh-mod-recon-tools | presentation | ✓ | 0 |
 | bh-mod-recon | presentation | ✓ | 0 |
 | bh-mod-reporting | presentation | ✓ | 0 |
 | bh-mod-resources | presentation | ✓ | 0 |
 | bh-mod-source-review | presentation | ✓ | 0 |
 | bh-mod-supply-chain | presentation | ✓ | 0 |
+| bh-mod-vuln-reporting | presentation | ✓ | 0 |
 | bh-mod-web-vulns | presentation | ✓ | 0 |
 | bh-quiz-ai | presentation | ✓ | 0 |
 | bh-quiz-final | presentation | ✓ | 0 |
@@ -4596,6 +4629,7 @@
 | wireless-attacks-lab | presentation | ✓ | 0 |
 | xss-attacks-lab | presentation | ✓ | 0 |
 | dashboard | applet | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | faq | applet | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | dark-ids-evasion-lab.applet | lab | ✓ | 1 |
@@ -4638,10 +4672,6 @@
 | dark-arts-sample.tool | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | da-ad-attack-lab.lab | lab | ✓ | 0 |
-| forensics-01.mission | applet | ✓ | 1 |
-| incident-response-01.mission | presentation | ✓ | 0 |
-| linux-fs-01.mission | presentation | ✓ | 0 |
-| windows-cmd-01.mission | presentation | ✓ | 0 |
 | product-info | applet | ✓ | 1 |
 | ai-network-anomaly | applet | ✓ | 1 |
 | cloud-container-checker | applet | ✓ | 1 |
@@ -4667,13 +4697,13 @@
 | web-server-comparison.applet | presentation | ✓ | 0 |
 | networking-interactive-guide | quiz | ✓ | 0 |
 | web-networking-midterm.exam | presentation | ✓ | 0 |
-| web-dns-resolver-race.applet | presentation | ✓ | 0 |
-| web-network-architect.applet | presentation | ✓ | 0 |
+| web-dns-resolver-race.applet | applet | ✓ | 1 |
+| web-network-architect.applet | applet | ✓ | 1 |
 | web-packet-invaders.applet | applet | ✓ | 1 |
-| web-packet-run.applet | presentation | ✓ | 0 |
+| web-packet-run.applet | applet | ✓ | 1 |
 | web-packet-sniffer.applet | presentation | ✓ | 0 |
-| web-subnet-siege.applet | presentation | ✓ | 0 |
-| web-wireless-warzone.applet | presentation | ✓ | 0 |
+| web-subnet-siege.applet | applet | ✓ | 1 |
+| web-wireless-warzone.applet | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | web-dns-troubleshooting.lab | lab | ✓ | 0 |
 | web-firewall-rules.lab | lab | ✓ | 0 |
@@ -4758,7 +4788,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (67) — heuristic, needs review
+### SUSPECT (13) — heuristic, needs review
 
 **[HEUR-006]** Hardcoded relative href in shared renderer: ../../dashboard.html — resolves differently depending on consumer page depth
   File: `components/CertPathRenderer.js`
@@ -4767,218 +4797,6 @@
 **[HEUR-006]** Hardcoded relative href in shared renderer: ../../dashboard.html — resolves differently depending on consumer page depth
   File: `components/HouseRenderer.js`
   Fix: Use absolute path from site root (e.g., /houses/shield/index.html) instead of relative path
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/AccessGuard.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/AccessGuard.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/AccessGuard.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/AccountFrame.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/AchievementManager.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/AchievementSystem.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/ActivityFeed.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/ArcadeScoreModal.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/CLHCompletionModal.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/CLHTerminal.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/CLHTerminal.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/CLHTerminal.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/CLHTerminal.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/CallsignModal.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/CertPathRenderer.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/FluxCapacitor.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/FluxCapacitor.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/FluxCapacitor.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/GameScoreboard.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/GistSync.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/GitHubAuth.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/GlobalSearch.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/HED.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/HED.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/HED.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/HouseRenderer.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/IdleDetector.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/InstructorDashboard.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/InstructorDashboard.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/ModuleProgress.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/ModuleProgress.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/ProgressManager.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/ReviewEngine.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/RingChallengeEngine.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/RingChallengeEngine.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/RingChallengeEngine.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/RingChallengeEngine.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SecretFeatures.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SecretFeatures.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SecretFeatures.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SecretFeatures.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SecretFeatures.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SecretFeatures.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SecretFeatures.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SecurityTerminal.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/SoundToggle.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/TrailHunter.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/TrailHunter.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/TrailHunter.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/UpdateChecker.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/UpdateManager.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/UpdateManager.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
-
-**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/UpdateManager.js`
-  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
 **[HEUR-005]** Duplicate script include: "../components/AccessGuard.js" loaded 2 times (lines 5, 666)
   File: `career/index.html`
@@ -5024,11 +4842,7 @@
   File: `houses/web/games/web-packet-sniffer.applet.html`
   Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
-**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
-  File: `operator/missions/windows-cmd-01.mission.html`
-  Fix: Add fallback: (parseInt(value, 10) || 0)
-
-### WARNING (458)
+### WARNING (589)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
@@ -5040,6 +4854,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-api.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/labs/bh-lab-bounty-sim.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5099,6 +4917,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-bounty.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html`
   Fix: Add entry to content-registry.js
 
@@ -5120,6 +4942,14 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/modules/bh-mod-blockchain.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-bounty-economics.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-bounty-process.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5159,6 +4989,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon-tools.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon.html`
   Fix: Add entry to content-registry.js
 
@@ -5176,6 +5010,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-vuln-reporting.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5374,17 +5212,9 @@
   File: `houses/ai/games/ai-agent-builder.applet.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/games/ai-guardrail-challenge.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/games/ai-red-team-challenge.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/games/ai-text-adventure-singularity.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/ai/games/ai-triage-trainer.applet.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/ai/games/ai-triage-trainer.applet.html`
@@ -6191,10 +6021,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/games/forge-root-access.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-100/labs/forge-md100-m01-sim.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -6766,9 +6592,9 @@
   File: `houses/shield/games/shield-debugger.applet.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/games/shield-life-force.applet.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/shield/games/shield-malware-zoo.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/games/shield-threatdex.applet.html`
@@ -6784,22 +6610,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/games/web-subnet-siege.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `operator/missions/forensics-01.mission.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `operator/missions/incident-response-01.mission.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `operator/missions/linux-fs-01.mission.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `operator/missions/windows-cmd-01.mission.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6854,6 +6664,402 @@
   File: `projects/web-topology-visualizer.html`
   Fix: Add entry to content-registry.js
 
+**[LP-003]** Duplicate module ID 'code-git-basics' found in 'devops-fundamentals' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-cicd-fundamentals' found in 'devops-fundamentals' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-docker' found in 'devops-fundamentals' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-terraform-fundamentals' found in 'devops-fundamentals' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-terraform' found in 'devops-fundamentals' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'script-linux-quiz' found in 'comptia-linux' (also in 'script')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'script-linux-basics' found in 'comptia-linux' (also in 'script')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'script-linux-filesystem' found in 'comptia-linux' (also in 'script')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'script-linux-permissions' found in 'comptia-linux' (also in 'script')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'script-bash-scripting' found in 'comptia-linux' (also in 'script')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-cia-triad' found in 'security-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-cia-quiz' found in 'security-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-network-security' found in 'security-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-crypto-intro' found in 'security-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-access-control' found in 'security-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-06-monitoring' found in 'security-plus' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-risk-management' found in 'security-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-07-risk' found in 'security-plus' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-08-compliance' found in 'security-plus' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-osi-quiz' found in 'comptia-network' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-subnetting-pres' found in 'comptia-network' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-subnetting-quiz' found in 'comptia-network' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-switch-ops-pres' found in 'comptia-network' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-switching' found in 'comptia-network' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-topologies-pres' found in 'comptia-network' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-routing' found in 'comptia-network' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-encryption-basics' found in 'cryptography-track' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-symmetric-vs-asymmetric' found in 'cryptography-track' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-aes-explorer' found in 'cryptography-track' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-elliptic-curve' found in 'cryptography-track' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-pki-deep-dive' found in 'cryptography-track' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-key-derivation' found in 'cryptography-track' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-post-quantum' found in 'cryptography-track' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-encryption-basics' found in 'security-plus-crypto' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-symmetric-vs-asymmetric' found in 'security-plus-crypto' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-aes-explorer' found in 'security-plus-crypto' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-symmetric-quiz' found in 'security-plus-crypto' (also in 'cryptography-track')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-message-auth' found in 'security-plus-crypto' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-hashing-integrity' found in 'security-plus-crypto' (also in 'cryptography-track')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-mac-quiz' found in 'security-plus-crypto' (also in 'cryptography-track')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-elliptic-curve' found in 'security-plus-crypto' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-ecc-quiz' found in 'security-plus-crypto' (also in 'cryptography-track')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-pki-deep-dive' found in 'security-plus-crypto' (also in 'key')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-digital-signatures' found in 'security-plus-crypto' (also in 'cryptography-track')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-cert-quiz' found in 'security-plus-crypto' (also in 'cryptography-track')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-key-management' found in 'security-plus-crypto' (also in 'cryptography-track')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'key-lifecycle' found in 'security-plus-crypto' (also in 'cryptography-track')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-soc-operations' found in 'cysa-plus' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-soc-simulator' found in 'cysa-plus' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-risk-management' found in 'cysa-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-risk-analysis' found in 'cysa-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-incident-sim' found in 'cysa-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-06-monitoring' found in 'cysa-plus' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-07-risk' found in 'cysa-plus' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-08-compliance' found in 'cysa-plus' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-security-pres' found in 'casp-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-design-principles' found in 'casp-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-network-security' found in 'casp-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-ids-ips' found in 'casp-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-vpn' found in 'casp-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-incident-sim' found in 'casp-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-ir-forensics' found in 'casp-plus' (also in 'cysa-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-crypto-intro' found in 'casp-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-risk-management' found in 'casp-plus' (also in 'shield')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-risk-analysis' found in 'casp-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-framework-selector' found in 'casp-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'shield-compliance-lab' found in 'casp-plus' (also in 'security-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-osi-model-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-tcpip' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-ip-binary-ip' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-subnetting-pres' found in 'ccna' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-ipv6-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-cables-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-devices-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-switch-ops-pres' found in 'ccna' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-switching' found in 'ccna' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-stp' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-wireless' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-wireless-arch-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-topologies-pres' found in 'ccna' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-routing' found in 'ccna' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-static-routes-lab' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-dns-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-dhcp-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-nat-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-security-viz' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-acl-viz' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-troubleshoot-pres' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-network-sim-v2' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-network-simulator' found in 'ccna' (also in 'web')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'web-networking-final' found in 'ccna' (also in 'comptia-network')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-concepts' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-models' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-aws-fundamentals-pres' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-aws-account' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-aws-regions' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-aws-security' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-aws-compute' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-aws-storage' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-architecture' found in 'aws-ccp' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-concepts' found in 'azure-fundamentals' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-models' found in 'azure-fundamentals' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-providers' found in 'azure-fundamentals' (also in 'aws-ccp')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-azure-fundamentals' found in 'azure-fundamentals' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-aws-quiz' found in 'azure-fundamentals' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-01-fundamentals' found in 'azure-fundamentals' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-02-iam' found in 'azure-fundamentals' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-03-encryption' found in 'azure-fundamentals' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cse-04-network' found in 'azure-fundamentals' (also in 'cse')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-architecture' found in 'azure-fundamentals' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-git-basics' found in 'aws-developer' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-agile-sdlc' found in 'aws-developer' (also in 'devops-fundamentals')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-cicd-fundamentals' found in 'aws-developer' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-cicd' found in 'aws-developer' (also in 'devops-fundamentals')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-docker-basics' found in 'aws-developer' (also in 'devops-fundamentals')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-docker' found in 'aws-developer' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cloud-aws-security' found in 'aws-developer' (also in 'cloud')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-kubernetes-fundamentals' found in 'aws-developer' (also in 'devops-fundamentals')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-kubernetes' found in 'aws-developer' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'code-terraform-fundamentals' found in 'aws-developer' (also in 'code')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-log-analysis' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-soc-operations' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'cyberops-soc-overview' found in 'security-operations' (also in 'cysa-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-soc-simulator' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-soc-quiz' found in 'security-operations' (also in 'cysa-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-soc-lab' found in 'security-operations' (also in 'cysa-plus')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-siem-intro' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-log-correlation' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-correlation-engine' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-network-traffic' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-threat-hunting' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
+**[LP-003]** Duplicate module ID 'eye-hunt-workbench' found in 'security-operations' (also in 'eye')
+  File: `./components/LearningPaths.js`
+
 **[CAT-004]** Module 'key-hashing' (status: coming-soon) href 'applets/hashing-lab.html' does not exist on disk
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
@@ -6862,7 +7068,7 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-### INFO (309)
+### INFO (338)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -6885,7 +7091,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dispatch/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `faq.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/games/ai-agent-builder.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6909,6 +7123,14 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-hop-vertical.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-hop.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/quizzes/cloud-cse-module05.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -6926,6 +7148,14 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/games/code-build-breaker.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/code-git-blame.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/code-kill-nine.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6957,11 +7187,23 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-alert-triage.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/games/eye-detection-engineering.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/games/eye-log-analysis-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-log-centipede.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-memory-forensics.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6973,11 +7215,31 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-threat-modeler.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-bit-dash.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-chip-match.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/games/forge-rack-stack.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-raid-calculator.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-root-access.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7001,6 +7263,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/key-dont-leak-the-key.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/key/quizzes/key-kdf.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7009,7 +7275,23 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/clh/script-clh-013.quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/clh/script-clh-022-intro.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/script-dont-kill-the-server.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/games/script-pipe-snake.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/script-shell-sprint.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7021,7 +7303,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/cyber-framework/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-contra.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7033,7 +7323,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-life-force.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-threat-runner.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/games/shield-threat-swarm.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-threatdex.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7041,11 +7343,27 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-dns-resolver-race.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-network-architect.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/games/web-packet-invaders.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `operator/missions/forensics-01.mission.html`
+  File: `houses/web/games/web-packet-run.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-subnet-siege.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-wireless-warzone.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7132,9 +7450,6 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[SANDBOX-001]** Lab ID "db-sql" defined in LAB_INFO but not used on any page
-  File: `components/SandboxLauncher.js`
-
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-report.html`
   Fix: Manual review required - path is constructed dynamically
@@ -7220,6 +7535,10 @@
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon-tools.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon.html`
   Fix: Manual review required - path is constructed dynamically
 
@@ -7249,6 +7568,10 @@
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
+  File: `dark-arts/vault/bug-hunting/modules/bh-mod-vuln-reporting.html`
   Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
@@ -8095,13 +8418,14 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (453)
+### Unregistered Content (450)
 
 | Path | Type | House |
 |------|------|-------|
 | career-quiz.html | applet | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-ai-exploit.html | presentation | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-api.html | lab | - |
+| dark-arts/vault/bug-hunting/labs/bh-lab-bounty-sim.html | lab | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-chaining.html | lab | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-cloud.html | lab | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-full-scope.html | lab | - |
@@ -8116,12 +8440,15 @@
 | dark-arts/vault/bug-hunting/labs/bh-lab-subdomain.html | lab | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-xss.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-advanced-web.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-ai-bounty.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-ai-hunting.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-api-security.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-automation.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-blockchain.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-bounty-economics.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-bounty-process.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-case-studies.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-chaining.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-cloud.html | presentation | - |
@@ -8131,11 +8458,13 @@
 | dark-arts/vault/bug-hunting/modules/bh-mod-mobile.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-network.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-recon-adv.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-recon-tools.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-recon.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-resources.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-source-review.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html | presentation | - |
+| dark-arts/vault/bug-hunting/modules/bh-mod-vuln-reporting.html | presentation | - |
 | dark-arts/vault/bug-hunting/modules/bh-mod-web-vulns.html | presentation | - |
 | dark-arts/vault/bug-hunting/quizzes/bh-quiz-ai.html | presentation | - |
 | dark-arts/vault/bug-hunting/quizzes/bh-quiz-final.html | presentation | - |
@@ -8184,10 +8513,7 @@
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-rita.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-snitch.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html | presentation | - |
-| houses/ai/games/ai-agent-builder.applet.html | presentation | ai |
-| houses/ai/games/ai-guardrail-challenge.applet.html | presentation | ai |
-| houses/ai/games/ai-red-team-challenge.applet.html | presentation | ai |
-| houses/ai/games/ai-text-adventure-singularity.html | presentation | ai |
+| houses/ai/games/ai-agent-builder.applet.html | applet | ai |
 | houses/ai/games/ai-triage-trainer.applet.html | presentation | ai |
 | houses/ai/labs/ai-agent-workflow.lab.html | presentation | ai |
 | houses/ai/labs/ai-ethics-debate.lab.html | presentation | ai |
@@ -8386,7 +8712,6 @@
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html | quiz | forge |
-| houses/forge/games/forge-root-access.applet.html | presentation | forge |
 | houses/forge/md-100/labs/forge-md100-m01-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m02-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m03-sim.lab.html | lab | forge |
@@ -8528,17 +8853,12 @@
 | houses/script/modules/databases/script-db-33-sql.quiz.html | quiz | script |
 | houses/script/modules/databases/script-db-34-advanced.quiz.html | quiz | script |
 | houses/script/modules/databases/script-db-35-capstone.lab.html | lab | script |
-| houses/shield/games/shield-contra.applet.html | presentation | shield |
+| houses/shield/games/shield-contra.applet.html | applet | shield |
 | houses/shield/games/shield-debugger.applet.html | applet | shield |
-| houses/shield/games/shield-life-force.applet.html | presentation | shield |
-| houses/shield/games/shield-threatdex.applet.html | presentation | shield |
+| houses/shield/games/shield-threatdex.applet.html | applet | shield |
 | houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
-| houses/web/games/web-dns-resolver-race.applet.html | presentation | web |
-| houses/web/games/web-subnet-siege.applet.html | presentation | web |
-| operator/missions/forensics-01.mission.html | applet | - |
-| operator/missions/incident-response-01.mission.html | presentation | - |
-| operator/missions/linux-fs-01.mission.html | presentation | - |
-| operator/missions/windows-cmd-01.mission.html | presentation | - |
+| houses/web/games/web-dns-resolver-race.applet.html | applet | web |
+| houses/web/games/web-subnet-siege.applet.html | applet | web |
 | projects/ai-network-anomaly.html | applet | - |
 | projects/cloud-container-checker.html | applet | - |
 | projects/code-serial-console.html | applet | - |

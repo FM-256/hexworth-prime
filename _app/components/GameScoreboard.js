@@ -39,7 +39,7 @@ const GameScoreboard = (function () {
         var style = document.createElement('style');
         style.textContent = `
             .gs-widget {
-                position: fixed;
+                position: absolute;
                 top: 12px;
                 right: 12px;
                 width: 220px;
@@ -77,7 +77,7 @@ const GameScoreboard = (function () {
             }
             .gs-toggle {
                 font-size: 14px;
-                color: #666;
+                color: #8a8a8a;
                 transition: transform 0.2s;
             }
             .gs-widget.gs-collapsed .gs-toggle { transform: rotate(180deg); }
@@ -145,7 +145,7 @@ const GameScoreboard = (function () {
                 padding-top: 8px;
                 border-top: 1px solid rgba(255,255,255,0.06);
                 font-size: 10px;
-                color: #555;
+                color: #808080;
                 display: flex;
                 justify-content: space-between;
             }

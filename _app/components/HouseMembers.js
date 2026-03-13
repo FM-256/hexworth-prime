@@ -677,7 +677,7 @@ class HouseMembers {
 
             .member-stats {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .online-indicator {
@@ -744,7 +744,7 @@ class HouseMembers {
 
             .activity-time {
                 font-size: 0.7rem;
-                color: #555;
+                color: #808080;
                 flex-shrink: 0;
             }
 

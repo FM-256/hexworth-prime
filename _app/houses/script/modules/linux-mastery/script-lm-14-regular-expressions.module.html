@@ -25,7 +25,7 @@
             --border: rgba(255, 255, 255, 0.1);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; height: 100vh; background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+        body { overflow: hidden; height: 100vh; background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; }
         code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
 
         .header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid var(--border); }
@@ -48,6 +48,15 @@
         .task-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
         .task-chip { font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; padding: 0.25rem 0.6rem; border-radius: 3px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text-secondary); transition: all 0.3s ease; }
         .task-chip.completed { background: rgba(78, 201, 176, 0.1); border-color: var(--green); color: var(--green); }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
         .terminal-container { flex: 1; min-height: 0; }
 
         .content-panel { overflow-y: auto; padding: 2rem 2.5rem; }
@@ -125,12 +134,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="dot">. (any char)</span>
-                    <span class="task-chip" data-task="anchor">^ or $ anchor</span>
-                    <span class="task-chip" data-task="class">[...] class</span>
-                    <span class="task-chip" data-task="quantifier">* + ? quantifier</span>
+                    <span class="task-chip" data-task="dot" onclick="showTaskInstruction('dot')">1</span>
+                    <span class="task-chip" data-task="anchor" onclick="showTaskInstruction('anchor')">2</span>
+                    <span class="task-chip" data-task="class" onclick="showTaskInstruction('class')">3</span>
+                    <span class="task-chip" data-task="quantifier" onclick="showTaskInstruction('quantifier')">4</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -307,6 +317,52 @@
             }
         });
 
+        const TASK_ORDER = ['dot', 'anchor', 'class', 'quantifier'];
+        const TASK_INSTRUCTIONS = {
+    'dot': {
+        num: '1 of 4 &mdash; Any Character (.)',
+        desc: 'Use the <code>.</code> metacharacter which matches any single character.',
+        hint: 'Run: <code>grep "h.t" /etc/passwd</code>',
+        expected: 'Matches hat, hot, hit &mdash; any single character in that position'
+    },
+    'anchor': {
+        num: '2 of 4 &mdash; Line Anchors (^ $)',
+        desc: 'Use <code>^</code> or <code>$</code> to anchor your pattern to the start or end of a line.',
+        hint: 'Run: <code>grep "^root" /etc/passwd</code>',
+        expected: 'Matches lines starting with root'
+    },
+    'class': {
+        num: '3 of 4 &mdash; Character Class [...]',
+        desc: 'Use brackets to match any one character from a set.',
+        hint: 'Run: <code>grep "[aeiou]" /etc/hostname</code>',
+        expected: 'Matches any vowel'
+    },
+    'quantifier': {
+        num: '4 of 4 &mdash; Quantifiers (*, +)',
+        desc: 'Use <code>*</code>, <code>+</code>, or <code>?</code> to control repetition.',
+        hint: 'Run: <code>grep -E "o+" /etc/passwd</code>',
+        expected: 'Matches one or more o\'s (-E enables extended regex)'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-14-regular-expressions';
         const tasks = { 'dot': false, 'anchor': false, 'class': false, 'quantifier': false };
 
@@ -316,6 +372,13 @@
             document.querySelector(`.task-chip[data-task="${id}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-14-regular-expressions', { returnUrl: 'script-lm-15-sed-editor.module.html' });
             }
@@ -345,6 +408,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
     <script src="../../../../components/FluxCapacitor.js"></script>

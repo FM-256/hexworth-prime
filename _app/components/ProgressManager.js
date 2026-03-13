@@ -235,7 +235,7 @@ class ProgressManager {
         code: { name: 'House of the Code', icon: '<img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#4ade80', domain: 'Development & Engineering' },
         key: { name: 'House of the Key', icon: '<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#f472b6', domain: 'Cryptography & Secrets' },
         eye: { name: 'House of the Eye', icon: '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#c084fc', domain: 'Monitoring & Analysis' },
-        'dark-arts': { name: 'House of the Dark Arts', icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#6b21a8', domain: 'Offensive Security & Research' },
+        'dark-arts': { name: 'House of the Dark Arts', icon: '<img src="/assets/images/icons/icon-skull.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#9b59d0', domain: 'Offensive Security & Research' },
         'matrix': { name: 'House of the Matrix', icon: '<img src="/assets/images/icons/icon-syringe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', color: '#00ff41', domain: 'Mechanics & Operations' },
         'divergent': { name: 'The Factionless', icon: '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', color: '#ff00ff', domain: 'All Domains' }
     };
@@ -620,6 +620,16 @@ class ProgressManager {
 
         // Save progress to localStorage
         this.saveProgress(progress);
+
+        // Increment standalone counters (keeps parity with ModuleProgress path)
+        try {
+            const lsModules = parseInt(localStorage.getItem('hexworth_modules_completed') || '0', 10) || 0;
+            localStorage.setItem('hexworth_modules_completed', String(lsModules + 1));
+            if (moduleType === 'quiz' && metadata.score >= 70) {
+                const lsQuizzes = parseInt(localStorage.getItem('hexworth_quizzes_passed') || '0', 10) || 0;
+                localStorage.setItem('hexworth_quizzes_passed', String(lsQuizzes + 1));
+            }
+        } catch (e) { /* non-critical */ }
 
         // Sync to Firestore for instructor analytics (async, non-blocking)
         this.syncToFirestore(moduleId, houseId, moduleType, metadata).catch(err => {
@@ -1167,7 +1177,7 @@ class ProgressManager {
         styles.id = 'hexworth-progress-toast-styles';
         styles.textContent = `
             .hexworth-progress-toast {
-                position: fixed;
+                position: absolute;
                 bottom: 20px;
                 right: 20px;
                 background: linear-gradient(135deg, rgba(20, 20, 40, 0.98), rgba(30, 20, 50, 0.98));

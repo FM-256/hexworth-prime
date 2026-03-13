@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -154,11 +155,21 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
+        .task-chip:hover { border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
         .task-chip.completed {
-            background: var(--accent-dim);
-            border-color: var(--accent);
-            color: var(--accent);
+            background: rgba(78, 201, 176, 0.1);
+            border-color: var(--green);
+            color: var(--green);
         }
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
 
         /* Terminal fills remaining space */
         .terminal-container {
@@ -482,16 +493,23 @@
             <div class="panel-tasks">
                 <div class="panel-tasks-header">
                     <span class="panel-tasks-title">Tasks</span>
-                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 6</span>
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="echo-pid">echo $$</span>
-                    <span class="task-chip" data-task="echo-ppid">echo $PPID</span>
-                    <span class="task-chip" data-task="pstree">pstree</span>
-                    <span class="task-chip" data-task="ps">ps</span>
-                    <span class="task-chip" data-task="pidof">pidof</span>
+                    <span class="task-chip active" data-task="echo-pid">1</span>
+                    <span class="task-chip" data-task="echo-ppid">2</span>
+                    <span class="task-chip" data-task="ps">3</span>
+                    <span class="task-chip" data-task="ps-aux">4</span>
+                    <span class="task-chip" data-task="pstree">5</span>
+                    <span class="task-chip" data-task="pidof">6</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 6 &mdash; Your Shell's PID</div>
+                <div class="task-desc">Every process has a unique ID number. Find your current shell's <strong>Process ID (PID)</strong> using the special <code>$$</code> variable.</div>
+                <div class="task-hint">Run: <code>echo $$</code></div>
+                <div class="task-expected">You'll see a number like 3842 — that's your shell's PID</div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -683,23 +701,98 @@
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
+                // Task 1: echo $$ (current PID)
                 if (cmd === 'echo' && /\$\$/.test(cmdLine)) completeTask('echo-pid');
-                if (cmd === 'echo' && /\$PPID/.test(cmdLine)) completeTask('echo-ppid');
+                // Task 2: echo $PPID (parent PID)
+                if (cmd === 'echo' && /\$PPID/i.test(cmdLine)) completeTask('echo-ppid');
+                // Task 3: ps (basic process list)
+                if (cmd === 'ps' && !args.includes('aux') && !args.some(a => a.includes('aux'))) completeTask('ps');
+                // Task 4: ps aux (all processes)
+                if (cmd === 'ps' && (args.includes('aux') || args.some(a => a.includes('aux')))) {
+                    completeTask('ps');
+                    completeTask('ps-aux');
+                }
+                // Task 5: pstree
                 if (cmd === 'pstree') completeTask('pstree');
-                if (cmd === 'ps') completeTask('ps');
+                // Task 6: pidof
                 if (cmd === 'pidof') completeTask('pidof');
             }
         });
 
         const MODULE_ID = 'lm-28-process-basics';
-        const tasks = { 'echo-pid': false, 'echo-ppid': false, 'pstree': false, 'ps': false, 'pidof': false };
+        const TASK_ORDER = ['echo-pid', 'echo-ppid', 'ps', 'ps-aux', 'pstree', 'pidof'];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'echo-pid': {
+                num: '1 of 6 &mdash; Your Shell\'s PID',
+                desc: 'Every process has a unique ID number. Find your current shell\'s <strong>Process ID (PID)</strong> using the special <code>$$</code> variable.',
+                hint: 'Run: <code>echo $$</code>',
+                expected: 'You\'ll see a number like 3842 — that\'s your shell\'s PID'
+            },
+            'echo-ppid': {
+                num: '2 of 6 &mdash; Your Parent Process',
+                desc: 'Every process has a parent that started it. Find your shell\'s <strong>Parent Process ID (PPID)</strong>.',
+                hint: 'Run: <code>echo $PPID</code>',
+                expected: 'Should print "1" — your shell\'s parent is the init process'
+            },
+            'ps': {
+                num: '3 of 6 &mdash; List Your Processes',
+                desc: 'Use <code>ps</code> to see processes running in your current terminal session.',
+                hint: 'Run: <code>ps</code>',
+                expected: 'Shows PID, TTY, TIME, and CMD for your session\'s processes'
+            },
+            'ps-aux': {
+                num: '4 of 6 &mdash; See ALL Processes',
+                desc: 'Use <code>ps aux</code> to see <strong>every process</strong> on the system, including other users and system daemons.',
+                hint: 'Run: <code>ps aux</code>',
+                expected: 'Shows USER, PID, %CPU, %MEM, COMMAND for all processes'
+            },
+            'pstree': {
+                num: '5 of 6 &mdash; Process Tree',
+                desc: 'Processes form a parent-child tree. Use <code>pstree</code> to visualize the hierarchy.',
+                hint: 'Run: <code>pstree</code>',
+                expected: 'Shows systemd at the root with child processes branching off'
+            },
+            'pidof': {
+                num: '6 of 6 &mdash; Find a Process by Name',
+                desc: 'Use <code>pidof</code> to find the PID of a running program by its name.',
+                hint: 'Run: <code>pidof bash</code>',
+                expected: 'Returns the PID(s) of all running bash processes'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+                <div class="task-expected">${info.expected}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
-            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) { chip.classList.remove('active'); chip.classList.add('completed'); }
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) setTimeout(() => showTaskInstruction(next), 400);
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-28-process-basics', { returnUrl: 'script-lm-29-ps-top.module.html' });
             }
@@ -722,13 +815,27 @@
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        // Click chips to view task instructions
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
             if (saved?.completed) {
-                saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
+                saved.completed.forEach(t => {
+                    tasks[t] = true;
+                    const chip = document.querySelector(`.task-chip[data-task="${t}"]`);
+                    if (chip) { chip.classList.remove('active'); chip.classList.add('completed'); }
+                });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

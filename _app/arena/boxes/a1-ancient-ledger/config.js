@@ -296,7 +296,7 @@ const A1Config = {
                     </div>
 
                     <div style="max-width:600px; margin:0 auto 20px;">
-                        <label style="display:block; color:#555; font-size:0.8rem; margin-bottom:6px;">Search Allocation Records by Resource Name:</label>
+                        <label style="display:block; color:#808080; font-size:0.8rem; margin-bottom:6px;">Search Allocation Records by Resource Name:</label>
                         <div style="display:flex; gap:8px;">
                             <input type="text" data-field="search" placeholder="e.g. Titanium, Fuel Cells..."
                                    style="flex:1; padding:8px 14px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.85rem;">
@@ -408,7 +408,7 @@ const A1Config = {
         }
         if (input.includes('/etc/passwd')) {
             return `<table style="width:100%; border-collapse:collapse; font-size:0.75rem;">
-                <tr><td colspan="4" style="padding:6px; color:#666; font-family:monospace; white-space:pre;">root:x:0:0:root:/root:/bin/bash
+                <tr><td colspan="4" style="padding:6px; color:#8a8a8a; font-family:monospace; white-space:pre;">root:x:0:0:root:/root:/bin/bash
 daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
 www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
 mysql:x:27:27:MySQL Server:/var/lib/mysql:/bin/false

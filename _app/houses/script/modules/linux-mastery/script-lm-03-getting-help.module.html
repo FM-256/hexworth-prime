@@ -130,6 +130,46 @@
         }
 
         .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(78, 201, 176, 0.1);
+        }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: none;
+        }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+        .task-instruction .task-cmd {
+            background: var(--bg-terminal);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+            margin: 6px 0;
+            display: inline-block;
+        }
+        .task-instruction .task-expect {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 4px;
+            font-style: italic;
+        }
 
         .terminal-container { flex: 1; min-height: 0; }
 
@@ -350,11 +390,12 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="man">man</span>
-                    <span class="task-chip" data-task="help">--help</span>
-                    <span class="task-chip" data-task="whatis">whatis</span>
-                    <span class="task-chip" data-task="type">type</span>
+                    <span class="task-chip" data-task="man" onclick="showTaskInstruction('man')">1</span>
+                    <span class="task-chip" data-task="help" onclick="showTaskInstruction('help')">2</span>
+                    <span class="task-chip" data-task="whatis" onclick="showTaskInstruction('whatis')">3</span>
+                    <span class="task-chip" data-task="type" onclick="showTaskInstruction('type')">4</span>
                 </div>
+                <div class="task-instruction" id="taskInstruction"></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -552,13 +593,39 @@
         const MODULE_ID = 'lm-03-getting-help';
         const tasks = { 'man': false, 'help': false, 'whatis': false, 'type': false };
 
+        const TASK_ORDER = ['man', 'help', 'whatis', 'type'];
+        const TASK_INSTRUCTIONS = {
+            'man': { number: 1, title: 'View a Manual Page', description: 'Type the command below to open the manual page for the ls command.', command: 'man ls', expect: 'Shows the manual page for ls' },
+            'help': { number: 2, title: 'Use --help Flag', description: 'Type the command below to see a quick help summary for ls.', command: 'ls --help', expect: 'Shows quick help output for ls' },
+            'whatis': { number: 3, title: 'Look Up a Command', description: 'Type the command below to get a one-line description of ls.', command: 'whatis ls', expect: 'Shows a one-line description of what ls does' },
+            'type': { number: 4, title: 'Check Command Type', description: 'Type the command below to see whether ls is a built-in, alias, or external file.', command: 'type ls', expect: 'Shows whether ls is a built-in, alias, or file' }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `<div class="task-number">Task ${info.number}: ${info.title}</div><div>${info.description}</div><div class="task-cmd">${info.command}</div><div class="task-expect">${info.expect}</div>`;
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() { return TASK_ORDER.find(t => !tasks[t]) || null; }
+
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
-            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
             updateProgress();
             saveProgress();
-            if (Object.values(tasks).every(v => v)) {
+            const next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                const el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Great work! You know how to find help for any Linux command.</div>';
+                el.classList.add('visible');
                 ModuleProgress.complete('script', 'script-lm-03-getting-help', { returnUrl: 'script-lm-04-terminal-environment.module.html' });
             }
         }
@@ -587,6 +654,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

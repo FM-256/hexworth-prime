@@ -36,7 +36,8 @@
   var PROTECTED_KEYS = [
     'hexworth_progress', 'hexworth_arctic_progress',
     'hexworth_achievements', 'hexworth_achievements_v2',
-    'hexworth_xp', 'hexworth_streak', 'hexworth_stats',
+    'hexworth_xp', 'hexworth_level', 'hexworth_streak', 'hexworth_stats',
+    'hexworth_modules', 'hexworth_labs',
     'hexworth_house_completions', 'hexworth_game_tracker',
     'hexworth_integrity', 'hexworth_mastery_',
     'hexworth_synced_activity', 'hexworth_operator_',
@@ -359,6 +360,97 @@
         writable: false, configurable: false
       });
     } catch (e) { /* older browsers may not support this */ }
+
+    // Wrap Object.defineProperty itself to prevent re-defining Storage.prototype methods
+    var _nativeDefineProperty = Object.defineProperty;
+    try {
+      Object.defineProperty = function (target, prop, desc) {
+        if (target === Storage.prototype &&
+            (prop === 'setItem' || prop === 'removeItem' || prop === 'clear')) {
+          _dispatch({
+            sensor:   'storage',
+            category: 'storage_tampering',
+            detail:   'Blocked attempt to redefine Storage.prototype.' + prop
+          });
+          return target; // silently reject
+        }
+        return _nativeDefineProperty.call(Object, target, prop, desc);
+      };
+    } catch (e) { /* environment does not allow this */ }
+
+    // Proxy on localStorage to intercept bracket/dot notation writes
+    // e.g. localStorage['hexworth_xp'] = '999999' or localStorage.hexworth_xp = '999999'
+    if (typeof Proxy !== 'undefined') {
+      try {
+        var realStorage = window.localStorage;
+        var storageProxy = new Proxy(realStorage, {
+          set: function (target, prop, value) {
+            if (_isProtectedKey(prop)) {
+              var stack = '';
+              try { stack = new Error().stack || ''; } catch (e) { /* */ }
+              if (_stackHasConsole(stack)) {
+                _dispatch({
+                  sensor:   'storage',
+                  category: 'storage_tampering',
+                  detail:   'Direct property write to "' + prop + '"'
+                });
+                // Revert: restore from snapshot
+                if (storageSnapshot[prop] !== undefined) {
+                  authorizedKeys[prop] = true;
+                  originalSetItem.call(realStorage, prop, storageSnapshot[prop]);
+                  delete authorizedKeys[prop];
+                }
+                return true; // indicate "success" to caller to avoid TypeError
+              }
+            }
+            // Delegate to real setItem for storage writes
+            originalSetItem.call(realStorage, prop, value);
+            if (_isProtectedKey(prop)) {
+              storageSnapshot[prop] = String(value);
+              checksumMap[prop] = _checksum(prop, String(value));
+            }
+            return true;
+          },
+          get: function (target, prop) {
+            var val = target[prop];
+            if (typeof val === 'function') {
+              return val.bind(target);
+            }
+            return val;
+          },
+          deleteProperty: function (target, prop) {
+            if (_isProtectedKey(prop)) {
+              var stack = '';
+              try { stack = new Error().stack || ''; } catch (e) { /* */ }
+              if (_stackHasConsole(stack)) {
+                _dispatch({
+                  sensor:   'storage',
+                  category: 'storage_tampering',
+                  detail:   'Direct property delete of "' + prop + '"'
+                });
+                if (storageSnapshot[prop] !== undefined) {
+                  authorizedKeys[prop] = true;
+                  originalSetItem.call(realStorage, prop, storageSnapshot[prop]);
+                  delete authorizedKeys[prop];
+                }
+                return true;
+              }
+            }
+            originalRemoveItem.call(realStorage, prop);
+            if (_isProtectedKey(prop)) {
+              delete storageSnapshot[prop];
+              delete checksumMap[prop];
+            }
+            return true;
+          }
+        });
+        // Replace window.localStorage with the proxy
+        _nativeDefineProperty.call(Object, window, 'localStorage', {
+          get: function () { return storageProxy; },
+          configurable: false
+        });
+      } catch (e) { /* Proxy not supported or defineProperty blocked -- fall back to poll */ }
+    }
 
     // Poll for external tampering (devtools Application tab edits, direct property access)
     // Reduced from 3s to 1s to shrink the bypass window
@@ -921,7 +1013,7 @@
     // Create full-screen modal overlay
     var overlay = document.createElement('div');
     overlay.id = 'tw-devtools-modal';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;'
+    overlay.style.cssText = 'position:absolute;top:' + window.scrollY + 'px;left:0;width:100%;height:' + window.innerHeight + 'px;'
       + 'background:rgba(0,0,0,0.85);z-index:2147483646;display:flex;'
       + 'align-items:center;justify-content:center;font-family:"Segoe UI",system-ui,sans-serif;';
 
@@ -1036,7 +1128,7 @@
 
   function _showMonitorBanner() {
     var banner = document.createElement('div');
-    banner.style.cssText = 'position:fixed;top:8px;right:8px;z-index:2147483645;'
+    banner.style.cssText = 'position:absolute;top:' + (window.scrollY + 8) + 'px;right:8px;z-index:2147483645;'
       + 'background:rgba(231,76,60,0.9);color:#fff;padding:6px 14px;border-radius:6px;'
       + 'font-family:"Segoe UI",system-ui,sans-serif;font-size:11px;font-weight:600;'
       + 'letter-spacing:0.5px;display:flex;align-items:center;gap:8px;'

@@ -677,7 +677,7 @@ const AccountFrame = (function() {
                ═══════════════════════════════════════════════════ */
 
             .af-overlay {
-                position: fixed;
+                position: absolute;
                 top: 0;
                 left: 0;
                 right: 0;
@@ -718,7 +718,7 @@ const AccountFrame = (function() {
                 right: 15px;
                 background: none;
                 border: none;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 24px;
                 cursor: pointer;
                 line-height: 1;
@@ -773,7 +773,7 @@ const AccountFrame = (function() {
             }
 
             .af-code-input::placeholder {
-                color: #555;
+                color: #808080;
                 letter-spacing: 0;
                 font-size: 14px;
             }

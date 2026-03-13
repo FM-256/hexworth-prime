@@ -24564,7 +24564,7 @@ const ContentRegistry = {
             mascot: 'assets/images/mascots/dark-arts-hero.webp',
             mascotName: 'Nyx',
             domain: 'Offensive Security',
-            color: '#6b21a8',
+            color: '#9b59d0',
             description: 'Understand attacks to build better defenses'
         },
         'divergent': {

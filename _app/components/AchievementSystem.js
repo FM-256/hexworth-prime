@@ -1961,6 +1961,90 @@ class AchievementSystem {
             points: 500,
             secret: false,
             limited: true
+        },
+
+        // === TRIPWIRE (Secret - Honeypot Defense) ===
+        tripwire_busted: {
+            id: 'tripwire_busted',
+            name: 'Busted!',
+            description: 'Got caught by the TripWire defense system',
+            icon: '/assets/images/icons/icon-siren.webp',
+            category: 'tripwire',
+            points: 50,
+            secret: true
+        },
+        tripwire_repeat: {
+            id: 'tripwire_repeat',
+            name: 'Repeat Offender',
+            description: 'Caught by TripWire 3 times',
+            icon: '/assets/images/icons/icon-siren.webp',
+            category: 'tripwire',
+            points: 75,
+            secret: true
+        },
+        tripwire_script_kiddie: {
+            id: 'tripwire_script_kiddie',
+            name: 'Script Kiddie',
+            description: 'Caught injecting code via browser console',
+            icon: '/assets/images/icons/icon-laptop.webp',
+            category: 'tripwire',
+            points: 50,
+            secret: true
+        },
+        tripwire_manipulator: {
+            id: 'tripwire_manipulator',
+            name: 'The Manipulator',
+            description: 'Caught tampering with the DOM',
+            icon: '/assets/images/icons/icon-web.webp',
+            category: 'tripwire',
+            points: 50,
+            secret: true
+        },
+        tripwire_storage_raider: {
+            id: 'tripwire_storage_raider',
+            name: 'Storage Raider',
+            description: 'Caught tampering with localStorage',
+            icon: '/assets/images/icons/icon-database.webp',
+            category: 'tripwire',
+            points: 50,
+            secret: true
+        },
+        tripwire_time_bandit: {
+            id: 'tripwire_time_bandit',
+            name: 'Time Bandit',
+            description: 'Caught manipulating timers',
+            icon: '/assets/images/icons/icon-clock.webp',
+            category: 'tripwire',
+            points: 50,
+            secret: true
+        },
+        tripwire_decoy_victim: {
+            id: 'tripwire_decoy_victim',
+            name: 'Decoy Victim',
+            description: 'Fell for a honeypot trap',
+            icon: '/assets/images/icons/icon-honey.webp',
+            category: 'tripwire',
+            points: 100,
+            secret: true
+        },
+        tripwire_xss_artist: {
+            id: 'tripwire_xss_artist',
+            name: 'XSS Artist',
+            description: 'Attempted XSS outside of a lab environment',
+            icon: '/assets/images/icons/icon-syringe.webp',
+            category: 'tripwire',
+            points: 50,
+            secret: true
+        },
+        tripwire_hall_of_fame: {
+            id: 'tripwire_hall_of_fame',
+            name: 'Hall of Fame',
+            description: 'Triggered 5+ different TripWire sensors',
+            icon: '/assets/images/icons/icon-trophy.webp',
+            category: 'tripwire',
+            points: 250,
+            secret: true,
+            title: 'the Notorious'
         }
     };
 
@@ -2515,7 +2599,7 @@ class AchievementSystem {
         styles.id = 'hexworth-achievement-styles';
         styles.textContent = `
             .hexworth-achievement-notification {
-                position: fixed;
+                position: absolute;
                 top: 20px;
                 left: 50%;
                 transform: translateX(-50%) translateY(-120%);

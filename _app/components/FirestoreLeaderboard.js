@@ -622,7 +622,7 @@ const FirestoreLeaderboard = (function() {
 
             .fsl-level, .fsl-house {
                 font-size: 0.7rem;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .fsl-xp {
@@ -639,7 +639,7 @@ const FirestoreLeaderboard = (function() {
             .fsl-xp-label {
                 display: block;
                 font-size: 0.6rem;
-                color: #555;
+                color: #808080;
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
             }
@@ -690,7 +690,7 @@ const FirestoreLeaderboard = (function() {
                 background: transparent;
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 6px;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 0.75rem;
                 cursor: pointer;
                 transition: all 0.2s;
@@ -704,7 +704,7 @@ const FirestoreLeaderboard = (function() {
             .fsl-empty, .fsl-error-content {
                 text-align: center;
                 padding: 40px 20px;
-                color: #666;
+                color: #8a8a8a;
             }
 
             .fsl-empty-icon, .fsl-error-icon {

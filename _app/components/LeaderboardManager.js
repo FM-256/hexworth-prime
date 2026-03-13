@@ -156,7 +156,7 @@ class LeaderboardManager {
             code: { prefix: 'Code', suffix: 'Shade', color: '#4ade80' },
             key: { prefix: 'Cipher', suffix: 'Shadow', color: '#f472b6' },
             eye: { prefix: 'Watch', suffix: 'Phantom', color: '#c084fc' },
-            'dark-arts': { prefix: 'Void', suffix: 'Stalker', color: '#6b21a8' }
+            'dark-arts': { prefix: 'Void', suffix: 'Stalker', color: '#9b59d0' }
         };
 
         const theme = houseThemes[this.options.house] || houseThemes.web;

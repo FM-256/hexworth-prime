@@ -365,10 +365,10 @@ The archivists have no IDS. They have no log monitoring. They have a cron job th
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#999;">001</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a;">tome_of_shadows.txt</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#aaa;">.txt</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#888;">archivist_maren</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#666;">2024-02-01</td></tr>
-                                <tr><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#999;">002</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a;">cipher_codex.pdf</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#aaa;">.pdf</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#888;">scribe_voltan</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#666;">2024-02-03</td></tr>
-                                <tr><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#999;">003</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a;">forgotten_rites.doc</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#aaa;">.doc</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#888;">elder_kavreth</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#666;">2024-02-07</td></tr>
-                                <tr><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#999;">004</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a;">ash_chronicle_vol4.txt</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#aaa;">.txt</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#888;">archivist_maren</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#666;">2024-02-09</td></tr>
+                                <tr><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#999;">001</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a;">tome_of_shadows.txt</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#aaa;">.txt</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#888;">archivist_maren</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#8a8a8a;">2024-02-01</td></tr>
+                                <tr><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#999;">002</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a;">cipher_codex.pdf</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#aaa;">.pdf</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#888;">scribe_voltan</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#8a8a8a;">2024-02-03</td></tr>
+                                <tr><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#999;">003</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a;">forgotten_rites.doc</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#aaa;">.doc</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#888;">elder_kavreth</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#8a8a8a;">2024-02-07</td></tr>
+                                <tr><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#999;">004</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a;">ash_chronicle_vol4.txt</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#aaa;">.txt</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#888;">archivist_maren</td><td style="padding:5px 10px; border-bottom:1px solid #2a1a1a; color:#8a8a8a;">2024-02-09</td></tr>
                             </tbody>
                         </table>
                         <div style="margin-top:8px; text-align:right;">
@@ -385,7 +385,7 @@ The archivists have no IDS. They have no log monitoring. They have a cron job th
                                 <label style="display:block; color:#ccc; font-size:0.75rem; margin-bottom:5px;">Artifact Filename:</label>
                                 <input type="text" name="filename" placeholder="e.g. document.txt"
                                        style="width:100%; padding:8px 12px; background:#0d0505; color:#eee; border:1px solid #5a2a2a; border-radius:4px; font-family:inherit; font-size:0.85rem; box-sizing:border-box;">
-                                <div style="color:#555; font-size:0.65rem; margin-top:4px;">Allowed types: .txt, .doc, .pdf</div>
+                                <div style="color:#808080; font-size:0.65rem; margin-top:4px;">Allowed types: .txt, .doc, .pdf</div>
                             </div>
                             <div style="margin-bottom:16px;">
                                 <label style="display:block; color:#ccc; font-size:0.75rem; margin-bottom:5px;">Artifact Content:</label>
@@ -443,8 +443,8 @@ The archivists have no IDS. They have no log monitoring. They have a cron job th
                 html: `<div style="text-align:center; padding:60px 20px; color:#888;">
                     <div style="font-size:2rem; color:#e74c3c; margin-bottom:12px;">403</div>
                     <div style="color:#ccc; font-size:0.9rem; margin-bottom:6px; font-weight:bold;">Forbidden</div>
-                    <div style="font-size:0.75rem; color:#666;">You don't have permission to access /archive/config/ on this server.</div>
-                    <div style="margin-top:16px; font-size:0.65rem; color:#555;">Apache/2.4.57 (Debian) Server at 10.10.14.24 Port 80</div>
+                    <div style="font-size:0.75rem; color:#8a8a8a;">You don't have permission to access /archive/config/ on this server.</div>
+                    <div style="margin-top:16px; font-size:0.65rem; color:#808080;">Apache/2.4.57 (Debian) Server at 10.10.14.24 Port 80</div>
                 </div>`
             },
 
@@ -462,7 +462,7 @@ The archivists have no IDS. They have no log monitoring. They have a cron job th
                         <div style="font-family:monospace;">archive_seal.png &mdash; 12KB &mdash; 2024-01-20</div>
                         <div style="font-family:monospace;">elder_portrait.jpg &mdash; 220KB &mdash; 2024-02-01</div>
                     </div>
-                    <div style="background:#0d0505; border:1px solid #3a1a1a; border-radius:4px; padding:12px; font-size:0.72rem; color:#666; line-height:1.7;">
+                    <div style="background:#0d0505; border:1px solid #3a1a1a; border-radius:4px; padding:12px; font-size:0.72rem; color:#8a8a8a; line-height:1.7;">
                         <strong style="color:#888;">Upload Policy:</strong> This endpoint accepts .jpg and .png images only.<br>
                         File size limit: 5MB. Images are stored as static assets and are not processed by the server.
                     </div>
@@ -616,8 +616,8 @@ AddHandler application/x-httpd-php .phtml .php5 .php7
             <td style="padding:3px 12px;">
                 <a href="/archive/" style="color:#3498db; text-decoration:none; font-family:monospace; font-size:0.78rem;">Parent Directory</a>
             </td>
-            <td style="padding:3px 12px; color:#666; font-size:0.75rem; font-family:monospace;"></td>
-            <td style="padding:3px 12px; color:#666; font-size:0.75rem; font-family:monospace;"></td>
+            <td style="padding:3px 12px; color:#8a8a8a; font-size:0.75rem; font-family:monospace;"></td>
+            <td style="padding:3px 12px; color:#8a8a8a; font-size:0.75rem; font-family:monospace;"></td>
         </tr>`;
 
         // Default files
@@ -627,8 +627,8 @@ AddHandler application/x-httpd-php .phtml .php5 .php7
                 <td style="padding:3px 12px;">
                     <a href="/archive/uploads/${f.name}" style="color:#ccc; text-decoration:none; font-family:monospace; font-size:0.78rem;">${f.name}</a>
                 </td>
-                <td style="padding:3px 12px; color:#666; font-size:0.75rem; font-family:monospace;">${f.date}</td>
-                <td style="padding:3px 12px; color:#666; font-size:0.75rem; font-family:monospace;">${f.size}</td>
+                <td style="padding:3px 12px; color:#8a8a8a; font-size:0.75rem; font-family:monospace;">${f.date}</td>
+                <td style="padding:3px 12px; color:#8a8a8a; font-size:0.75rem; font-family:monospace;">${f.size}</td>
             </tr>`;
         });
 
@@ -642,8 +642,8 @@ AddHandler application/x-httpd-php .phtml .php5 .php7
                 <td style="padding:3px 12px;">
                     <a href="/archive/uploads/${f.name}" style="color:${f.php ? '#e74c3c' : '#ccc'}; text-decoration:none; font-family:monospace; font-size:0.78rem;">${A8Config._escHtml(f.name)}</a>
                 </td>
-                <td style="padding:3px 12px; color:#666; font-size:0.75rem; font-family:monospace;">${f.date}</td>
-                <td style="padding:3px 12px; color:#666; font-size:0.75rem; font-family:monospace;">${f.size}</td>
+                <td style="padding:3px 12px; color:#8a8a8a; font-size:0.75rem; font-family:monospace;">${f.date}</td>
+                <td style="padding:3px 12px; color:#8a8a8a; font-size:0.75rem; font-family:monospace;">${f.size}</td>
             </tr>`;
         });
 
@@ -665,7 +665,7 @@ AddHandler application/x-httpd-php .phtml .php5 .php7
                         <tbody>${rows}</tbody>
                     </table>
                 </div>
-                <div style="margin-top:10px; color:#555; font-size:0.65rem;">
+                <div style="margin-top:10px; color:#808080; font-size:0.65rem;">
                     Apache/2.4.57 (Debian) Server at 10.10.14.24 Port 80
                 </div>
             </div>
@@ -722,11 +722,11 @@ AddHandler application/x-httpd-php .phtml .php5 .php7
         if (execOutput === null) {
             // PHP file with no executable functions — show as raw PHP source hint
             return `<div style="background:#0d0505; border:1px solid #4a1a1a; border-radius:4px; padding:16px; font-family:'Courier New',monospace; font-size:0.78rem; color:#e67e22; white-space:pre-wrap; line-height:1.6;">
-<span style="color:#555; font-size:0.65rem; display:block; margin-bottom:8px;">PHP 8.1.12 — Executing ${A8Config._escHtml(filename)}</span>${A8Config._escHtml(phpContent)}</div>`;
+<span style="color:#808080; font-size:0.65rem; display:block; margin-bottom:8px;">PHP 8.1.12 — Executing ${A8Config._escHtml(filename)}</span>${A8Config._escHtml(phpContent)}</div>`;
         }
 
         return `<div style="background:#0d0505; border:1px solid #4a1a1a; border-radius:4px; padding:16px; font-size:0.78rem; line-height:1.6;">
-            <div style="color:#555; font-size:0.65rem; margin-bottom:10px; font-family:monospace;">PHP 8.1.12 &mdash; Executing ${A8Config._escHtml(filename)}</div>
+            <div style="color:#808080; font-size:0.65rem; margin-bottom:10px; font-family:monospace;">PHP 8.1.12 &mdash; Executing ${A8Config._escHtml(filename)}</div>
             <div style="font-family:'Courier New',monospace; color:#e8e8e8; white-space:pre-wrap;">${execOutput}</div>
         </div>`;
     },
@@ -893,8 +893,8 @@ AddHandler application/x-httpd-php .phtml .php5 .php7
             return `<div style="text-align:center; padding:60px 20px; color:#888;">
                 <div style="font-size:2rem; color:#e74c3c; margin-bottom:12px;">403</div>
                 <div style="color:#ccc; font-size:0.9rem; margin-bottom:6px; font-weight:bold;">Forbidden</div>
-                <div style="font-size:0.75rem; color:#666;">You don't have permission to access this resource.</div>
-                <div style="margin-top:16px; font-size:0.65rem; color:#555;">Apache/2.4.57 (Debian) Server at 10.10.14.24 Port 80</div>
+                <div style="font-size:0.75rem; color:#8a8a8a;">You don't have permission to access this resource.</div>
+                <div style="margin-top:16px; font-size:0.65rem; color:#808080;">Apache/2.4.57 (Debian) Server at 10.10.14.24 Port 80</div>
             </div>`;
         }
 

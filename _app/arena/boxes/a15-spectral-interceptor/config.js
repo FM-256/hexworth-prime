@@ -358,7 +358,7 @@ const A15Config = {
                             &bull; <strong>Recommendation:</strong> Use <code style="background:#1a1a2e; padding:1px 5px; border-radius:3px;">inspectrum</code> or <code style="background:#1a1a2e; padding:1px 5px; border-radius:3px;">gnuradio-companion</code> for full demodulation
                         </div>
 
-                        <div style="margin-top:20px; padding:12px 14px; background:#0a0a14; border:1px solid #2a2a2a; border-radius:4px; font-size:0.72rem; color:#666;">
+                        <div style="margin-top:20px; padding:12px 14px; background:#0a0a14; border:1px solid #2a2a2a; border-radius:4px; font-size:0.72rem; color:#8a8a8a;">
                             SigInt Workbench v2.1.0 &mdash; Local analysis only. No network transmission of captured data.
                         </div>
                     </div>

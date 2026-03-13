@@ -31,7 +31,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -153,6 +154,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         /* Terminal fills remaining space */
         .terminal-container {
@@ -518,13 +528,14 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="find-suid">find SUID</span>
-                    <span class="task-chip" data-task="find-sgid">find SGID</span>
-                    <span class="task-chip" data-task="find-sticky">sticky bit</span>
-                    <span class="task-chip" data-task="set-special">set special</span>
-                    <span class="task-chip" data-task="stat-special">stat</span>
+                    <span class="task-chip" data-task="find-suid" onclick="showTaskInstruction('find-suid')">1</span>
+                    <span class="task-chip" data-task="find-sgid" onclick="showTaskInstruction('find-sgid')">2</span>
+                    <span class="task-chip" data-task="find-sticky" onclick="showTaskInstruction('find-sticky')">3</span>
+                    <span class="task-chip" data-task="set-special" onclick="showTaskInstruction('set-special')">4</span>
+                    <span class="task-chip" data-task="stat-special" onclick="showTaskInstruction('stat-special')">5</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -779,6 +790,58 @@
             }
         });
 
+        const TASK_ORDER = ['find-suid', 'find-sgid', 'find-sticky', 'set-special', 'stat-special'];
+        const TASK_INSTRUCTIONS = {
+    'find-suid': {
+        num: '1 of 5 &mdash; Find SUID Files',
+        desc: 'Search for files with the Set-UID bit using <code>find</code>.',
+        hint: 'Run: <code>find /usr/bin -perm -4000</code>',
+        expected: 'Finds files with Set-UID bit'
+    },
+    'find-sgid': {
+        num: '2 of 5 &mdash; Find SGID Files',
+        desc: 'Search for files with the Set-GID bit.',
+        hint: 'Run: <code>find /usr -perm -2000</code>',
+        expected: 'Finds files with Set-GID bit'
+    },
+    'find-sticky': {
+        num: '3 of 5 &mdash; Find Sticky Bit',
+        desc: 'Search for directories with the sticky bit set.',
+        hint: 'Run: <code>find / -perm -1000</code>',
+        expected: 'Finds directories with sticky bit'
+    },
+    'set-special': {
+        num: '4 of 5 &mdash; Set Special Permission',
+        desc: 'Use a 4-digit chmod to set a special permission.',
+        hint: 'Run: <code>chmod 4755 script.sh</code>',
+        expected: 'Sets SUID (4) + rwxr-xr-x'
+    },
+    'stat-special': {
+        num: '5 of 5 &mdash; Check Permissions',
+        desc: 'Use <code>stat</code> to view the full octal permissions including special bits.',
+        hint: 'Run: <code>stat script.sh</code>',
+        expected: 'Shows octal permissions including special bits'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-26-special-permissions';
         const MODULE_KEY = 'script-lm-26-special-permissions';
         const tasks = { 'find-suid': false, 'find-sgid': false, 'find-sticky': false, 'set-special': false, 'stat-special': false };
@@ -789,6 +852,13 @@
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', MODULE_KEY, { returnUrl: 'script-lm-27-section4-practice.module.html' });
             }
@@ -818,6 +888,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

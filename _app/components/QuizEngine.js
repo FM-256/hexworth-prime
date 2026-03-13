@@ -51,7 +51,9 @@ class QuizEngine {
             houseId: config.houseId || this.detectHouseFromUrl(),     // Auto-detect from URL
             trackProgress: config.trackProgress !== false,            // Enable progress tracking
             nextModule: config.nextModule || null,                     // CLH: config-provided next module
-            returnLabel: config.returnLabel || null                      // Custom label for back button (default: "Back to House")
+            returnLabel: config.returnLabel || null,                     // Custom label for back button (default: "Back to House")
+            // SEC-5: Server-side quiz grading
+            serverGrading: config.serverGrading || false                 // When true, grade via Cloud Function instead of local
         };
 
         this.state = {
@@ -281,18 +283,30 @@ class QuizEngine {
     handleAnswer(e) {
         const selectedIndex = parseInt(e.currentTarget.dataset.index);
         const q = this.config.questions[this.state.currentQuestion];
-        const isCorrect = selectedIndex === q.correct;
 
-        // Record answer
-        this.state.answers.push({
-            questionIndex: this.state.currentQuestion,
-            selected: selectedIndex,
-            correct: q.correct,
-            isCorrect: isCorrect
-        });
+        if (this.config.serverGrading) {
+            // SEC-5: When server grading is active, do NOT evaluate correctness client-side.
+            // Record only the selection; the server will determine right/wrong.
+            this.state.answers.push({
+                questionIndex: this.state.currentQuestion,
+                selected: selectedIndex,
+                correct: null,
+                isCorrect: null
+            });
+        } else {
+            const isCorrect = selectedIndex === q.correct;
 
-        if (isCorrect) {
-            this.state.score++;
+            // Record answer
+            this.state.answers.push({
+                questionIndex: this.state.currentQuestion,
+                selected: selectedIndex,
+                correct: q.correct,
+                isCorrect: isCorrect
+            });
+
+            if (isCorrect) {
+                this.state.score++;
+            }
         }
 
         // Callback — QC-8: do NOT expose isCorrect or currentScore mid-quiz (anti-cheat)
@@ -371,6 +385,12 @@ class QuizEngine {
             this.state.endTime = Date.now();
             this.state.isComplete = true;
 
+            // SEC-5: Server-side grading path
+            if (this.config.serverGrading && this.config.moduleId) {
+                this._submitQuizToServer(timedOut);
+                return;
+            }
+
             const results = this.calculateResults(timedOut);
 
             // Trigger quiz-specific achievement if passed
@@ -420,6 +440,132 @@ class QuizEngine {
                 </div>
             `;
         }
+    }
+
+    /**
+     * SEC-5: Submit quiz to server for grading.
+     * Shows a loading state, calls the Cloud Function, then renders results.
+     */
+    _submitQuizToServer(timedOut) {
+        // Show loading state
+        this.container.innerHTML = `
+            <div class="quiz-engine theme-${this.config.theme}" role="status" aria-label="Grading quiz">
+                <div style="text-align: center; padding: 60px 20px;">
+                    <div style="font-size: 1.5rem; color: #a78bfa; margin-bottom: 16px;">Submitting answers...</div>
+                    <div style="color: #888; font-size: 0.9rem;">Your answers are being graded server-side.</div>
+                </div>
+            </div>
+        `;
+
+        // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+        const answerMap = {};
+        this.state.answers.forEach((a, idx) => {
+            answerMap[String(idx)] = a.selected;
+        });
+
+        this._gradeViaServer(this.config.moduleId, answerMap)
+            .then(serverResult => {
+                // Map server results back into state
+                this.state.score = serverResult.score;
+
+                // Update answer records with server-provided correctness
+                serverResult.results.forEach((r, idx) => {
+                    if (this.state.answers[idx]) {
+                        this.state.answers[idx].isCorrect = r.correct;
+                        // correct index stays null — server does not reveal it
+                    }
+                });
+
+                const results = {
+                    score: serverResult.score,
+                    total: serverResult.total,
+                    percentage: serverResult.percentage,
+                    passed: serverResult.passed,
+                    passingScore: this.config.passingScore,
+                    duration: Math.round((this.state.endTime - this.state.startTime) / 1000),
+                    timedOut: timedOut,
+                    answers: this.state.answers,
+                    attempts: this.state.attempts
+                };
+
+                // Trigger achievements and progress (same as local path)
+                if (results.passed && this.config.achievement) {
+                    try { this.triggerAchievement(this.config.achievement); } catch (e) { /* non-critical */ }
+                }
+                try { this.processQuizAchievements(results); } catch (e) { /* non-critical */ }
+
+                if (results.passed && this.config.trackProgress && this.config.moduleId) {
+                    try {
+                        this.progressResult = this.trackQuizCompletion(results);
+                        results.progressResult = this.progressResult;
+                    } catch (e) { /* non-critical */ }
+                }
+
+                if (this.config.onComplete) {
+                    try { this.config.onComplete(results); } catch (e) { /* non-critical */ }
+                }
+
+                this.renderResults(results, timedOut);
+            })
+            .catch(err => {
+                console.error('[QuizEngine/SEC-5] Server grading failed:', err);
+
+                // Fallback: if server grading fails and we have local answers, grade locally
+                if (this.config.questions[0] && this.config.questions[0].correct !== undefined) {
+                    console.warn('[QuizEngine/SEC-5] Falling back to local grading.');
+                    this.state.score = 0;
+                    this.state.answers.forEach(a => {
+                        const q = this.config.questions[a.questionIndex];
+                        a.isCorrect = a.selected === q.correct;
+                        a.correct = q.correct;
+                        if (a.isCorrect) this.state.score++;
+                    });
+                    const results = this.calculateResults(timedOut);
+                    if (results.passed && this.config.achievement) {
+                        try { this.triggerAchievement(this.config.achievement); } catch (e) { /* non-critical */ }
+                    }
+                    try { this.processQuizAchievements(results); } catch (e) { /* non-critical */ }
+                    if (results.passed && this.config.trackProgress && this.config.moduleId) {
+                        try {
+                            this.progressResult = this.trackQuizCompletion(results);
+                            results.progressResult = this.progressResult;
+                        } catch (e) { /* non-critical */ }
+                    }
+                    if (this.config.onComplete) {
+                        try { this.config.onComplete(results); } catch (e) { /* non-critical */ }
+                    }
+                    this.renderResults(results, timedOut);
+                } else {
+                    // No local fallback possible — show error
+                    this.container.innerHTML = `
+                        <div class="quiz-engine theme-${this.config.theme}" role="alert">
+                            <div style="text-align: center; padding: 60px 20px;">
+                                <h2 style="color: #f87171; margin-bottom: 16px;">Grading Error</h2>
+                                <p style="color: #aaa; margin-bottom: 20px;">Could not reach the grading server. Please check your connection and try again.</p>
+                                <p style="font-size: 12px; color: #8a8a8a;">${err.message || 'Unknown error'}</p>
+                                <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; cursor: pointer;">Retry</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+    }
+
+    /**
+     * SEC-5: Call the gradeQuiz Cloud Function.
+     * @param {string} quizId - The quiz identifier (moduleId)
+     * @param {Object} answers - Map of { questionIndex: selectedAnswerIndex }
+     * @returns {Promise<{score, total, percentage, passed, results: [{correct: bool}]}>}
+     */
+    async _gradeViaServer(quizId, answers) {
+        // Requires Firebase Functions SDK to be loaded
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            throw new Error('Firebase Functions SDK not available.');
+        }
+
+        const gradeQuiz = firebase.functions().httpsCallable('gradeQuiz');
+        const response = await gradeQuiz({ quizId, answers });
+        return response.data;
     }
 
     /**
@@ -754,16 +900,24 @@ class QuizEngine {
                     <p class="review-question">${q.question}</p>
                     <div class="review-options" role="list">
                         ${q.options.map((opt, optIdx) => {
-                            const isCorrectAnswer = optIdx === q.correct;
-                            const isWrongSelected = answer && optIdx === answer.selected && !answer.isCorrect;
+                            // SEC-5: In server-grading mode, q.correct may be undefined.
+                            // We know if the student's answer was right/wrong, but we do NOT
+                            // reveal which option was correct (server never sends that).
+                            const knowsCorrectIdx = q.correct !== undefined && q.correct !== null;
+                            const isCorrectAnswer = knowsCorrectIdx && optIdx === q.correct;
+                            const isSelected = answer && optIdx === answer.selected;
+                            const isWrongSelected = isSelected && answer.isCorrect === false;
+                            const isRightSelected = isSelected && answer.isCorrect === true;
                             let label = `Option ${String.fromCharCode(65 + optIdx)}: ${this.stripHtml(opt)}`;
-                            if (isCorrectAnswer) label += ' — correct answer';
-                            if (isWrongSelected) label += ' — your answer';
+                            if (isCorrectAnswer) label += ' -- correct answer';
+                            if (isRightSelected && !knowsCorrectIdx) label += ' -- your answer (correct)';
+                            if (isWrongSelected) label += ' -- your answer';
                             return `
-                            <div class="review-option ${isCorrectAnswer ? 'correct-answer' : ''} ${isWrongSelected ? 'wrong-selected' : ''}" role="listitem" aria-label="${label}">
+                            <div class="review-option ${isCorrectAnswer ? 'correct-answer' : ''} ${isRightSelected && !knowsCorrectIdx ? 'correct-answer' : ''} ${isWrongSelected ? 'wrong-selected' : ''}" role="listitem" aria-label="${label}">
                                 <span class="option-letter" aria-hidden="true">${String.fromCharCode(65 + optIdx)}</span>
                                 ${opt}
-                                ${isCorrectAnswer ? ' <span aria-hidden="true">✓</span>' : ''}
+                                ${isCorrectAnswer ? ' <span aria-hidden="true">&#10003;</span>' : ''}
+                                ${isRightSelected && !knowsCorrectIdx ? ' <span aria-hidden="true">&#10003;</span> (your answer)' : ''}
                                 ${isWrongSelected ? ' (your answer)' : ''}
                             </div>`;
                         }).join('')}

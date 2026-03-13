@@ -27,7 +27,7 @@ const SecretFeatures = (function() {
     const NOCTURNAL_CSS = `
         body.nocturnal-active { filter: brightness(0.92) saturate(0.9); }
         body.nocturnal-active::after {
-            content:''; position:fixed; inset:0; pointer-events:none; z-index:99999;
+            content:''; position:absolute; inset:0; pointer-events:none; z-index:99999;
             background:linear-gradient(135deg,rgba(30,20,60,0.08),rgba(15,10,40,0.12));
             mix-blend-mode:multiply;
         }
@@ -73,7 +73,7 @@ const SecretFeatures = (function() {
         markDiscovered('konami');
         // Green flash
         const flash = document.createElement('div');
-        flash.style.cssText = 'position:fixed;inset:0;background:#0f0;opacity:0.6;z-index:999999;pointer-events:none;';
+        flash.style.cssText = 'position:absolute;top:' + window.scrollY + 'px;left:0;width:100%;height:' + window.innerHeight + 'px;background:#0f0;opacity:0.6;z-index:999999;pointer-events:none;';
         document.body.appendChild(flash);
         setTimeout(() => { flash.style.transition = 'opacity 0.4s'; flash.style.opacity = '0'; }, 100);
         setTimeout(() => flash.remove(), 600);
@@ -84,7 +84,7 @@ const SecretFeatures = (function() {
 
     function showMatrixRain() {
         const c = document.createElement('canvas');
-        c.style.cssText = 'position:fixed;inset:0;z-index:999998;pointer-events:none;';
+        c.style.cssText = 'position:absolute;top:' + window.scrollY + 'px;left:0;width:100%;height:' + window.innerHeight + 'px;z-index:999998;pointer-events:none;';
         c.width = window.innerWidth; c.height = window.innerHeight;
         document.body.appendChild(c);
         const ctx = c.getContext('2d'), fs = 14, cols = Math.floor(c.width / fs);
@@ -121,7 +121,7 @@ const SecretFeatures = (function() {
 
     function showTerminalFlash(text) {
         const el = document.createElement('div');
-        el.style.cssText = 'position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#0f0;border:1px solid #0f03;font-family:monospace;font-size:14px;padding:16px 28px;border-radius:6px;z-index:999999;white-space:pre;box-shadow:0 0 20px rgba(0,255,0,0.15);animation:sf-termFlash 0.3s ease;';
+        el.style.cssText = 'position:absolute;bottom:' + (document.documentElement.scrollHeight - window.scrollY - window.innerHeight + 40) + 'px;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#0f0;border:1px solid #0f03;font-family:monospace;font-size:14px;padding:16px 28px;border-radius:6px;z-index:999999;white-space:pre;box-shadow:0 0 20px rgba(0,255,0,0.15);animation:sf-termFlash 0.3s ease;';
         el.textContent = text;
         document.body.appendChild(el);
         setTimeout(() => { el.style.transition = 'opacity 0.5s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, 2500);
@@ -129,14 +129,14 @@ const SecretFeatures = (function() {
 
     function showShortcutSheet() {
         const ov = document.createElement('div');
-        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        ov.style.cssText = 'position:absolute;top:' + window.scrollY + 'px;left:0;width:100%;height:' + window.innerHeight + 'px;background:rgba(0,0,0,0.7);z-index:999999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
         ov.onclick = () => ov.remove();
         const box = document.createElement('div');
         box.style.cssText = 'background:#111;color:#ccc;border:1px solid #333;border-radius:10px;padding:32px;max-width:440px;font-family:monospace;font-size:13px;box-shadow:0 0 40px rgba(0,0,0,0.5);';
         const shortcuts = [['Ctrl+K','Quick search'],['?','This help sheet'],['G then D','Go to Dashboard'],['G then G','Go to Games'],['Esc','Close modals']];
         box.innerHTML = '<div style="color:#0f0;font-size:16px;margin-bottom:16px;font-weight:bold;">Keyboard Shortcuts</div><table style="width:100%;border-collapse:collapse;">'
             + shortcuts.map(([k,v]) => `<tr><td style="padding:6px 12px 6px 0;color:#888;">${k}</td><td>${v}</td></tr>`).join('')
-            + '</table><div style="margin-top:16px;color:#555;font-size:11px;">Press anywhere to close</div>';
+            + '</table><div style="margin-top:16px;color:#808080;font-size:11px;">Press anywhere to close</div>';
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
@@ -172,13 +172,13 @@ const SecretFeatures = (function() {
         try { const v = JSON.parse(localStorage.getItem('hexworth_version_cache') || '{}'); ver = v.version || ver; code = v.codename || code; rel = v.releaseDate || rel; } catch(_) {}
         if (typeof ContentCatalog !== 'undefined' && ContentCatalog.getStats) mods = ContentCatalog.getStats().total;
         const el = document.createElement('div');
-        el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;color:#aaa;border:1px solid #333;border-radius:10px;padding:32px;font-family:monospace;font-size:13px;z-index:999999;text-align:center;min-width:300px;box-shadow:0 0 40px rgba(0,0,0,0.5);';
+        el.style.cssText = 'position:absolute;top:' + (window.scrollY + window.innerHeight / 2) + 'px;left:50%;transform:translate(-50%,-50%);background:#111;color:#aaa;border:1px solid #333;border-radius:10px;padding:32px;font-family:monospace;font-size:13px;z-index:999999;text-align:center;min-width:300px;box-shadow:0 0 40px rgba(0,0,0,0.5);';
         el.innerHTML = `<div style="color:#9f7aea;font-size:18px;margin-bottom:12px;">HEXWORTH PRIME</div>`
             + `<div style="margin:6px 0;">Version: <span style="color:#fff;">${ver}</span></div>`
             + `<div style="margin:6px 0;">Codename: <span style="color:#fff;">${code}</span></div>`
             + `<div style="margin:6px 0;">Released: <span style="color:#fff;">${rel}</span></div>`
             + `<div style="margin:6px 0;">Modules: <span style="color:#fff;">${mods}</span></div>`
-            + `<div style="margin-top:16px;color:#555;font-size:11px;">Triple-clicked the logo. You're observant.</div>`;
+            + `<div style="margin-top:16px;color:#808080;font-size:11px;">Triple-clicked the logo. You're observant.</div>`;
         el.onclick = () => el.remove();
         document.body.appendChild(el);
         setTimeout(() => { if (el.parentNode) { el.style.transition = 'opacity 0.5s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 500); } }, 8000);
@@ -186,16 +186,16 @@ const SecretFeatures = (function() {
 
     function showCredits() {
         const ov = document.createElement('div');
-        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        ov.style.cssText = 'position:absolute;top:' + window.scrollY + 'px;left:0;width:100%;height:' + window.innerHeight + 'px;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
         ov.onclick = () => ov.remove();
         const box = document.createElement('div');
         box.style.cssText = 'background:#0a0a0a;color:#ccc;border:1px solid #9f7aea33;border-radius:12px;padding:40px;max-width:420px;text-align:center;font-family:"Segoe UI",sans-serif;box-shadow:0 0 60px rgba(159,122,234,0.15);';
         box.innerHTML = '<div style="font-size:24px;color:#9f7aea;margin-bottom:8px;">HEXWORTH PRIME</div>'
-            + '<div style="color:#666;margin-bottom:24px;font-size:13px;">You found the hidden credits.</div>'
+            + '<div style="color:#8a8a8a;margin-bottom:24px;font-size:13px;">You found the hidden credits.</div>'
             + '<div style="color:#888;font-size:14px;line-height:2;"><div>Designed & Built by</div>'
             + '<div style="color:#fff;font-size:16px;">The Professor</div>'
-            + '<div style="margin-top:16px;color:#555;">NSA / CIA / FAANG / Special Operations</div>'
-            + '<div style="margin-top:8px;color:#555;">17+ Years in the Shadows</div></div>'
+            + '<div style="margin-top:16px;color:#808080;">NSA / CIA / FAANG / Special Operations</div>'
+            + '<div style="margin-top:8px;color:#808080;">17+ Years in the Shadows</div></div>'
             + '<div style="margin-top:24px;font-family:monospace;color:#0f03;font-size:11px;">"There is no spoon."</div>'
             + '<div style="margin-top:16px;color:#333;font-size:11px;">Click anywhere to close</div>';
         ov.appendChild(box);

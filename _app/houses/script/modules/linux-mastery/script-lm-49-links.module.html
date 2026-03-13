@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -157,6 +158,16 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
+
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
         .terminal-container {
             flex: 1;
@@ -349,11 +360,16 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="symlink">ln -s</span>
-                    <span class="task-chip" data-task="hardlink">ln</span>
-                    <span class="task-chip" data-task="compare">ls -li</span>
-                    <span class="task-chip" data-task="readlink">readlink</span>
+                    <span class="task-chip" data-task="symlink">1</span>
+                    <span class="task-chip" data-task="hardlink">2</span>
+                    <span class="task-chip" data-task="compare">3</span>
+                    <span class="task-chip" data-task="readlink">4</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 4 &mdash; Create Symbolic Link</div>
+                <div class="task-desc">Create a symbolic (soft) link that points to another file.</div>
+                <div class="task-hint">Run: <code>ln -s target.txt link.txt</code></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -604,14 +620,62 @@ Directory Entry 2      |    +----------+
         });
 
         const MODULE_ID = 'lm-49-links';
-        const tasks = { 'symlink': false, 'hardlink': false, 'compare': false, 'readlink': false };
+        const TASK_ORDER = ["symlink","hardlink","compare","readlink"];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'symlink': {
+                num: '1 of 4 &mdash; Create Symbolic Link',
+                desc: 'Create a symbolic (soft) link that points to another file.',
+                hint: 'Run: <code>ln -s target.txt link.txt</code>'
+            },
+            'hardlink': {
+                num: '2 of 4 &mdash; Create Hard Link',
+                desc: 'Create a hard link -- a second directory entry pointing to the same data on disk.',
+                hint: 'Run: <code>ln target.txt hardlink.txt</code>'
+            },
+            'compare': {
+                num: '3 of 4 &mdash; Compare Inodes',
+                desc: 'Use <code>ls -li</code> to see inode numbers and compare hard vs soft links.',
+                hint: 'Run: <code>ls -li</code>'
+            },
+            'readlink': {
+                num: '4 of 4 &mdash; Read Link Target',
+                desc: 'Show where a symbolic link points using <code>readlink</code>.',
+                hint: 'Run: <code>readlink link.txt</code>'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.remove('active');
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) setTimeout(() => showTaskInstruction(next), 400);
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-49-links', { returnUrl: 'script-lm-50-text-editors.module.html' });
             }
@@ -634,6 +698,13 @@ Directory Entry 2      |    +----------+
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
@@ -641,6 +712,8 @@ Directory Entry 2      |    +----------+
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

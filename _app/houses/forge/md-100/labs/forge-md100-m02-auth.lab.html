@@ -696,6 +696,7 @@
 <script>
     let completedTasks = new Set();
     let currentTask = 1;
+    const STORAGE_KEY = 'md100-m02-auth-lab';
 
     // Task 1: Account types
     const acctAnswers = { a:'local', b:'msa', c:'domain', d:'aad' };
@@ -731,9 +732,108 @@
         completedTasks.add(n);
         document.querySelector('[data-task="' + n + '"]').classList.add('completed');
         document.getElementById('taskProgress').textContent = completedTasks.size + '/5 Complete';
+        saveProgress();
         if (completedTasks.size === 5) {
             document.getElementById('complete-section').classList.add('show');
         }
+    }
+
+    function saveProgress() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            completed: [...completedTasks]
+        }));
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+        try {
+            const data = JSON.parse(saved);
+            const restored = data.completed || [];
+            restored.forEach(function(n) {
+                completedTasks.add(n);
+                const card = document.querySelector('[data-task="' + n + '"]');
+                if (card) card.classList.add('completed');
+
+                // Restore UI state for each completed task
+                if (n === 1) {
+                    // Mark all account options as answered
+                    Object.keys(acctAnswers).forEach(function(key) {
+                        acctCorrect[key] = true;
+                        var cards = document.querySelectorAll('.account-card');
+                        cards.forEach(function(c) {
+                            var label = c.querySelector('.scenario-label');
+                            if (label && label.textContent.toLowerCase().includes(key)) {
+                                c.querySelectorAll('.option-btn').forEach(function(b) {
+                                    b.disabled = true;
+                                    var match = b.getAttribute('onclick').match(/'([^']+)'/g);
+                                    if (match) {
+                                        var val = match[1].replace(/'/g, '');
+                                        if (val === acctAnswers[key]) b.classList.add('correct');
+                                    }
+                                });
+                            }
+                        });
+                    });
+                    document.getElementById('t1-btn').disabled = false;
+                    showFeedback('t1-feedback', 'success', 'Task completed. All account types correctly identified.');
+                }
+                if (n === 2) {
+                    // Fill in correct command answers
+                    var cmdAnswers = {
+                        'c1-1': 'user', 'c1-2': 'P@ss1234',
+                        'c2-1': 'localgroup', 'c2-2': '/add',
+                        'c3-1': 'administrator', 'c3-2': '/active:no',
+                        'c4-1': 'net', 'c4-2': 'user'
+                    };
+                    Object.keys(cmdAnswers).forEach(function(id) {
+                        var el = document.getElementById(id);
+                        if (el) { el.value = cmdAnswers[id]; el.classList.add('correct'); }
+                    });
+                    showFeedback('t2-feedback', 'success', 'Task completed. All commands correct.');
+                }
+                if (n === 3) {
+                    Object.keys(uacAnswers).forEach(function(id) {
+                        var slider = document.getElementById('uac-' + id);
+                        if (slider) { slider.value = uacAnswers[id]; updateUACLabel(id, uacAnswers[id]); }
+                    });
+                    showFeedback('t3-feedback', 'success', 'Task completed. UAC levels set correctly.');
+                }
+                if (n === 4) {
+                    Object.keys(grpAnswers).forEach(function(name) {
+                        var sel = document.getElementById('grp-' + name);
+                        if (sel) sel.value = grpAnswers[name];
+                    });
+                    showFeedback('t4-feedback', 'success', 'Task completed. Group assignments correct.');
+                }
+                if (n === 5) {
+                    Object.keys(aadAnswers).forEach(function(key) {
+                        aadCorrect[key] = true;
+                    });
+                    document.querySelectorAll('.uac-scenario').forEach(function(card) {
+                        var lbl = card.querySelector('.scenario-label');
+                        if (!lbl || !lbl.textContent.startsWith('Scenario 5')) return;
+                        card.querySelectorAll('.option-btn').forEach(function(b) {
+                            b.disabled = true;
+                            var match = b.getAttribute('onclick');
+                            if (!match) return;
+                            var parts = match.match(/'([^']+)'/g);
+                            if (parts && parts.length >= 2) {
+                                var scen = parts[0].replace(/'/g, '');
+                                var val = parts[1].replace(/'/g, '');
+                                if (aadAnswers[scen] && val === aadAnswers[scen]) b.classList.add('correct');
+                            }
+                        });
+                    });
+                    document.getElementById('t5-btn').disabled = false;
+                    showFeedback('t5-feedback', 'success', 'Task completed. Azure AD enrollment understood.');
+                }
+            });
+            document.getElementById('taskProgress').textContent = completedTasks.size + '/5 Complete';
+            if (completedTasks.size === 5) {
+                document.getElementById('complete-section').classList.add('show');
+            }
+        } catch(e) { /* ignore corrupt data */ }
     }
 
     function showFeedback(id, type, msg) {
@@ -888,6 +988,9 @@
             returnUrl: '../index.html'
         });
     }
+
+    // ── Restore sticky progress on load ────────────────────────────────────────
+    loadProgress();
 </script>
 
 <script src="../../../../components/FluxCapacitor.js"></script>

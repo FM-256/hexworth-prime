@@ -287,11 +287,11 @@ const RingChallengeEngine = (function() {
     function flashFeedback(correct, points = 0) {
         const overlay = document.createElement('div');
         overlay.style.cssText = `
-            position: fixed;
-            top: 0;
+            position: absolute;
+            top: ${window.scrollY}px;
             left: 0;
-            right: 0;
-            bottom: 0;
+            width: 100%;
+            height: ${window.innerHeight}px;
             background: ${correct ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'};
             pointer-events: none;
             z-index: 9999;
@@ -303,8 +303,8 @@ const RingChallengeEngine = (function() {
             const pointsText = document.createElement('div');
             pointsText.textContent = `+${points}`;
             pointsText.style.cssText = `
-                position: fixed;
-                top: 50%;
+                position: absolute;
+                top: ${window.scrollY + window.innerHeight / 2}px;
                 left: 50%;
                 transform: translate(-50%, -50%);
                 color: #22c55e;
@@ -321,8 +321,8 @@ const RingChallengeEngine = (function() {
             const xMark = document.createElement('div');
             xMark.textContent = 'X';
             xMark.style.cssText = `
-                position: fixed;
-                top: 50%;
+                position: absolute;
+                top: ${window.scrollY + window.innerHeight / 2}px;
                 left: 50%;
                 transform: translate(-50%, -50%);
                 color: #ef4444;
@@ -807,8 +807,8 @@ const RingChallengeEngine = (function() {
                 const particle = document.createElement('div');
                 particle.innerHTML = ['<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">', '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">'][Math.floor(Math.random() * 4)];
                 particle.style.cssText = `
-                    position: fixed;
-                    top: 50%;
+                    position: absolute;
+                    top: ${window.scrollY + window.innerHeight / 2}px;
                     left: 50%;
                     font-size: 24px;
                     pointer-events: none;

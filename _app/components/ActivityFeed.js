@@ -816,13 +816,13 @@ const ActivityFeed = (function() {
 
             .empty-text {
                 font-size: 0.8rem;
-                color: #666;
+                color: #8a8a8a;
                 margin-bottom: 5px;
             }
 
             .empty-subtext {
                 font-size: 0.7rem;
-                color: #555;
+                color: #808080;
             }
 
             .feed-events {
@@ -965,7 +965,7 @@ const ActivityFeed = (function() {
 
             /* Incoming message toast */
             .hc-incoming-toast {
-                position: fixed;
+                position: absolute;
                 top: 20px;
                 right: 20px;
                 z-index: 10000;
@@ -1018,7 +1018,7 @@ const ActivityFeed = (function() {
                 flex-shrink: 0;
                 background: none;
                 border: none;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 1.2rem;
                 cursor: pointer;
                 padding: 0 2px;
@@ -1031,7 +1031,7 @@ const ActivityFeed = (function() {
             .feed-dismiss-btn {
                 background: none;
                 border: none;
-                color: #555;
+                color: #808080;
                 font-size: 1rem;
                 line-height: 1;
                 cursor: pointer;

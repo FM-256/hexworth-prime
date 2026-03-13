@@ -77,7 +77,7 @@ const AccessGuard = (function() {
         const current = hasGodMode();
         if (current) {
             sessionStorage.removeItem(config.storageKeys.godMode);
-            console.log('%c<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> God Mode Deactivated', 'color: #666; font-size: 14px;');
+            console.log('%c<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> God Mode Deactivated', 'color: #8a8a8a; font-size: 14px;');
         } else {
             sessionStorage.setItem(config.storageKeys.godMode, 'true');
             console.log('%c<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> GOD MODE ACTIVATED', 'color: #ffd700; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #ffd700;');
@@ -196,7 +196,7 @@ const AccessGuard = (function() {
         badge.innerHTML = `
             <style>
                 #firebase-admin-indicator {
-                    position: fixed;
+                    position: absolute;
                     top: 10px;
                     left: 50%;
                     transform: translateX(-50%);
@@ -290,7 +290,7 @@ const AccessGuard = (function() {
         const indicator = document.getElementById('master-key-indicator');
         if (indicator) indicator.remove();
 
-        console.log('%c<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Master Key Expired', 'color: #666; font-size: 14px;');
+        console.log('%c<img src="/assets/images/icons/icon-key.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Master Key Expired', 'color: #8a8a8a; font-size: 14px;');
     }
 
     // Show floating countdown indicator
@@ -304,7 +304,7 @@ const AccessGuard = (function() {
         indicator.innerHTML = `
             <style>
                 #master-key-indicator {
-                    position: fixed;
+                    position: absolute;
                     top: 15px;
                     left: 50%;
                     transform: translateX(-50%);
@@ -648,8 +648,8 @@ const AccessGuard = (function() {
         badge.id = 'god-mode-indicator';
         badge.innerHTML = '<img src="/assets/images/icons/icon-detective.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> GOD MODE';
         badge.style.cssText = `
-            position: fixed;
-            top: 10px;
+            position: absolute;
+            top: ${window.scrollY + 10}px;
             left: 50%;
             transform: translateX(-50%);
             background: linear-gradient(135deg, #ffd700, #ff6b00);

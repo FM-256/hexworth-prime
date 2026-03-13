@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -159,6 +160,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         /* Terminal fills remaining space */
         .terminal-container {
@@ -514,13 +524,14 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="whoami">whoami</span>
-                    <span class="task-chip" data-task="id">id</span>
-                    <span class="task-chip" data-task="groups">groups</span>
-                    <span class="task-chip" data-task="passwd">/etc/passwd</span>
-                    <span class="task-chip" data-task="group-file">/etc/group</span>
+                    <span class="task-chip" data-task="whoami" onclick="showTaskInstruction('whoami')">1</span>
+                    <span class="task-chip" data-task="id" onclick="showTaskInstruction('id')">2</span>
+                    <span class="task-chip" data-task="groups" onclick="showTaskInstruction('groups')">3</span>
+                    <span class="task-chip" data-task="passwd" onclick="showTaskInstruction('passwd')">4</span>
+                    <span class="task-chip" data-task="group-file" onclick="showTaskInstruction('group-file')">5</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -797,6 +808,58 @@
             }
         });
 
+        const TASK_ORDER = ['whoami', 'id', 'groups', 'passwd', 'group-file'];
+        const TASK_INSTRUCTIONS = {
+    'whoami': {
+        num: '1 of 5 &mdash; Who Am I?',
+        desc: 'Find out your current username.',
+        hint: 'Run: <code>whoami</code>',
+        expected: 'Shows your username'
+    },
+    'id': {
+        num: '2 of 5 &mdash; User Identity',
+        desc: 'Display your full user identity including UID, GID, and group memberships.',
+        hint: 'Run: <code>id</code>',
+        expected: 'Shows UID, GID, and all group memberships'
+    },
+    'groups': {
+        num: '3 of 5 &mdash; List Groups',
+        desc: 'See which groups you belong to.',
+        hint: 'Run: <code>groups</code>',
+        expected: 'Shows groups you belong to'
+    },
+    'passwd': {
+        num: '4 of 5 &mdash; Read passwd File',
+        desc: 'View the user account database.',
+        hint: 'Run: <code>cat /etc/passwd</code>',
+        expected: 'Shows user account database'
+    },
+    'group-file': {
+        num: '5 of 5 &mdash; Read group File',
+        desc: 'View the group database.',
+        hint: 'Run: <code>cat /etc/group</code>',
+        expected: 'Shows group database'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-21-users-groups';
         const tasks = { 'whoami': false, 'id': false, 'groups': false, 'passwd': false, 'group-file': false };
 
@@ -806,6 +869,13 @@
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-21-users-groups', { returnUrl: 'script-lm-22-file-permissions.module.html' });
             }
@@ -835,6 +905,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

@@ -32,7 +32,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -159,6 +160,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
+
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
         .terminal-container {
             flex: 1;
@@ -465,11 +475,16 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="list">crontab -l</span>
-                    <span class="task-chip" data-task="parse">parse schedule</span>
-                    <span class="task-chip" data-task="create">create entry</span>
-                    <span class="task-chip" data-task="special">@shortcut</span>
+                    <span class="task-chip" data-task="list">1</span>
+                    <span class="task-chip" data-task="edit">2</span>
+                    <span class="task-chip" data-task="create">3</span>
+                    <span class="task-chip" data-task="special">4</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 4 &mdash; List Cron Jobs</div>
+                <div class="task-desc">View the current user's cron schedule by listing their crontab entries.</div>
+                <div class="task-hint">Run: <code>crontab -l</code></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -692,26 +707,72 @@
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
-                // Task: List cron jobs
                 if (cmd === 'crontab' && args.includes('-l')) completeTask('list');
-                // Task: Interpret a cron schedule
-                if (cmd === 'cron-parse') completeTask('parse');
-                // Task: Create a cron entry
-                if (cmd === 'cron-add' && args.length > 0) completeTask('create');
-                // Task: Use a special string (@daily, @hourly, etc.)
-                if (cmd === 'cron-add' && /^@/.test(args[0])) completeTask('special');
+                if (cmd === 'crontab' && args.includes('-e')) completeTask('edit');
+                if (cmd === 'crontab-add' && args.length > 0) {
+                    completeTask('create');
+                    if (/^["']?@/.test(args[0])) completeTask('special');
+                }
             }
         });
 
         const MODULE_ID = 'lm-32-cron';
-        const tasks = { 'list': false, 'parse': false, 'create': false, 'special': false };
+        const TASK_ORDER = ['list', 'edit', 'create', 'special'];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'list': {
+                num: '1 of 4 &mdash; List Cron Jobs',
+                desc: 'View the current user\'s cron schedule by listing their crontab entries.',
+                hint: 'Run: <code>crontab -l</code>'
+            },
+            'edit': {
+                num: '2 of 4 &mdash; Edit Crontab',
+                desc: 'Open the crontab editor. In the terminal it will show a tip about using <code>crontab-add</code> to add entries.',
+                hint: 'Run: <code>crontab -e</code>'
+            },
+            'create': {
+                num: '3 of 4 &mdash; Add a Cron Entry',
+                desc: 'Schedule a command to run at a specific time. Use the <code>crontab-add</code> command with a 5-field schedule and a command.',
+                hint: 'Run: <code>crontab-add "0 2 * * *" "/usr/bin/backup.sh"</code>'
+            },
+            'special': {
+                num: '4 of 4 &mdash; Use a Shortcut',
+                desc: 'Use a special scheduling string like <code>@daily</code>, <code>@hourly</code>, or <code>@reboot</code> instead of the 5-field syntax.',
+                hint: 'Run: <code>crontab-add "@daily" "/usr/bin/cleanup.sh"</code>'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.remove('active');
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) setTimeout(() => showTaskInstruction(next), 400);
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-32-cron', { returnUrl: 'script-lm-33-systemd.module.html' });
             }
@@ -734,6 +795,13 @@
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
@@ -741,6 +809,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

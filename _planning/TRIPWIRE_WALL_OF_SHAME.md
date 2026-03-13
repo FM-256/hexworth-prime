@@ -1,6 +1,7 @@
 # TripWire + Wall of Shame -- Implementation Plan
 
-**Status:** PLANNED (Sprint ready)
+**Status:** DEPLOYED (2026-03-11)
+**Feature doc:** `_app/docs/features/TRIPWIRE_DEFENSE.md` (authoritative -- this file is the original plan)
 **Created:** 2026-03-11
 
 ## Concept

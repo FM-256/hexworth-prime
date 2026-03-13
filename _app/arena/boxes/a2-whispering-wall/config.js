@@ -433,7 +433,7 @@ const A2Config = {
         // Build the new post HTML (intentionally renders HTML — that's the vulnerability)
         let postHtml = `
             <div style="background:#1a2e1a; border:1px solid #2ecc71; border-radius:4px; padding:10px 14px; margin-bottom:12px;">
-                <div style="color:#2ecc71; font-size:0.75rem; font-weight:700; margin-bottom:4px;">${displayName} <span style="color:#555; font-weight:400;">&mdash; just now</span></div>
+                <div style="color:#2ecc71; font-size:0.75rem; font-weight:700; margin-bottom:4px;">${displayName} <span style="color:#808080; font-weight:400;">&mdash; just now</span></div>
                 <div style="color:#ccc; font-size:0.8rem;">${message}</div>
             </div>
             <div style="color:#2ecc71; background:rgba(46,204,113,0.08); border:1px solid rgba(46,204,113,0.2); border-radius:4px; padding:8px; font-size:0.75rem;">
@@ -699,7 +699,7 @@ const A2Config = {
             <div style="color:#aaa; font-size:0.7rem; letter-spacing:0.1em; margin-bottom:10px;">SERVER CONFIGURATION</div>
 
             <div style="background:#0a0a0a; border:1px solid #333; border-radius:4px; padding:14px; font-family:monospace; font-size:0.75rem; color:#aaa; line-height:1.6; margin-bottom:16px;">
-                <div style="color:#555;">## /etc/whispering-wall/server.conf</div>
+                <div style="color:#808080;">## /etc/whispering-wall/server.conf</div>
                 <div><span style="color:#e67e22;">server_name</span> = wall.obsidian-hand.net</div>
                 <div><span style="color:#e67e22;">listen_port</span> = 80</div>
                 <div><span style="color:#e67e22;">ssl_port</span> = 443</div>
@@ -712,22 +712,22 @@ const A2Config = {
                 <div><span style="color:#e67e22;">log_level</span> = warn</div>
                 <div><span style="color:#e67e22;">xss_filter</span> = disabled</div>
                 <div><span style="color:#e67e22;">csp_header</span> = none</div>
-                <div style="color:#555;">## Security note: XSS filter disabled for "performance"</div>
+                <div style="color:#808080;">## Security note: XSS filter disabled for "performance"</div>
             </div>
 
             <div style="color:#aaa; font-size:0.7rem; letter-spacing:0.1em; margin-bottom:10px;">SYSTEM FLAGS</div>
 
             <div style="background:#0a0a0a; border:1px solid #333; border-radius:4px; padding:14px; font-family:monospace; font-size:0.75rem; color:#aaa; line-height:1.6; margin-bottom:16px;">
-                <div style="color:#555;">## /root/root.txt</div>
+                <div style="color:#808080;">## /root/root.txt</div>
                 <div style="color:#2ecc71; font-weight:700;">flag{0bs1d14n_h4nd_s3rv3r_c0mpr0m1s3d}</div>
             </div>
 
             <div style="color:#aaa; font-size:0.7rem; letter-spacing:0.1em; margin-bottom:10px;">SSH KEYS</div>
 
             <div style="background:#0a0a0a; border:1px solid #333; border-radius:4px; padding:14px; font-family:monospace; font-size:0.75rem; color:#aaa; line-height:1.6;">
-                <div style="color:#555;">## /root/.ssh/authorized_keys</div>
+                <div style="color:#808080;">## /root/.ssh/authorized_keys</div>
                 <div>ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC7...</div>
-                <div style="color:#555;">## Last login: from 192.168.1.100</div>
+                <div style="color:#808080;">## Last login: from 192.168.1.100</div>
             </div>
 
             <div style="margin-top:16px;">

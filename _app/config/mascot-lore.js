@@ -68,7 +68,7 @@ const MascotLore = {
         personality: 'Cryptic, patient, sees what others overlook',
         quote: 'I do not break things. I find the cracks that were always there.',
         ability: 'Can become invisible to any detection system by moving through the blind spots in monitoring coverage',
-        color: '#6b21a8'
+        color: '#9b59d0'
     },
 
     eye: {

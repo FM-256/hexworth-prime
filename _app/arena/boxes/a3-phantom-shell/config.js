@@ -313,7 +313,7 @@ const A3Config = {
                         </div>
                     </div>
 
-                    <div style="margin-top:24px; padding-top:12px; border-top:1px solid #333; text-align:center; color:#555; font-size:0.65rem;">
+                    <div style="margin-top:24px; padding-top:12px; border-top:1px solid #333; text-align:center; color:#808080; font-size:0.65rem;">
                         Iron Bastion Monitoring Suite &copy; 2024 | Server: iron-bastion | Uptime: 47d 12h 33m
                     </div>
                 `
@@ -347,7 +347,7 @@ const A3Config = {
                     </form>
 
                     <div data-results style="max-width:550px; margin:0 auto;">
-                        <div style="color:#555; font-size:0.7rem; letter-spacing:0.1em; margin-bottom:6px;">OUTPUT</div>
+                        <div style="color:#808080; font-size:0.7rem; letter-spacing:0.1em; margin-bottom:6px;">OUTPUT</div>
                         <div style="background:#0d1117; border:1px solid #333; border-radius:4px; padding:14px; font-family:'Courier New',monospace; font-size:0.78rem; color:#ccc; white-space:pre-wrap; min-height:60px;">Waiting for diagnostic command...</div>
                     </div>
 

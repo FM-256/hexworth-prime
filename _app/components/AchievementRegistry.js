@@ -45,6 +45,7 @@ const AchievementRegistry = (function() {
         'prestige': 'prestige',
         'easter_egg': 'easter_egg',
         'explorer': 'exploration',
+        'tripwire': 'tripwire',
         // Fallback
         'general': 'general'
     };
@@ -75,7 +76,8 @@ const AchievementRegistry = (function() {
         'auto_lab': 'Labs',
         'auto_house_milestone': 'House Milestones',
         'auto_streak': 'Streaks',
-        'auto_xp': 'XP Milestones'
+        'auto_xp': 'XP Milestones',
+        'tripwire': 'TripWire Defense'
     };
 
     // ═══════════════════════════════════════════════════════════════════

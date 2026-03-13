@@ -22,7 +22,7 @@ const ArcadeScoreModal = (function () {
         const style = document.createElement('style');
         style.textContent = `
             .asm-overlay {
-                position: fixed;
+                position: absolute;
                 inset: 0;
                 background: rgba(0,0,0,0.75);
                 z-index: 10000;
@@ -68,7 +68,7 @@ const ArcadeScoreModal = (function () {
             .asm-close {
                 background: none;
                 border: none;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 1.5rem;
                 cursor: pointer;
                 padding: 0;
@@ -104,7 +104,7 @@ const ArcadeScoreModal = (function () {
                 width: 2rem;
                 text-align: center;
                 font-weight: 700;
-                color: #666;
+                color: #8a8a8a;
                 flex-shrink: 0;
             }
             .asm-rank-medal { font-size: 1.2rem; }
@@ -133,7 +133,7 @@ const ArcadeScoreModal = (function () {
             }
             .asm-empty {
                 text-align: center;
-                color: #666;
+                color: #8a8a8a;
                 padding: 1.5rem 0;
                 font-size: 0.9rem;
             }

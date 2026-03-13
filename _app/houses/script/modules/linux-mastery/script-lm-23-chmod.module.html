@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -157,6 +158,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         .terminal-container {
             flex: 1;
@@ -437,13 +447,14 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="chmod-plus">chmod +</span>
-                    <span class="task-chip" data-task="chmod-minus">chmod -</span>
-                    <span class="task-chip" data-task="chmod-numeric">numeric mode</span>
-                    <span class="task-chip" data-task="chmod-exec">make executable</span>
-                    <span class="task-chip" data-task="chmod-private">chmod 600</span>
+                    <span class="task-chip" data-task="chmod-plus" onclick="showTaskInstruction('chmod-plus')">1</span>
+                    <span class="task-chip" data-task="chmod-minus" onclick="showTaskInstruction('chmod-minus')">2</span>
+                    <span class="task-chip" data-task="chmod-numeric" onclick="showTaskInstruction('chmod-numeric')">3</span>
+                    <span class="task-chip" data-task="chmod-exec" onclick="showTaskInstruction('chmod-exec')">4</span>
+                    <span class="task-chip" data-task="chmod-private" onclick="showTaskInstruction('chmod-private')">5</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -692,6 +703,58 @@
             }
         });
 
+        const TASK_ORDER = ['chmod-plus', 'chmod-minus', 'chmod-numeric', 'chmod-exec', 'chmod-private'];
+        const TASK_INSTRUCTIONS = {
+    'chmod-plus': {
+        num: '1 of 5 &mdash; Add Permission',
+        desc: 'Use <code>chmod</code> with <code>+</code> to add a permission.',
+        hint: 'Run: <code>chmod +r file.txt</code>',
+        expected: 'Adds read permission'
+    },
+    'chmod-minus': {
+        num: '2 of 5 &mdash; Remove Permission',
+        desc: 'Use <code>chmod</code> with <code>-</code> to remove a permission.',
+        hint: 'Run: <code>chmod -w file.txt</code>',
+        expected: 'Removes write permission'
+    },
+    'chmod-numeric': {
+        num: '3 of 5 &mdash; Numeric Mode',
+        desc: 'Set permissions using a 3-digit octal number.',
+        hint: 'Run: <code>chmod 644 file.txt</code>',
+        expected: 'Sets rw-r--r-- (owner read/write, others read)'
+    },
+    'chmod-exec': {
+        num: '4 of 5 &mdash; Make Executable',
+        desc: 'Add execute permission to make a file runnable.',
+        hint: 'Run: <code>chmod +x script.sh</code>',
+        expected: 'Adds execute permission'
+    },
+    'chmod-private': {
+        num: '5 of 5 &mdash; Private File',
+        desc: 'Set permissions so only the owner can read and write.',
+        hint: 'Run: <code>chmod 600 private.key</code>',
+        expected: 'Only owner can read/write'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-23-chmod';
         const tasks = { 'chmod-plus': false, 'chmod-minus': false, 'chmod-numeric': false, 'chmod-exec': false, 'chmod-private': false };
 
@@ -701,6 +764,13 @@
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-23-chmod', { returnUrl: 'script-lm-24-chown.module.html' });
             }
@@ -730,6 +800,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

@@ -75,7 +75,7 @@ const CertPathRenderer = (() => {
 :root{--pc:${c};--pg:${c}33;--pbg:${c}0d;--pb:${c}33}
 *{margin:0;padding:0;box-sizing:border-box}
 body{min-height:100vh;background:#0a0a0f;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#e0e0e0;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,var(--pbg) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,${c}08 0%,transparent 50%);pointer-events:none;z-index:0}
+body::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 20%,var(--pbg) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,${c}08 0%,transparent 50%);pointer-events:none;z-index:0}
 
 .hdr{padding:16px 32px;border-bottom:1px solid var(--pb);background:rgba(10,10,15,.95);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
 .hdr-l{display:flex;align-items:center;gap:16px}
@@ -84,7 +84,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .pbadge{display:flex;align-items:center;gap:10px;padding:8px 18px;background:var(--pbg);border:1px solid var(--pb);border-radius:20px}
 .pbadge-icon{font-size:1.2rem}
 .pbadge-text{font-size:.7rem;letter-spacing:.2em;color:var(--pc);text-transform:uppercase}
-.cert-tag{padding:5px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;font-size:.65rem;color:#666;letter-spacing:.1em}
+.cert-tag{padding:5px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;font-size:.65rem;color:#8a8a8a;letter-spacing:.1em}
 
 .wrap{max-width:900px;margin:0 auto;padding:40px 24px;position:relative;z-index:10}
 .hero{text-align:center;padding:50px 20px 40px}
@@ -95,12 +95,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .stats{display:flex;justify-content:center;gap:40px;padding:20px;background:rgba(15,15,20,.6);border:1px solid var(--pb);border-radius:12px;margin-bottom:12px}
 .st{text-align:center}
 .st-v{font-size:1.8rem;font-weight:300;color:var(--pc)}
-.st-l{font-size:.65rem;color:#555;letter-spacing:.15em;text-transform:uppercase;margin-top:4px}
+.st-l{font-size:.65rem;color:#808080;letter-spacing:.15em;text-transform:uppercase;margin-top:4px}
 
 .prog{height:4px;background:rgba(255,255,255,.05);border-radius:2px;margin-bottom:40px;overflow:hidden}
 .prog-f{height:100%;background:var(--pc);border-radius:2px;transition:width .5s ease}
 
-.sec-lbl{font-size:.7rem;color:#555;letter-spacing:.25em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.05)}
+.sec-lbl{font-size:.7rem;color:#808080;letter-spacing:.25em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.05)}
 
 .mlist{display:flex;flex-direction:column;gap:6px;margin-bottom:40px}
 .mrow{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:8px;transition:all .2s}
@@ -116,7 +116,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .mtitle:hover{color:var(--pc)}
 .mmeta{display:flex;align-items:center;gap:8px;margin-top:3px}
 .mdiff{font-size:.6rem;padding:2px 8px;border-radius:8px;text-transform:uppercase;letter-spacing:.1em}
-.mdur{font-size:.65rem;color:#555}
+.mdur{font-size:.65rem;color:#808080}
 
 .foot{text-align:center;padding:30px 0;color:#333;font-size:.7rem;letter-spacing:.15em}
 

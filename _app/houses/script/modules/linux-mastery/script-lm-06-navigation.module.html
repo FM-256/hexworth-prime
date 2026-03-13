@@ -130,6 +130,14 @@
         }
 
         .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         .terminal-container { flex: 1; min-height: 0; }
 
@@ -355,12 +363,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="cd-dir">cd [dir]</span>
-                    <span class="task-chip" data-task="cd-up">cd ..</span>
-                    <span class="task-chip" data-task="cd-home">cd ~</span>
-                    <span class="task-chip" data-task="pwd">pwd</span>
-                    <span class="task-chip" data-task="cd-abs">cd /etc</span>
+                    <span class="task-chip" data-task="cd-dir" onclick="showTaskInstruction('cd-dir')">1</span>
+                    <span class="task-chip" data-task="cd-up" onclick="showTaskInstruction('cd-up')">2</span>
+                    <span class="task-chip" data-task="cd-home" onclick="showTaskInstruction('cd-home')">3</span>
+                    <span class="task-chip" data-task="pwd" onclick="showTaskInstruction('pwd')">4</span>
+                    <span class="task-chip" data-task="cd-abs" onclick="showTaskInstruction('cd-abs')">5</span>
                 </div>
+                <div class="task-instruction" id="taskInstruction"></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -517,6 +526,28 @@
 
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
+        const TASK_ORDER = ['cd-dir', 'cd-up', 'cd-home', 'pwd', 'cd-abs'];
+        const TASK_INSTRUCTIONS = {
+            'cd-dir': { number: 1, title: 'Navigate to a Directory', description: 'Use <code>cd</code> followed by a directory name to move into it. Try navigating into the Documents folder.', command: 'cd Documents', expect: 'Your prompt should change to show ~/Documents as your new location.' },
+            'cd-up': { number: 2, title: 'Go Up One Level', description: 'Use <code>cd ..</code> to move up to the parent directory. The two dots (..) always mean "one level up".', command: 'cd ..', expect: 'You should move back to the parent directory (e.g., from ~/Documents to ~).' },
+            'cd-home': { number: 3, title: 'Go Home', description: 'Use <code>cd ~</code> or just <code>cd</code> with no arguments to jump directly to your home directory from anywhere.', command: 'cd ~', expect: 'Your prompt should show ~ (your home directory).' },
+            'pwd': { number: 4, title: 'Print Working Directory', description: 'Run <code>pwd</code> to see the full absolute path of where you are right now.', command: 'pwd', expect: 'You should see the full path like /home/learner.' },
+            'cd-abs': { number: 5, title: 'Navigate with Absolute Path', description: 'Use an absolute path (starting with <code>/</code>) to jump directly to any directory on the system.', command: 'cd /etc', expect: 'You should move to /etc — the system configuration directory.' }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `<div class="task-number">Task ${info.number}: ${info.title}</div><div>${info.description}</div><div class="task-cmd">${info.command}</div><div class="task-expect">${info.expect}</div>`;
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() { return TASK_ORDER.find(t => !tasks[t]) || null; }
+
         LinuxTerminal.init('LM-06', '#terminal', {
             user: 'learner',
             hostname: 'linux-mastery',
@@ -538,10 +569,16 @@
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
-            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
             updateProgress();
             saveProgress();
-            if (Object.values(tasks).every(v => v)) {
+            const next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); }
+            else {
+                const el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You can navigate the Linux filesystem like a pro.</div>';
+                el.classList.add('visible');
                 ModuleProgress.complete('script', 'script-lm-06-navigation', { returnUrl: 'script-lm-07-listing-files.module.html' });
             }
         }
@@ -570,6 +607,8 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

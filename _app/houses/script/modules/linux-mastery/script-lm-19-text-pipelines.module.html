@@ -31,7 +31,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -153,6 +154,15 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
 
         /* Terminal fills remaining space */
         .terminal-container {
@@ -393,12 +403,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="pipe2">2-cmd pipe</span>
-                    <span class="task-chip" data-task="pipe3">3+ cmd pipe</span>
-                    <span class="task-chip" data-task="grep-pipe">grep pipe</span>
-                    <span class="task-chip" data-task="sort-pipe">sort pipe</span>
+                    <span class="task-chip" data-task="pipe2" onclick="showTaskInstruction('pipe2')">1</span>
+                    <span class="task-chip" data-task="pipe3" onclick="showTaskInstruction('pipe3')">2</span>
+                    <span class="task-chip" data-task="grep-pipe" onclick="showTaskInstruction('grep-pipe')">3</span>
+                    <span class="task-chip" data-task="sort-pipe" onclick="showTaskInstruction('sort-pipe')">4</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -531,6 +542,52 @@
             }
         });
 
+        const TASK_ORDER = ['pipe2', 'pipe3', 'grep-pipe', 'sort-pipe'];
+        const TASK_INSTRUCTIONS = {
+    'pipe2': {
+        num: '1 of 4 &mdash; Two-Command Pipe',
+        desc: 'Connect two commands with a pipe (<code>|</code>).',
+        hint: 'Run: <code>cat /etc/passwd | head</code>',
+        expected: 'Pipes cat output into head'
+    },
+    'pipe3': {
+        num: '2 of 4 &mdash; Three-Command Pipe',
+        desc: 'Chain three or more commands together in a pipeline.',
+        hint: 'Run: <code>cat /etc/passwd | sort | head</code>',
+        expected: 'Chain three commands together'
+    },
+    'grep-pipe': {
+        num: '3 of 4 &mdash; Grep in Pipeline',
+        desc: 'Use <code>grep</code> inside a pipeline to filter output.',
+        hint: 'Run: <code>ps aux | grep nginx</code>',
+        expected: 'Filters the process list with grep'
+    },
+    'sort-pipe': {
+        num: '4 of 4 &mdash; Sort in Pipeline',
+        desc: 'Use <code>sort</code> inside a pipeline to order results.',
+        hint: 'Run: <code>du | sort -n | tail</code>',
+        expected: 'Sorts disk usage numerically and shows largest'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-19-text-pipelines';
         const tasks = { 'pipe2': false, 'pipe3': false, 'grep-pipe': false, 'sort-pipe': false };
 
@@ -540,6 +597,13 @@
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-19-text-pipelines', { returnUrl: 'script-lm-20-section3-practice.module.html' });
             }
@@ -569,6 +633,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

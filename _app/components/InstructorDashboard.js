@@ -1939,7 +1939,7 @@ const InstructorDashboard = (function() {
                                 `).join('')}
                             </tbody>
                         </table>
-                    ` : '<div style="color:#666;font-size:0.85rem;">No flags captured yet</div>'}
+                    ` : '<div style="color:#8a8a8a;font-size:0.85rem;">No flags captured yet</div>'}
                 </div>
 
                 <!-- Hints Used -->
@@ -1958,7 +1958,7 @@ const InstructorDashboard = (function() {
                                 `).join('')}
                             </tbody>
                         </table>
-                    ` : '<div style="color:#666;font-size:0.85rem;">No hints used</div>'}
+                    ` : '<div style="color:#8a8a8a;font-size:0.85rem;">No hints used</div>'}
                 </div>
 
                 ${phaseHtml}
@@ -2337,7 +2337,7 @@ const InstructorDashboard = (function() {
                     }
                 }
 
-                const statusIcon = completed ? '<span style="color:#4ade80;">&#10003;</span>' : '<span style="color:#555;">—</span>';
+                const statusIcon = completed ? '<span style="color:#4ade80;">&#10003;</span>' : '<span style="color:#808080;">—</span>';
 
                 return `
                     <tr>
@@ -2350,7 +2350,7 @@ const InstructorDashboard = (function() {
                 `;
             }).join('');
         } else {
-            assignmentRows = '<tr><td colspan="5" style="text-align:center;color:#666;padding:20px;">No assignments</td></tr>';
+            assignmentRows = '<tr><td colspan="5" style="text-align:center;color:#8a8a8a;padding:20px;">No assignments</td></tr>';
         }
 
         const overlay = document.createElement('div');
@@ -3053,7 +3053,7 @@ const InstructorDashboard = (function() {
                 right: 10px;
                 background: none;
                 border: none;
-                color: #555;
+                color: #808080;
                 font-size: 16px;
                 cursor: pointer;
                 padding: 2px 6px;
@@ -3308,7 +3308,7 @@ const InstructorDashboard = (function() {
 
             /* Modal */
             .id-overlay {
-                position: fixed;
+                position: absolute;
                 top: 0;
                 left: 0;
                 right: 0;
@@ -3354,7 +3354,7 @@ const InstructorDashboard = (function() {
                 right: 15px;
                 background: none;
                 border: none;
-                color: #666;
+                color: #8a8a8a;
                 font-size: 24px;
                 cursor: pointer;
             }
@@ -3527,7 +3527,7 @@ const InstructorDashboard = (function() {
 
             /* Toast */
             .id-toast {
-                position: fixed;
+                position: absolute;
                 bottom: 24px;
                 left: 50%;
                 transform: translateX(-50%) translateY(80px);

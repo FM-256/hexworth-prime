@@ -30,7 +30,8 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
-            min-height: 100vh;
+            overflow: hidden;
+            height: 100vh;
             line-height: 1.6;
         }
 
@@ -157,6 +158,16 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+
+        .task-instruction { padding: 12px 20px; border-bottom: 1px solid var(--border); background: rgba(233, 84, 32, 0.04); min-height: 80px; flex-shrink: 0; }
+        .task-instruction .task-num { font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .task-instruction .task-desc { color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; }
+        .task-instruction .task-hint { color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+        .task-instruction .task-hint code { color: var(--green); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; }
+        .task-instruction .task-expected { color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px; font-style: italic; }
+
+        .task-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
         .terminal-container {
             flex: 1;
@@ -337,11 +348,16 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="define">define</span>
-                    <span class="task-chip" data-task="call">call</span>
-                    <span class="task-chip" data-task="args">arguments</span>
-                    <span class="task-chip" data-task="local">local var</span>
+                    <span class="task-chip" data-task="define">1</span>
+                    <span class="task-chip" data-task="call">2</span>
+                    <span class="task-chip" data-task="args">3</span>
+                    <span class="task-chip" data-task="local">4</span>
                 </div>
+            </div>
+            <div class="task-instruction" id="taskInstruction">
+                <div class="task-num">Task 1 of 4 &mdash; Define a Function</div>
+                <div class="task-desc">Create a shell function using <code>function name()</code> or <code>name()</code> syntax.</div>
+                <div class="task-hint">Try: <code>function greet() { echo "Hello"; }</code></div>
             </div>
             <div class="terminal-container" id="terminal"></div>
         </div>
@@ -591,14 +607,62 @@ backup_file <span class="string">"/etc/passwd"</span></div>
         });
 
         const MODULE_ID = 'lm-46-functions';
-        const tasks = { 'define': false, 'call': false, 'args': false, 'local': false };
+        const TASK_ORDER = ["define","call","args","local"];
+        const tasks = {};
+        TASK_ORDER.forEach(t => tasks[t] = false);
+
+        const TASK_INSTRUCTIONS = {
+            'define': {
+                num: '1 of 4 &mdash; Define a Function',
+                desc: 'Create a shell function using <code>function name()</code> or <code>name()</code> syntax.',
+                hint: 'Try: <code>function greet() { echo "Hello"; }</code>'
+            },
+            'call': {
+                num: '2 of 4 &mdash; Call a Function',
+                desc: 'Execute a script or function. Run <code>bash</code>, <code>cat</code>, or <code>echo</code> to explore.',
+                hint: 'Run: <code>cat script.sh</code> or <code>bash script.sh</code>'
+            },
+            'args': {
+                num: '3 of 4 &mdash; Function Arguments',
+                desc: 'Pass arguments to functions using <code>$1</code>, <code>$2</code>, or <code>$@</code>.',
+                hint: 'Try: <code>echo $1 $@</code>'
+            },
+            'local': {
+                num: '4 of 4 &mdash; Local Variables',
+                desc: 'Use <code>local</code> keyword to create variables scoped to a function.',
+                hint: 'Try: <code>local name="value"</code>'
+            }
+        };
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = `
+                <div class="task-num">Task ${info.num}</div>
+                <div class="task-desc">${info.desc}</div>
+                <div class="task-hint">${info.hint}</div>
+            `;
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
 
         function completeTask(taskId) {
             if (tasks[taskId]) return;
             tasks[taskId] = true;
             document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.add('completed');
+            document.querySelector(`.task-chip[data-task="${taskId}"]`)?.classList.remove('active');
             updateProgress();
             saveProgress();
+
+            const next = getNextIncompleteTask();
+            if (next) setTimeout(() => showTaskInstruction(next), 400);
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-46-functions', { returnUrl: 'script-lm-47-practical-scripts.module.html' });
             }
@@ -621,6 +685,13 @@ backup_file <span class="string">"/etc/passwd"</span></div>
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        document.querySelectorAll('.task-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const taskId = chip.dataset.task;
+                if (taskId) showTaskInstruction(taskId);
+            });
+        });
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID];
@@ -628,6 +699,8 @@ backup_file <span class="string">"/etc/passwd"</span></div>
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            const next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
         })();
     </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

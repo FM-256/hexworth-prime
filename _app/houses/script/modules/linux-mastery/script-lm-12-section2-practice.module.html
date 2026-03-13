@@ -25,7 +25,7 @@
             --border: rgba(255, 255, 255, 0.1);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; height: 100vh; background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+        body { overflow: hidden; height: 100vh; background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; }
         code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
 
         .header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid var(--border); }
@@ -50,6 +50,15 @@
         .task-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
         .task-chip { font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; padding: 0.25rem 0.6rem; border-radius: 3px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text-secondary); transition: all 0.3s ease; }
         .task-chip.completed { background: rgba(78, 201, 176, 0.1); border-color: var(--green); color: var(--green); }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
         .terminal-container { flex: 1; min-height: 0; overflow: hidden; }
 
         .content-panel { overflow-y: auto; padding: 2rem 2.5rem; }
@@ -96,18 +105,19 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="cd">cd</span>
-                    <span class="task-chip" data-task="mkdir">mkdir</span>
-                    <span class="task-chip" data-task="mkdir-p">mkdir -p</span>
-                    <span class="task-chip" data-task="touch">touch</span>
-                    <span class="task-chip" data-task="ls-l">ls -l</span>
-                    <span class="task-chip" data-task="cp">cp</span>
-                    <span class="task-chip" data-task="mv">mv</span>
-                    <span class="task-chip" data-task="cat">cat</span>
-                    <span class="task-chip" data-task="find">find</span>
-                    <span class="task-chip" data-task="rm">rm</span>
+                    <span class="task-chip" data-task="cd" onclick="showTaskInstruction('cd')">1</span>
+                    <span class="task-chip" data-task="mkdir" onclick="showTaskInstruction('mkdir')">2</span>
+                    <span class="task-chip" data-task="mkdir-p" onclick="showTaskInstruction('mkdir-p')">3</span>
+                    <span class="task-chip" data-task="touch" onclick="showTaskInstruction('touch')">4</span>
+                    <span class="task-chip" data-task="ls-l" onclick="showTaskInstruction('ls-l')">5</span>
+                    <span class="task-chip" data-task="cp" onclick="showTaskInstruction('cp')">6</span>
+                    <span class="task-chip" data-task="mv" onclick="showTaskInstruction('mv')">7</span>
+                    <span class="task-chip" data-task="cat" onclick="showTaskInstruction('cat')">8</span>
+                    <span class="task-chip" data-task="find" onclick="showTaskInstruction('find')">9</span>
+                    <span class="task-chip" data-task="rm" onclick="showTaskInstruction('rm')">10</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -231,6 +241,88 @@
             }
         });
 
+        const TASK_ORDER = ['cd', 'mkdir', 'mkdir-p', 'touch', 'ls-l', 'cp', 'mv', 'cat', 'find', 'rm'];
+        const TASK_INSTRUCTIONS = {
+    'cd': {
+        num: '1 of 10 &mdash; Navigate Home',
+        desc: 'Change to your home directory using <code>cd</code>.',
+        hint: 'Run: <code>cd ~</code>',
+        expected: 'Changes to home directory'
+    },
+    'mkdir': {
+        num: '2 of 10 &mdash; Create Directory',
+        desc: 'Create a new directory called <strong>practice</strong>.',
+        hint: 'Run: <code>mkdir practice</code>',
+        expected: 'Creates the practice directory'
+    },
+    'mkdir-p': {
+        num: '3 of 10 &mdash; Create Nested Dirs',
+        desc: 'Create a nested directory path in one command using the <code>-p</code> flag.',
+        hint: 'Run: <code>mkdir -p projects/web/css</code>',
+        expected: 'Creates the full path including parent directories'
+    },
+    'touch': {
+        num: '4 of 10 &mdash; Create a File',
+        desc: 'Create an empty file using <code>touch</code>.',
+        hint: 'Run: <code>touch practice/notes.txt</code>',
+        expected: 'Creates an empty file in the practice directory'
+    },
+    'ls-l': {
+        num: '5 of 10 &mdash; Long Listing',
+        desc: 'List files with detailed information using the <code>-l</code> flag.',
+        hint: 'Run: <code>ls -l practice/</code>',
+        expected: 'Shows file permissions, owner, size, and date'
+    },
+    'cp': {
+        num: '6 of 10 &mdash; Copy a File',
+        desc: 'Copy a file to create a backup.',
+        hint: 'Run: <code>cp practice/notes.txt practice/backup.txt</code>',
+        expected: 'Creates a copy of the file'
+    },
+    'mv': {
+        num: '7 of 10 &mdash; Move a File',
+        desc: 'Move or rename a file using <code>mv</code>.',
+        hint: 'Run: <code>mv practice/backup.txt projects/</code>',
+        expected: 'Moves the file to the new location'
+    },
+    'cat': {
+        num: '8 of 10 &mdash; View a File',
+        desc: 'Display the contents of a file using <code>cat</code>.',
+        hint: 'Run: <code>cat /etc/hostname</code>',
+        expected: 'Shows the file contents in the terminal'
+    },
+    'find': {
+        num: '9 of 10 &mdash; Find Files',
+        desc: 'Search for files by name using <code>find</code>.',
+        hint: 'Run: <code>find /home -name "*.txt"</code>',
+        expected: 'Lists all .txt files found'
+    },
+    'rm': {
+        num: '10 of 10 &mdash; Remove a File',
+        desc: 'Delete a file you no longer need.',
+        hint: 'Run: <code>rm practice/notes.txt</code>',
+        expected: 'Removes the file permanently'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-12-section2-practice';
         const tasks = { 'cd': false, 'mkdir': false, 'mkdir-p': false, 'touch': false, 'ls-l': false, 'cp': false, 'mv': false, 'cat': false, 'find': false, 'rm': false };
 
@@ -242,6 +334,13 @@
             if (card) card.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-12-section2-practice', { returnUrl: 'script-lm-13-grep-basics.module.html' });
             }
@@ -285,6 +384,9 @@
                 });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
     <script src="../../../../components/FluxCapacitor.js"></script>

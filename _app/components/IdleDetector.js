@@ -140,7 +140,7 @@ const IdleDetector = (function() {
         style.id = 'idle-detector-styles';
         style.textContent = `
             .idle-detector-banner {
-                position: fixed;
+                position: absolute;
                 bottom: 80px;
                 left: 50%;
                 transform: translateX(-50%);

@@ -282,13 +282,13 @@ const A9Config = {
                             <h3 style="color:#c0722a; font-size:0.9rem; margin:0 0 18px; text-transform:uppercase; letter-spacing:0.08em;">Member Login</h3>
 
                             <div style="margin-bottom:14px;">
-                                <label style="display:block; color:#666; font-size:0.78rem; margin-bottom:5px; font-weight:600;">Username</label>
+                                <label style="display:block; color:#8a8a8a; font-size:0.78rem; margin-bottom:5px; font-weight:600;">Username</label>
                                 <input type="text" data-field="username" value=""
                                        style="width:100%; box-sizing:border-box; padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-family:monospace; font-size:0.85rem; background:#fff;">
                             </div>
 
                             <div style="margin-bottom:18px;">
-                                <label style="display:block; color:#666; font-size:0.78rem; margin-bottom:5px; font-weight:600;">Password</label>
+                                <label style="display:block; color:#8a8a8a; font-size:0.78rem; margin-bottom:5px; font-weight:600;">Password</label>
                                 <input type="password" data-field="password" value=""
                                        style="width:100%; box-sizing:border-box; padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-family:monospace; font-size:0.85rem; background:#fff;">
                             </div>
@@ -324,7 +324,7 @@ const A9Config = {
                     <div style="max-width:600px; margin:0 auto;">
                         <div style="background:#fdf6ec; border:1px solid #f0d0a0; border-radius:6px; padding:20px; margin-bottom:20px;">
                             <h3 style="color:#c0722a; font-size:0.82rem; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 12px;">Load Session</h3>
-                            <p style="color:#666; font-size:0.78rem; margin:0 0 12px; line-height:1.5;">Paste your session token below. The server will deserialize the token to restore your session and display the corresponding dashboard.</p>
+                            <p style="color:#8a8a8a; font-size:0.78rem; margin:0 0 12px; line-height:1.5;">Paste your session token below. The server will deserialize the token to restore your session and display the corresponding dashboard.</p>
 
                             <textarea data-field="token" rows="3"
                                       placeholder="Paste Base64 session token here..."
@@ -411,12 +411,12 @@ const A9Config = {
             return `
                 <div style="background:#eafaf1; border:1px solid #a9dfbf; border-radius:5px; padding:16px;">
                     <div style="color:#1e8449; font-weight:700; font-size:0.9rem; margin-bottom:8px;">&#10003; Authentication Successful</div>
-                    <div style="color:#555; font-size:0.8rem; margin-bottom:14px;">Welcome, <strong>apprentice</strong> <span style="background:#d4efdf; color:#196f3d; padding:1px 7px; border-radius:10px; font-size:0.72rem; font-weight:700;">member</span></div>
+                    <div style="color:#808080; font-size:0.8rem; margin-bottom:14px;">Welcome, <strong>apprentice</strong> <span style="background:#d4efdf; color:#196f3d; padding:1px 7px; border-radius:10px; font-size:0.72rem; font-weight:700;">member</span></div>
                     <div style="color:#888; font-size:0.72rem; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;">Your Session Token</div>
                     <div style="background:#1a1a1a; border:1px solid #333; border-radius:4px; padding:10px; font-family:monospace; font-size:0.72rem; color:#e67e22; word-break:break-all; margin-bottom:10px;">${rawToken}</div>
                     <div style="color:#888; font-size:0.72rem; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;">Decoded (PHP Serialized Object)</div>
                     <div style="background:#f7f7f7; border:1px solid #e0e0e0; border-radius:4px; padding:10px; font-family:monospace; font-size:0.72rem; color:#333; word-break:break-all; margin-bottom:14px;">${A9Config._escHtml(decoded)}</div>
-                    <div style="color:#666; font-size:0.75rem;">Member access granted. Limited forge data available.</div>
+                    <div style="color:#8a8a8a; font-size:0.75rem;">Member access granted. Limited forge data available.</div>
                     <div style="margin-top:12px; font-size:0.75rem; color:#e67e22;">
                         <a href="/forge/dashboard/" style="color:#e67e22; font-weight:700;">&#8594; Go to Dashboard</a> — paste your token to load your session
                     </div>
@@ -478,7 +478,7 @@ const A9Config = {
             return `
                 <div style="background:#fdf2f8; border:1px solid #d98fcc; border-radius:5px; padding:14px;">
                     <div style="color:#7d3c98; font-weight:700; font-size:0.85rem; margin-bottom:6px;">PHP Warning: Deserialization Error</div>
-                    <div style="font-family:monospace; font-size:0.78rem; color:#555; background:#f5eef8; padding:8px; border-radius:3px;">
+                    <div style="font-family:monospace; font-size:0.78rem; color:#808080; background:#f5eef8; padding:8px; border-radius:3px;">
                         Warning: unserialize(): Error at offset ${decoded.indexOf(roleMatch[0])} of ${decoded.length} bytes<br>
                         Expected string of length ${declaredLen}, got ${roleValue.length} bytes for property 'role'
                     </div>
@@ -511,7 +511,7 @@ const A9Config = {
         return `
             <div style="background:#eafaf1; border:1px solid #a9dfbf; border-radius:5px; padding:14px; margin-bottom:16px;">
                 <div style="color:#1e8449; font-weight:700; font-size:0.88rem; margin-bottom:4px;">&#10003; Session Restored</div>
-                <div style="font-size:0.78rem; color:#555;">
+                <div style="font-size:0.78rem; color:#808080;">
                     User: <strong>${A9Config._escHtml(username)}</strong> &nbsp;|&nbsp;
                     Role: <span style="background:#d4efdf; color:#196f3d; padding:1px 7px; border-radius:10px; font-size:0.7rem; font-weight:700;">member</span> &nbsp;|&nbsp;
                     Status: ${isActive ? '<span style="color:#1e8449;">Active</span>' : '<span style="color:#c0392b;">Inactive</span>'}
@@ -524,12 +524,12 @@ const A9Config = {
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
                     <div style="background:#fff; border:1px solid #eee; border-radius:4px; padding:12px; text-align:center;">
                         <div style="font-size:1.4rem; margin-bottom:4px;">&#9874;</div>
-                        <div style="color:#666; font-size:0.72rem; font-weight:600;">Forge Hours</div>
+                        <div style="color:#8a8a8a; font-size:0.72rem; font-weight:600;">Forge Hours</div>
                         <div style="color:#e67e22; font-size:1.1rem; font-weight:700;">24h</div>
                     </div>
                     <div style="background:#fff; border:1px solid #eee; border-radius:4px; padding:12px; text-align:center;">
                         <div style="font-size:1.4rem; margin-bottom:4px;">&#128296;</div>
-                        <div style="color:#666; font-size:0.72rem; font-weight:600;">Projects</div>
+                        <div style="color:#8a8a8a; font-size:0.72rem; font-weight:600;">Projects</div>
                         <div style="color:#e67e22; font-size:1.1rem; font-weight:700;">3</div>
                     </div>
                 </div>
@@ -551,7 +551,7 @@ const A9Config = {
         return `
             <div style="background:#fef9e7; border:1px solid #f9d35e; border-radius:5px; padding:14px; margin-bottom:16px;">
                 <div style="color:#b7950b; font-weight:700; font-size:0.88rem; margin-bottom:4px;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> ADMIN SESSION ACTIVE</div>
-                <div style="font-size:0.78rem; color:#555;">
+                <div style="font-size:0.78rem; color:#808080;">
                     User: <strong>${A9Config._escHtml(username)}</strong> &nbsp;|&nbsp;
                     Role: <span style="background:#fdebd0; color:#c0722a; padding:1px 7px; border-radius:10px; font-size:0.7rem; font-weight:700; border:1px solid #e59866;">admin</span> &nbsp;|&nbsp;
                     Access: <span style="color:#c0392b; font-weight:700;">ELEVATED</span>
@@ -585,15 +585,15 @@ const A9Config = {
 
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
                     <div style="background:#fff; border:1px solid #eee; border-radius:4px; padding:10px; text-align:center;">
-                        <div style="color:#666; font-size:0.7rem; font-weight:600;">Furnace Temp</div>
+                        <div style="color:#8a8a8a; font-size:0.7rem; font-weight:600;">Furnace Temp</div>
                         <div style="color:#e67e22; font-size:1rem; font-weight:700;">1,450°C</div>
                     </div>
                     <div style="background:#fff; border:1px solid #eee; border-radius:4px; padding:10px; text-align:center;">
-                        <div style="color:#666; font-size:0.7rem; font-weight:600;">Active Molds</div>
+                        <div style="color:#8a8a8a; font-size:0.7rem; font-weight:600;">Active Molds</div>
                         <div style="color:#e67e22; font-size:1rem; font-weight:700;">17</div>
                     </div>
                     <div style="background:#fff; border:1px solid #eee; border-radius:4px; padding:10px; text-align:center;">
-                        <div style="color:#666; font-size:0.7rem; font-weight:600;">Queue Depth</div>
+                        <div style="color:#8a8a8a; font-size:0.7rem; font-weight:600;">Queue Depth</div>
                         <div style="color:#e67e22; font-size:1rem; font-weight:700;">84</div>
                     </div>
                 </div>
@@ -631,9 +631,9 @@ const A9Config = {
                 <h3 style="color:#e67e22; font-size:0.82rem; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 12px;">Grandmaster Vault</h3>
                 <div style="color:#888; font-size:0.78rem; padding:12px; background:#0d0d0d; border-radius:3px; font-family:monospace;">
                     <div style="color:#e67e22; margin-bottom:6px;">[FORGE MASTER CHRONICLES — RESTRICTED]</div>
-                    <div style="color:#666; margin-bottom:4px;"># The original founders of the Forge Remnants encoded all</div>
-                    <div style="color:#666; margin-bottom:4px;"># secrets in serialized session tokens. The irony is not lost</div>
-                    <div style="color:#666; margin-bottom:8px;"># on those who know how to read a PHP object.</div>
+                    <div style="color:#8a8a8a; margin-bottom:4px;"># The original founders of the Forge Remnants encoded all</div>
+                    <div style="color:#8a8a8a; margin-bottom:4px;"># secrets in serialized session tokens. The irony is not lost</div>
+                    <div style="color:#8a8a8a; margin-bottom:8px;"># on those who know how to read a PHP object.</div>
                     <div style="color:#e67e22;">Easter egg discovered. Well played, operator.</div>
                 </div>
                 <div style="margin-top:12px; color:#888; font-size:0.72rem;">
@@ -641,7 +641,7 @@ const A9Config = {
                 </div>
             </div>
 
-            <div style="color:#666; font-size:0.72rem; text-align:center;">
+            <div style="color:#8a8a8a; font-size:0.72rem; text-align:center;">
                 <a href="/forge/" style="color:#e67e22;">Back to Login</a>
             </div>
         `;

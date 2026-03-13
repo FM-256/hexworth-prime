@@ -42,7 +42,7 @@ class CLHCompletionModal {
 
             .clh-completion-overlay {
                 display: none;
-                position: fixed;
+                position: absolute;
                 top: 0;
                 left: 0;
                 width: 100vw;
@@ -178,7 +178,7 @@ class CLHCompletionModal {
             .clh-module-id {
                 font-family: 'Courier New', monospace;
                 font-size: 0.8em;
-                color: #666;
+                color: #8a8a8a;
                 letter-spacing: 0.2em;
                 margin-bottom: 8px;
             }

@@ -507,6 +507,9 @@ class TerminalInstance {
     // ────────────────────────────────────────────────
 
     _getPromptText() {
+        if (this.config.terminal?.promptStyle === 'windows') {
+            return `${this.cwd}>`;
+        }
         const shortCwd = this.cwd.replace('/home/' + this.user, '~');
         return `${this.user}@${this.hostname}:${shortCwd}$ `;
     }

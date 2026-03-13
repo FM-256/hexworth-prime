@@ -42,6 +42,47 @@
         .panel-tasks { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
         .task-chip { font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 99px; border: 1px solid var(--border); color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
         .task-chip.completed { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip.active {
+            border-color: var(--green);
+            color: var(--green);
+            background: rgba(78, 201, 176, 0.1);
+        }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: none;
+            width: 100%;
+        }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+        .task-instruction .task-cmd {
+            background: var(--bg-terminal);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--green);
+            margin: 6px 0;
+            display: inline-block;
+        }
+        .task-instruction .task-expect {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 4px;
+            font-style: italic;
+        }
         .progress-bar { height: 3px; background: var(--border); border-radius: 2px; flex: 1; min-width: 60px; }
         .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
         .progress-text { font-size: 0.7rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
@@ -123,12 +164,13 @@
 <div class="main-layout">
     <div class="terminal-panel">
         <div class="panel-tasks">
-            <span class="task-chip" data-task="find-name">find -name</span>
-            <span class="task-chip" data-task="find-type">find -type</span>
-            <span class="task-chip" data-task="which">which</span>
-            <span class="task-chip" data-task="whereis">whereis</span>
+            <span class="task-chip" data-task="find-name" onclick="showTaskInstruction('find-name')">1</span>
+            <span class="task-chip" data-task="find-type" onclick="showTaskInstruction('find-type')">2</span>
+            <span class="task-chip" data-task="which" onclick="showTaskInstruction('which')">3</span>
+            <span class="task-chip" data-task="whereis" onclick="showTaskInstruction('whereis')">4</span>
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
             <span class="progress-text" id="progressText">0 / 4</span>
+            <div class="task-instruction" id="taskInstruction"></div>
         </div>
         <div class="terminal-container" id="terminal"></div>
     </div>
@@ -282,13 +324,39 @@ LinuxTerminal.init('LM-11', '#terminal', {
 const MODULE_ID = 'lm-11-finding-files';
 const tasks = { 'find-name': false, 'find-type': false, 'which': false, 'whereis': false };
 
+const TASK_ORDER = ['find-name', 'find-type', 'which', 'whereis'];
+const TASK_INSTRUCTIONS = {
+    'find-name': { number: 1, title: 'Find by Name', description: 'Type the command below to search the filesystem for files named passwd.', command: 'find / -name passwd', expect: 'Lists all files named passwd on the system' },
+    'find-type': { number: 2, title: 'Find by Type', description: 'Type the command below to find only directories under /home.', command: 'find /home -type d', expect: 'Lists only directories (not files) under /home' },
+    'which': { number: 3, title: 'Locate a Command', description: 'Type the command below to find the full path of the ls command.', command: 'which ls', expect: 'Shows the full path where ls is located (e.g. /usr/bin/ls)' },
+    'whereis': { number: 4, title: 'Find All Locations', description: 'Type the command below to find binary, source, and man page locations for ls.', command: 'whereis ls', expect: 'Shows binary, source, and man page locations for ls' }
+};
+
+function showTaskInstruction(taskId) {
+    const info = TASK_INSTRUCTIONS[taskId];
+    if (!info) return;
+    const el = document.getElementById('taskInstruction');
+    el.innerHTML = `<div class="task-number">Task ${info.number}: ${info.title}</div><div>${info.description}</div><div class="task-cmd">${info.command}</div><div class="task-expect">${info.expect}</div>`;
+    el.classList.add('visible');
+    document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+    const chip = document.querySelector(`.task-chip[data-task="${taskId}"]`);
+    if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+}
+
+function getNextIncompleteTask() { return TASK_ORDER.find(t => !tasks[t]) || null; }
+
 function completeTask(id) {
     if (tasks[id]) return;
     tasks[id] = true;
-    document.querySelector(`.task-chip[data-task="${id}"]`)?.classList.add('completed');
+    const chip = document.querySelector(`.task-chip[data-task="${id}"]`);
+    if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
     updateProgress();
     saveProgress();
-    if (Object.values(tasks).every(v => v)) {
+    const next = getNextIncompleteTask();
+    if (next) { showTaskInstruction(next); } else {
+        const el = document.getElementById('taskInstruction');
+        el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Great work! You can find any file on the system.</div>';
+        el.classList.add('visible');
         ModuleProgress.complete('script', 'script-lm-11-finding-files', { returnUrl: 'script-lm-12-section2-practice.module.html' });
     }
 }
@@ -317,6 +385,8 @@ function saveProgress() {
         saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
         updateProgress();
     }
+    const next = getNextIncompleteTask();
+    if (next) showTaskInstruction(next);
 })();
 </script>
 <script src="../../../../components/FluxCapacitor.js"></script>

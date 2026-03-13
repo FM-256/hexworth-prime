@@ -420,13 +420,13 @@ const A11Config = {
                         <div style="background:#f0f4f8; border:1px solid #c8d6e5; border-radius:6px; padding:24px;">
                             <div style="color:#2c3e50; font-size:0.82rem; font-weight:700; margin-bottom:16px; letter-spacing:0.05em;">VAULT ACCESS</div>
                             <div style="margin-bottom:12px;">
-                                <label style="display:block; color:#555; font-size:0.75rem; margin-bottom:4px;">Archivist ID</label>
+                                <label style="display:block; color:#808080; font-size:0.75rem; margin-bottom:4px;">Archivist ID</label>
                                 <input type="text" data-field="username"
                                        placeholder="Enter archivist ID"
                                        style="width:100%; padding:8px 12px; border:1px solid #b0b8c8; border-radius:4px; font-family:monospace; font-size:0.82rem; color:#2c3e50; box-sizing:border-box;">
                             </div>
                             <div style="margin-bottom:16px;">
-                                <label style="display:block; color:#555; font-size:0.75rem; margin-bottom:4px;">Access Key</label>
+                                <label style="display:block; color:#808080; font-size:0.75rem; margin-bottom:4px;">Access Key</label>
                                 <input type="password" data-field="password"
                                        placeholder="Enter access key"
                                        style="width:100%; padding:8px 12px; border:1px solid #b0b8c8; border-radius:4px; font-family:monospace; font-size:0.82rem; color:#2c3e50; box-sizing:border-box;">
@@ -619,7 +619,7 @@ const A11Config = {
 
                         <h2 style="color:#2c3e50; font-size:1rem; border-bottom:2px solid #eef; padding-bottom:6px;">SSH Access</h2>
                         <p>Containers can be accessed via SSH for maintenance. Default credentials for the indexer container:</p>
-                        <ul style="color:#555; margin:0 0 16px; padding-left:20px;">
+                        <ul style="color:#808080; margin:0 0 16px; padding-left:20px;">
                             <li>Host: <code style="background:#e8f0fe; padding:1px 5px; border-radius:3px; font-size:0.78rem;">10.10.14.40</code></li>
                             <li>Port: <code style="background:#e8f0fe; padding:1px 5px; border-radius:3px; font-size:0.78rem;">2222</code> (mapped to container SSH)</li>
                             <li>User: <code style="background:#e8f0fe; padding:1px 5px; border-radius:3px; font-size:0.78rem;">archivist</code></li>

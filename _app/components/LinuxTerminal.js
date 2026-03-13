@@ -75,6 +75,13 @@ const LinuxTerminal = (function() {
         umask: '0022',
         _keydownHandler: null,
         _clickHandler: null,
+        sudoPassword: 'P@55w0rd!!',
+        sudoPending: null,        // { args, cmdLine } — waiting for password
+        sudoAuthenticated: false, // true after correct password (cached for session)
+        sudoAttempts: 0,
+        bgJobs: [],              // simulated background jobs [{id, pid, cmd, status}]
+        nextJobId: 1,
+        nextBgPid: 10000,
     };
 
     // =========================================================================
@@ -151,6 +158,7 @@ const LinuxTerminal = (function() {
     }
 
     function _initEnv() {
+        const pid = 1000 + Math.floor(Math.random() * 9000); // Simulated shell PID
         return {
             USER: config.user,
             HOME: `/home/${config.user}`,
@@ -161,6 +169,8 @@ const LinuxTerminal = (function() {
             LANG: 'en_US.UTF-8',
             HOSTNAME: config.hostname,
             PS1: '\\u@\\h:\\w\\$ ',
+            PPID: '1',
+            BASHPID: String(pid),
             EDITOR: 'nano',
             LOGNAME: config.user
         };
@@ -387,7 +397,7 @@ Type <span class="lt-cmd">help</span> for available commands.
                 outline: none;
             }
             .lt-input::placeholder {
-                color: #555;
+                color: #808080;
             }
             .lt-line {
                 white-space: pre-wrap;
@@ -417,6 +427,19 @@ Type <span class="lt-cmd">help</span> for available commands.
 
     function _attachEventListeners() {
         state._keydownHandler = function(e) {
+            // sudo password mode — intercept all input
+            if (state.sudoPending) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    _handleSudoPassword(state.inputEl.value);
+                    state.inputEl.value = '';
+                } else if (e.key === 'c' && e.ctrlKey) {
+                    e.preventDefault();
+                    _cancelSudo();
+                }
+                // During password mode, suppress all other special keys
+                return;
+            }
             if (e.key === 'Enter') {
                 e.preventDefault();
                 _handleExecute(state.inputEl.value);
@@ -492,6 +515,29 @@ Type <span class="lt-cmd">help</span> for available commands.
         // Display command
         _appendLine(`<span class="lt-prompt-text">${_getPrompt()}</span> <span class="lt-command-text">${_escape(cmdLine)}</span>`);
 
+        // Handle background jobs (trailing &)
+        if (/&\s*$/.test(cmdLine) && !cmdLine.includes('&&')) {
+            const bgCmd = cmdLine.replace(/&\s*$/, '').trim();
+            const jobId = state.nextJobId++;
+            const pid = state.nextBgPid++;
+            const isNohup = bgCmd.startsWith('nohup ');
+            const actualCmd = isNohup ? bgCmd.replace(/^nohup\s+/, '') : bgCmd;
+            state.bgJobs.push({ id: jobId, pid: pid, cmd: actualCmd, status: 'Running', nohup: isNohup });
+            let bgOutput = '';
+            if (isNohup) {
+                bgOutput = `<span class="lt-warning">nohup: ignoring input and appending output to 'nohup.out'</span>\n[${jobId}] ${pid}`;
+            } else {
+                bgOutput = `[${jobId}] ${pid}`;
+            }
+            _appendOutput(bgOutput);
+            // Fire callback with both bg-start and nohup if applicable
+            if (config.onCommand) {
+                config.onCommand(cmdLine, bgOutput, 'bg-start', [actualCmd]);
+                if (isNohup) config.onCommand(cmdLine, bgOutput, 'nohup', [actualCmd]);
+            }
+            return;
+        }
+
         // Handle pipes
         if (cmdLine.includes('|')) {
             _executePipeline(cmdLine);
@@ -511,8 +557,9 @@ Type <span class="lt-cmd">help</span> for available commands.
         const output = _executeCommand(cmd, args, cmdLine);
 
         // Callback fires first — if it returns true, suppress default output
+        // Skip callback if sudo is waiting for password (callback fires after auth)
         let handled = false;
-        if (config.onCommand) {
+        if (config.onCommand && !state.sudoPending) {
             handled = config.onCommand(cmdLine, output, cmd, args);
         }
 
@@ -537,32 +584,47 @@ Type <span class="lt-cmd">help</span> for available commands.
 
     function _parseCommand(cmdLine) {
         const parts = [];
+        const singleQuoted = []; // Track which parts were single-quoted (no expansion)
         let current = '';
         let inQuote = false;
         let quoteChar = '';
+        let currentIsSingleQuoted = false;
 
         for (let i = 0; i < cmdLine.length; i++) {
             const char = cmdLine[i];
             if ((char === '"' || char === "'") && !inQuote) {
                 inQuote = true;
                 quoteChar = char;
+                if (char === "'" && current === '') currentIsSingleQuoted = true;
             } else if (char === quoteChar && inQuote) {
                 inQuote = false;
                 quoteChar = '';
             } else if (char === ' ' && !inQuote) {
                 if (current) {
                     parts.push(current);
+                    singleQuoted.push(currentIsSingleQuoted);
                     current = '';
+                    currentIsSingleQuoted = false;
                 }
             } else {
                 current += char;
             }
         }
-        if (current) parts.push(current);
+        if (current) {
+            parts.push(current);
+            singleQuoted.push(currentIsSingleQuoted);
+        }
 
-        // Expand variables, then expand braces (e.g. {a,b,c})
-        const expanded = parts.map(p => _expandVars(p));
-        const braceExpanded = expanded.flatMap(p => _expandBraces(p));
+        // Expand variables and braces (skip single-quoted parts — bash behavior)
+        const expanded = parts.map((p, idx) => singleQuoted[idx] ? p : _expandVars(p));
+        const braceExpanded = [];
+        expanded.forEach((p, idx) => {
+            if (singleQuoted[idx]) {
+                braceExpanded.push(p);
+            } else {
+                braceExpanded.push(..._expandBraces(p));
+            }
+        });
 
         return {
             cmd: braceExpanded[0] || '',
@@ -588,7 +650,10 @@ Type <span class="lt-cmd">help</span> for available commands.
             if (state.env[upper] !== undefined) return state.env[upper];
             return '';
         }
-        return str.replace(/\$\{(\w+)\}/g, (_, v) => _lookup(v))
+        // Handle special shell variables first
+        return str.replace(/\$\$/g, state.env.BASHPID || '1234')
+                  .replace(/\$\?/g, '0')
+                  .replace(/\$\{(\w+)\}/g, (_, v) => _lookup(v))
                   .replace(/\$(\w+)/g, (_, v) => _lookup(v));
     }
 
@@ -948,29 +1013,67 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             case 'ping':
                 return `PING ${args[0] || 'localhost'} (127.0.0.1): 56 data bytes\n64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.1 ms\n64 bytes from 127.0.0.1: icmp_seq=1 ttl=64 time=0.1 ms\n--- ${args[0] || 'localhost'} ping statistics ---\n2 packets transmitted, 2 received, 0% packet loss`;
 
-            case 'ifconfig':
+            case 'ifconfig': {
+                _checkObjective('ifconfig');
+                return `eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255\n        inet6 fe80::1  prefixlen 64  scopeid 0x20<link>\n        ether 00:11:22:33:44:55  txqueuelen 1000\n\nlo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536\n        inet 127.0.0.1  netmask 255.0.0.0\n        inet6 ::1  prefixlen 128  scopeid 0x10<host>`;
+            }
+
             case 'ip': {
                 _checkObjective('ifconfig');
-                return `eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255
-        inet6 fe80::1  prefixlen 64  scopeid 0x20<link>
-        ether 00:11:22:33:44:55  txqueuelen 1000
-
-lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
-        inet 127.0.0.1  netmask 255.0.0.0
-        inet6 ::1  prefixlen 128  scopeid 0x10<host>`;
+                const ipSub = args[0] || 'addr';
+                if (ipSub === 'addr' || ipSub === 'a' || ipSub === 'address') {
+                    return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 state UNKNOWN\n    inet 127.0.0.1/8 scope host lo\n    inet6 ::1/128 scope host\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP\n    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0\n    inet6 fe80::1/64 scope link`;
+                }
+                if (ipSub === 'link' || ipSub === 'l') {
+                    return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP\n    link/ether 00:11:22:33:44:55 brd ff:ff:ff:ff:ff:ff`;
+                }
+                if (ipSub === 'route' || ipSub === 'r') {
+                    return `default via 192.168.1.1 dev eth0 proto dhcp\n192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100`;
+                }
+                if (ipSub === 'neigh' || ipSub === 'n') {
+                    return `192.168.1.1 dev eth0 lladdr aa:bb:cc:dd:ee:ff REACHABLE`;
+                }
+                return `Usage: ip [ addr | link | route | neigh ] [show]`;
             }
 
             case 'netstat':
-            case 'ss':
-                return `Netid  State   Recv-Q  Send-Q  Local Address:Port   Peer Address:Port
-tcp    LISTEN  0       128     0.0.0.0:22            0.0.0.0:*
-tcp    LISTEN  0       128     0.0.0.0:80            0.0.0.0:*
-tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
+            case 'ss': {
+                const ssFlags = args.join('');
+                const ssLines = ['Netid  State   Recv-Q  Send-Q  Local Address:Port   Peer Address:Port'];
+                if (ssFlags.includes('t') || ssFlags.includes('a') || !ssFlags) {
+                    ssLines.push('tcp    LISTEN  0       128     0.0.0.0:22            0.0.0.0:*');
+                    ssLines.push('tcp    LISTEN  0       128     0.0.0.0:80            0.0.0.0:*');
+                    if (!ssFlags.includes('l')) ssLines.push('tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321');
+                }
+                if (ssFlags.includes('u') || ssFlags.includes('a')) {
+                    ssLines.push('udp    UNCONN  0       0       0.0.0.0:68            0.0.0.0:*');
+                }
+                if (ssFlags.includes('n')) {
+                    return ssLines.join('\n');
+                }
+                return ssLines.join('\n').replace(':22 ', ':ssh ').replace(':80 ', ':http ').replace(':68 ', ':bootpc ');
+            }
 
-            case 'curl':
-            case 'wget':
-                return '<span class="lt-highlight">Network commands simulated - would download from ' + (args[0] || 'URL') + '</span>';
+            case 'mtr': {
+                const mtrTarget = args.find(a => !a.startsWith('-')) || 'localhost';
+                return `Start: ${new Date().toLocaleTimeString()}\nHOST: ${state.env.HOSTNAME || 'linux-mastery'}    Loss%  Snt   Last   Avg  Best  Wrst\n  1.|-- gateway           0.0%    10    1.2   1.3   0.9   2.1\n  2.|-- isp-router        0.0%    10    5.4   5.6   4.8   7.2\n  3.|-- ${mtrTarget}      0.0%    10   12.1  12.3  11.5  14.2`;
+            }
+
+            case 'curl': {
+                const curlUrl = args.find(a => !a.startsWith('-')) || 'http://example.com';
+                if (args.includes('-I') || args.includes('--head')) {
+                    return `HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\nContent-Length: 1256\nConnection: keep-alive\nServer: nginx/1.18.0\nDate: ${new Date().toUTCString()}\nCache-Control: max-age=604800`;
+                }
+                if (args.includes('-o') || args.includes('-O')) {
+                    return `<span class="lt-highlight">curl: downloading ${curlUrl} to file</span>`;
+                }
+                return `<!DOCTYPE html>\n<html>\n<head><title>Example Page</title></head>\n<body>\n<h1>Example Domain</h1>\n<p>This domain is for use in illustrative examples.</p>\n</body>\n</html>`;
+            }
+
+            case 'wget': {
+                const wgetUrl = args.find(a => !a.startsWith('-')) || 'http://example.com';
+                return `--${new Date().toISOString()}--  ${wgetUrl}\nResolving ${new URL('http://' + wgetUrl.replace(/https?:\/\//, '')).hostname}... 93.184.216.34\nConnecting to ${wgetUrl}... connected.\nHTTP request sent, awaiting response... 200 OK\nLength: 1256 (1.2K) [text/html]\nSaving to: 'index.html'\n\nindex.html          100%[==================>]   1.23K  --.-KB/s    in 0s\n\n${new Date().toISOString()} - 'index.html' saved [1256/1256]`;
+            }
 
             // --------------- Package Management (simulated) ---------------
             case 'apt':
@@ -986,6 +1089,43 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
                 const result = _sudo(args);
                 _checkObjective('sudo');
                 return result;
+            }
+
+            // --------------- Job Control ---------------
+            case 'jobs': {
+                if (state.bgJobs.length === 0) return null;
+                return state.bgJobs.map(j =>
+                    `[${j.id}]${j.id === state.bgJobs.length ? '+' : '-'}  ${j.status}                 ${j.cmd}${j.status === 'Running' ? ' &' : ''}`
+                ).join('\n');
+            }
+
+            case 'fg': {
+                const fgId = args[0] ? parseInt(args[0].replace('%', '')) : (state.bgJobs.length > 0 ? state.bgJobs[state.bgJobs.length - 1].id : 0);
+                const fgJob = state.bgJobs.find(j => j.id === fgId);
+                if (!fgJob) return `bash: fg: ${args[0] || '%1'}: no such job`;
+                fgJob.status = 'Done';
+                state.bgJobs = state.bgJobs.filter(j => j.status !== 'Done');
+                return `${fgJob.cmd}\n<span class="lt-highlight">[${fgJob.id}] Done</span>`;
+            }
+
+            case 'bg': {
+                const bgId = args[0] ? parseInt(args[0].replace('%', '')) : (state.bgJobs.length > 0 ? state.bgJobs[state.bgJobs.length - 1].id : 0);
+                const bgJob = state.bgJobs.find(j => j.id === bgId);
+                if (!bgJob) return `bash: bg: ${args[0] || '%1'}: no such job`;
+                bgJob.status = 'Running';
+                return `[${bgJob.id}]+ ${bgJob.cmd} &`;
+            }
+
+            case 'nohup': {
+                if (args.length === 0) return 'nohup: missing operand';
+                const nohupCmd = args.join(' ');
+                return `<span class="lt-warning">nohup: ignoring input and appending output to 'nohup.out'</span>`;
+            }
+
+            case 'disown': {
+                const disId = args[0] ? parseInt(args[0].replace('%', '')) : (state.bgJobs.length > 0 ? state.bgJobs[state.bgJobs.length - 1].id : 0);
+                state.bgJobs = state.bgJobs.filter(j => j.id !== disId);
+                return null;
             }
 
             // --------------- Miscellaneous ---------------
@@ -1047,7 +1187,202 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
 
             case 'kill': {
                 _checkObjective('kill');
-                return `<span class="lt-highlight">kill: would send signal to process ${args[0] || ''}</span>`;
+                const sigArg = args.find(a => a.startsWith('-'));
+                const pidArg = args.find(a => !a.startsWith('-')) || '';
+                const sig = sigArg ? sigArg.replace('-', '') : 'TERM';
+                return `<span class="lt-highlight">kill: sent signal ${sig.toUpperCase()} to process ${pidArg}</span>`;
+            }
+
+            case 'killall': {
+                if (!args[0]) return 'killall: too few arguments';
+                const kaName = args.find(a => !a.startsWith('-')) || '';
+                return `<span class="lt-highlight">killall: sent signal to all ${kaName} processes</span>`;
+            }
+
+            case 'pkill': {
+                if (!args[0]) return 'pkill: no matching criteria specified';
+                const pkPattern = args.find(a => !a.startsWith('-')) || '';
+                return `<span class="lt-highlight">pkill: signalled processes matching "${pkPattern}"</span>`;
+            }
+
+            case 'pgrep': {
+                if (!args[0]) return 'pgrep: no matching criteria specified';
+                const pgPattern = args.find(a => !a.startsWith('-')) || '';
+                // Return simulated PIDs for common processes
+                const pgMap = { 'nginx': '599\n600', 'bash': String(state.env.BASHPID || '1234'), 'sshd': '512', 'apache': '601\n602', 'cron': '410', 'systemd': '1' };
+                const pgMatch = Object.entries(pgMap).find(([k]) => pgPattern.includes(k) || k.includes(pgPattern));
+                return pgMatch ? pgMatch[1] : `<span class="lt-highlight">${Math.floor(Math.random() * 9000 + 1000)}</span>`;
+            }
+
+            // --------------- Network Tools ---------------
+            case 'traceroute':
+            case 'tracepath': {
+                const trTarget = args[0] || 'localhost';
+                return `traceroute to ${trTarget}, 30 hops max, 60 byte packets\n 1  gateway (10.0.0.1)  1.234 ms  1.112 ms  0.998 ms\n 2  isp-router (172.16.0.1)  5.678 ms  5.432 ms  5.210 ms\n 3  ${trTarget} (93.184.216.34)  12.345 ms  12.123 ms  11.998 ms`;
+            }
+
+            case 'dig': {
+                const digTarget = args.find(a => !a.startsWith('-') && !a.startsWith('+') && !a.startsWith('@')) || 'localhost';
+                const digType = args.find(a => ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA', 'PTR', 'ANY'].includes(a.toUpperCase())) || 'A';
+                return `; <<>> DiG 9.18.18 <<>> ${digTarget} ${digType}\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 12345\n;; ANSWER SECTION:\n${digTarget}.\t\t300\tIN\t${digType.toUpperCase()}\t93.184.216.34\n\n;; Query time: 23 msec\n;; SERVER: 8.8.8.8#53(8.8.8.8)\n;; WHEN: ${new Date().toUTCString()}\n;; MSG SIZE  rcvd: 56`;
+            }
+
+            case 'nslookup': {
+                const nsTarget = args[0] || 'localhost';
+                return `Server:\t\t8.8.8.8\nAddress:\t8.8.8.8#53\n\nNon-authoritative answer:\nName:\t${nsTarget}\nAddress: 93.184.216.34`;
+            }
+
+            case 'host': {
+                const hostTarget = args[0] || 'localhost';
+                return `${hostTarget} has address 93.184.216.34\n${hostTarget} has IPv6 address 2606:2800:220:1:248:1893:25c8:1946\n${hostTarget} mail is handled by 0 ${hostTarget}.`;
+            }
+
+            // --------------- SSH Tools ---------------
+            case 'ssh': {
+                if (args.length === 0) return 'usage: ssh [-p port] [user@]hostname [command]';
+                if (args.includes('-keygen') || args[0] === '-keygen') return `<span class="lt-error">Did you mean: ssh-keygen?</span>`;
+                const sshTarget = args.find(a => !a.startsWith('-')) || '';
+                return `<span class="lt-highlight">ssh: would connect to ${sshTarget}\nssh: connection simulated (not a real network)</span>`;
+            }
+
+            case 'ssh-keygen': {
+                const keyType = args.includes('-t') ? args[args.indexOf('-t') + 1] || 'rsa' : 'rsa';
+                const keyBits = keyType === 'ed25519' ? 256 : 3072;
+                return `Generating public/private ${keyType} key pair.\nYour identification has been saved in /home/${state.currentUser?.name || 'student'}/.ssh/id_${keyType}\nYour public key has been saved in /home/${state.currentUser?.name || 'student'}/.ssh/id_${keyType}.pub\nThe key fingerprint is:\nSHA256:xR4jK9mN2pL5qW8vT1yB3zF6hD0cA7eG+nU4sO2iVw ${state.currentUser?.name || 'student'}@${state.env.HOSTNAME || 'linux-mastery'}\nThe key's randomart image is:\n+---[${keyType.toUpperCase()} ${keyBits}]----+\n|       .o+.      |\n|      . =o.o     |\n|     . o.+= .    |\n|    . +.=o.o     |\n|   . o.=S+.      |\n|    o.+oB.+      |\n|   ..+.= + .     |\n|    .o= . .      |\n|    .oE          |\n+----[SHA256]-----+`;
+            }
+
+            case 'scp': {
+                if (args.length < 2) return 'usage: scp [-r] source ... target';
+                return `<span class="lt-highlight">scp: would copy ${args[args.length - 2]} to ${args[args.length - 1]}\nscp: transfer simulated (not a real network)</span>`;
+            }
+
+            case 'ssh-copy-id': {
+                const scpTarget = args.find(a => !a.startsWith('-')) || 'user@host';
+                return `<span class="lt-highlight">/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s)\nNumber of key(s) added: 1\n\nNow try logging into "${scpTarget}" to verify.</span>`;
+            }
+
+            // --------------- System Services ---------------
+            case 'systemctl': {
+                const sctlAction = args[0] || 'list-units';
+                const sctlUnit = args[1] || '';
+                const sctlServices = {
+                    'ssh': { active: 'active', enabled: 'enabled', desc: 'OpenBSD Secure Shell server' },
+                    'sshd': { active: 'active', enabled: 'enabled', desc: 'OpenSSH server daemon' },
+                    'nginx': { active: 'active', enabled: 'enabled', desc: 'A high performance web server' },
+                    'apache2': { active: 'inactive', enabled: 'disabled', desc: 'The Apache HTTP Server' },
+                    'cron': { active: 'active', enabled: 'enabled', desc: 'Regular background program processing' },
+                    'networking': { active: 'active', enabled: 'enabled', desc: 'Raise network interfaces' },
+                    'ufw': { active: 'active', enabled: 'enabled', desc: 'Uncomplicated firewall' },
+                    'mysql': { active: 'inactive', enabled: 'disabled', desc: 'MySQL Community Server' },
+                    'docker': { active: 'inactive', enabled: 'disabled', desc: 'Docker Application Container Engine' },
+                    'rsyslog': { active: 'active', enabled: 'enabled', desc: 'System Logging Service' },
+                };
+                const svc = sctlServices[sctlUnit.replace('.service', '')] || null;
+                switch (sctlAction) {
+                    case 'status': {
+                        if (!sctlUnit) return 'Unit name argument required.';
+                        const s = svc || { active: 'inactive', enabled: 'disabled', desc: 'Unknown service' };
+                        const dot = s.active === 'active' ? '<span style="color:#22c55e">●</span>' : '<span style="color:#888">●</span>';
+                        return `${dot} ${sctlUnit}\n     Loaded: loaded (/lib/systemd/system/${sctlUnit}.service; ${s.enabled})\n     Active: ${s.active} (running) since ${new Date().toUTCString()}\n   Main PID: ${Math.floor(Math.random() * 9000 + 1000)} (${sctlUnit.replace('.service','')})\n     CGroup: /system.slice/${sctlUnit}.service`;
+                    }
+                    case 'start':
+                        if (!sctlUnit) return 'Unit name argument required.';
+                        if (svc) svc.active = 'active';
+                        return null;
+                    case 'stop':
+                        if (!sctlUnit) return 'Unit name argument required.';
+                        if (svc) svc.active = 'inactive';
+                        return null;
+                    case 'restart':
+                        if (!sctlUnit) return 'Unit name argument required.';
+                        if (svc) svc.active = 'active';
+                        return null;
+                    case 'reload':
+                        if (!sctlUnit) return 'Unit name argument required.';
+                        return null;
+                    case 'enable':
+                        if (!sctlUnit) return 'Unit name argument required.';
+                        if (svc) svc.enabled = 'enabled';
+                        return `Created symlink /etc/systemd/system/multi-user.target.wants/${sctlUnit}.service -> /lib/systemd/system/${sctlUnit}.service.`;
+                    case 'disable':
+                        if (!sctlUnit) return 'Unit name argument required.';
+                        if (svc) svc.enabled = 'disabled';
+                        return `Removed /etc/systemd/system/multi-user.target.wants/${sctlUnit}.service.`;
+                    case 'is-active':
+                        return svc ? svc.active : 'inactive';
+                    case 'is-enabled':
+                        return svc ? svc.enabled : 'disabled';
+                    case 'list-units':
+                    default:
+                        return Object.entries(sctlServices).filter(([,v]) => v.active === 'active').map(([k, v]) =>
+                            `  ${k}.service\t\tloaded active running\t${v.desc}`
+                        ).join('\n');
+                }
+            }
+
+            case 'journalctl': {
+                const jUnit = args.includes('-u') ? args[args.indexOf('-u') + 1] || '' : '';
+                const jLines = args.includes('-n') ? parseInt(args[args.indexOf('-n') + 1]) || 10 : 5;
+                const now = new Date();
+                const logs = [];
+                for (let i = jLines - 1; i >= 0; i--) {
+                    const t = new Date(now - i * 60000);
+                    const ts = t.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                    const src = jUnit || ['systemd', 'kernel', 'sshd', 'cron', 'nginx'][i % 5];
+                    const msgs = ['Started service.', 'Received connection.', 'Process exited normally.', 'Configuration loaded.', 'Listening on port 80.'];
+                    logs.push(`${ts} ${state.env.HOSTNAME || 'linux-mastery'} ${src}[${1000 + i}]: ${msgs[i % msgs.length]}`);
+                }
+                return `-- Journal begins at ${now.toUTCString()} --\n` + logs.join('\n');
+            }
+
+            // --------------- Cron ---------------
+            case 'crontab': {
+                if (!state._crontab) state._crontab = ['# Edit this file to introduce tasks to be run by cron.', '# m h dom mon dow command'];
+                if (args.includes('-l')) {
+                    return state._crontab.join('\n');
+                }
+                if (args.includes('-e')) {
+                    return `<span class="lt-highlight">crontab: editing crontab\nTip: Use <code>crontab-add "schedule" "command"</code> to add entries in this terminal.</span>`;
+                }
+                if (args.includes('-r')) {
+                    state._crontab = ['# Edit this file to introduce tasks to be run by cron.', '# m h dom mon dow command'];
+                    return '<span class="lt-highlight">crontab: crontab removed</span>';
+                }
+                return 'usage: crontab [-l | -e | -r]';
+            }
+
+            case 'crontab-add': {
+                if (!state._crontab) state._crontab = ['# Edit this file to introduce tasks to be run by cron.', '# m h dom mon dow command'];
+                if (args.length < 2) return 'usage: crontab-add "schedule" "command"\nExample: crontab-add "0 2 * * *" "/usr/bin/backup.sh"';
+                // Join all args and try to parse
+                const cronFull = args.join(' ');
+                state._crontab.push(cronFull);
+                return `<span class="lt-highlight">crontab: entry added: ${_escape(cronFull)}</span>`;
+            }
+
+            // --------------- Text Editors ---------------
+            case 'nano': {
+                const nanoFile = args.find(a => !a.startsWith('-')) || '';
+                if (!nanoFile) return 'Usage: nano [filename]';
+                // Check if file exists, show content
+                const nanoPath = _resolvePath(nanoFile);
+                const nanoNode = _getNode(nanoPath);
+                if (nanoNode && typeof nanoNode === 'string') {
+                    return `<span class="lt-highlight">nano: opening ${nanoFile} (read-only in this terminal)</span>\n<span class="lt-output">${_escape(nanoNode)}</span>\n<span class="lt-highlight">[ Use cat/echo to view/create files in this terminal ]</span>`;
+                }
+                return `<span class="lt-highlight">nano: would create new file ${nanoFile}\n[ Use touch/echo to create files in this terminal ]</span>`;
+            }
+
+            case 'vim':
+            case 'vi': {
+                const viFile = args.find(a => !a.startsWith('-') && a !== '--') || '';
+                if (!viFile) return `<span class="lt-highlight">vim: opening empty buffer (read-only in this terminal)\n[ Press i for insert, :wq to save, :q! to quit ]\n[ Use cat/echo to view/create files in this terminal ]</span>`;
+                const viPath = _resolvePath(viFile);
+                const viNode = _getNode(viPath);
+                if (viNode && typeof viNode === 'string') {
+                    return `<span class="lt-highlight">vim: opening ${viFile} (read-only in this terminal)</span>\n<span class="lt-output">${_escape(viNode)}</span>\n<span class="lt-highlight">[ Use cat/echo to view/create files in this terminal ]</span>`;
+                }
+                return `<span class="lt-highlight">vim: would create new file ${viFile}\n[ Use touch/echo to create files in this terminal ]</span>`;
             }
 
             case '/bin/bash':
@@ -1191,6 +1526,15 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
         return `${node.perms} 1 ${node.owner.padEnd(8)} ${node.group.padEnd(8)} ${size} ${date} ${displayName}`;
     }
 
+    function _canRead(node) {
+        if (state.currentUser.uid === 0) return true; // root can read anything
+        if (node.owner === state.currentUser.username) {
+            return node.perms && node.perms[1] === 'r';
+        }
+        // Check group/other read permission (simplified: check 'other' read bit)
+        return node.perms && node.perms[7] === 'r';
+    }
+
     function _cat(args) {
         if (args.length === 0) {
             return '<span class="lt-highlight">cat: reading from stdin (Ctrl+C to exit)</span>';
@@ -1206,6 +1550,8 @@ tcp    ESTAB   0       0       192.168.1.100:22      192.168.1.1:54321`;
                 results.push(`<span class="lt-error">cat: ${arg}: No such file or directory</span>`);
             } else if (node.type === 'dir') {
                 results.push(`<span class="lt-error">cat: ${arg}: Is a directory</span>`);
+            } else if (!_canRead(node)) {
+                results.push(`<span class="lt-error">cat: ${arg}: Permission denied</span>`);
             } else {
                 results.push(node.content || '');
             }
@@ -1543,6 +1889,7 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
         let startPath = '.';
         let namePattern = null;
         let typeFilter = null;
+        let permFilter = null;
 
         for (let i = 0; i < args.length; i++) {
             if (args[i] === '-name' && args[i + 1]) {
@@ -1550,6 +1897,9 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
                 i++;
             } else if (args[i] === '-type' && args[i + 1]) {
                 typeFilter = args[i + 1];
+                i++;
+            } else if (args[i] === '-perm' && args[i + 1]) {
+                permFilter = args[i + 1];
                 i++;
             } else if (!args[i].startsWith('-')) {
                 startPath = args[i];
@@ -1571,6 +1921,14 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
                 const name = path.split('/').pop();
                 const regex = new RegExp(`^${namePattern}$`);
                 if (!regex.test(name)) continue;
+            }
+
+            // Permission filter: -4000 (SUID), -2000 (SGID), -1000 (sticky)
+            if (permFilter && node.perms) {
+                const perm = permFilter.replace(/^-/, '');
+                if (perm === '4000' && !node.perms.includes('s') && !(node.perms[3] === 's' || node.perms[3] === 'S')) continue;
+                if (perm === '2000' && !(node.perms[6] === 's' || node.perms[6] === 'S')) continue;
+                if (perm === '1000' && !(node.perms[9] === 't' || node.perms[9] === 'T')) continue;
             }
 
             results.push(path);
@@ -1797,6 +2155,12 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
                 // Check if the program is fully contained in this token
                 if (raw.endsWith("'")) {
                     program = raw.substring(0, raw.length - 1);
+                } else if (raw.endsWith('}') && raw.includes('{')) {
+                    // Complete {action} or /pattern/ {action} in one token
+                    program = raw;
+                } else if (raw.startsWith('/') && !raw.includes('{')) {
+                    // Bare /pattern/ without {action} — e.g. awk '/ERROR/' file
+                    program = raw;
                 } else if (arg.startsWith("'") || arg.startsWith('{') || arg.startsWith('/')) {
                     // Multi-token program — join until closing }' or just '
                     let parts = [raw];
@@ -1806,7 +2170,7 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
                         if (part.endsWith("'")) {
                             parts.push(part.substring(0, part.length - 1));
                             break;
-                        } else if (part.endsWith("}") && !args[i + 1]) {
+                        } else if (part.endsWith("}")) {
                             parts.push(part);
                             break;
                         }
@@ -2444,13 +2808,149 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         if (args.length === 0) {
             return '<span class="lt-error">sudo: requires a command</span>';
         }
-        const subCmd = args[0];
 
-        if (subCmd === 'su' || (subCmd === '-i')) {
-            return '<span class="lt-highlight">root@hexworth:~# </span><span class="lt-output-line">[Simulated root shell - type exit to return]</span>';
+        // Parse sudo flags before the subcommand
+        let targetUser = 'root';
+        let subArgs = [...args];
+        let i = 0;
+        while (i < subArgs.length) {
+            if (subArgs[i] === '-u' && i + 1 < subArgs.length) {
+                targetUser = subArgs[i + 1];
+                subArgs.splice(i, 2);
+            } else if (subArgs[i] === '-l') {
+                // sudo -l: list privileges (no password needed for display)
+                if (state.sudoAuthenticated) {
+                    return _sudoListPrivileges();
+                }
+                state.sudoPending = { args: args, cmdLine: 'sudo ' + args.join(' '), type: 'list' };
+                _enterPasswordMode();
+                return null; // output handled async
+            } else if (subArgs[i] === '-k') {
+                state.sudoAuthenticated = false;
+                return '<span class="lt-highlight">sudo: credential cache cleared</span>';
+            } else if (subArgs[i] === '-v') {
+                if (state.sudoAuthenticated) {
+                    return '<span class="lt-highlight">sudo: credential cache refreshed</span>';
+                }
+                state.sudoPending = { args: args, cmdLine: 'sudo ' + args.join(' '), type: 'validate' };
+                _enterPasswordMode();
+                return null;
+            } else if (subArgs[i] === '-i' || subArgs[i] === '-s') {
+                if (state.sudoAuthenticated) {
+                    return '<span class="lt-highlight">root@' + config.hostname + ':~# </span><span class="lt-output-line">[Simulated root shell — type exit to return]</span>';
+                }
+                state.sudoPending = { args: args, cmdLine: 'sudo ' + args.join(' '), type: 'shell' };
+                _enterPasswordMode();
+                return null;
+            } else {
+                break;
+            }
+            i++;
         }
 
-        return `<span class="lt-highlight">[sudo] password for ${state.currentUser.username}: </span><span class="lt-output-line">\n[Command would execute as root: ${args.join(' ')}]</span>`;
+        if (subArgs.length === 0) {
+            return '<span class="lt-error">sudo: requires a command after options</span>';
+        }
+
+        // If already authenticated this session, run immediately
+        if (state.sudoAuthenticated) {
+            return _executeSudoCommand(subArgs, targetUser);
+        }
+
+        // Otherwise, enter password mode
+        state.sudoPending = { args: args, subArgs: subArgs, targetUser: targetUser, cmdLine: 'sudo ' + args.join(' '), type: 'command' };
+        _enterPasswordMode();
+        return null; // output handled by password callback
+    }
+
+    function _enterPasswordMode() {
+        _appendOutput(`<span class="lt-highlight">[sudo] password for ${state.currentUser.username}: </span>`);
+        state.promptEl.textContent = '';
+        state.inputEl.type = 'password';
+        state.inputEl.placeholder = '';
+        state.sudoAttempts = 0;
+        state.inputEl.focus();
+    }
+
+    function _cancelSudo() {
+        state.sudoPending = null;
+        state.inputEl.type = 'text';
+        state.promptEl.textContent = _getPrompt() + ' ';
+        state.inputEl.placeholder = 'Type a command...';
+        _appendOutput('<span class="lt-error">^C</span>');
+        state.inputEl.focus();
+    }
+
+    function _handleSudoPassword(password) {
+        if (password === state.sudoPassword) {
+            state.sudoAuthenticated = true;
+            state.inputEl.type = 'text';
+            state.promptEl.textContent = _getPrompt() + ' ';
+            state.inputEl.placeholder = 'Type a command...';
+
+            const pending = state.sudoPending;
+            state.sudoPending = null;
+
+            if (!pending) return;
+
+            let output = null;
+            if (pending.type === 'command') {
+                output = _executeSudoCommand(pending.subArgs, pending.targetUser);
+            } else if (pending.type === 'list') {
+                output = _sudoListPrivileges();
+            } else if (pending.type === 'shell') {
+                output = '<span class="lt-highlight">root@' + config.hostname + ':~# </span><span class="lt-output-line">[Simulated root shell — type exit to return]</span>';
+            } else if (pending.type === 'validate') {
+                output = '<span class="lt-highlight">sudo: credential cache refreshed</span>';
+            }
+
+            if (output) _appendOutput(output);
+
+            // Fire the onCommand callback so task validators see it
+            if (config.onCommand && pending.cmdLine) {
+                const { cmd, args } = _parseCommand(pending.cmdLine);
+                config.onCommand(pending.cmdLine, output, cmd, args);
+            }
+
+            // Scroll to bottom
+            const scrollTarget = state.outputEl || state.containerEl;
+            if (scrollTarget) scrollTarget.scrollTop = scrollTarget.scrollHeight;
+        } else {
+            state.sudoAttempts++;
+            if (state.sudoAttempts >= 3) {
+                _appendOutput('<span class="lt-error">sudo: 3 incorrect password attempts</span>');
+                state.inputEl.type = 'text';
+                state.promptEl.textContent = _getPrompt() + ' ';
+                state.inputEl.placeholder = 'Type a command...';
+                state.sudoPending = null;
+            } else {
+                _appendOutput('<span class="lt-error">Sorry, try again.</span>');
+                _appendOutput(`<span class="lt-highlight">[sudo] password for ${state.currentUser.username}: </span>`);
+            }
+        }
+        state.inputEl.focus();
+    }
+
+    function _executeSudoCommand(subArgs, targetUser) {
+        // Save current user, temporarily become target user
+        const originalUser = state.currentUser.username;
+        const originalUid = state.currentUser.uid;
+        state.currentUser.username = targetUser;
+        state.currentUser.uid = targetUser === 'root' ? 0 : 1000;
+
+        // Execute the subcommand
+        const output = _executeCommand(subArgs[0], subArgs.slice(1), subArgs.join(' '));
+
+        // Restore original user
+        state.currentUser.username = originalUser;
+        state.currentUser.uid = originalUid;
+
+        return output;
+    }
+
+    function _sudoListPrivileges() {
+        return `User ${state.currentUser.username} may run the following commands on ${config.hostname}:
+    (ALL : ALL) ALL`;
     }
 
     function _type(args) {

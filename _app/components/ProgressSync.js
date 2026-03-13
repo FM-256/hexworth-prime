@@ -144,12 +144,21 @@
             return null;
         }
 
-        // CLH modules
+        // CLH modules — check both hexworth_progress flat format and hexworth_progress_clh
         const clhMatch = contentId.match(/^script-(clh-\d{3})$/);
         if (clhMatch) {
-            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const mod = (progress.script || {})[clhMatch[1]];
-            if (mod && mod.completed) return { completed: true, score: mod.score || null, completedAt: mod.completedAt || null };
+            // Check flat format in hexworth_progress first
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                const mod = (progress.script || {})[clhMatch[1]];
+                if (mod && mod.completed) return { completed: true, score: mod.score || null, completedAt: mod.completedAt || null };
+            } catch (e) { /* fall through */ }
+
+            // Also check namespaced CLH progress key
+            const clhProgress = _readCourseKey('clh_progress');
+            const clhMod = clhProgress[clhMatch[1]];
+            if (clhMod && clhMod.completed) return { completed: true, score: clhMod.score || null, completedAt: clhMod.completedAt || null };
+
             return null;
         }
 
@@ -205,7 +214,7 @@
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const hp = progress[house] || {};
             const mod = hp[moduleKey] || hp[contentId];
-            if (mod && mod.completed) return { completed: true, score: mod.score || null, completedAt: mod.completedAt || null };
+            if (mod && mod.completed) return { completed: true, score: mod.score || null, completedAt: mod.completedAt || mod.date || null };
             return null;
         }
 
@@ -445,6 +454,7 @@
     window.addEventListener('courseProgress:componentComplete', () => sync());
     window.addEventListener('wsa-progress-updated', () => sync());
     window.addEventListener('arctic:moduleComplete', () => sync());
+    window.addEventListener('hexworth:progressUpdate', () => sync());
 
     // Flush queue when coming back online
     window.addEventListener('online', () => {

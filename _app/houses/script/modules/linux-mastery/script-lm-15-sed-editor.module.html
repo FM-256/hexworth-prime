@@ -25,7 +25,7 @@
             --border: rgba(255, 255, 255, 0.1);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; height: 100vh; background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+        body { overflow: hidden; height: 100vh; background: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; }
         code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
 
         .header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid var(--border); }
@@ -48,6 +48,15 @@
         .task-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
         .task-chip { font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; padding: 0.25rem 0.6rem; border-radius: 3px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text-secondary); transition: all 0.3s ease; }
         .task-chip.completed { background: rgba(78, 201, 176, 0.1); border-color: var(--green); color: var(--green); }
+
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip { cursor: pointer; transition: all 0.2s; }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
         .terminal-container { flex: 1; min-height: 0; }
 
         .content-panel { overflow-y: auto; padding: 2rem 2.5rem; }
@@ -121,12 +130,13 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                 <div class="task-row">
-                    <span class="task-chip" data-task="substitute">s/old/new/</span>
-                    <span class="task-chip" data-task="global">s///g</span>
-                    <span class="task-chip" data-task="delete">/pat/d</span>
-                    <span class="task-chip" data-task="print">-n /pat/p</span>
+                    <span class="task-chip" data-task="substitute" onclick="showTaskInstruction('substitute')">1</span>
+                    <span class="task-chip" data-task="global" onclick="showTaskInstruction('global')">2</span>
+                    <span class="task-chip" data-task="delete" onclick="showTaskInstruction('delete')">3</span>
+                    <span class="task-chip" data-task="print" onclick="showTaskInstruction('print')">4</span>
                 </div>
             </div>
+            <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
         </div>
 
@@ -274,6 +284,52 @@
             }
         });
 
+        const TASK_ORDER = ['substitute', 'global', 'delete', 'print'];
+        const TASK_INSTRUCTIONS = {
+    'substitute': {
+        num: '1 of 4 &mdash; Substitute First',
+        desc: 'Use sed\'s <code>s</code> command to replace the first occurrence on each line.',
+        hint: 'Run: <code>sed \'s/old/new/\' file.txt</code>',
+        expected: 'Replaces first "old" with "new" on each line'
+    },
+    'global': {
+        num: '2 of 4 &mdash; Substitute All',
+        desc: 'Add the <code>g</code> flag to replace ALL occurrences per line.',
+        hint: 'Run: <code>sed \'s/old/new/g\' file.txt</code>',
+        expected: 'The g flag replaces ALL occurrences per line'
+    },
+    'delete': {
+        num: '3 of 4 &mdash; Delete Lines',
+        desc: 'Use the <code>d</code> command to delete lines matching a pattern.',
+        hint: 'Run: <code>sed \'/pattern/d\' file.txt</code>',
+        expected: 'Deletes lines matching the pattern'
+    },
+    'print': {
+        num: '4 of 4 &mdash; Print Matches',
+        desc: 'Use <code>-n</code> with <code>/p</code> to print only matching lines.',
+        hint: 'Run: <code>sed -n \'/pattern/p\' file.txt</code>',
+        expected: '-n suppresses output, /p prints matching lines'
+    },
+};
+
+        function showTaskInstruction(taskId) {
+            const info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            const el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.num + '</div>' +
+                '<div>' + info.desc + '</div>' +
+                '<div class="task-cmd">' + info.hint.replace(/.*<code>/, '').replace(/<\/code>.*/, '') + '</div>' +
+                '<div class="task-expect">' + info.expected + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('active'));
+            const chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() {
+            return TASK_ORDER.find(t => !tasks[t]) || null;
+        }
+
         const MODULE_ID = 'lm-15-sed-editor';
         const tasks = { 'substitute': false, 'global': false, 'delete': false, 'print': false };
 
@@ -283,6 +339,13 @@
             document.querySelector(`.task-chip[data-task="${id}"]`)?.classList.add('completed');
             updateProgress();
             saveProgress();
+
+            // Auto-advance to next incomplete task
+            const next = getNextIncompleteTask();
+            if (next) {
+                setTimeout(() => showTaskInstruction(next), 400);
+            }
+
             if (Object.values(tasks).every(v => v)) {
                 ModuleProgress.complete('script', 'script-lm-15-sed-editor', { returnUrl: 'script-lm-16-awk-processing.module.html' });
             }
@@ -312,6 +375,9 @@
                 saved.completed.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
+            // Show first incomplete task instruction
+            const firstIncomplete = getNextIncompleteTask();
+            if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
     </script>
     <script src="../../../../components/FluxCapacitor.js"></script>

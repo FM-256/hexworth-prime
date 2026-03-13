@@ -1121,7 +1121,7 @@ Host: student-workstation                      Loss%   Snt   Last   Avg  Best  W
             <span class="objective-text">Objective Complete: ${objective.text}</span>
         `;
         notification.style.cssText = `
-            position: fixed;
+            position: absolute;
             bottom: 20px;
             right: 20px;
             background: linear-gradient(135deg, #10b981, #059669);

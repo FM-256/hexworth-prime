@@ -278,7 +278,7 @@ const A10Config = {
 
                     <div style="max-width:620px; margin:0 auto 24px;">
                         <label style="display:block; color:#2c3e50; font-size:0.8rem; font-weight:600; margin-bottom:6px; letter-spacing:0.05em;">URL INSPECTION</label>
-                        <p style="color:#666; font-size:0.78rem; margin:0 0 12px;">Enter any URL to inspect its HTTP headers and content preview. The Corridor fetches the target server-side and returns a structured report.</p>
+                        <p style="color:#8a8a8a; font-size:0.78rem; margin:0 0 12px;">Enter any URL to inspect its HTTP headers and content preview. The Corridor fetches the target server-side and returns a structured report.</p>
                         <div style="display:flex; gap:8px; align-items:stretch;">
                             <input type="text" data-field="url"
                                    placeholder="https://example.com or http://target/path"
@@ -354,19 +354,19 @@ const A10Config = {
                                 <tr>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee;">Internal Admin</td>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee; font-family:monospace; font-size:0.75rem;">127.0.0.1:8080</td>
-                                    <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#666;">Corridor operator panel and system dashboard</td>
+                                    <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#8a8a8a;">Corridor operator panel and system dashboard</td>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#c0392b; font-size:0.72rem; font-weight:700;">INTERNAL ONLY</td>
                                 </tr>
                                 <tr>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee;">Cache Layer</td>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee; font-family:monospace; font-size:0.75rem;">127.0.0.1:6379</td>
-                                    <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#666;">Redis session and configuration cache</td>
+                                    <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#8a8a8a;">Redis session and configuration cache</td>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#c0392b; font-size:0.72rem; font-weight:700;">INTERNAL ONLY</td>
                                 </tr>
                                 <tr>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee;">Search Index</td>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee; font-family:monospace; font-size:0.75rem;">127.0.0.1:9200</td>
-                                    <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#666;">Elasticsearch index for proxy log analysis</td>
+                                    <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#8a8a8a;">Elasticsearch index for proxy log analysis</td>
                                     <td style="padding:6px 12px; border-bottom:1px solid #eee; color:#c0392b; font-size:0.72rem; font-weight:700;">INTERNAL ONLY</td>
                                 </tr>
                             </tbody>
@@ -406,24 +406,24 @@ const A10Config = {
                                 <tr>
                                     <td style="padding:5px 12px; border-bottom:1px solid #eee; font-family:monospace;">http://</td>
                                     <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#27ae60; font-weight:700;">Supported</td>
-                                    <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#666;">Standard HTTP fetch with redirect following</td>
+                                    <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#8a8a8a;">Standard HTTP fetch with redirect following</td>
                                 </tr>
                                 <tr>
                                     <td style="padding:5px 12px; border-bottom:1px solid #eee; font-family:monospace;">https://</td>
                                     <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#27ae60; font-weight:700;">Supported</td>
-                                    <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#666;">TLS verification enabled by default</td>
+                                    <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#8a8a8a;">TLS verification enabled by default</td>
                                 </tr>
                                 <tr>
                                     <td style="padding:5px 12px; border-bottom:1px solid #eee; font-family:monospace;">file://</td>
                                     <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#27ae60; font-weight:700;">Supported</td>
-                                    <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#666;">Local filesystem reads — for diagnostic use</td>
+                                    <td style="padding:5px 12px; border-bottom:1px solid #eee; color:#8a8a8a;">Local filesystem reads — for diagnostic use</td>
                                 </tr>
                             </tbody>
                         </table>
 
                         <h2 style="color:#2c3e50; font-size:1rem; border-bottom:2px solid #eef; padding-bottom:6px;">Security Controls</h2>
                         <p>The following address ranges are blocked to prevent unauthorized access to internal infrastructure:</p>
-                        <ul style="margin:0 0 16px; padding-left:20px; color:#555;">
+                        <ul style="margin:0 0 16px; padding-left:20px; color:#808080;">
                             <li style="margin-bottom:4px;"><code style="background:#eef1f6; padding:1px 5px; border-radius:3px; font-size:0.78rem;">10.0.0.0/8</code> — Private RFC-1918 range (blocked)</li>
                             <li style="margin-bottom:4px;"><code style="background:#eef1f6; padding:1px 5px; border-radius:3px; font-size:0.78rem;">172.16.0.0/12</code> — Private RFC-1918 range (blocked)</li>
                             <li style="margin-bottom:4px;"><code style="background:#eef1f6; padding:1px 5px; border-radius:3px; font-size:0.78rem;">192.168.0.0/16</code> — Private RFC-1918 range (blocked)</li>
@@ -436,7 +436,7 @@ const A10Config = {
                         <p>Each inspection returns a structured report including status code, response headers, and a content snippet (first 2KB).</p>
 
                         <h2 style="color:#2c3e50; font-size:1rem; border-bottom:2px solid #eef; padding-bottom:6px;">Version History</h2>
-                        <ul style="color:#666; margin:0; padding-left:20px;">
+                        <ul style="color:#8a8a8a; margin:0; padding-left:20px;">
                             <li>v3.0.1 — Added file:// support for local diagnostics</li>
                             <li>v3.0.0 — Redirect following enabled by default</li>
                             <li>v2.1.0 — Block-list introduced for RFC-1918 ranges</li>
@@ -780,7 +780,7 @@ kali:x:1000:1000:Kali:/home/kali:/bin/bash`);
 
                 <div style="padding:10px 14px; border-bottom:1px solid #eee; font-size:0.78rem;">
                     <div style="color:#888; font-size:0.7rem; letter-spacing:0.08em; margin-bottom:6px;">RESPONSE HEADERS</div>
-                    <div style="font-family:monospace; color:#555; line-height:1.8;">
+                    <div style="font-family:monospace; color:#808080; line-height:1.8;">
                         Content-Type: ${A10Config._escHtml(contentType)}<br>
                         Server: nginx/1.24.0<br>
                         X-Powered-By: GlassProxy/3.0<br>

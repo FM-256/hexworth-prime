@@ -26,7 +26,7 @@ const path = require('path');
 
 // Known valid lab IDs — keep in sync with SandboxLauncher.js LAB_INFO
 const KNOWN_LAB_IDS = new Set([
-    'do-100', 'do-101', 'do-102', 'do-16', 'arctic'
+    'do-100', 'do-101', 'do-102', 'do-16', 'arctic', 'db-sql'
 ]);
 
 // Page renderers that wipe document.body — SandboxLauncher must load before these

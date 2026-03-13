@@ -216,12 +216,14 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
     }
 
     // Mode 2: no flagId — check all flags for the box
+    const aliases = flagDoc.data().aliases || {};
     for (const [fid, fvalue] of Object.entries(flags)) {
         if (normalizedSubmission === fvalue.trim().toLowerCase()) {
-            await db.doc(`users/${uid}/flag_captures/${boxId}_${fid}`).set({
-                boxId, flagId: fid, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
+            const resolvedId = aliases[fid] || fid;
+            await db.doc(`users/${uid}/flag_captures/${boxId}_${resolvedId}`).set({
+                boxId, flagId: resolvedId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
             });
-            return { correct: true, flagId: fid };
+            return { correct: true, flagId: resolvedId };
         }
     }
 
@@ -1244,9 +1246,11 @@ async function evaluateClhInsight(moduleId, userInput) {
 
     const insight = insightDoc.data();
     const normalized = userInput.trim().toLowerCase();
+    console.log(`[CLH-INSIGHT] moduleId=${moduleId}, input="${normalized}", answers=${JSON.stringify(insight.acceptedAnswers)}`);
     const isCorrect = (insight.acceptedAnswers || []).some(
         a => a.toLowerCase() === normalized
     );
+    console.log(`[CLH-INSIGHT] result=${isCorrect}`);
 
     return {
         blocked: false,
@@ -1408,6 +1412,76 @@ exports.getLeaderboard = onCall(cfOptions, async (request) => {
     });
 
     return { topScores, levelStats };
+});
+
+// ─── SEC-5: Server-Side Quiz Grading ─────────────────────────────
+
+/**
+ * gradeQuiz — Server-side quiz answer validation.
+ * The client submits answers; the server looks up the answer key from
+ * Firestore (quiz_keys/{quizId}) and returns right/wrong per question.
+ * NEVER returns the correct answers — only whether each was correct.
+ */
+exports.gradeQuiz = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { quizId, answers } = request.data || {};
+
+    if (!quizId || typeof quizId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing or invalid quizId.');
+    }
+
+    if (!answers || typeof answers !== 'object') {
+        throw new HttpsError('invalid-argument', 'Missing or invalid answers object.');
+    }
+
+    // Look up answer key from Firestore
+    const keyDoc = await db.doc(`quiz_keys/${quizId}`).get();
+    if (!keyDoc.exists) {
+        throw new HttpsError('not-found', 'Quiz key not found. This quiz may not support server-side grading.');
+    }
+
+    const keyData = keyDoc.data();
+    const answerKey = keyData.answers; // Array of correct answer indices
+
+    if (!Array.isArray(answerKey)) {
+        throw new HttpsError('internal', 'Invalid answer key format.');
+    }
+
+    const total = answerKey.length;
+    let score = 0;
+    const results = [];
+
+    // Compare each submitted answer against the key
+    for (let i = 0; i < total; i++) {
+        const submitted = answers[String(i)];
+        const isCorrect = submitted !== undefined && submitted === answerKey[i];
+        if (isCorrect) score++;
+        results.push({ correct: isCorrect });
+    }
+
+    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+    const passingScore = keyData.passingScore || 70;
+    const passed = percentage >= passingScore;
+
+    // Log the attempt to Firestore for analytics
+    const uid = request.auth.uid;
+    try {
+        await db.collection(`users/${uid}/quiz_attempts`).add({
+            quizId,
+            score,
+            total,
+            percentage,
+            passed,
+            timestamp: FieldValue.serverTimestamp()
+        });
+    } catch (e) {
+        console.warn('Quiz attempt log failed:', e.message);
+    }
+
+    return { score, total, percentage, passed, results };
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────
