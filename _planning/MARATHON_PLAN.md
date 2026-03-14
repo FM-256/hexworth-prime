@@ -727,31 +727,32 @@
 | 15 — Secret Protection: Labs | 1 | SEC-7: Key House lab answer key evaluation | 2-3 hrs |
 | 16 — Learning Path Alignment | 1 | QC-14: fix 1,844 LP-006/007 findings + QC-15: wire 949 orphan pages | 4-6 hrs |
 | 17 — Quick Wins | 1 | M-1: HTML imports cleanup across forge/shield/web/code/key | 2-3 hrs |
-| 18 — Accessibility Audit | 2 parallel | AC-1: audit all presentations + AC-4: fix color contrast (WCAG AA) | 4-6 hrs |
-| 19 — Difficulty Metrics | 1 | PR-5: measurable learning analytics layer (grant-ready) | 3-4 hrs |
+| 18 — Signal Toolkit Library | 4 parallel | SG-LIB: 20 tool deep-dive reference pages (install, usage, gotchas) | 3-4 hrs |
+| 19 — Accessibility Audit | 2 parallel | AC-1: audit all presentations + AC-4: fix color contrast (WCAG AA) | 4-6 hrs |
+| 20 — Difficulty Metrics | 1 | PR-5: measurable learning analytics layer (grant-ready) | 3-4 hrs |
 | **XP & PROGRESS** | | | |
-| 20 — XP Master Ledger | 1 | QC-9: true content inventory + XP audit tool | 4-6 hrs |
-| 21 — XP Rewire | 1 | QC-10: rewire XP Calculator against master ledger (← QC-9) | 3-4 hrs |
-| 22 — Progress Refactor | 1 | QC-6: progress architecture cleanup | 3-4 hrs |
+| 21 — XP Master Ledger | 1 | QC-9: true content inventory + XP audit tool | 4-6 hrs |
+| 22 — XP Rewire | 1 | QC-10: rewire XP Calculator against master ledger (← QC-9) | 3-4 hrs |
+| 23 — Progress Refactor | 1 | QC-6: progress architecture cleanup | 3-4 hrs |
 | **COURSE TRACKS** | | | |
-| 23 — Code Armory Hub | 1 | PL-1: design programming languages hub page + curriculum | 3-4 hrs |
-| 24 — Code Armory: Core Languages | 5 parallel | PL-2 Python, PL-3 JS/TS, PL-4 C, PL-10 Bash, PL-12 SQL | 15-20 hrs |
-| 25 — Code Armory: Systems Languages | 4 parallel | PL-5 C++, PL-6 Go, PL-7 Rust, PL-15 Assembly | 12-16 hrs |
-| 26 — Code Armory: Enterprise & Web | 5 parallel | PL-8 Java, PL-9 C#, PL-11 PowerShell, PL-13 PHP, PL-14 Ruby | 15-20 hrs |
-| 27 — Code Armory: Extras | 4 parallel | PL-16 Swift/Kotlin, PL-17 Lua/Perl/R, PL-18 comparison tool, PL-19 challenges, PL-20 security, PL-21 graphics | 10-14 hrs |
-| 28 — The Backbone Hub | 1 | AN-1: advanced networking hub page + curriculum design | 3-4 hrs |
-| 29 — The Backbone: Courses | 5 parallel | AN-2 BGP, AN-3 MPLS, AN-4 DC networking, AN-6 SDN, AN-11 net security | 15-20 hrs |
-| 30 — The Backbone: Advanced | 5 parallel | AN-5 InfiniBand, AN-7 SD-WAN, AN-8 Wi-Fi 6, AN-9 optical, AN-10 IPv6, AN-12 forensics, AN-13 QoS, AN-14 EIGRP, AN-15 5G, AN-16 design | 20-30 hrs |
-| 31 — Algorithm Chamber | 5 parallel | CS-1 hub, CS-2 discrete math, CS-3 graph theory, CS-4 Big O, CS-5 data structures → CS-6/7/8/9/10/11/12 | 20-30 hrs |
-| 32 — The Cortex (AI/ML) | 5 parallel | ML-1 hub, ML-2 foundations, ML-3 math → ML-4/5/6/7/8/9/10/11/12/13/14/15 | 25-35 hrs |
-| 33 — API Foundations | 3 parallel | API-2 auth, API-3 design, API-4 rate limiting → API-5/6/7/8/9 | 12-16 hrs |
+| 24 — Code Armory Hub | 1 | PL-1: design programming languages hub page + curriculum | 3-4 hrs |
+| 25 — Code Armory: Core Languages | 5 parallel | PL-2 Python, PL-3 JS/TS, PL-4 C, PL-10 Bash, PL-12 SQL | 15-20 hrs |
+| 26 — Code Armory: Systems Languages | 4 parallel | PL-5 C++, PL-6 Go, PL-7 Rust, PL-15 Assembly | 12-16 hrs |
+| 27 — Code Armory: Enterprise & Web | 5 parallel | PL-8 Java, PL-9 C#, PL-11 PowerShell, PL-13 PHP, PL-14 Ruby | 15-20 hrs |
+| 28 — Code Armory: Extras | 4 parallel | PL-16 Swift/Kotlin, PL-17 Lua/Perl/R, PL-18 comparison tool, PL-19 challenges, PL-20 security, PL-21 graphics | 10-14 hrs |
+| 29 — The Backbone Hub | 1 | AN-1: advanced networking hub page + curriculum design | 3-4 hrs |
+| 30 — The Backbone: Courses | 5 parallel | AN-2 BGP, AN-3 MPLS, AN-4 DC networking, AN-6 SDN, AN-11 net security | 15-20 hrs |
+| 31 — The Backbone: Advanced | 5 parallel | AN-5 InfiniBand, AN-7 SD-WAN, AN-8 Wi-Fi 6, AN-9 optical, AN-10 IPv6, AN-12 forensics, AN-13 QoS, AN-14 EIGRP, AN-15 5G, AN-16 design | 20-30 hrs |
+| 32 — Algorithm Chamber | 5 parallel | CS-1 hub, CS-2 discrete math, CS-3 graph theory, CS-4 Big O, CS-5 data structures → CS-6/7/8/9/10/11/12 | 20-30 hrs |
+| 33 — The Cortex (AI/ML) | 5 parallel | ML-1 hub, ML-2 foundations, ML-3 math → ML-4/5/6/7/8/9/10/11/12/13/14/15 | 25-35 hrs |
+| 34 — API Foundations | 3 parallel | API-2 auth, API-3 design, API-4 rate limiting → API-5/6/7/8/9 | 12-16 hrs |
 | **FEATURES & PLATFORM** | | | |
-| 34 — Messaging System | serial | F-23 → F-23A/B/C/D/E/F: Firestore DMs, inbox, moderation, dashboard | 15-20 hrs |
-| 35 — Social & Multiplayer | 3 parallel | F-21 public profiles, F-25 2-player arcade, F-26 Hive multiplayer | 10-15 hrs |
-| 36 — Content & Branding | 4 parallel | M-10 web gaps, M-11 Security-101, BR-19 mascot life, A-4 tourist visa | 8-12 hrs |
-| 37 — Tooling & Analytics | 4 parallel | HD-8/9/10 engagement metrics, NXS-1 Nexus spoke, SC-5 classifier, AR-5 IDPs, DA-20 TN labs | 10-15 hrs |
+| 35 — Messaging System | serial | F-23 → F-23A/B/C/D/E/F: Firestore DMs, inbox, moderation, dashboard | 15-20 hrs |
+| 36 — Social & Multiplayer | 3 parallel | F-21 public profiles, F-25 2-player arcade, F-26 Hive multiplayer | 10-15 hrs |
+| 37 — Content & Branding | 4 parallel | M-10 web gaps, M-11 Security-101, BR-19 mascot life, A-4 tourist visa | 8-12 hrs |
+| 38 — Tooling & Analytics | 4 parallel | HD-8/9/10 engagement metrics, NXS-1 Nexus spoke, SC-5 classifier, AR-5 IDPs, DA-20 TN labs | 10-15 hrs |
 | **MAINTENANCE** | | | |
-| 38 — Sprint Backlog Audit | 1 | Full reconciliation: stale items, missing work, status drift, dependency accuracy | 2-3 hrs |
+| 39 — Sprint Backlog Audit | 1 | Full reconciliation: stale items, missing work, status drift, dependency accuracy | 2-3 hrs |
 
 ---
 
@@ -1005,7 +1006,49 @@
 
 ---
 
-## Wave 18: Accessibility Audit (2 parallel agents)
+## Wave 18: Signal Toolkit Reference Library (4 parallel agents)
+*Parent page: `_app/signal/toolkit/index.html` (already live with download cards)*
+*Output: `_app/signal/toolkit/tools/` — 20 self-contained HTML reference pages*
+*Template per page: What it does, Why you need it, Install steps, Usage (3-5 tasks), Common gotchas, Last reviewed date, Back link*
+
+**Agent 1 — Boot & Imaging (5 tools):**
+- [x] **Rufus** — USB bootable drive creator (Windows)
+- [x] **Ventoy** — multi-ISO USB boot manager
+- [x] **balenaEtcher** — cross-platform image flasher
+- [x] **Clonezilla** — disk/partition cloning and imaging
+- [x] **GParted** — partition editor (live USB)
+
+**Agent 2 — Development Environments (4 tools):**
+- [x] **Arduino IDE** — microcontroller programming
+- [x] **PlatformIO** — embedded development platform (VS Code extension)
+- [x] **VS Code** — code editor setup for cybersecurity/IT workflows
+- [x] **Thonny** — beginner Python IDE (Raspberry Pi default)
+
+**Agent 3 — Network, Security & Forensics (6 tools):**
+- [x] **Wireshark** — network protocol analyzer
+- [x] **Nmap** — network scanner and host discovery
+- [x] **PuTTY** — SSH/serial terminal client (Windows)
+- [x] **Hiren's Boot CD PE** — preinstallation environment toolkit
+- [x] **memtest86+** — memory diagnostic
+- [x] **DBAN** — secure disk erasure
+
+**Agent 4 — Raspberry Pi & Serial/Terminal (5 tools):**
+- [x] **Raspberry Pi Imager** — official OS installer
+- [x] **RetroPie** — retro gaming on Pi
+- [x] **CoolTerm** — serial port terminal (GUI)
+- [x] **Screen** — terminal multiplexer + serial console
+- [x] **minicom** — serial communication program
+
+**Validation:**
+- [x] Update toolkit index page to link to all 20 tool pages
+- [x] Signal toolkit outside houses/ dir — no ContentCatalog/content-registry registration needed
+- [x] Run `npm run scan` — CRITICAL: 0, no new issues from toolkit pages
+
+**Commit message:** `feat: Signal Toolkit Reference Library — 20 tool deep-dive pages`
+
+---
+
+## Wave 19: Accessibility Audit (2 parallel agents)
 *Sprints: AC-1 + AC-4 — WCAG AA compliance*
 
 **AC-4 — Color Contrast (DONE)**
@@ -1022,7 +1065,7 @@
 
 ---
 
-## Wave 19: Difficulty Metrics & Analysis Layer (1 agent)
+## Wave 20: Difficulty Metrics & Analysis Layer (1 agent)
 *Sprint: PR-5 — grant-ready measurable learning data*
 
 - [x] Design difficulty scoring model — 1-10 scale based on time ratio, retries, hints, score
@@ -1033,7 +1076,7 @@
 
 ---
 
-## Wave 20: XP Master Ledger (1 agent)
+## Wave 21: XP Master Ledger (1 agent)
 *Sprint: QC-9 — foundation for XP rewire*
 
 - [x] Create XPMasterLedger.js — 17 category defaults, override map, componentToCategory resolver
@@ -1044,7 +1087,7 @@
 
 ---
 
-## Wave 21: XP Calculator Rewire (1 agent)
+## Wave 22: XP Calculator Rewire (1 agent)
 *Sprint: QC-10 — depends on Wave 20 (QC-9)*
 
 - [x] Rewire XPCalculator.js — _rate() resolves from XPMasterLedger.values, falls back to _FALLBACK_RATES
@@ -1054,7 +1097,7 @@
 
 ---
 
-## Wave 22: Progress Architecture Refactor (1 agent)
+## Wave 23: Progress Architecture Refactor (1 agent)
 *Sprint: QC-6 — structural cleanup*
 
 - [x] Audit ProgressManager, ProgressSync, ModuleProgress — found 4 bugs
@@ -1065,7 +1108,7 @@
 
 ---
 
-## Wave 23: Code Armory — Hub Design (1 agent)
+## Wave 24: Code Armory — Hub Design (1 agent)
 *Sprint: PL-1 — head of the programming languages chain*
 
 - [ ] Design Code Armory hub page (programming languages browser)
@@ -1075,7 +1118,7 @@
 
 ---
 
-## Wave 24: Code Armory — Core Languages (5 parallel agents)
+## Wave 25: Code Armory — Core Languages (5 parallel agents)
 *Sprints: PL-2, PL-3, PL-4, PL-10, PL-12 — depends on Wave 23*
 
 - [ ] **PL-2** — Python (fundamentals through advanced, scripting, dark-arts applications)
@@ -1086,7 +1129,7 @@
 
 ---
 
-## Wave 25: Code Armory — Systems Languages (4 parallel agents)
+## Wave 26: Code Armory — Systems Languages (4 parallel agents)
 *Sprints: PL-5, PL-6, PL-7, PL-15*
 
 - [ ] **PL-5** — C++ (OOP, STL, modern C++ — depends on PL-4)
@@ -1096,7 +1139,7 @@
 
 ---
 
-## Wave 26: Code Armory — Enterprise & Web (5 parallel agents)
+## Wave 27: Code Armory — Enterprise & Web (5 parallel agents)
 *Sprints: PL-8, PL-9, PL-11, PL-13, PL-14*
 
 - [ ] **PL-8** — Java (enterprise, Android)
@@ -1107,7 +1150,7 @@
 
 ---
 
-## Wave 27: Code Armory — Extras & Cross-Cutting (4 parallel agents)
+## Wave 28: Code Armory — Extras & Cross-Cutting (4 parallel agents)
 *Sprints: PL-16, PL-17, PL-18, PL-19, PL-20, PL-21*
 
 - [ ] **PL-16** — Swift & Kotlin (modern mobile development)
@@ -1119,7 +1162,7 @@
 
 ---
 
-## Wave 28: The Backbone — Hub Design (1 agent)
+## Wave 29: The Backbone — Hub Design (1 agent)
 *Sprint: AN-1 — advanced networking course track*
 
 - [ ] Design The Backbone hub page and curriculum structure
@@ -1128,7 +1171,7 @@
 
 ---
 
-## Wave 29: The Backbone — Core Courses (5 parallel agents)
+## Wave 30: The Backbone — Core Courses (5 parallel agents)
 *Sprints: AN-2, AN-3, AN-4, AN-6, AN-11 — depends on Wave 28*
 
 - [ ] **AN-2** — BGP (Border Gateway Protocol)
@@ -1139,7 +1182,7 @@
 
 ---
 
-## Wave 30: The Backbone — Advanced Topics (5 parallel agents)
+## Wave 31: The Backbone — Advanced Topics (5 parallel agents)
 *Sprints: AN-5, AN-7, AN-8, AN-9, AN-10, AN-12, AN-13, AN-14, AN-15, AN-16*
 
 - [ ] **AN-5** — InfiniBand, RDMA, high-performance networking
@@ -1155,7 +1198,7 @@
 
 ---
 
-## Wave 31: Algorithm Chamber (5 parallel agents → serial chain)
+## Wave 32: Algorithm Chamber (5 parallel agents → serial chain)
 *Sprints: CS-1 through CS-12 — dependency chain*
 
 - [ ] **CS-1** — Design Algorithm Chamber hub page and curriculum
@@ -1173,7 +1216,7 @@
 
 ---
 
-## Wave 32: The Cortex — AI/ML Track (5 parallel agents → serial chain)
+## Wave 33: The Cortex — AI/ML Track (5 parallel agents → serial chain)
 *Sprints: ML-1 through ML-15 — dependency chain*
 
 - [ ] **ML-1** — Design Cortex hub page and AI/ML curriculum
@@ -1194,7 +1237,7 @@
 
 ---
 
-## Wave 33: API Foundations (3 parallel agents → serial chain)
+## Wave 34: API Foundations (3 parallel agents → serial chain)
 *Sprints: API-2 through API-9 — dependency chain*
 
 - [ ] **API-2** — Authentication & Authorization (← API-1 done)
@@ -1208,7 +1251,7 @@
 
 ---
 
-## Wave 34: Messaging System (serial chain)
+## Wave 35: Messaging System (serial chain)
 *Sprints: F-23 → F-23A/B/C/D/E/F — largest feature build*
 
 - [ ] **F-23** — Epic: design decisions (moderation policy, privacy, instructor visibility)
@@ -1221,7 +1264,7 @@
 
 ---
 
-## Wave 35: Social & Multiplayer (3 parallel agents)
+## Wave 36: Social & Multiplayer (3 parallel agents)
 *Sprints: F-21, F-25, F-26*
 
 - [ ] **F-21** — Public user profiles (view by UID, privacy controls, Firestore public doc)
@@ -1230,7 +1273,7 @@
 
 ---
 
-## Wave 36: Content & Branding (4 parallel agents)
+## Wave 37: Content & Branding (4 parallel agents)
 *Sprints: M-10, M-11, BR-19, A-4*
 
 - [ ] **M-10** — Network-Essentials + Web house content gaps
@@ -1240,7 +1283,7 @@
 
 ---
 
-## Wave 37: Tooling & Analytics (4 parallel agents)
+## Wave 38: Tooling & Analytics (4 parallel agents)
 *Sprints: HD-8/9/10, NXS-1, SC-5, AR-5, DA-20, RS-2, ES-14*
 
 - [ ] **HD-8** — Engagement metrics: login frequency, session duration (← HD-7 done)
@@ -1255,7 +1298,7 @@
 
 ---
 
-## Wave 38: Sprint Backlog Audit (1 agent)
+## Wave 39: Sprint Backlog Audit (1 agent)
 *Full reconciliation of sprints.json against actual project state*
 
 - [ ] **Status drift**: Scan all 537 sprint items — verify statuses match reality (done items actually shipped? blocked items still blocked? dependencies still valid?)
@@ -1339,7 +1382,7 @@
 
 ---
 
-## Wave 39: TripWire Hardening — Close Hackerman Bypass Vectors (1 agent)
+## Wave 40: TripWire Hardening — Close Hackerman Bypass Vectors (1 agent)
 *TripWire has 6 known bypass vectors that hackerman is exploiting*
 
 - [x] **Wrap `localStorage.removeItem()`** — already existed from prior session
@@ -1352,12 +1395,12 @@
 - [x] **Wrap `Object.defineProperty` on Storage.prototype** — NEW, intercepts attempts to redefine setItem/removeItem/clear
 - [x] **Add Proxy on `window.localStorage` getter** — included in the Proxy implementation
 - [x] **Added `hexworth_level`, `hexworth_modules`, `hexworth_labs`** to PROTECTED_KEYS
-- [ ] Run `npm run scan` after all changes
-- [ ] Add new bypass categories to TripWireEffects.js effect messages
+- [x] Run `npm run scan` — CRITICAL: 0, no new issues
+- [x] Add new bypass categories to TripWireEffects.js effect messages (6 new visual effects + 6 audio + 11 category messages, v4.0.0)
 
 ---
 
-## Wave 40: Quiz QC — Positional Answer References + Completion Flow (1 agent)
+## Wave 41: Quiz QC — Positional Answer References + Completion Flow (1 agent)
 *Fixes quiz answers that reference "A and B" which break under randomization, and adds nextModule/returnLabel config to quizzes missing them*
 
 - [x] Fix "Both A and B" positional references in 7 quiz files (CLH-004, CLH-025, CLH-012, LA-CH03, MD100-M04)
@@ -1367,22 +1410,22 @@
 
 ---
 
-## Wave 41: Explore-All Hub Addition — Cert/Track Houses (1 agent)
+## Wave 42: Explore-All Hub Addition — Cert/Track Houses (1 agent)
 *Sprint: QC-18 — 15 cert/track houses missing explore-all content discovery*
 
 The 9 main houses (forge, shield, web, cloud, code, script, eye, key, ai) have an "Explore All" tab via HouseRenderer + ContentDiscovery.js. The 15 cert/track houses use CertPathRenderer which lacks this feature:
 
-- [ ] Audit CertPathRenderer.js — understand tab system, identify injection point for explore-all tab
-- [ ] Add "Explore All" tab to CertPathRenderer (after existing tabs) that mirrors HouseRenderer's explore panel
-- [ ] Inject `<div id="discoveryAnchor"></div>` in the new tab panel for ContentDiscovery.js auto-init
-- [ ] Ensure ContentDiscovery.js loads and detects house context from cert house URLs
-- [ ] Verify all 15 cert houses get the explore tab:
+- [x] Audit CertPathRenderer.js — understand tab system, identify injection point for explore-all tab
+- [x] Add "Explore All" tab to CertPathRenderer (after existing tabs) that mirrors HouseRenderer's explore panel
+- [x] Inject `<div id="discoveryAnchor"></div>` in the new tab panel for ContentDiscovery.js auto-init
+- [x] ContentDiscovery.js + ContentCatalog.js lazy-loaded on first tab click — zero consumer page changes needed
+- [x] Verify all 15 cert houses get the explore tab:
   - `aplus-core1`, `aplus-core2`, `aws-ccp`, `aws-developer`, `azure-fundamentals`
   - `casp-plus`, `ccna`, `comptia-linux`, `comptia-network`, `cryptography-track`
   - `cysa-plus`, `devops-fundamentals`, `security-operations`, `security-plus`, `security-plus-crypto`
-- [ ] Test: click Explore All tab → ContentDiscovery search works, can find modules from any house
-- [ ] Run `npm run scan` to verify no new issues
-- [ ] Mark QC-18 done in sprints.json
+- [x] Test: click Explore All tab → ContentDiscovery search works, can find modules from any house
+- [ ] Run `npm run scan` to verify no new issues (deferred to batch scan)
+- [x] Mark QC-18 done in sprints.json
 
 ---
 

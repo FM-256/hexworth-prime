@@ -3,9 +3,15 @@
  * Each cert path index.html sets PATH_ID and loads this script.
  * Reads path data from LearningPaths.PATHS[pathId] and renders a
  * progress-tracked module checklist themed to the path's color.
+ *
+ * Tabs:
+ *   1. Course Modules  — Progress-tracked module checklist (original view)
+ *   2. Explore All     — ContentDiscovery search across all houses
  */
 const CertPathRenderer = (() => {
     let pathId, pathData, storageKey;
+    let activeTab = 'modules';
+    let exploreLoaded = false;
 
     const TYPE_ICONS = {
         presentation: '\u{1F4D6}', applet: '\u{1F527}', lab: '\u{1F9EA}',
@@ -67,6 +73,76 @@ const CertPathRenderer = (() => {
         });
     }
 
+    /* ── Tab switching ── */
+    function switchTab(tabId) {
+        activeTab = tabId;
+        localStorage.setItem('hexworth_certpath_tab_' + pathId, tabId);
+
+        document.querySelectorAll('.cp-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabId);
+        });
+
+        document.querySelectorAll('.cp-panel').forEach(panel => {
+            panel.classList.toggle('active', panel.dataset.tab === tabId);
+        });
+
+        // Lazy-load Explore All panel
+        if (tabId === 'explore' && !exploreLoaded) {
+            loadExplorePanel();
+        }
+    }
+
+    /* ── Explore All: dynamic script loading ── */
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            // Skip if already loaded
+            if (document.querySelector('script[src="' + src + '"]')) {
+                resolve();
+                return;
+            }
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
+    function loadExplorePanel() {
+        const anchor = document.getElementById('discoveryAnchor');
+        if (!anchor) return;
+
+        anchor.innerHTML = '<div style="text-align:center;padding:40px;color:#808080;font-size:.85rem">Loading content discovery...</div>';
+
+        // Load ContentCatalog then ContentDiscovery (order matters)
+        loadScript('../../components/ContentCatalog.js')
+            .then(() => loadScript('../../components/ContentDiscovery.js'))
+            .then(() => {
+                anchor.innerHTML = '';
+                if (typeof ContentDiscovery !== 'undefined' && typeof ContentCatalog !== 'undefined') {
+                    const c = pathData.color || '#8b5cf6';
+                    ContentDiscovery.init({
+                        container: anchor,
+                        context: 'house',
+                        houseFilter: null,
+                        showCrossHouseToggle: true,
+                        showTypeChips: true,
+                        showTagChips: false,
+                        placeholder: 'Search all content...',
+                        maxResults: 50,
+                        primaryColor: c,
+                        inlineMode: false
+                    });
+                    exploreLoaded = true;
+                } else {
+                    anchor.innerHTML = '<div style="text-align:center;padding:40px;color:#f66;font-size:.85rem">Content discovery failed to load.</div>';
+                }
+            })
+            .catch(() => {
+                anchor.innerHTML = '<div style="text-align:center;padding:40px;color:#f66;font-size:.85rem">Content discovery failed to load.</div>';
+            });
+    }
+
     /* ── CSS injection ── */
     function injectStyles() {
         const c = pathData.color || '#8b5cf6';
@@ -97,8 +173,20 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
 .st-v{font-size:1.8rem;font-weight:300;color:var(--pc)}
 .st-l{font-size:.65rem;color:#808080;letter-spacing:.15em;text-transform:uppercase;margin-top:4px}
 
-.prog{height:4px;background:rgba(255,255,255,.05);border-radius:2px;margin-bottom:40px;overflow:hidden}
+.prog{height:4px;background:rgba(255,255,255,.05);border-radius:2px;margin-bottom:24px;overflow:hidden}
 .prog-f{height:100%;background:var(--pc);border-radius:2px;transition:width .5s ease}
+
+/* ── Tab bar ── */
+.cp-tab-bar{display:flex;gap:4px;padding:6px;background:rgba(15,15,20,.6);border:1px solid rgba(255,255,255,.06);border-radius:12px;margin-bottom:32px}
+.cp-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:transparent;border:1px solid transparent;border-radius:8px;color:#808080;font-size:.8rem;font-family:inherit;letter-spacing:.1em;cursor:pointer;transition:all .25s}
+.cp-tab:hover{background:rgba(255,255,255,.04);color:#bbb}
+.cp-tab.active{background:rgba(255,255,255,.06);border-color:var(--pb);color:var(--pc)}
+.cp-tab-icon{font-size:1rem}
+.cp-tab-label{text-transform:uppercase;font-weight:500}
+
+/* ── Tab panels ── */
+.cp-panel{display:none}
+.cp-panel.active{display:block}
 
 .sec-lbl{font-size:.7rem;color:#808080;letter-spacing:.25em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.05)}
 
@@ -118,6 +206,8 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
 .mdiff{font-size:.6rem;padding:2px 8px;border-radius:8px;text-transform:uppercase;letter-spacing:.1em}
 .mdur{font-size:.65rem;color:#808080}
 
+.cp-explore-info{text-align:center;color:#808080;font-size:.75rem;letter-spacing:.1em;margin-bottom:20px}
+
 .foot{text-align:center;padding:30px 0;color:#333;font-size:.7rem;letter-spacing:.15em}
 
 @media(max-width:600px){
@@ -128,6 +218,10 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
   .stats{gap:20px;padding:16px;flex-wrap:wrap}
   .st-v{font-size:1.3rem}
   .mmeta{flex-wrap:wrap}
+  .cp-tab-bar{gap:2px;padding:4px}
+  .cp-tab{padding:10px 8px;font-size:.7rem;gap:4px}
+  .cp-tab-label{display:none}
+  .cp-tab-icon{font-size:1.2rem}
 }`;
         document.head.appendChild(s);
     }
@@ -166,34 +260,62 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
 
   <div class="prog"><div class="prog-f" id="prog-bar" style="width:${pct}%"></div></div>
 
-  <div class="sec-lbl">Course Modules</div>
+  <nav class="cp-tab-bar" aria-label="${pathData.name} navigation">
+    <button class="cp-tab active" data-tab="modules" aria-label="Course Modules">
+      <span class="cp-tab-icon"><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
+      <span class="cp-tab-label">Course Modules</span>
+    </button>
+    <button class="cp-tab" data-tab="explore" aria-label="Explore All">
+      <span class="cp-tab-icon"><img src="/assets/images/icons/icon-map.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
+      <span class="cp-tab-label">Explore All</span>
+    </button>
+  </nav>
 
-  <div class="mlist">
-    ${pathData.modules.map((m, i) => {
-        const ic  = TYPE_ICONS[m.type] || TYPE_ICONS.module;
-        const d   = DIFF[m.difficulty];
-        const dc  = d ? d.color : '#888';
-        const dl  = d ? d.label : '';
-        const href = m.href ? resolveHref(m.href) : '#';
-        const chk = completed[m.id] ? 'checked' : '';
-        const cls = completed[m.id] ? ' completed' : '';
-        return `<div class="mrow${cls}" id="row-${m.id}">
-      <input type="checkbox" class="mcb" id="cb-${m.id}" ${chk} onchange="CertPathRenderer.toggle('${m.id}')">
-      <span class="mnum">${String(i+1).padStart(2,'0')}</span>
-      <span class="mtype" title="${m.type||'module'}">${ic}</span>
-      <div class="minfo">
-        <a href="${href}" class="mtitle">${m.title}</a>
-        <div class="mmeta">
-          ${dl ? `<span class="mdiff" style="background:${dc}22;color:${dc};border:1px solid ${dc}44">${dl}</span>` : ''}
-          ${m.duration ? `<span class="mdur">${m.duration}</span>` : ''}
+  <div class="cp-panel active" data-tab="modules" role="region" aria-label="Course modules">
+    <div class="sec-lbl">Course Modules</div>
+    <div class="mlist">
+      ${pathData.modules.map((m, i) => {
+          const ic  = TYPE_ICONS[m.type] || TYPE_ICONS.module;
+          const d   = DIFF[m.difficulty];
+          const dc  = d ? d.color : '#888';
+          const dl  = d ? d.label : '';
+          const href = m.href ? resolveHref(m.href) : '#';
+          const chk = completed[m.id] ? 'checked' : '';
+          const cls = completed[m.id] ? ' completed' : '';
+          return `<div class="mrow${cls}" id="row-${m.id}">
+        <input type="checkbox" class="mcb" id="cb-${m.id}" ${chk} onchange="CertPathRenderer.toggle('${m.id}')">
+        <span class="mnum">${String(i+1).padStart(2,'0')}</span>
+        <span class="mtype" title="${m.type||'module'}">${ic}</span>
+        <div class="minfo">
+          <a href="${href}" class="mtitle">${m.title}</a>
+          <div class="mmeta">
+            ${dl ? `<span class="mdiff" style="background:${dc}22;color:${dc};border:1px solid ${dc}44">${dl}</span>` : ''}
+            ${m.duration ? `<span class="mdur">${m.duration}</span>` : ''}
+          </div>
         </div>
-      </div>
-    </div>`;
-    }).join('')}
+      </div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  <div class="cp-panel" data-tab="explore" role="region" aria-label="Explore all content">
+    <div class="cp-explore-info">Search across all houses and content types</div>
+    <div id="discoveryAnchor"></div>
   </div>
 
   <div class="foot">HEXWORTH PRIME</div>
 </div>`;
+
+        // Wire up tab clicks
+        document.querySelectorAll('.cp-tab').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        // Restore saved tab
+        const saved = localStorage.getItem('hexworth_certpath_tab_' + pathId);
+        if (saved && saved !== 'modules') {
+            switchTab(saved);
+        }
     }
 
     /* ── Public API ── */

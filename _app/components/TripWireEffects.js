@@ -5,7 +5,7 @@
  * visual chaos. Educational and entertaining — the punishment
  * IS the content.
  *
- * Escalation tiers:
+ * Escalation tiers (generic fallback):
  *   Trip 1     -> Glitch + warning toast
  *   Trip 2     -> Fake trace sequence
  *   Trip 3     -> ACCESS DENIED takeover
@@ -16,8 +16,17 @@
  *   Trip 8     -> Page slowly fades to nothing
  *   Trip 9     -> The Matrix rain takeover
  *   Trip 10+   -> Redirect to Wall of Shame
- *   Decoy trip -> Honeypot special effect
+ *
+ * Sensor-specific effects (bypass tier system):
  *   Storage    -> Screen cracks like broken glass
+ *   Cross-tab  -> Portal breach (crack + purple toast)
+ *   Decoy      -> Honeypot takeover (amber)
+ *   Console    -> Terminal intercept toast (orange)
+ *   Runtime    -> Frozen lock toast (purple)
+ *   DOM        -> Element revert flash (cyan)
+ *   Timer      -> Clock distortion toast (yellow)
+ *   XSS        -> Injection warning toast (hot pink)
+ *   DevTools   -> Consent modal (handled by TripWire.js)
  *
  * Ambient effects (every trip):
  *   - Console ASCII art flood
@@ -32,7 +41,7 @@
  *   - Speech synthesis ("Access denied", "Wake up", etc.)
  *   - Zero audio files — pure Web Audio API
  *
- * @version 3.0.0
+ * @version 4.0.0
  */
 (function () {
   'use strict';
@@ -148,6 +157,87 @@
     'ACHIEVEMENT_INJECTION_OVERFLOW',
     'GRADE_INFLATION_EXCEPTION'
   ];
+
+  /* ── Category-specific effect messages ──────────────────────
+   * Each bypass category from TripWire.js gets tailored toast
+   * text and console messages. Keyed by dispatch category.
+   * ─────────────────────────────────────────────────────────── */
+  var CATEGORY_MESSAGES = {
+    // Sensor 1: Storage Integrity
+    storage_tampering: {
+      toast:   'STORAGE TAMPERING DETECTED',
+      detail:  'Your localStorage changes have been reverted. Nice try.',
+      console: 'Storage integrity sensor tripped. All writes are checksummed and snapshotted.',
+      teach:   'In production, server-side validation prevents client-side data manipulation.'
+    },
+    cross_tab_tampering: {
+      toast:   'CROSS-TAB BYPASS DETECTED',
+      detail:  'Opening another tab to edit localStorage? We monitor that too.',
+      console: 'Cross-tab storage event intercepted. Suspicious value delta flagged.',
+      teach:   'Real apps use server-authoritative state. Client storage is just a cache.'
+    },
+    // Sensor 2: Runtime Object Freeze
+    runtime_manipulation: {
+      toast:   'RUNTIME MANIPULATION BLOCKED',
+      detail:  'Object.defineProperty cannot save you. This property is frozen.',
+      console: 'Console attempted to override a protected runtime property.',
+      teach:   'Object.freeze() and non-configurable descriptors are real JS hardening techniques.'
+    },
+    // Sensor 3: DOM MutationObserver
+    dom_tampering: {
+      toast:   'DOM TAMPERING DETECTED',
+      detail:  'Protected elements are watched by MutationObserver. Your edit was reverted.',
+      console: 'MutationObserver caught unauthorized DOM modification.',
+      teach:   'MutationObservers are used in real security tools to detect DOM-based attacks.'
+    },
+    // Sensor 4: Console Injection
+    console_injection: {
+      toast:   'CONSOLE INJECTION DETECTED',
+      detail:  'Calling internal methods from DevTools console is monitored.',
+      console: 'Stack trace analysis identified console-origin function call.',
+      teach:   'Stack trace forensics can distinguish legitimate code paths from console injection.'
+    },
+    // Sensor 5: Timer Manipulation
+    timer_manipulation: {
+      toast:   'TIMER MANIPULATION DETECTED',
+      detail:  'Clock drift or timer replacement detected. The heartbeat knows.',
+      console: 'Heartbeat anomaly or native timer replacement detected.',
+      teach:   'Anti-cheat systems use heartbeat monitors to detect time manipulation in games.'
+    },
+    // Sensor 6: Decoy Flags (Honeypots)
+    honeypot_access: {
+      toast:   'HONEYPOT TRIGGERED',
+      detail:  'That variable was planted to catch you. You fell for it.',
+      console: 'Decoy property getter fired. Honeypot access logged.',
+      teach:   'Honeypots are a real defensive technique. The bait looked too good to pass up.'
+    },
+    // Sensor 7: XSS Pattern Detection
+    xss_attempt: {
+      toast:   'XSS PATTERN DETECTED',
+      detail:  'Script injection patterns detected in input field.',
+      console: 'Input matched known XSS payload signature.',
+      teach:   'Input validation and output encoding are the primary defenses against XSS.'
+    },
+    // Sensor 8: DevTools Detection
+    devtools_opened: {
+      toast:   'DEVELOPER TOOLS DETECTED',
+      detail:  'This session is now monitored. All actions are being recorded.',
+      console: 'Window size delta or debugger timing detected DevTools panel.',
+      teach:   'DevTools detection uses viewport measurements and debugger statement timing.'
+    },
+    devtools_consent: {
+      toast:   'MONITORING ACKNOWLEDGED',
+      detail:  'You accepted the risk. Every console command is now logged.',
+      console: 'Student consented to monitoring. Session forensics active.',
+      teach:   'Consent-based monitoring is standard in enterprise and educational environments.'
+    },
+    devtools_denial: {
+      toast:   'STILL MONITORED',
+      detail:  'Clicking "Close DevTools" does not stop the monitoring.',
+      console: 'Student clicked denial but DevTools remain open. Monitoring continues.',
+      teach:   'In security, closing the dialog does not close the investigation.'
+    }
+  };
 
   /* ── State ─────────────────────────────────────────────────── */
   var fxCount = 0;
@@ -586,6 +676,92 @@
     _osc('triangle', 50, 0.08, t + 0.03, 0.4);
   }
 
+  /* Console injection: keyboard clatter + warning */
+  function audioConsoleInjection() {
+    if (!_ensureAudio()) return;
+    var t = audioCtx.currentTime;
+    // Rapid keystrokes
+    for (var i = 0; i < 12; i++) {
+      var freq = 2500 + Math.random() * 4000;
+      _osc('square', freq, 0.02, t + (i * 0.06), 0.015);
+    }
+    // Warning chime
+    _osc('sine', 880, 0.08, t + 0.8, 0.12);
+    _osc('sine', 660, 0.08, t + 0.95, 0.12);
+    _osc('sine', 440, 0.06, t + 1.1, 0.2);
+  }
+
+  /* Runtime manipulation: locked vault clunk */
+  function audioRuntimeLock() {
+    if (!_ensureAudio()) return;
+    var t = audioCtx.currentTime;
+    // Heavy bolt sliding
+    _osc('triangle', 80, 0.1, t, 0.15);
+    _osc('sawtooth', 120, 0.05, t + 0.05, 0.1);
+    // Metal clank
+    _osc('square', 2200, 0.08, t + 0.18, 0.04);
+    _osc('square', 1800, 0.06, t + 0.22, 0.03);
+    // Deep lock thud
+    _osc('sine', 55, 0.12, t + 0.28, 0.25);
+  }
+
+  /* DOM tampering: glitch stutter */
+  function audioDomGlitch() {
+    if (!_ensureAudio()) return;
+    var t = audioCtx.currentTime;
+    // Digital stutter — rapid on/off tones
+    for (var i = 0; i < 6; i++) {
+      _osc('square', 440 + (i * 110), 0.05, t + (i * 0.08), 0.04);
+    }
+    // Revert whoosh
+    var whoosh = _osc('sine', 800, 0.06, t + 0.55, 0.3);
+    whoosh.osc.frequency.exponentialRampToValueAtTime(200, t + 0.85);
+  }
+
+  /* Timer manipulation: clock tick going haywire */
+  function audioTimerHaywire() {
+    if (!_ensureAudio()) return;
+    var t = audioCtx.currentTime;
+    // Normal ticks accelerating
+    var intervals = [0, 0.4, 0.7, 0.9, 1.0, 1.08, 1.14, 1.18, 1.21, 1.23];
+    intervals.forEach(function (offset) {
+      _osc('square', 3200, 0.04, t + offset, 0.01);
+    });
+    // Spring snap
+    var snap = _osc('sawtooth', 1600, 0.07, t + 1.3, 0.3);
+    snap.osc.frequency.exponentialRampToValueAtTime(100, t + 1.6);
+    // Broken tick
+    _osc('triangle', 200, 0.05, t + 1.7, 0.15);
+  }
+
+  /* XSS attempt: injection syringe hiss */
+  function audioXssHiss() {
+    if (!_ensureAudio()) return;
+    var t = audioCtx.currentTime;
+    // Rising hiss
+    var hiss = _osc('sawtooth', 6000, 0.03, t, 0.4);
+    hiss.osc.frequency.linearRampToValueAtTime(12000, t + 0.4);
+    hiss.gain.gain.linearRampToValueAtTime(0.06, t + 0.2);
+    hiss.gain.gain.linearRampToValueAtTime(0, t + 0.4);
+    // Sharp rejection beep
+    _osc('square', 1000, 0.08, t + 0.5, 0.1);
+    _osc('square', 800, 0.08, t + 0.65, 0.15);
+  }
+
+  /* Cross-tab: portal breach sound */
+  function audioCrossTabBreach() {
+    if (!_ensureAudio()) return;
+    var t = audioCtx.currentTime;
+    // Dimensional rift — two detuned sweeps
+    var up = _osc('sine', 200, 0.05, t, 0.6);
+    up.osc.frequency.linearRampToValueAtTime(1200, t + 0.6);
+    var down = _osc('sine', 1200, 0.05, t, 0.6);
+    down.osc.frequency.linearRampToValueAtTime(200, t + 0.6);
+    // Portal slam shut
+    _osc('square', 80, 0.1, t + 0.65, 0.08);
+    _osc('triangle', 60, 0.08, t + 0.7, 0.15);
+  }
+
   /* Decoy: Honeypot buzz */
   function audioHoneypotBuzz() {
     if (!_ensureAudio()) return;
@@ -651,13 +827,19 @@
   }
 
   /* Master audio dispatcher — plays tier-matched sound */
-  function playTierAudio(tier, sensor) {
+  function playTierAudio(tier, sensor, category) {
     // Always play heartbeat (escalating)
     audioHeartbeat(tier);
 
     // Sensor-specific overrides
-    if (sensor === 'storage') { audioCrackImpact(); return; }
-    if (sensor === 'decoy')   { audioHoneypotBuzz(); return; }
+    if (sensor === 'storage' && category === 'cross_tab_tampering') { audioCrossTabBreach(); return; }
+    if (sensor === 'storage')  { audioCrackImpact(); return; }
+    if (sensor === 'decoy')    { audioHoneypotBuzz(); return; }
+    if (sensor === 'console')  { audioConsoleInjection(); return; }
+    if (sensor === 'runtime')  { audioRuntimeLock(); return; }
+    if (sensor === 'dom')      { audioDomGlitch(); return; }
+    if (sensor === 'timer')    { audioTimerHaywire(); return; }
+    if (sensor === 'xss')      { audioXssHiss(); return; }
 
     switch (tier) {
       case 1:
@@ -1325,18 +1507,192 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════
+   * SPECIAL: Console Injection -> Terminal Intercept
+   * ═══════════════════════════════════════════════════════════════ */
+  function effectConsoleIntercept(detail) {
+    injectStyle();
+    document.body.classList.add('tw-shake-active');
+
+    var toast = document.createElement('div');
+    toast.className = 'tw-toast';
+    toast.style.top = (20 + window.scrollY) + 'px';
+    toast.style.borderColor = '#ff6600';
+    toast.style.color = '#ff6600';
+    toast.innerHTML = '[!] CONSOLE INJECTION DETECTED<br>' +
+      '<span style="font-size:12px;opacity:0.7;">' +
+      (detail || 'Function call intercepted from DevTools console.') + '</span><br>' +
+      '<span style="font-size:11px;opacity:0.5;color:#ffaa00;">Stack trace forensics identified the call origin.</span>';
+    document.body.appendChild(toast);
+
+    setTimeout(function () {
+      document.body.classList.remove('tw-shake-active');
+    }, 1000);
+
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 5000);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * SPECIAL: Runtime Manipulation -> Frozen Lock
+   * ═══════════════════════════════════════════════════════════════ */
+  function effectRuntimeLock(detail) {
+    injectStyle();
+    document.body.classList.add('tw-shake-active');
+
+    var toast = document.createElement('div');
+    toast.className = 'tw-toast';
+    toast.style.top = (20 + window.scrollY) + 'px';
+    toast.style.borderColor = '#8855ff';
+    toast.style.color = '#8855ff';
+    toast.innerHTML = '[!] RUNTIME MANIPULATION BLOCKED<br>' +
+      '<span style="font-size:12px;opacity:0.7;">' +
+      (detail || 'Property is frozen. Object.defineProperty cannot override it.') + '</span><br>' +
+      '<span style="font-size:11px;opacity:0.5;color:#aa88ff;">Non-configurable descriptors resist console reassignment.</span>';
+    document.body.appendChild(toast);
+
+    setTimeout(function () {
+      document.body.classList.remove('tw-shake-active');
+    }, 1000);
+
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 5000);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * SPECIAL: DOM Tampering -> Element Revert Flash
+   * ═══════════════════════════════════════════════════════════════ */
+  function effectDomRevert(detail) {
+    injectStyle();
+    document.body.classList.add('tw-glitch-active');
+
+    var toast = document.createElement('div');
+    toast.className = 'tw-toast';
+    toast.style.top = (20 + window.scrollY) + 'px';
+    toast.style.borderColor = '#00ccff';
+    toast.style.color = '#00ccff';
+    toast.innerHTML = '[!] DOM TAMPERING DETECTED<br>' +
+      '<span style="font-size:12px;opacity:0.7;">' +
+      (detail || 'Protected element modification reverted by MutationObserver.') + '</span><br>' +
+      '<span style="font-size:11px;opacity:0.5;color:#66ddff;">DOM integrity monitoring is active on all [data-protected] elements.</span>';
+    document.body.appendChild(toast);
+
+    setTimeout(function () {
+      document.body.classList.remove('tw-glitch-active');
+    }, GLITCH_MS);
+
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 5000);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * SPECIAL: Timer Manipulation -> Clock Distortion
+   * ═══════════════════════════════════════════════════════════════ */
+  function effectTimerDistortion(detail) {
+    injectStyle();
+    document.body.classList.add('tw-shake-active');
+
+    var toast = document.createElement('div');
+    toast.className = 'tw-toast';
+    toast.style.top = (20 + window.scrollY) + 'px';
+    toast.style.borderColor = '#ffcc00';
+    toast.style.color = '#ffcc00';
+    toast.innerHTML = '[!] TIMER MANIPULATION DETECTED<br>' +
+      '<span style="font-size:12px;opacity:0.7;">' +
+      (detail || 'Heartbeat anomaly or native timer replacement detected.') + '</span><br>' +
+      '<span style="font-size:11px;opacity:0.5;color:#ffdd44;">The heartbeat monitor cross-checks Date.now, performance.now, and setInterval drift.</span>';
+    document.body.appendChild(toast);
+
+    setTimeout(function () {
+      document.body.classList.remove('tw-shake-active');
+    }, 1000);
+
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 5000);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * SPECIAL: XSS Attempt -> Injection Warning
+   * ═══════════════════════════════════════════════════════════════ */
+  function effectXssWarning(detail) {
+    injectStyle();
+    document.body.classList.add('tw-glitch-active');
+    document.body.classList.add('tw-shake-active');
+
+    var toast = document.createElement('div');
+    toast.className = 'tw-toast';
+    toast.style.top = (20 + window.scrollY) + 'px';
+    toast.style.borderColor = '#ff0066';
+    toast.style.color = '#ff0066';
+    toast.innerHTML = '[!] XSS PATTERN DETECTED<br>' +
+      '<span style="font-size:12px;opacity:0.7;">' +
+      (detail || 'Script injection pattern detected in input field.') + '</span><br>' +
+      '<span style="font-size:11px;opacity:0.5;color:#ff4488;">Input validation caught a known XSS payload signature.</span>';
+    document.body.appendChild(toast);
+
+    setTimeout(function () {
+      document.body.classList.remove('tw-glitch-active');
+      document.body.classList.remove('tw-shake-active');
+    }, GLITCH_MS);
+
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 5000);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * SPECIAL: Cross-Tab Tampering -> Portal Breach
+   * ═══════════════════════════════════════════════════════════════ */
+  function effectCrossTabBreach(detail) {
+    injectStyle();
+    document.body.classList.add('tw-shake-active');
+
+    // Use screen crack effect as base (storage-family)
+    effectScreenCrack();
+
+    var toast = document.createElement('div');
+    toast.className = 'tw-toast';
+    toast.style.top = (70 + window.scrollY) + 'px'; // offset below the screen crack toast
+    toast.style.borderColor = '#cc44ff';
+    toast.style.color = '#cc44ff';
+    toast.innerHTML = '[!] CROSS-TAB BYPASS DETECTED<br>' +
+      '<span style="font-size:12px;opacity:0.7;">' +
+      (detail || 'Suspicious storage write detected from another tab.') + '</span><br>' +
+      '<span style="font-size:11px;opacity:0.5;color:#dd88ff;">The storage event listener validates cross-tab value deltas.</span>';
+    document.body.appendChild(toast);
+
+    setTimeout(function () {
+      document.body.classList.remove('tw-shake-active');
+    }, 1000);
+
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 6000);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
    * Console Flood (runs with every effect)
    * ═══════════════════════════════════════════════════════════════ */
-  function consoleFlood(sensor) {
+  function consoleFlood(sensor, category) {
     try {
       var s0 = 'color:#ff3333;font-size:24px;font-weight:bold;text-shadow:2px 2px #000;';
       var s1 = 'color:#ff6666;font-size:14px;';
       var s2 = 'color:#00ff41;font-size:12px;';
       var s3 = 'color:#ffaa00;font-size:12px;';
       var s4 = 'color:#ff3333;font-size:10px;font-family:monospace;';
+      var s5 = 'color:#66ccff;font-size:11px;font-style:italic;';
+
+      var catMsg = CATEGORY_MESSAGES[category];
 
       console.log('%c[TRIPWIRE] INTRUSION DETECTED', s0);
-      console.log('%cSensor: ' + sensor + ' | Incident #' + fxCount, s1);
+      console.log('%cSensor: ' + sensor + ' | Category: ' + (category || 'unknown') + ' | Incident #' + fxCount, s1);
+      if (catMsg) {
+        console.log('%c' + catMsg.console, s1);
+        console.log('%c[LESSON] ' + catMsg.teach, s5);
+      }
       console.log('%cSession flagged for instructor review.', s2);
       console.log('%c' + randomQuote(), s3);
 
@@ -1370,30 +1726,75 @@
   function onTrip(e) {
     fxCount++;
     var detail = e.detail || {};
-    var sensor = detail.sensor || 'unknown';
+    var sensor   = detail.sensor   || 'unknown';
+    var category = detail.category || 'unknown';
+    var info     = detail.detail   || '';
 
-    // Always flood the console
-    consoleFlood(sensor);
+    // Always flood the console (with category-specific messages)
+    consoleFlood(sensor, category);
 
-    // Play tier-matched audio + heartbeat + speech
-    playTierAudio(fxCount, sensor);
+    // Play sensor-matched audio + heartbeat + speech
+    playTierAudio(fxCount, sensor, category);
 
     // Skip visual effects on Wall of Shame page
     if (window.location.pathname.indexOf('wall-of-shame') !== -1) return;
 
-    // Storage tampering gets screen crack (in addition to tier effect)
-    if (sensor === 'storage') {
-      effectScreenCrack();
-      return; // screen crack is enough for storage
+    // ── Sensor-specific effects (bypass first trip into tier system) ──
+
+    // Storage: cross-tab tampering gets portal breach variant
+    if (sensor === 'storage' && category === 'cross_tab_tampering') {
+      effectCrossTabBreach(info);
+      return;
     }
 
-    // Decoy sensor gets special treatment
+    // Storage: all other tampering gets screen crack
+    if (sensor === 'storage') {
+      effectScreenCrack();
+      return;
+    }
+
+    // Decoy sensor gets honeypot takeover
     if (sensor === 'decoy') {
       effectDecoyBusted();
       return;
     }
 
-    // Escalating tiers
+    // Console injection: terminal intercept toast
+    if (sensor === 'console') {
+      effectConsoleIntercept(info);
+      return;
+    }
+
+    // Runtime manipulation: frozen lock toast
+    if (sensor === 'runtime') {
+      effectRuntimeLock(info);
+      return;
+    }
+
+    // DOM tampering: element revert flash
+    if (sensor === 'dom') {
+      effectDomRevert(info);
+      return;
+    }
+
+    // Timer manipulation: clock distortion
+    if (sensor === 'timer') {
+      effectTimerDistortion(info);
+      return;
+    }
+
+    // XSS attempt: injection warning
+    if (sensor === 'xss') {
+      effectXssWarning(info);
+      return;
+    }
+
+    // DevTools: consent/denial are handled by TripWire.js modal, skip visual
+    if (sensor === 'devtools' && (category === 'devtools_consent' || category === 'devtools_denial')) {
+      return;
+    }
+
+    // ── Escalating tiers (for devtools_opened + any unknown sensors) ──
     switch (fxCount) {
       case 1:  effectGlitchToast(); break;
       case 2:  effectTraceSequence(); break;
@@ -1412,7 +1813,7 @@
   document.addEventListener('hexworth:tripwire', onTrip);
 
   window.__TripWireEffects = {
-    version: '3.0.0',
+    version: '4.0.0',
     getFxCount: function () { return fxCount; }
   };
 
