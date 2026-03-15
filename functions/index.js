@@ -1789,3 +1789,261 @@ function generateGateProof(gateNumber, uid) {
         .digest('hex')
         .substring(0, 32);
 }
+
+// ─── Admin Console Cloud Functions ──────────────────────────────
+
+/**
+ * Admin guard helper — throws if caller lacks admin claim.
+ */
+function requireAdmin(request) {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    if (request.auth.token.admin !== true) {
+        throw new HttpsError('permission-denied', 'Admin privileges required.');
+    }
+}
+
+/**
+ * adminSearchUsers — Search users collection by email, callsign, or display name.
+ * Returns top 20 matches. Exact UID match always checked first.
+ */
+exports.adminSearchUsers = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { query: searchQuery } = request.data || {};
+    if (!searchQuery || typeof searchQuery !== 'string' || searchQuery.length < 2) {
+        throw new HttpsError('invalid-argument', 'Search query must be at least 2 characters.');
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    const results = new Map(); // uid -> data
+
+    // 1. Exact UID match
+    try {
+        const uidDoc = await db.doc(`users/${searchQuery.trim()}`).get();
+        if (uidDoc.exists) {
+            results.set(uidDoc.id, { uid: uidDoc.id, ...uidDoc.data() });
+        }
+    } catch (_) { /* ignore */ }
+
+    // 2. Email exact match
+    try {
+        const emailSnap = await db.collection('users').where('email', '==', q).limit(5).get();
+        emailSnap.forEach(d => results.set(d.id, { uid: d.id, ...d.data() }));
+    } catch (_) { /* ignore */ }
+
+    // 3. Callsign exact match
+    try {
+        const csSnap = await db.collection('users').where('callsign', '==', q).limit(5).get();
+        csSnap.forEach(d => results.set(d.id, { uid: d.id, ...d.data() }));
+    } catch (_) { /* ignore */ }
+
+    // 4. Display name prefix search (Firestore range query)
+    try {
+        const nameSnap = await db.collection('users')
+            .where('displayName', '>=', searchQuery.trim())
+            .where('displayName', '<=', searchQuery.trim() + '\uf8ff')
+            .limit(20)
+            .get();
+        nameSnap.forEach(d => results.set(d.id, { uid: d.id, ...d.data() }));
+    } catch (_) { /* ignore */ }
+
+    // 5. Email prefix search
+    try {
+        const emailPrefixSnap = await db.collection('users')
+            .where('email', '>=', q)
+            .where('email', '<=', q + '\uf8ff')
+            .limit(20)
+            .get();
+        emailPrefixSnap.forEach(d => results.set(d.id, { uid: d.id, ...d.data() }));
+    } catch (_) { /* ignore */ }
+
+    // Convert to array and limit
+    const users = Array.from(results.values()).slice(0, 20).map(u => ({
+        uid: u.uid,
+        email: u.email || null,
+        displayName: u.displayName || u.callsign || null,
+        callsign: u.callsign || null,
+        photoURL: u.photoURL || null,
+        house: u.house || null,
+        level: u.level || null,
+        xp: u.xp || null,
+        accountType: u.accountType || 'operative',
+        integrity: u.integrity || null,
+        isActive: u.isActive !== false
+    }));
+
+    return { users };
+});
+
+/**
+ * adminResetIntegrity — Clear integrity violation for a user.
+ * Removes the integrity object from their Firestore profile.
+ */
+exports.adminResetIntegrity = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { uid } = request.data || {};
+    if (!uid || typeof uid !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing uid.');
+    }
+
+    await db.doc(`users/${uid}`).update({
+        integrity: FieldValue.delete(),
+        integrityResetAt: FieldValue.serverTimestamp(),
+        integrityResetBy: request.auth.uid
+    });
+
+    return { success: true, uid };
+});
+
+/**
+ * adminSetIntegrity — Set integrity violation on a user (summons Roxy).
+ */
+exports.adminSetIntegrity = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { uid, data } = request.data || {};
+    if (!uid || typeof uid !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing uid.');
+    }
+
+    await db.doc(`users/${uid}`).update({
+        integrity: {
+            status: 'violated',
+            violatedAt: FieldValue.serverTimestamp(),
+            source: (data && data.source) || 'admin_action',
+            reason: (data && data.reason) || 'Set by admin',
+            setBy: request.auth.uid
+        }
+    });
+
+    return { success: true, uid };
+});
+
+/**
+ * adminUpdateUser — Update arbitrary user profile fields with admin privileges.
+ * Only allows a whitelist of safe fields.
+ */
+exports.adminUpdateUser = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { uid, fields } = request.data || {};
+    if (!uid || typeof uid !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing uid.');
+    }
+    if (!fields || typeof fields !== 'object') {
+        throw new HttpsError('invalid-argument', 'Missing fields.');
+    }
+
+    // Whitelist of updatable fields
+    const ALLOWED_FIELDS = [
+        'xp', 'level', 'house', 'accountType', 'isActive',
+        'deactivatedAt', 'deactivatedBy', 'mergedInto',
+        'displayName', 'callsign'
+    ];
+
+    const safeUpdate = { updatedAt: FieldValue.serverTimestamp() };
+    for (const [key, value] of Object.entries(fields)) {
+        if (ALLOWED_FIELDS.includes(key)) {
+            safeUpdate[key] = value;
+        }
+    }
+
+    // If accountType changed, update custom claims too
+    if (safeUpdate.accountType) {
+        const isHandler = safeUpdate.accountType === 'handler' || safeUpdate.accountType === 'admin';
+        const isAdmin = safeUpdate.accountType === 'admin';
+        await getAuth().setCustomUserClaims(uid, {
+            admin: isAdmin,
+            handler: isHandler
+        });
+    }
+
+    await db.doc(`users/${uid}`).update(safeUpdate);
+
+    return { success: true, uid, updatedFields: Object.keys(safeUpdate) };
+});
+
+/**
+ * adminGenerateHandlerCode — Generate a new handler activation code.
+ * Stores the hash in Firestore, returns the plaintext once.
+ */
+exports.adminGenerateHandlerCode = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    // Generate a random 8-character alphanumeric code
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 to avoid confusion
+    let code = '';
+    const bytes = crypto.randomBytes(8);
+    for (let i = 0; i < 8; i++) {
+        code += chars[bytes[i] % chars.length];
+    }
+
+    // Format: XXXX-XXXX
+    const formatted = code.substring(0, 4) + '-' + code.substring(4);
+
+    // Hash for storage
+    const codeHash = crypto.createHash('sha256').update(formatted).digest('hex');
+
+    // Store in handler_codes collection
+    await db.collection('handler_codes').add({
+        hash: codeHash,
+        createdAt: FieldValue.serverTimestamp(),
+        createdBy: request.auth.uid,
+        usedBy: null,
+        expired: false,
+        expiresAt: null // permanent by default
+    });
+
+    return { code: formatted };
+});
+
+/**
+ * adminGetStats — Aggregate platform statistics for the admin dashboard.
+ */
+exports.adminGetStats = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    // Run queries in parallel
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+        allUsersSnap,
+        handlersSnap,
+        adminsSnap,
+        lockoutsSnap,
+        classesSnap
+    ] = await Promise.all([
+        db.collection('users').count().get(),
+        db.collection('users').where('accountType', '==', 'handler').count().get(),
+        db.collection('users').where('accountType', '==', 'admin').count().get(),
+        db.collection('users').where('integrity.status', '==', 'violated').count().get(),
+        db.collection('classes').count().get().catch(() => ({ data: () => ({ count: 0 }) }))
+    ]);
+
+    // Active today and event counts (best effort)
+    let activeToday = 0;
+    let tripwireToday = 0;
+    let flagAttemptsToday = 0;
+
+    try {
+        const activeSnap = await db.collection('users')
+            .where('updatedAt', '>=', today)
+            .count().get();
+        activeToday = activeSnap.data().count || 0;
+    } catch (_) { /* index may not exist */ }
+
+    return {
+        totalUsers: allUsersSnap.data().count || 0,
+        handlers: handlersSnap.data().count || 0,
+        admins: adminsSnap.data().count || 0,
+        activeLockouts: lockoutsSnap.data().count || 0,
+        totalClasses: classesSnap.data().count || 0,
+        activeToday,
+        tripwireToday,
+        flagAttemptsToday
+    };
+});
