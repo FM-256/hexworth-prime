@@ -80,11 +80,11 @@
 ## Wave 6: Code Armory — Core Languages (5 parallel agents)
 *Sprints: PL-2, PL-3, PL-4, PL-10, PL-12 — depends on Wave 23*
 
-- [ ] **PL-2** — Python (fundamentals through advanced, scripting, dark-arts applications)
-- [ ] **PL-3** — JavaScript & TypeScript (fundamentals, web integration)
-- [ ] **PL-4** — C programming (systems programming, memory management)
-- [ ] **PL-10** — Bash & shell scripting (sysadmin automation)
-- [ ] **PL-12** — SQL (database querying, management, injection defense)
+- [x] **PL-2** — Python: 10 modules, security-focused examples (port scanning, log parsing)
+- [x] **PL-3** — JavaScript & TypeScript: 10 modules, CLI project capstone
+- [x] **PL-4** — C programming: 10 modules, buffer overflows, compiler hardening
+- [x] **PL-10** — Bash scripting: 10 modules, sysadmin automation, integrity monitors
+- [x] **PL-12** — SQL: 10 modules, injection defense, incident response forensics
 
 ---
 ## Wave 7: Code Armory — Systems Languages (4 parallel agents)
