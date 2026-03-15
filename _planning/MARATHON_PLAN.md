@@ -63,18 +63,18 @@
 - [x] Landing page tagline animation decoded states fixed
 - [x] ~100 files modified (components, CSS, dark-arts content, arena configs)
 
-**AC-1 — Audit (deferred)**
-- [ ] Full ARIA/keyboard/screen reader audit — separate from color contrast
-- [ ] Mark AC-1 and AC-4 done in sprints.json
+**AC-1 — Audit (DONE)**
+- [x] Full ARIA/keyboard/screen reader audit — 7 core components: dashboard, HouseRenderer, CertPathRenderer, GlobalSearch, BoxEngine, Terminal, arena.css
+- [x] Mark AC-1 and AC-4 done in sprints.json
 
 ---
 ## Wave 5: Code Armory — Hub Design (1 agent)
 *Sprint: PL-1 — head of the programming languages chain*
 
-- [ ] Design Code Armory hub page (programming languages browser)
-- [ ] Curriculum structure: language cards, difficulty levels, cert alignment
-- [ ] Navigation between languages, shared code playground concept
-- [ ] Mark PL-1 done in sprints.json
+- [x] Design Code Armory hub page — 16 languages across 5 categories
+- [x] Cert alignment tags, difficulty filters, category groupings
+- [x] Breadcrumb navigation, language recommendation quiz
+- [x] Mark PL-1 done in sprints.json
 
 ---
 ## Wave 6: Code Armory — Core Languages (5 parallel agents)
