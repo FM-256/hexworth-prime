@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL-05: Aggregation &amp; Grouping | Code Armory</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #14b8a6; --accent-dim: rgba(20,184,166,0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78,201,176,0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h3 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .syntax-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin: 14px 0; }
+        .syntax-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px; }
+        .syntax-code { font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; color: var(--green); line-height: 1.8; }
+        .syntax-code .kw { color: var(--accent); font-weight: 600; }
+        .syntax-code .val { color: var(--yellow); }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+        .flag-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.9rem; }
+        .flag-table th, .flag-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        .flag-table th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+        .takeaways { background: linear-gradient(135deg, rgba(78,201,176,0.1), rgba(78,201,176,0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0d9488; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">SQL-05</span>
+            <h1>Aggregation &amp; Grouping</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; SQL Track</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="count-fn" onclick="showTaskInstruction('count-fn')">1</span>
+                    <span class="task-chip" data-task="sum-avg" onclick="showTaskInstruction('sum-avg')">2</span>
+                    <span class="task-chip" data-task="min-max" onclick="showTaskInstruction('min-max')">3</span>
+                    <span class="task-chip" data-task="group-by" onclick="showTaskInstruction('group-by')">4</span>
+                    <span class="task-chip" data-task="having" onclick="showTaskInstruction('having')">5</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Use COUNT, SUM, AVG, MIN, and MAX aggregate functions</li>
+                    <li>Group results with GROUP BY for category-level analysis</li>
+                    <li>Filter grouped results with HAVING</li>
+                    <li>Distinguish WHERE (row filtering) from HAVING (group filtering)</li>
+                    <li>Build security analytics queries using aggregation</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Aggregate Functions</h2>
+                <p class="content-text">Aggregate functions compute a single value from a set of rows. They collapse multiple rows into one summary result.</p>
+
+                <table class="flag-table">
+                    <thead><tr><th>Function</th><th>Purpose</th><th>Example</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>COUNT()</code></td><td>Number of rows</td><td><code>COUNT(*)</code> or <code>COUNT(column)</code></td></tr>
+                        <tr><td><code>SUM()</code></td><td>Total of numeric values</td><td><code>SUM(bytes_transferred)</code></td></tr>
+                        <tr><td><code>AVG()</code></td><td>Average of numeric values</td><td><code>AVG(response_time)</code></td></tr>
+                        <tr><td><code>MIN()</code></td><td>Smallest value</td><td><code>MIN(timestamp)</code></td></tr>
+                        <tr><td><code>MAX()</code></td><td>Largest value</td><td><code>MAX(login_attempts)</code></td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">COUNT -- Counting Rows</h2>
+                <p class="content-text"><code>COUNT(*)</code> counts all rows. <code>COUNT(column)</code> counts non-NULL values in that column.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT COUNT(*) FROM login_logs;</div>
+                    <div class="command-desc">How many total login events exist in the log?</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT COUNT(*) FROM login_logs;</div>
+                        <div><span class="output">847</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT COUNT(*) FROM login_logs WHERE status = 'FAILED';</div>
+                    <div class="command-desc">How many failed login attempts? Combine COUNT with WHERE for targeted analysis.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT COUNT(*) FROM login_logs WHERE status = 'FAILED';</div>
+                        <div><span class="output">142</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">SUM and AVG</h2>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT SUM(bytes_transferred) FROM network_logs WHERE source_ip = '192.168.1.99';</div>
+                    <div class="command-desc">Total data exfiltrated from a suspicious IP. Critical for breach impact assessment.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT SUM(bytes_transferred) FROM network_logs WHERE source_ip = '192.168.1.99';</div>
+                        <div><span class="output">15728640</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT AVG(response_time_ms) FROM web_requests WHERE endpoint = '/api/login';</div>
+                    <div class="command-desc">Average response time for the login endpoint. Spikes may indicate a brute-force attack.</div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">MIN and MAX</h2>
+                <p class="content-text"><code>MIN</code> and <code>MAX</code> find the smallest and largest values. Especially useful with timestamps to find the first and last occurrence of an event.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen FROM login_logs WHERE username = 'hacker';</div>
+                    <div class="command-desc">When did the attacker first appear, and when was their last activity?</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen</div>
+                        <div><span class="prompt">   &gt;</span> FROM login_logs WHERE username = 'hacker';</div>
+                        <div><span class="output">2026-03-14 02:15:00|2026-03-15 11:45:00</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">GROUP BY</h2>
+                <p class="content-text"><code>GROUP BY</code> divides rows into groups based on column values, then applies aggregate functions to each group separately. This turns raw data into actionable intelligence.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Syntax</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> column, <span class="kw">COUNT</span>(*)<br>
+                        <span class="kw">FROM</span> table<br>
+                        <span class="kw">GROUP BY</span> column;
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT status, COUNT(*) AS total FROM login_logs GROUP BY status;</div>
+                    <div class="command-desc">Break down login events by status. How many succeeded vs. failed?</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT status, COUNT(*) AS total FROM login_logs GROUP BY status;</div>
+                        <div><span class="output">FAILED|142</span></div>
+                        <div><span class="output">SUCCESS|705</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT ip_address, COUNT(*) AS attempts FROM login_logs WHERE status = 'FAILED' GROUP BY ip_address ORDER BY attempts DESC;</div>
+                    <div class="command-desc">Which IPs have the most failed logins? This is brute-force detection 101.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT ip_address, COUNT(*) AS attempts FROM login_logs</div>
+                        <div><span class="prompt">   &gt;</span> WHERE status = 'FAILED' GROUP BY ip_address ORDER BY attempts DESC;</div>
+                        <div><span class="output">192.168.1.99|87</span></div>
+                        <div><span class="output">10.0.5.23|31</span></div>
+                        <div><span class="output">172.16.0.100|24</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">HAVING -- Filtering Groups</h2>
+                <p class="content-text"><code>HAVING</code> filters groups after aggregation. It is like <code>WHERE</code>, but operates on the aggregated result rather than individual rows.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">WHERE vs HAVING</div>
+                    <div class="syntax-code">
+                        -- <span class="val">WHERE</span> filters rows BEFORE grouping<br>
+                        -- <span class="val">HAVING</span> filters groups AFTER aggregation<br><br>
+                        <span class="kw">SELECT</span> ip_address, <span class="kw">COUNT</span>(*) <span class="kw">AS</span> fails<br>
+                        <span class="kw">FROM</span> login_logs<br>
+                        <span class="kw">WHERE</span> status = <span class="val">'FAILED'</span>      -- filter rows first<br>
+                        <span class="kw">GROUP BY</span> ip_address<br>
+                        <span class="kw">HAVING</span> fails > <span class="val">10</span>             -- then filter groups<br>
+                        <span class="kw">ORDER BY</span> fails <span class="kw">DESC</span>;
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT username, COUNT(*) AS fail_count FROM login_logs WHERE status = 'FAILED' GROUP BY username HAVING fail_count > 5 ORDER BY fail_count DESC;</div>
+                    <div class="command-desc">Find users with more than 5 failed login attempts. These accounts may be under attack.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT username, COUNT(*) AS fail_count FROM login_logs</div>
+                        <div><span class="prompt">   &gt;</span> WHERE status = 'FAILED' GROUP BY username HAVING fail_count > 5;</div>
+                        <div><span class="output">hacker|87</span></div>
+                        <div><span class="output">admin|12</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Real-World Security Analytics</h2>
+                <p class="content-text">Aggregation powers every SIEM, SOC dashboard, and forensic investigation. Here is a query that would appear in a real incident response runbook:</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Daily Failed Login Summary</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span><br>
+                        &nbsp;&nbsp;date(timestamp) <span class="kw">AS</span> day,<br>
+                        &nbsp;&nbsp;<span class="kw">COUNT</span>(*) <span class="kw">AS</span> total_failures,<br>
+                        &nbsp;&nbsp;<span class="kw">COUNT</span>(<span class="kw">DISTINCT</span> username) <span class="kw">AS</span> unique_targets,<br>
+                        &nbsp;&nbsp;<span class="kw">COUNT</span>(<span class="kw">DISTINCT</span> ip_address) <span class="kw">AS</span> unique_sources<br>
+                        <span class="kw">FROM</span> login_logs<br>
+                        <span class="kw">WHERE</span> status = <span class="val">'FAILED'</span><br>
+                        <span class="kw">GROUP BY</span> date(timestamp)<br>
+                        <span class="kw">ORDER BY</span> day <span class="kw">DESC</span>;
+                    </div>
+                </div>
+                <p class="content-text">This shows daily trends: how many failures, how many different accounts targeted, and how many different source IPs. A sudden spike in unique_sources suggests a distributed brute-force campaign.</p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><code>COUNT</code>, <code>SUM</code>, <code>AVG</code>, <code>MIN</code>, <code>MAX</code> are the five core aggregate functions</li>
+                    <li><code>GROUP BY</code> splits rows into groups for per-category aggregation</li>
+                    <li><code>HAVING</code> filters groups after aggregation; <code>WHERE</code> filters rows before</li>
+                    <li>Aggregation is the foundation of security analytics and SIEM dashboards</li>
+                    <li>Combine GROUP BY with ORDER BY DESC to surface the worst offenders first</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-sql-04-joins.module.html" class="nav-btn">&lt; Previous: JOINs</a>
+                <a href="arm-sql-06-subqueries.module.html" class="nav-btn primary">Next: Subqueries &amp; CTEs &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('SQL-05', '#terminal', {
+            user: 'analyst', hostname: 'sql-lab', startDir: '/home/analyst', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
+                if (lower.includes('count(')) completeTask('count-fn');
+                if (lower.includes('sum(') || lower.includes('avg(')) completeTask('sum-avg');
+                if (lower.includes('min(') || lower.includes('max(')) completeTask('min-max');
+                if (lower.includes('group by')) completeTask('group-by');
+                if (lower.includes('having')) completeTask('having');
+            }
+        });
+        var MODULE_ID = 'arm-sql-05-aggregation';
+        var tasks = { 'count-fn': false, 'sum-avg': false, 'min-max': false, 'group-by': false, 'having': false };
+        var TASK_ORDER = ['count-fn', 'sum-avg', 'min-max', 'group-by', 'having'];
+        var TASK_INSTRUCTIONS = {
+            'count-fn': { number: 1, title: 'Use COUNT', description: 'Count the number of rows in a table or matching a condition.', command: 'SELECT COUNT(*) FROM login_logs;', expect: 'Returns total row count' },
+            'sum-avg': { number: 2, title: 'Use SUM or AVG', description: 'Calculate a total or average from a numeric column.', command: "SELECT SUM(bytes_transferred) FROM network_logs;", expect: 'Returns sum or average value' },
+            'min-max': { number: 3, title: 'Use MIN or MAX', description: 'Find the smallest or largest value -- often used with timestamps.', command: "SELECT MIN(timestamp), MAX(timestamp) FROM login_logs;", expect: 'Returns min and/or max values' },
+            'group-by': { number: 4, title: 'Group Results', description: 'Use GROUP BY to aggregate per category.', command: "SELECT status, COUNT(*) FROM login_logs GROUP BY status;", expect: 'Shows counts per group' },
+            'having': { number: 5, title: 'Filter Groups with HAVING', description: 'Use HAVING to filter aggregated groups.', command: "SELECT username, COUNT(*) AS c FROM login_logs GROUP BY username HAVING c > 5;", expect: 'Shows only groups meeting the condition' }
+        };
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You have mastered SQL aggregation and grouping.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-sql-06-subqueries.module.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            document.getElementById('progressFill').style.width = (completed / Object.keys(tasks).length * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + Object.keys(tasks).length;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now() };
+            if (allDone) progress.code[MODULE_ID].completedAt = new Date().toISOString();
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var chip = document.querySelector('.task-chip[data-task="' + t + '"]'); if (chip) chip.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

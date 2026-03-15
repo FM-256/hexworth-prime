@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL-01: Introduction to SQL | Code Armory</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #14b8a6;
+            --accent-dim: rgba(20, 184, 166, 0.15);
+            --green: #4EC9B0;
+            --red: #e74c3c;
+            --yellow: #f39c12;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
+
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+
+        .terminal-container { flex: 1; min-height: 0; }
+
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h3 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+
+        .distro-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 14px 0; }
+        .distro-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; transition: border-color 0.2s; }
+        .distro-card:hover { border-color: var(--accent); }
+        .distro-name { font-weight: 600; color: var(--text-primary); margin-bottom: 4px; font-size: 0.95rem; }
+        .distro-desc { font-size: 0.82rem; color: var(--text-secondary); }
+
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0d9488; }
+        .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+
+        .warn-box { background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .warn-box strong { color: var(--red); }
+        .warn-box p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        @media (max-width: 1100px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .content-panel { max-height: none; }
+            .terminal-panel { position: relative; top: 0; height: 500px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">SQL-01</span>
+            <h1>Introduction to SQL</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; SQL Track</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="select-version" onclick="showTaskInstruction('select-version')">1</span>
+                    <span class="task-chip" data-task="select-now" onclick="showTaskInstruction('select-now')">2</span>
+                    <span class="task-chip" data-task="select-calc" onclick="showTaskInstruction('select-calc')">3</span>
+                    <span class="task-chip" data-task="show-tables" onclick="showTaskInstruction('show-tables')">4</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand what SQL is and why it matters in cybersecurity</li>
+                    <li>Know the difference between major database engines</li>
+                    <li>Understand relational database concepts: tables, rows, columns</li>
+                    <li>Run your first SQL queries</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What is SQL?</h2>
+                <p class="content-text">SQL (Structured Query Language) is the standard language for interacting with relational databases. Created in the 1970s at IBM, SQL lets you store, retrieve, modify, and manage data in organized structures called tables.</p>
+                <p class="content-text">Every web application, enterprise system, and cloud service relies on databases. As a cybersecurity professional, SQL is not optional -- it is the language attackers use to extract data, and the language defenders use to investigate breaches.</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Declarative Language</strong>
+                        <span>You describe WHAT data you want, not HOW to get it. The database engine optimizes execution.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Universal Standard</strong>
+                        <span>SQL works across MySQL, PostgreSQL, SQLite, Oracle, SQL Server, and more.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Data-Centric</strong>
+                        <span>Designed specifically for creating, reading, updating, and deleting structured data.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Security Critical</strong>
+                        <span>SQL injection remains a top OWASP vulnerability. Understanding SQL is key to defense.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Relational Database Concepts</h2>
+                <p class="content-text">A relational database management system (RDBMS) organizes data into tables with defined relationships. Think of it like a spreadsheet, but with strict rules and massive scale.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Tables, Rows, and Columns</div>
+                    <div class="command-desc">A table is a collection of related data. Each row is a record. Each column is a field.</div>
+                    <div class="command-output">
+                        <div><span class="output">+---------+----------+-------+--------+</span></div>
+                        <div><span class="output">| user_id | username | role  | active |</span></div>
+                        <div><span class="output">+---------+----------+-------+--------+</span></div>
+                        <div><span class="output">|       1 | admin    | admin |      1 |</span></div>
+                        <div><span class="output">|       2 | jsmith   | user  |      1 |</span></div>
+                        <div><span class="output">|       3 | hacker   | user  |      0 |</span></div>
+                        <div><span class="output">+---------+----------+-------+--------+</span></div>
+                    </div>
+                </div>
+
+                <p class="content-text"><strong style="color:var(--accent)">Primary Key:</strong> A unique identifier for each row (e.g., <code>user_id</code>). No two rows can share the same primary key.</p>
+                <p class="content-text"><strong style="color:var(--accent)">Foreign Key:</strong> A column that references the primary key of another table, creating relationships between data.</p>
+                <p class="content-text"><strong style="color:var(--accent)">Schema:</strong> The blueprint of your database -- which tables exist, their columns, data types, and constraints.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Database Engines</h2>
+                <p class="content-text">Different database engines have different strengths. All use SQL with minor dialect differences:</p>
+
+                <div class="distro-grid">
+                    <div class="distro-card">
+                        <div class="distro-name">SQLite</div>
+                        <div class="distro-desc">File-based, zero-config. Perfect for learning, mobile apps, and embedded systems. Used in this course.</div>
+                    </div>
+                    <div class="distro-card">
+                        <div class="distro-name">MySQL / MariaDB</div>
+                        <div class="distro-desc">Most popular open-source RDBMS. Powers WordPress, Facebook, and countless web apps.</div>
+                    </div>
+                    <div class="distro-card">
+                        <div class="distro-name">PostgreSQL</div>
+                        <div class="distro-desc">Advanced features, JSON support, extensibility. Favored by developers and enterprises.</div>
+                    </div>
+                    <div class="distro-card">
+                        <div class="distro-name">SQL Server</div>
+                        <div class="distro-desc">Microsoft's enterprise database. Deep Windows and Azure integration. Common in corporate environments.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Your First Queries</h2>
+                <p class="content-text">SQL queries always start with a keyword. The most fundamental is <code>SELECT</code>, which retrieves data. Try these in the terminal on the left:</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT sqlite_version();</div>
+                    <div class="command-desc">Check which version of SQLite is running.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT sqlite_version();</div>
+                        <div><span class="output">3.39.0</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT datetime('now');</div>
+                    <div class="command-desc">Get the current date and time from the database.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT datetime('now');</div>
+                        <div><span class="output">2026-03-15 12:00:00</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT 2 + 2;</div>
+                    <div class="command-desc">SQL can evaluate expressions. The database is also a calculator.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT 2 + 2;</div>
+                        <div><span class="output">4</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT name FROM sqlite_master WHERE type='table';</div>
+                    <div class="command-desc">List all tables in the current database. This is your reconnaissance step.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT name FROM sqlite_master WHERE type='table';</div>
+                        <div><span class="output">users</span></div>
+                        <div><span class="output">login_logs</span></div>
+                        <div><span class="output">permissions</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Why SQL Matters for Security</h2>
+                <p class="content-text">SQL knowledge is critical across every cybersecurity domain:</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong style="color: #ef4444;">SQL Injection</strong>
+                        <span>The #1 web vulnerability for decades. Attackers manipulate queries to extract or destroy data.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong style="color: #3b82f6;">Digital Forensics</strong>
+                        <span>Investigate breaches by querying database logs, user tables, and audit trails.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong style="color: #8b5cf6;">Incident Response</strong>
+                        <span>Trace attacker activity through login records, access logs, and data modifications.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong style="color: #f97316;">Compliance Auditing</strong>
+                        <span>Verify access controls, data retention policies, and permission configurations.</span>
+                    </div>
+                </div>
+
+                <div class="warn-box">
+                    <strong>Security Note</strong>
+                    <p>Throughout this course, we teach SQL injection techniques for defensive purposes. Understanding how attacks work is essential to preventing them. Always practice ethically and only on systems you have explicit permission to test.</p>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>SQL is the universal language for interacting with relational databases</li>
+                    <li>Tables store data in rows (records) and columns (fields)</li>
+                    <li>Primary keys uniquely identify rows; foreign keys create relationships</li>
+                    <li><code>SELECT</code> is the fundamental query command -- you will use it constantly</li>
+                    <li>SQL injection is a critical security vulnerability that requires SQL knowledge to defend against</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="index.html" class="nav-btn disabled">&lt; Previous</a>
+                <a href="arm-sql-02-select.module.html" class="nav-btn primary">Next: SELECT Fundamentals &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('SQL-01', '#terminal', {
+            user: 'analyst',
+            hostname: 'sql-lab',
+            startDir: '/home/analyst',
+            height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
+                if (lower.includes('select') && lower.includes('sqlite_version')) completeTask('select-version');
+                if (lower.includes('select') && (lower.includes("datetime('now')") || lower.includes('datetime("now")'))) completeTask('select-now');
+                if (lower.includes('select') && /\d\s*[\+\-\*\/]\s*\d/.test(lower)) completeTask('select-calc');
+                if (lower.includes('sqlite_master') || lower.includes('show tables') || lower.includes('.tables')) completeTask('show-tables');
+            }
+        });
+
+        var MODULE_ID = 'arm-sql-01-intro';
+        var tasks = { 'select-version': false, 'select-now': false, 'select-calc': false, 'show-tables': false };
+
+        var TASK_ORDER = ['select-version', 'select-now', 'select-calc', 'show-tables'];
+        var TASK_INSTRUCTIONS = {
+            'select-version': { number: 1, title: 'Check SQLite Version', description: 'Run the query below to see which SQLite version is running.', command: "SELECT sqlite_version();", expect: 'Displays the SQLite version number' },
+            'select-now': { number: 2, title: 'Get Current Time', description: 'Query the database for the current date and time.', command: "SELECT datetime('now');", expect: 'Shows current UTC date and time' },
+            'select-calc': { number: 3, title: 'SQL as Calculator', description: 'Use SELECT to evaluate a math expression.', command: 'SELECT 2 + 2;', expect: 'Returns 4' },
+            'show-tables': { number: 4, title: 'List All Tables', description: 'Discover what tables exist in the database.', command: "SELECT name FROM sqlite_master WHERE type='table';", expect: 'Lists table names in the database' }
+        };
+
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress();
+            saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Great work! You ran your first SQL queries.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-sql-02-select.module.html' });
+            }
+        }
+
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            var total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (completed / total * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + total;
+        }
+
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now() };
+            if (allDone) progress.code[MODULE_ID].completedAt = new Date().toISOString();
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) {
+                    tasks[t] = true;
+                    var chip = document.querySelector('.task-chip[data-task="' + t + '"]');
+                    if (chip) chip.classList.add('completed');
+                });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

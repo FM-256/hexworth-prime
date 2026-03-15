@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BASH-08: System Administration Scripts | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #4ade80; --accent-dim: rgba(74,222,128,0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78,201,176,0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+        .command-output .comment { color: #6a737d; }
+        .warning-box { background: rgba(231,76,60,0.1); border-left: 3px solid var(--red); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+        .warning-box strong { color: var(--red); }
+        .info-box { background: rgba(59,130,246,0.1); border-left: 3px solid #3b82f6; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+        .info-box strong { color: #3b82f6; }
+        .takeaways { background: linear-gradient(135deg, rgba(78,201,176,0.1), rgba(78,201,176,0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #22c55e; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">BASH-08</span>
+            <h1>System Administration Scripts</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Track Home</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="disk" onclick="showTaskInstruction('disk')">1</span>
+                    <span class="task-chip" data-task="cron" onclick="showTaskInstruction('cron')">2</span>
+                    <span class="task-chip" data-task="backup" onclick="showTaskInstruction('backup')">3</span>
+                    <span class="task-chip" data-task="monitor" onclick="showTaskInstruction('monitor')">4</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h2>Learning Objectives</h2>
+                <ul>
+                    <li>Write disk monitoring and alerting scripts</li>
+                    <li>Schedule scripts with cron</li>
+                    <li>Build automated backup scripts with rotation</li>
+                    <li>Create system health monitoring dashboards</li>
+                    <li>Implement log rotation and cleanup automation</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Disk Monitoring</h2>
+                <div class="command-card">
+                    <div class="command-name">disk-alert.sh</div>
+                    <div class="command-desc">Alert when any filesystem exceeds a threshold</div>
+                    <div class="command-output">
+                        <div><span class="comment">#!/bin/bash</span></div>
+                        <div><span class="output">THRESHOLD="${1:-80}"</span></div>
+                        <div><span class="output">ALERT_EMAIL="admin@company.com"</span></div>
+                        <div></div>
+                        <div><span class="output">df -h | awk 'NR>1 {gsub(/%/,""); if ($5 > '"$THRESHOLD"') print $0}' \</span></div>
+                        <div><span class="output">    | while read -r line; do</span></div>
+                        <div><span class="output">    MOUNT=$(echo "$line" | awk '{print $6}')</span></div>
+                        <div><span class="output">    USAGE=$(echo "$line" | awk '{print $5}')</span></div>
+                        <div><span class="output">    echo "[ALERT] $MOUNT at ${USAGE}% (threshold: ${THRESHOLD}%)"</span></div>
+                        <div><span class="output">done</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Cron Scheduling</h2>
+                <p class="content-text">Cron runs scripts on a schedule. The crontab format is: minute hour day-of-month month day-of-week command.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Common Cron Patterns</div>
+                    <div class="command-output">
+                        <div><span class="comment"># Edit crontab</span></div>
+                        <div><span class="prompt">$</span> crontab -e</div>
+                        <div></div>
+                        <div><span class="comment"># Every 5 minutes</span></div>
+                        <div><span class="output">*/5 * * * * /opt/scripts/health-check.sh >> /var/log/health.log 2>&1</span></div>
+                        <div></div>
+                        <div><span class="comment"># Daily at 2 AM</span></div>
+                        <div><span class="output">0 2 * * * /opt/scripts/backup.sh</span></div>
+                        <div></div>
+                        <div><span class="comment"># Every Sunday at midnight</span></div>
+                        <div><span class="output">0 0 * * 0 /opt/scripts/weekly-report.sh</span></div>
+                        <div></div>
+                        <div><span class="comment"># First of every month</span></div>
+                        <div><span class="output">0 6 1 * * /opt/scripts/monthly-cleanup.sh</span></div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p class="content-text"><strong>Cron environment:</strong> Cron runs with a minimal PATH. Always use full paths to commands in cron scripts, or set PATH at the top of the script.</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Backup Script with Rotation</h2>
+                <div class="command-card">
+                    <div class="command-name">backup.sh</div>
+                    <div class="command-desc">Compressed backups with 7-day rotation</div>
+                    <div class="command-output">
+                        <div><span class="comment">#!/bin/bash</span></div>
+                        <div><span class="output">BACKUP_DIR="/backups"</span></div>
+                        <div><span class="output">SOURCE_DIR="/var/www/html"</span></div>
+                        <div><span class="output">RETENTION=7</span></div>
+                        <div><span class="output">DATE=$(date +%Y%m%d_%H%M%S)</span></div>
+                        <div><span class="output">ARCHIVE="${BACKUP_DIR}/web_${DATE}.tar.gz"</span></div>
+                        <div></div>
+                        <div><span class="output">mkdir -p "$BACKUP_DIR"</span></div>
+                        <div></div>
+                        <div><span class="comment"># Create the backup</span></div>
+                        <div><span class="output">tar -czf "$ARCHIVE" -C "$(dirname "$SOURCE_DIR")" \</span></div>
+                        <div><span class="output">    "$(basename "$SOURCE_DIR")" 2>/dev/null</span></div>
+                        <div></div>
+                        <div><span class="output">if [[ $? -eq 0 ]]; then</span></div>
+                        <div><span class="output">    SIZE=$(du -sh "$ARCHIVE" | cut -f1)</span></div>
+                        <div><span class="output">    echo "[OK] Backup created: $ARCHIVE ($SIZE)"</span></div>
+                        <div><span class="output">else</span></div>
+                        <div><span class="output">    echo "[FAIL] Backup failed!"</span></div>
+                        <div><span class="output">    exit 1</span></div>
+                        <div><span class="output">fi</span></div>
+                        <div></div>
+                        <div><span class="comment"># Remove backups older than retention period</span></div>
+                        <div><span class="output">find "$BACKUP_DIR" -name "web_*.tar.gz" -mtime +$RETENTION -delete</span></div>
+                        <div><span class="output">REMAINING=$(ls -1 "$BACKUP_DIR"/web_*.tar.gz 2>/dev/null | wc -l)</span></div>
+                        <div><span class="output">echo "[OK] $REMAINING backup(s) retained"</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Log Rotation Script</h2>
+                <div class="command-card">
+                    <div class="command-name">rotate-logs.sh</div>
+                    <div class="command-output">
+                        <div><span class="comment">#!/bin/bash</span></div>
+                        <div><span class="output">LOGDIR="/var/log/myapp"</span></div>
+                        <div><span class="output">MAX_SIZE=$((10 * 1024 * 1024))   # 10MB</span></div>
+                        <div><span class="output">KEEP=5</span></div>
+                        <div></div>
+                        <div><span class="output">for logfile in "$LOGDIR"/*.log; do</span></div>
+                        <div><span class="output">    [[ ! -f "$logfile" ]] && continue</span></div>
+                        <div><span class="output">    FSIZE=$(stat -c%s "$logfile" 2>/dev/null || echo 0)</span></div>
+                        <div></div>
+                        <div><span class="output">    if [[ "$FSIZE" -gt "$MAX_SIZE" ]]; then</span></div>
+                        <div><span class="output">        # Rotate: .log -> .log.1 -> .log.2 ...</span></div>
+                        <div><span class="output">        for ((i=KEEP; i>1; i--)); do</span></div>
+                        <div><span class="output">            [[ -f "${logfile}.$((i-1)).gz" ]] && \</span></div>
+                        <div><span class="output">                mv "${logfile}.$((i-1)).gz" "${logfile}.${i}.gz"</span></div>
+                        <div><span class="output">        done</span></div>
+                        <div><span class="output">        cp "$logfile" "${logfile}.1" && gzip "${logfile}.1"</span></div>
+                        <div><span class="output">        > "$logfile"   # Truncate original</span></div>
+                        <div><span class="output">        echo "Rotated: $logfile"</span></div>
+                        <div><span class="output">    fi</span></div>
+                        <div><span class="output">done</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">System Health Dashboard</h2>
+                <div class="command-card">
+                    <div class="command-name">sys-report.sh</div>
+                    <div class="command-desc">Quick system health snapshot</div>
+                    <div class="command-output">
+                        <div><span class="comment">#!/bin/bash</span></div>
+                        <div><span class="output">echo "========================================"</span></div>
+                        <div><span class="output">echo "  System Health Report - $(date)"</span></div>
+                        <div><span class="output">echo "========================================"</span></div>
+                        <div></div>
+                        <div><span class="output">echo ""</span></div>
+                        <div><span class="output">echo "-- Uptime --"</span></div>
+                        <div><span class="output">uptime</span></div>
+                        <div></div>
+                        <div><span class="output">echo ""</span></div>
+                        <div><span class="output">echo "-- Memory --"</span></div>
+                        <div><span class="output">free -h | awk 'NR==2{printf "Used: %s / %s (%.1f%%)\n", $3, $2, $3/$2*100}'</span></div>
+                        <div></div>
+                        <div><span class="output">echo ""</span></div>
+                        <div><span class="output">echo "-- Disk --"</span></div>
+                        <div><span class="output">df -h | awk 'NR==1 || /\/$/ || /\/home$/'</span></div>
+                        <div></div>
+                        <div><span class="output">echo ""</span></div>
+                        <div><span class="output">echo "-- Top 5 Processes by CPU --"</span></div>
+                        <div><span class="output">ps aux --sort=-%cpu | head -6</span></div>
+                        <div></div>
+                        <div><span class="output">echo ""</span></div>
+                        <div><span class="output">echo "-- Active Connections --"</span></div>
+                        <div><span class="output">ss -tunp | awk 'NR>1 {print $1, $5}' | sort | uniq -c | sort -rn | head -5</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Disk monitoring scripts use df, awk, and threshold comparisons</li>
+                    <li>Cron schedules scripts -- always use full paths and redirect output</li>
+                    <li>Backup scripts should include compression and retention rotation</li>
+                    <li>Log rotation prevents disk full emergencies on production servers</li>
+                    <li>Health dashboards combine uptime, memory, disk, and process data</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-bash-07-text-processing.module.html" class="nav-btn">&lt; Previous: Text Processing</a>
+                <a href="arm-bash-09-security-scripts.module.html" class="nav-btn primary">Next: Security Scripts &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('BASH-08', '#terminal', {
+            user: 'learner', hostname: 'bash-lab', startDir: '/home/learner', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'df') completeTask('disk');
+                if (cmd === 'crontab' || cmdLine.includes('cron')) completeTask('cron');
+                if (cmd === 'tar' || cmdLine.includes('tar ')) completeTask('backup');
+                if (cmd === 'free' || cmd === 'uptime' || cmd === 'top' || cmd === 'ps') completeTask('monitor');
+            }
+        });
+
+        var MODULE_ID = 'arm-bash-08-system-admin';
+        var tasks = { 'disk': false, 'cron': false, 'backup': false, 'monitor': false };
+        var TASK_ORDER = ['disk', 'cron', 'backup', 'monitor'];
+        var TASK_INSTRUCTIONS = {
+            'disk':    { number: 1, title: 'Check Disk Usage',   description: 'Use df to see filesystem usage.',             command: 'df -h',                    expect: 'Shows mounted filesystems' },
+            'cron':    { number: 2, title: 'View Cron Jobs',     description: 'List your scheduled cron jobs.',              command: 'crontab -l',               expect: 'Shows crontab or empty' },
+            'backup':  { number: 3, title: 'Create an Archive',  description: 'Use tar to create a compressed archive.',     command: 'tar -czf test.tar.gz /etc/hostname', expect: 'Creates compressed archive' },
+            'monitor': { number: 4, title: 'Check System Health',description: 'Run a system monitoring command.',            command: 'free -h',                  expect: 'Shows memory usage' }
+        };
+
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You can build real sysadmin automation scripts.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-bash-09-security-scripts.module.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            var total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (completed / total * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + total;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now(), ...(allDone && { completedAt: new Date().toISOString() }) };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var c = document.querySelector('.task-chip[data-task="' + t + '"]'); if (c) c.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

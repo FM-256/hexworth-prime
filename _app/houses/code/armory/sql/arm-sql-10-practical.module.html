@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL-10: Practical SQL | Code Armory</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #14b8a6; --accent-dim: rgba(20,184,166,0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78,201,176,0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; font-size: 0.76rem; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h3 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .syntax-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin: 14px 0; }
+        .syntax-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px; }
+        .syntax-code { font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; color: var(--green); line-height: 1.8; }
+        .syntax-code .kw { color: var(--accent); font-weight: 600; }
+        .syntax-code .val { color: var(--yellow); }
+        .syntax-code .cmt { color: #6a9955; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+        .scenario-box { background: linear-gradient(135deg, rgba(239,68,68,0.06), rgba(20,184,166,0.06)); border: 1px solid rgba(20,184,166,0.2); border-radius: 8px; padding: 18px; margin: 14px 0; }
+        .scenario-title { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+        .scenario-context { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px; font-style: italic; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .takeaways { background: linear-gradient(135deg, rgba(78,201,176,0.1), rgba(78,201,176,0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0d9488; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">SQL-10</span>
+            <h1>Practical SQL</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; SQL Track</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="timeline" onclick="showTaskInstruction('timeline')">1</span>
+                    <span class="task-chip" data-task="brute-detect" onclick="showTaskInstruction('brute-detect')">2</span>
+                    <span class="task-chip" data-task="priv-audit" onclick="showTaskInstruction('priv-audit')">3</span>
+                    <span class="task-chip" data-task="data-exfil" onclick="showTaskInstruction('data-exfil')">4</span>
+                    <span class="task-chip" data-task="report" onclick="showTaskInstruction('report')">5</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Build incident timeline queries from login and audit logs</li>
+                    <li>Detect brute-force attacks using aggregation patterns</li>
+                    <li>Audit privilege assignments and identify excessive permissions</li>
+                    <li>Quantify data exfiltration from network transfer logs</li>
+                    <li>Generate executive-ready incident summary reports with SQL</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Scenario: Active Breach Investigation</h2>
+                <p class="content-text">You are the incident responder. Your SOC has detected suspicious activity from IP <code>192.168.1.99</code>. The CISO needs answers: What happened? When? What data was affected? Your tool is SQL, and the database has these tables:</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>users</strong>
+                        <span>user_id, username, email, role, active, created_at, last_login</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>login_logs</strong>
+                        <span>log_id, user_id, username, status, ip_address, timestamp, user_agent</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>permissions</strong>
+                        <span>perm_id, user_id, permission, granted_by, granted_at</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>network_logs</strong>
+                        <span>log_id, source_ip, dest_ip, port, bytes_transferred, protocol, timestamp</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Phase 1: Build the Timeline</h2>
+                <p class="content-text">The first step in any investigation is establishing a timeline. When did the attacker arrive? What did they do? When did they leave?</p>
+
+                <div class="scenario-box">
+                    <div class="scenario-title">Query: Attacker Activity Timeline</div>
+                    <div class="scenario-context">Map all activity from the suspicious IP, ordered chronologically.</div>
+                </div>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Incident Timeline Query</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span><br>
+                        &nbsp;&nbsp;l.timestamp,<br>
+                        &nbsp;&nbsp;l.username,<br>
+                        &nbsp;&nbsp;l.status,<br>
+                        &nbsp;&nbsp;l.ip_address,<br>
+                        &nbsp;&nbsp;l.user_agent<br>
+                        <span class="kw">FROM</span> login_logs l<br>
+                        <span class="kw">WHERE</span> l.ip_address = <span class="val">'192.168.1.99'</span><br>
+                        <span class="kw">ORDER BY</span> l.timestamp <span class="kw">ASC</span>;
+                    </div>
+                </div>
+
+                <p class="content-text">This reveals the full attack narrative: initial probing, credential stuffing attempts, successful login, and post-compromise activity. Reading this chronologically tells you exactly what happened.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Phase 2: Brute-Force Detection</h2>
+                <p class="content-text">Quantify the attack. How aggressive was the attacker? Which accounts were targeted?</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Brute-Force Analysis</div>
+                    <div class="syntax-code">
+                        <span class="kw">WITH</span> attack_stats <span class="kw">AS</span> (<br>
+                        &nbsp;&nbsp;<span class="kw">SELECT</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;username,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">COUNT</span>(*) <span class="kw">AS</span> total_attempts,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">SUM</span>(<span class="kw">CASE WHEN</span> status = <span class="val">'FAILED'</span> <span class="kw">THEN</span> <span class="val">1</span> <span class="kw">ELSE</span> <span class="val">0</span> <span class="kw">END</span>) <span class="kw">AS</span> failures,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">SUM</span>(<span class="kw">CASE WHEN</span> status = <span class="val">'SUCCESS'</span> <span class="kw">THEN</span> <span class="val">1</span> <span class="kw">ELSE</span> <span class="val">0</span> <span class="kw">END</span>) <span class="kw">AS</span> successes,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">MIN</span>(timestamp) <span class="kw">AS</span> first_attempt,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">MAX</span>(timestamp) <span class="kw">AS</span> last_attempt<br>
+                        &nbsp;&nbsp;<span class="kw">FROM</span> login_logs<br>
+                        &nbsp;&nbsp;<span class="kw">WHERE</span> ip_address = <span class="val">'192.168.1.99'</span><br>
+                        &nbsp;&nbsp;<span class="kw">GROUP BY</span> username<br>
+                        )<br>
+                        <span class="kw">SELECT</span> *, <br>
+                        &nbsp;&nbsp;<span class="kw">ROUND</span>(failures * <span class="val">100.0</span> / total_attempts, <span class="val">1</span>) <span class="kw">AS</span> fail_pct<br>
+                        <span class="kw">FROM</span> attack_stats<br>
+                        <span class="kw">ORDER BY</span> total_attempts <span class="kw">DESC</span>;
+                    </div>
+                </div>
+
+                <p class="content-text">This tells you which accounts the attacker targeted, how many attempts they made, and whether any succeeded. A success after many failures is strong evidence of credential compromise.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Phase 3: Privilege Audit</h2>
+                <p class="content-text">If the attacker compromised an account, what can that account do? Check for privilege escalation.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Compromised Account Permissions</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span><br>
+                        &nbsp;&nbsp;u.username,<br>
+                        &nbsp;&nbsp;u.role,<br>
+                        &nbsp;&nbsp;p.permission,<br>
+                        &nbsp;&nbsp;p.granted_by,<br>
+                        &nbsp;&nbsp;p.granted_at<br>
+                        <span class="kw">FROM</span> users u<br>
+                        <span class="kw">INNER JOIN</span> permissions p <span class="kw">ON</span> u.user_id = p.user_id<br>
+                        <span class="kw">WHERE</span> u.username <span class="kw">IN</span> (<br>
+                        &nbsp;&nbsp;<span class="kw">SELECT DISTINCT</span> username <span class="kw">FROM</span> login_logs<br>
+                        &nbsp;&nbsp;<span class="kw">WHERE</span> ip_address = <span class="val">'192.168.1.99'</span> <span class="kw">AND</span> status = <span class="val">'SUCCESS'</span><br>
+                        )<br>
+                        <span class="kw">ORDER BY</span> p.permission;
+                    </div>
+                </div>
+
+                <p class="content-text">Also check for permissions granted during the attack window -- the attacker may have escalated their own privileges:</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Recent Permission Changes</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> permissions<br>
+                        <span class="kw">WHERE</span> granted_at <span class="kw">BETWEEN</span> <span class="val">'2026-03-14'</span> <span class="kw">AND</span> <span class="val">'2026-03-16'</span><br>
+                        <span class="kw">ORDER BY</span> granted_at <span class="kw">DESC</span>;
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Phase 4: Data Exfiltration Assessment</h2>
+                <p class="content-text">Quantify potential data loss. How much data left the network from the attacker's IP?</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Exfiltration Volume Query</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span><br>
+                        &nbsp;&nbsp;date(timestamp) <span class="kw">AS</span> day,<br>
+                        &nbsp;&nbsp;dest_ip,<br>
+                        &nbsp;&nbsp;<span class="kw">COUNT</span>(*) <span class="kw">AS</span> connections,<br>
+                        &nbsp;&nbsp;<span class="kw">SUM</span>(bytes_transferred) <span class="kw">AS</span> total_bytes,<br>
+                        &nbsp;&nbsp;<span class="kw">ROUND</span>(<span class="kw">SUM</span>(bytes_transferred) / <span class="val">1048576.0</span>, <span class="val">2</span>) <span class="kw">AS</span> total_mb<br>
+                        <span class="kw">FROM</span> network_logs<br>
+                        <span class="kw">WHERE</span> source_ip = <span class="val">'192.168.1.99'</span><br>
+                        <span class="kw">GROUP BY</span> date(timestamp), dest_ip<br>
+                        <span class="kw">ORDER BY</span> total_bytes <span class="kw">DESC</span>;
+                    </div>
+                </div>
+
+                <p class="content-text">This shows where data went and how much. Large transfers to external IPs during the attack window are strong indicators of data exfiltration. Convert bytes to megabytes for the executive report.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Phase 5: Executive Summary</h2>
+                <p class="content-text">Combine everything into a single incident summary query that the CISO can read:</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Incident Summary Report</div>
+                    <div class="syntax-code">
+                        <span class="kw">WITH</span><br>
+                        timeline <span class="kw">AS</span> (<br>
+                        &nbsp;&nbsp;<span class="kw">SELECT</span> <span class="kw">MIN</span>(timestamp) <span class="kw">AS</span> attack_start,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">MAX</span>(timestamp) <span class="kw">AS</span> attack_end,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">COUNT</span>(*) <span class="kw">AS</span> total_events<br>
+                        &nbsp;&nbsp;<span class="kw">FROM</span> login_logs <span class="kw">WHERE</span> ip_address = <span class="val">'192.168.1.99'</span><br>
+                        ),<br>
+                        compromised <span class="kw">AS</span> (<br>
+                        &nbsp;&nbsp;<span class="kw">SELECT COUNT</span>(<span class="kw">DISTINCT</span> username) <span class="kw">AS</span> accounts_hit<br>
+                        &nbsp;&nbsp;<span class="kw">FROM</span> login_logs<br>
+                        &nbsp;&nbsp;<span class="kw">WHERE</span> ip_address = <span class="val">'192.168.1.99'</span> <span class="kw">AND</span> status = <span class="val">'SUCCESS'</span><br>
+                        ),<br>
+                        exfil <span class="kw">AS</span> (<br>
+                        &nbsp;&nbsp;<span class="kw">SELECT ROUND</span>(<span class="kw">SUM</span>(bytes_transferred) / <span class="val">1048576.0</span>, <span class="val">2</span>) <span class="kw">AS</span> mb_exfil<br>
+                        &nbsp;&nbsp;<span class="kw">FROM</span> network_logs <span class="kw">WHERE</span> source_ip = <span class="val">'192.168.1.99'</span><br>
+                        )<br>
+                        <span class="kw">SELECT</span><br>
+                        &nbsp;&nbsp;t.attack_start, t.attack_end,<br>
+                        &nbsp;&nbsp;t.total_events,<br>
+                        &nbsp;&nbsp;c.accounts_hit,<br>
+                        &nbsp;&nbsp;e.mb_exfil<br>
+                        <span class="kw">FROM</span> timeline t, compromised c, exfil e;
+                    </div>
+                </div>
+
+                <p class="content-text">One query. One result row. Attack window, event count, compromised accounts, and data volume. This is the kind of output that drives executive decisions during an active incident.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">What You Have Learned</h2>
+                <p class="content-text">Over 10 modules, you have built a complete SQL skillset tailored for cybersecurity:</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Modules 01-03</strong>
+                        <span>Query foundations: SELECT, WHERE, filtering, pattern matching. The building blocks of every investigation.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Modules 04-06</strong>
+                        <span>JOINs, aggregation, subqueries, CTEs. Combining and analyzing data across tables.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Modules 07-08</strong>
+                        <span>CRUD, transactions, schema design. Understanding how databases are built and maintained.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Modules 09-10</strong>
+                        <span>SQL injection, defense, permissions, and real-world forensic analysis. The security capstone.</span>
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Incident response starts with building a chronological timeline from logs</li>
+                    <li>Aggregation (COUNT, SUM, GROUP BY, HAVING) powers brute-force detection</li>
+                    <li>JOINs with subqueries map compromised accounts to their permissions</li>
+                    <li>Network log analysis quantifies data exfiltration in human-readable units</li>
+                    <li>CTEs chain multiple analysis steps into a single executive-ready report</li>
+                    <li>SQL is not just a database tool -- it is an investigation weapon</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-sql-09-security.module.html" class="nav-btn">&lt; Previous: SQL Security</a>
+                <a href="index.html" class="nav-btn primary">Back to SQL Track &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('SQL-10', '#terminal', {
+            user: 'analyst', hostname: 'sql-lab', startDir: '/home/analyst', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
+                if (lower.includes('order by') && lower.includes('timestamp') && lower.includes('ip_address')) completeTask('timeline');
+                if (lower.includes('count(') && lower.includes('group by') && (lower.includes('failed') || lower.includes('status'))) completeTask('brute-detect');
+                if (lower.includes('permission') && lower.includes('join')) completeTask('priv-audit');
+                if (lower.includes('bytes') || lower.includes('network_logs') || lower.includes('sum(')) completeTask('data-exfil');
+                if (lower.includes('with') && lower.includes('as') && (lower.match(/,/g) || []).length >= 1) completeTask('report');
+            }
+        });
+        var MODULE_ID = 'arm-sql-10-practical';
+        var tasks = { 'timeline': false, 'brute-detect': false, 'priv-audit': false, 'data-exfil': false, 'report': false };
+        var TASK_ORDER = ['timeline', 'brute-detect', 'priv-audit', 'data-exfil', 'report'];
+        var TASK_INSTRUCTIONS = {
+            'timeline': { number: 1, title: 'Build an Attack Timeline', description: 'Query login_logs for all activity from the attacker IP, sorted by time.', command: "SELECT timestamp, username, status, ip_address FROM login_logs WHERE ip_address = '192.168.1.99' ORDER BY timestamp ASC;", expect: 'Chronological list of attacker activity' },
+            'brute-detect': { number: 2, title: 'Detect Brute-Force', description: 'Use COUNT and GROUP BY to identify targeted accounts.', command: "SELECT username, COUNT(*) AS attempts FROM login_logs WHERE ip_address = '192.168.1.99' AND status = 'FAILED' GROUP BY username ORDER BY attempts DESC;", expect: 'Shows which accounts were attacked and how often' },
+            'priv-audit': { number: 3, title: 'Audit Permissions', description: 'JOIN users and permissions to see what compromised accounts can access.', command: "SELECT u.username, p.permission FROM users u INNER JOIN permissions p ON u.user_id = p.user_id WHERE u.username = 'admin';", expect: 'Lists permissions for the compromised account' },
+            'data-exfil': { number: 4, title: 'Assess Data Exfiltration', description: 'Query network_logs to quantify data transfers from the attacker.', command: "SELECT dest_ip, SUM(bytes_transferred) AS total_bytes FROM network_logs WHERE source_ip = '192.168.1.99' GROUP BY dest_ip;", expect: 'Shows data volume per destination' },
+            'report': { number: 5, title: 'Generate Incident Summary', description: 'Use CTEs to build a multi-step summary report in one query.', command: "WITH t AS (SELECT MIN(timestamp) AS start, MAX(timestamp) AS end FROM login_logs WHERE ip_address = '192.168.1.99'), c AS (SELECT COUNT(DISTINCT username) AS n FROM login_logs WHERE ip_address = '192.168.1.99' AND status = 'SUCCESS') SELECT * FROM t, c;", expect: 'Single-row executive summary of the incident' }
+        };
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">SQL Track Complete!</div><div>You have completed the entire SQL track. You are now equipped to query, defend, and investigate with SQL.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'index.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            document.getElementById('progressFill').style.width = (completed / Object.keys(tasks).length * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + Object.keys(tasks).length;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now() };
+            if (allDone) progress.code[MODULE_ID].completedAt = new Date().toISOString();
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var chip = document.querySelector('.task-chip[data-task="' + t + '"]'); if (chip) chip.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

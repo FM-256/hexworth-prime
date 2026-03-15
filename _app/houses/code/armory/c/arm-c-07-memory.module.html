@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-07: Dynamic Memory | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #ef4444; --accent-dim: rgba(239, 68, 68, 0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .code-editor { flex: 1; min-height: 0; overflow-y: auto; background: var(--bg-terminal); padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: var(--text-secondary); }
+        .code-editor .line { display: flex; } .code-editor .line-num { color: #555; min-width: 35px; text-align: right; padding-right: 15px; user-select: none; }
+        .code-editor .kw { color: #c586c0; } .code-editor .type { color: #4EC9B0; } .code-editor .func { color: #dcdcaa; } .code-editor .str { color: #ce9178; } .code-editor .cmt { color: #6a9955; } .code-editor .num { color: #b5cea8; } .code-editor .pp { color: #c586c0; } .code-editor .inc { color: #ce9178; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; } .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); } .command-output .output { color: var(--text-secondary); }
+        .warning-box { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px; margin: 14px 0; }
+        .warning-box strong { color: var(--red); }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; } .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #dc2626; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">C-07</span>
+            <h1>Dynamic Memory</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Course Home</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="t1" onclick="showTaskInstruction('t1')">1</span>
+                    <span class="task-chip" data-task="t2" onclick="showTaskInstruction('t2')">2</span>
+                    <span class="task-chip" data-task="t3" onclick="showTaskInstruction('t3')">3</span>
+                    <span class="task-chip" data-task="t4" onclick="showTaskInstruction('t4')">4</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="code-editor">
+                <div class="line"><span class="line-num">1</span><span class="pp">#include</span> <span class="inc">&lt;stdio.h&gt;</span></div>
+                <div class="line"><span class="line-num">2</span><span class="pp">#include</span> <span class="inc">&lt;stdlib.h&gt;</span></div>
+                <div class="line"><span class="line-num">3</span><span class="pp">#include</span> <span class="inc">&lt;string.h&gt;</span></div>
+                <div class="line"><span class="line-num">4</span></div>
+                <div class="line"><span class="line-num">5</span><span class="type">int</span> <span class="func">main</span>(<span class="type">void</span>) {</div>
+                <div class="line"><span class="line-num">6</span>    <span class="cmt">// malloc: allocate uninitialized memory</span></div>
+                <div class="line"><span class="line-num">7</span>    <span class="type">int</span> *arr = <span class="func">malloc</span>(<span class="num">5</span> * <span class="kw">sizeof</span>(<span class="type">int</span>));</div>
+                <div class="line"><span class="line-num">8</span>    <span class="kw">if</span> (arr == NULL) {</div>
+                <div class="line"><span class="line-num">9</span>        <span class="func">perror</span>(<span class="str">"malloc failed"</span>);</div>
+                <div class="line"><span class="line-num">10</span>        <span class="kw">return</span> <span class="num">1</span>;</div>
+                <div class="line"><span class="line-num">11</span>    }</div>
+                <div class="line"><span class="line-num">12</span></div>
+                <div class="line"><span class="line-num">13</span>    <span class="cmt">// calloc: allocate + zero-initialize</span></div>
+                <div class="line"><span class="line-num">14</span>    <span class="type">char</span> *buf = <span class="func">calloc</span>(<span class="num">256</span>, <span class="kw">sizeof</span>(<span class="type">char</span>));</div>
+                <div class="line"><span class="line-num">15</span></div>
+                <div class="line"><span class="line-num">16</span>    <span class="cmt">// realloc: resize existing allocation</span></div>
+                <div class="line"><span class="line-num">17</span>    arr = <span class="func">realloc</span>(arr, <span class="num">10</span> * <span class="kw">sizeof</span>(<span class="type">int</span>));</div>
+                <div class="line"><span class="line-num">18</span></div>
+                <div class="line"><span class="line-num">19</span>    <span class="cmt">// Use the memory</span></div>
+                <div class="line"><span class="line-num">20</span>    <span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; <span class="num">10</span>; i++)</div>
+                <div class="line"><span class="line-num">21</span>        arr[i] = i * <span class="num">10</span>;</div>
+                <div class="line"><span class="line-num">22</span></div>
+                <div class="line"><span class="line-num">23</span>    <span class="cmt">// free: release memory back to OS</span></div>
+                <div class="line"><span class="line-num">24</span>    <span class="func">free</span>(arr);</div>
+                <div class="line"><span class="line-num">25</span>    arr = NULL;  <span class="cmt">// Prevent dangling pointer</span></div>
+                <div class="line"><span class="line-num">26</span>    <span class="func">free</span>(buf);</div>
+                <div class="line"><span class="line-num">27</span>    buf = NULL;</div>
+                <div class="line"><span class="line-num">28</span></div>
+                <div class="line"><span class="line-num">29</span>    <span class="kw">return</span> <span class="num">0</span>;</div>
+                <div class="line"><span class="line-num">30</span>}</div>
+            </div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h2>Learning Objectives</h2>
+                <ul>
+                    <li>Understand heap vs stack memory</li>
+                    <li>Use malloc, calloc, realloc, and free correctly</li>
+                    <li>Recognize memory leaks and use-after-free bugs</li>
+                    <li>Run Valgrind to detect memory errors</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Stack vs Heap</h2>
+                <p class="content-text">C programs use two regions of memory. The stack is automatic -- local variables are pushed when a function is called and popped when it returns. The heap is manual -- you allocate with <code>malloc</code> and release with <code>free</code>. Heap memory persists until explicitly freed.</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Stack</strong>
+                        <span>Automatic, fast, limited size (~8MB default). Local variables, function arguments, return addresses.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Heap</strong>
+                        <span>Manual, larger, slower. Dynamic allocations via malloc/calloc. Must be freed or memory leaks.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">The Allocation Functions</h2>
+
+                <div class="command-card">
+                    <div class="command-name">malloc(size)</div>
+                    <div class="command-desc">Allocates <code>size</code> bytes. Memory is NOT initialized -- contains random data from previous allocations. Returns NULL on failure.</div>
+                    <div class="command-output">
+                        <div><span class="type">int</span> *p = <span class="func">malloc</span>(<span class="num">100</span> * <span class="kw">sizeof</span>(<span class="type">int</span>));</div>
+                        <div><span class="kw">if</span> (!p) { <span class="func">perror</span>(<span class="str">"malloc"</span>); <span class="kw">exit</span>(<span class="num">1</span>); }</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">calloc(count, size)</div>
+                    <div class="command-desc">Allocates <code>count * size</code> bytes and zero-initializes all of them. Safer than malloc for buffers that must start clean.</div>
+                    <div class="command-output">
+                        <div><span class="type">char</span> *buf = <span class="func">calloc</span>(<span class="num">1024</span>, <span class="num">1</span>);  <span class="cmt">// 1024 zero bytes</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">realloc(ptr, new_size)</div>
+                    <div class="command-desc">Resizes an existing allocation. May move the data to a new address. Returns NULL on failure (original is still valid).</div>
+                    <div class="command-output">
+                        <div><span class="type">int</span> *tmp = <span class="func">realloc</span>(arr, new_size * <span class="kw">sizeof</span>(<span class="type">int</span>));</div>
+                        <div><span class="kw">if</span> (!tmp) { <span class="func">free</span>(arr); <span class="kw">exit</span>(<span class="num">1</span>); }</div>
+                        <div>arr = tmp;</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">free(ptr)</div>
+                    <div class="command-desc">Releases memory back to the system. Always set the pointer to NULL after freeing to prevent use-after-free.</div>
+                    <div class="command-output">
+                        <div><span class="func">free</span>(arr);</div>
+                        <div>arr = NULL;  <span class="cmt">// Critical: prevent dangling pointer</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Memory Bugs</h2>
+
+                <div class="warning-box">
+                    <strong>Memory Leak:</strong> Allocated memory that is never freed. The program's memory usage grows until it crashes or the OS kills it.
+                    <div class="command-output" style="margin-top: 10px;">
+                        <div><span class="kw">while</span> (<span class="num">1</span>) {</div>
+                        <div>    <span class="type">char</span> *p = <span class="func">malloc</span>(<span class="num">1024</span>);</div>
+                        <div>    <span class="cmt">// Never freed -- 1KB leaked per iteration</span></div>
+                        <div>}</div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>Use-After-Free:</strong> Accessing memory after it has been freed. The data may have been overwritten by a new allocation. This is a critical vulnerability class -- attackers can control what gets allocated in the freed slot.
+                    <div class="command-output" style="margin-top: 10px;">
+                        <div><span class="type">char</span> *secret = <span class="func">malloc</span>(<span class="num">64</span>);</div>
+                        <div><span class="func">strcpy</span>(secret, <span class="str">"password123"</span>);</div>
+                        <div><span class="func">free</span>(secret);</div>
+                        <div><span class="func">printf</span>(<span class="str">"%s\n"</span>, secret);  <span class="cmt">// UAF: undefined behavior!</span></div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>Double Free:</strong> Freeing the same pointer twice corrupts the heap metadata and can lead to arbitrary code execution.
+                    <div class="command-output" style="margin-top: 10px;">
+                        <div><span class="func">free</span>(ptr);</div>
+                        <div><span class="func">free</span>(ptr);  <span class="cmt">// CRASH or exploitable!</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Valgrind -- The Memory Debugger</h2>
+                <p class="content-text">Valgrind instruments your program to detect memory errors at runtime. It catches leaks, use-after-free, double free, uninitialized reads, and buffer overflows.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Running Valgrind</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> gcc -g -o program program.c</div>
+                        <div><span class="prompt">$</span> valgrind --leak-check=full ./program</div>
+                        <div></div>
+                        <div><span class="output">==12345== HEAP SUMMARY:</span></div>
+                        <div><span class="output">==12345==   in use at exit: 0 bytes in 0 blocks</span></div>
+                        <div><span class="output">==12345==   total heap usage: 3 allocs, 3 frees</span></div>
+                        <div><span class="output">==12345== All heap blocks were freed</span></div>
+                        <div><span class="output">==12345== ERROR SUMMARY: 0 errors from 0 contexts</span></div>
+                    </div>
+                </div>
+
+                <p class="content-text">Compile with <code>-g</code> so Valgrind can show line numbers. A clean Valgrind report ("0 errors, all blocks freed") is the gold standard for C programs.</p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Stack is automatic; heap requires manual <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">malloc</code>/<code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">free</code></li>
+                    <li>Always check malloc's return value -- NULL means failure</li>
+                    <li>Set pointers to NULL after free to prevent use-after-free</li>
+                    <li>Memory leaks, UAF, and double-free are critical vulnerability classes</li>
+                    <li>Valgrind is your best friend for finding memory bugs</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-c-06-pointers.module.html" class="nav-btn">&lt; Previous: Pointers</a>
+                <a href="arm-c-08-structs-unions.module.html" class="nav-btn primary">Next: Structs & Unions &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        const MODULE_ID = 'arm-c-07-memory';
+        const tasks = { 't1': false, 't2': false, 't3': false, 't4': false };
+        const TASK_ORDER = ['t1', 't2', 't3', 't4'];
+        const TASK_INSTRUCTIONS = {
+            't1': { number: 1, title: 'malloc vs calloc', description: 'What is the key difference between malloc and calloc?', command: 'Answer: calloc zero-initializes; malloc does not', expect: 'Choosing the right allocator' },
+            't2': { number: 2, title: 'Use-After-Free', description: 'What happens when you access memory after calling free() on it?', command: 'Answer: Undefined behavior -- data may be overwritten', expect: 'Understanding UAF vulnerabilities' },
+            't3': { number: 3, title: 'Memory Leak Prevention', description: 'What two things should you always do after freeing a pointer?', command: 'Answer: Set pointer to NULL; never access it again', expect: 'Safe deallocation pattern' },
+            't4': { number: 4, title: 'Valgrind', description: 'What compiler flag is needed for Valgrind to show line numbers?', command: 'Answer: -g (debug symbols)', expect: 'Using Valgrind effectively' }
+        };
+        function showTaskInstruction(taskId) { var info = TASK_INSTRUCTIONS[taskId]; if (!info) return; var el = document.getElementById('taskInstruction'); el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>'; el.classList.add('visible'); document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); }); var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active'); }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        document.querySelectorAll('.task-chip').forEach(function(chip) { chip.addEventListener('click', function() { completeTask(this.getAttribute('data-task')); }); });
+        function completeTask(taskId) { if (tasks[taskId]) return; tasks[taskId] = true; var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); } updateProgress(); saveProgress(); var next = getNextIncompleteTask(); if (next) { showTaskInstruction(next); } else { var el = document.getElementById('taskInstruction'); el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Dynamic memory management and debugging mastered.</div>'; el.classList.add('visible'); ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-c-08-structs-unions.module.html' }); } }
+        function updateProgress() { var completed = Object.values(tasks).filter(function(v) { return v; }).length; var total = Object.keys(tasks).length; document.getElementById('progressFill').style.width = (completed / total * 100) + '%'; document.getElementById('progressText').textContent = completed + ' / ' + total; }
+        function saveProgress() { var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); if (!progress.code) progress.code = {}; var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; }); var allDone = tasksDone.length === Object.keys(tasks).length; progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now(), ...(allDone && { completedAt: new Date().toISOString() }) }; localStorage.setItem('hexworth_progress', JSON.stringify(progress)); }
+        (function loadProgress() { var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); var saved = progress.code && progress.code[MODULE_ID]; if (saved) { var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []); taskList.forEach(function(t) { tasks[t] = true; var c = document.querySelector('.task-chip[data-task="' + t + '"]'); if (c) c.classList.add('completed'); }); updateProgress(); } var next = getNextIncompleteTask(); if (next) showTaskInstruction(next); })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

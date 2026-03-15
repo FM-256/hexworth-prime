@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL-02: SELECT Fundamentals | Code Armory</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117;
+            --accent: #14b8a6; --accent-dim: rgba(20, 184, 166, 0.15);
+            --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12;
+            --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
+
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h3 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .syntax-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin: 14px 0; }
+        .syntax-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px; }
+        .syntax-code { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: var(--green); line-height: 1.8; }
+        .syntax-code .kw { color: var(--accent); font-weight: 600; }
+        .syntax-code .val { color: var(--yellow); }
+        .syntax-code .str { color: #ce9178; }
+
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+
+        .flag-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.9rem; }
+        .flag-table th, .flag-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        .flag-table th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+        .flag-table td code { font-size: 0.85rem; }
+
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0d9488; }
+        .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+
+        @media (max-width: 1100px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .content-panel { max-height: none; }
+            .terminal-panel { position: relative; top: 0; height: 500px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">SQL-02</span>
+            <h1>SELECT Fundamentals</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; SQL Track</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="select-all" onclick="showTaskInstruction('select-all')">1</span>
+                    <span class="task-chip" data-task="select-cols" onclick="showTaskInstruction('select-cols')">2</span>
+                    <span class="task-chip" data-task="where-clause" onclick="showTaskInstruction('where-clause')">3</span>
+                    <span class="task-chip" data-task="order-by" onclick="showTaskInstruction('order-by')">4</span>
+                    <span class="task-chip" data-task="distinct" onclick="showTaskInstruction('distinct')">5</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Write SELECT queries to retrieve data from tables</li>
+                    <li>Filter results with WHERE conditions</li>
+                    <li>Sort output with ORDER BY</li>
+                    <li>Limit results and eliminate duplicates with LIMIT and DISTINCT</li>
+                    <li>Use column aliases for cleaner output</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">The SELECT Statement</h2>
+                <p class="content-text"><code>SELECT</code> is the most-used SQL command. It retrieves data from one or more tables. Every query you write during an investigation, audit, or penetration test will start with SELECT.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Basic Syntax</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> column1, column2, ...<br>
+                        <span class="kw">FROM</span> table_name<br>
+                        <span class="kw">WHERE</span> condition<br>
+                        <span class="kw">ORDER BY</span> column <span class="kw">ASC</span>|<span class="kw">DESC</span><br>
+                        <span class="kw">LIMIT</span> number;
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">SELECT * (All Columns)</h2>
+                <p class="content-text">The asterisk <code>*</code> selects every column from a table. Useful for exploration, but avoid in production -- always name your columns explicitly.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users;</div>
+                    <div class="command-desc">Retrieve all rows and all columns from the users table.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM users;</div>
+                        <div><span class="output">1|admin|admin@hexworth.io|admin|1</span></div>
+                        <div><span class="output">2|jsmith|john.smith@corp.com|user|1</span></div>
+                        <div><span class="output">3|analyst1|sec.analyst@corp.com|analyst|1</span></div>
+                        <div><span class="output">4|hacker|pwned@evil.com|user|0</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Selecting Specific Columns</h2>
+                <p class="content-text">Name the columns you need. This is faster, more readable, and more secure -- you avoid accidentally exposing sensitive fields like password hashes.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT username, email FROM users;</div>
+                    <div class="command-desc">Retrieve only the username and email columns.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT username, email FROM users;</div>
+                        <div><span class="output">admin|admin@hexworth.io</span></div>
+                        <div><span class="output">jsmith|john.smith@corp.com</span></div>
+                        <div><span class="output">analyst1|sec.analyst@corp.com</span></div>
+                        <div><span class="output">hacker|pwned@evil.com</span></div>
+                    </div>
+                </div>
+
+                <p class="content-text">You can also use <strong>aliases</strong> with <code>AS</code> to rename columns in the output:</p>
+                <div class="command-card">
+                    <div class="command-name">SELECT username AS name, role AS access_level FROM users;</div>
+                    <div class="command-desc">Aliases rename columns in query output without changing the table.</div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">WHERE -- Filtering Results</h2>
+                <p class="content-text">The <code>WHERE</code> clause filters rows based on conditions. Only rows that match the condition are returned. This is your primary tool for targeted data extraction.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE role = 'admin';</div>
+                    <div class="command-desc">Find all admin users. Text values must be wrapped in single quotes.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM users WHERE role = 'admin';</div>
+                        <div><span class="output">1|admin|admin@hexworth.io|admin|1</span></div>
+                    </div>
+                </div>
+
+                <table class="flag-table">
+                    <thead><tr><th>Operator</th><th>Meaning</th><th>Example</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>=</code></td><td>Equal to</td><td><code>WHERE role = 'admin'</code></td></tr>
+                        <tr><td><code>!=</code> or <code>&lt;&gt;</code></td><td>Not equal</td><td><code>WHERE active != 0</code></td></tr>
+                        <tr><td><code>&gt;</code></td><td>Greater than</td><td><code>WHERE user_id > 2</code></td></tr>
+                        <tr><td><code>&lt;</code></td><td>Less than</td><td><code>WHERE login_count < 5</code></td></tr>
+                        <tr><td><code>&gt;=</code></td><td>Greater or equal</td><td><code>WHERE user_id >= 1</code></td></tr>
+                        <tr><td><code>&lt;=</code></td><td>Less or equal</td><td><code>WHERE attempts <= 3</code></td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">ORDER BY -- Sorting Results</h2>
+                <p class="content-text"><code>ORDER BY</code> sorts the output. Default is ascending (<code>ASC</code>). Use <code>DESC</code> for descending. During incident response, you often sort by timestamp to see the most recent events first.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM login_logs ORDER BY timestamp DESC;</div>
+                    <div class="command-desc">Show login events with the most recent first.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM login_logs ORDER BY timestamp DESC;</div>
+                        <div><span class="output">2026-03-15 11:45:00|hacker|FAILED|192.168.1.99</span></div>
+                        <div><span class="output">2026-03-15 09:30:00|admin|SUCCESS|10.0.0.1</span></div>
+                        <div><span class="output">2026-03-14 17:00:00|jsmith|SUCCESS|10.0.0.50</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">LIMIT and DISTINCT</h2>
+                <p class="content-text"><code>LIMIT</code> restricts how many rows are returned. <code>DISTINCT</code> removes duplicate values from the result set.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM login_logs LIMIT 5;</div>
+                    <div class="command-desc">Return only the first 5 rows. Essential for large tables.</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT DISTINCT role FROM users;</div>
+                    <div class="command-desc">List unique roles. Removes duplicates from the output.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT DISTINCT role FROM users;</div>
+                        <div><span class="output">admin</span></div>
+                        <div><span class="output">user</span></div>
+                        <div><span class="output">analyst</span></div>
+                    </div>
+                </div>
+
+                <p class="content-text"><strong style="color:var(--accent)">Security tip:</strong> During reconnaissance, <code>SELECT DISTINCT</code> helps an attacker enumerate roles, table structures, and data patterns. As a defender, know what information your database exposes.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Putting It Together</h2>
+                <p class="content-text">Combine these clauses to write precise queries. Clause order matters:</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Clause Execution Order</div>
+                    <div class="syntax-code">
+                        <span class="val">1.</span> <span class="kw">FROM</span> &mdash; Which table?<br>
+                        <span class="val">2.</span> <span class="kw">WHERE</span> &mdash; Filter rows<br>
+                        <span class="val">3.</span> <span class="kw">SELECT</span> &mdash; Choose columns<br>
+                        <span class="val">4.</span> <span class="kw">DISTINCT</span> &mdash; Remove duplicates<br>
+                        <span class="val">5.</span> <span class="kw">ORDER BY</span> &mdash; Sort results<br>
+                        <span class="val">6.</span> <span class="kw">LIMIT</span> &mdash; Cap row count
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT DISTINCT username, role FROM users WHERE active = 1 ORDER BY username ASC LIMIT 10;</div>
+                    <div class="command-desc">Active users, sorted alphabetically, limited to 10 results with no duplicates.</div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><code>SELECT *</code> retrieves all columns; name columns explicitly in production</li>
+                    <li><code>WHERE</code> filters rows using comparison operators</li>
+                    <li><code>ORDER BY</code> sorts output (ASC default, DESC for newest-first)</li>
+                    <li><code>LIMIT</code> caps the number of returned rows</li>
+                    <li><code>DISTINCT</code> eliminates duplicate values from results</li>
+                    <li>SQL clause order: SELECT ... FROM ... WHERE ... ORDER BY ... LIMIT</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-sql-01-intro.module.html" class="nav-btn">&lt; Previous: Introduction</a>
+                <a href="arm-sql-03-filtering.module.html" class="nav-btn primary">Next: Filtering &amp; Operators &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('SQL-02', '#terminal', {
+            user: 'analyst',
+            hostname: 'sql-lab',
+            startDir: '/home/analyst',
+            height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
+                if (lower.includes('select') && lower.includes('*') && lower.includes('from')) completeTask('select-all');
+                if (lower.includes('select') && !lower.includes('*') && lower.includes('from') && lower.includes(',')) completeTask('select-cols');
+                if (lower.includes('where')) completeTask('where-clause');
+                if (lower.includes('order by')) completeTask('order-by');
+                if (lower.includes('distinct')) completeTask('distinct');
+            }
+        });
+
+        var MODULE_ID = 'arm-sql-02-select';
+        var tasks = { 'select-all': false, 'select-cols': false, 'where-clause': false, 'order-by': false, 'distinct': false };
+        var TASK_ORDER = ['select-all', 'select-cols', 'where-clause', 'order-by', 'distinct'];
+        var TASK_INSTRUCTIONS = {
+            'select-all': { number: 1, title: 'Select All Columns', description: 'Use the asterisk to retrieve every column from the users table.', command: 'SELECT * FROM users;', expect: 'Shows all columns for every row' },
+            'select-cols': { number: 2, title: 'Select Specific Columns', description: 'Choose only the columns you need -- list two or more by name.', command: 'SELECT username, email FROM users;', expect: 'Shows only the named columns' },
+            'where-clause': { number: 3, title: 'Filter with WHERE', description: 'Add a WHERE clause to filter rows based on a condition.', command: "SELECT * FROM users WHERE role = 'admin';", expect: 'Shows only rows matching the condition' },
+            'order-by': { number: 4, title: 'Sort with ORDER BY', description: 'Sort your results by a column, ascending or descending.', command: 'SELECT * FROM login_logs ORDER BY timestamp DESC;', expect: 'Results sorted by the specified column' },
+            'distinct': { number: 5, title: 'Remove Duplicates', description: 'Use DISTINCT to get unique values from a column.', command: 'SELECT DISTINCT role FROM users;', expect: 'Shows each unique role once' }
+        };
+
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You have mastered the SELECT fundamentals.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-sql-03-filtering.module.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            document.getElementById('progressFill').style.width = (completed / Object.keys(tasks).length * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + Object.keys(tasks).length;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now() };
+            if (allDone) progress.code[MODULE_ID].completedAt = new Date().toISOString();
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var chip = document.querySelector('.task-chip[data-task="' + t + '"]'); if (chip) chip.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

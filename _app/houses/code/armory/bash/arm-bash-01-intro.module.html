@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BASH-01: Introduction to Bash | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-terminal: #0d1117;
+            --accent: #4ade80;
+            --accent-dim: rgba(74, 222, 128, 0.15);
+            --green: #4EC9B0;
+            --red: #e74c3c;
+            --yellow: #f39c12;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh; overflow: hidden;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .module-badge {
+            background: var(--accent);
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 480px 1fr;
+            min-height: calc(100vh - 50px);
+        }
+
+        .content-panel {
+            padding: 25px 35px;
+            overflow-y: auto;
+            max-height: calc(100vh - 50px);
+        }
+
+        .terminal-panel {
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: calc(100vh - 50px);
+            position: sticky;
+            top: 50px;
+        }
+
+        .panel-tasks {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .panel-tasks-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .task-chip {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+
+        .task-instruction {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: none;
+        }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+
+        .terminal-container { flex: 1; min-height: 0; }
+
+        .section { margin-bottom: 35px; }
+
+        .section-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+
+        .objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 25px;
+        }
+
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        .command-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 10px 0;
+            transition: border-color 0.2s;
+        }
+
+        .command-card:hover { border-color: var(--accent); }
+
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+
+        .command-output {
+            background: var(--bg-terminal);
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+        .command-output .comment { color: #6a737d; }
+
+        .warning-box {
+            background: rgba(231, 76, 60, 0.1);
+            border-left: 3px solid var(--red);
+            padding: 14px 18px;
+            border-radius: 0 8px 8px 0;
+            margin: 14px 0;
+        }
+
+        .warning-box strong { color: var(--red); }
+
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid #3b82f6;
+            padding: 14px 18px;
+            border-radius: 0 8px 8px 0;
+            margin: 14px 0;
+        }
+
+        .info-box strong { color: #3b82f6; }
+
+        .takeaways {
+            background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05));
+            border: 1px solid var(--green);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        .nav-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 0;
+            margin-top: 30px;
+            border-top: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #22c55e; }
+        .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+
+        @media (max-width: 1100px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .content-panel { max-height: none; }
+            .terminal-panel { position: relative; top: 0; height: 500px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">BASH-01</span>
+            <h1>Introduction to Bash</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Track Home</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="echo" onclick="showTaskInstruction('echo')">1</span>
+                    <span class="task-chip" data-task="shebang" onclick="showTaskInstruction('shebang')">2</span>
+                    <span class="task-chip" data-task="script" onclick="showTaskInstruction('script')">3</span>
+                    <span class="task-chip" data-task="chmod" onclick="showTaskInstruction('chmod')">4</span>
+                    <span class="task-chip" data-task="run" onclick="showTaskInstruction('run')">5</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h2>Learning Objectives</h2>
+                <ul>
+                    <li>Understand what Bash is and how it differs from other shells</li>
+                    <li>Know the difference between a shell and a terminal emulator</li>
+                    <li>Write and execute your first Bash script</li>
+                    <li>Use the shebang line to specify the interpreter</li>
+                    <li>Set file permissions to make scripts executable</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What is Bash?</h2>
+                <p class="content-text">Bash (Bourne Again SHell) is the default command-line interpreter on most Linux distributions. It is both an interactive command processor -- the thing you type commands into -- and a scripting language capable of automating complex system tasks.</p>
+
+                <p class="content-text">When you open a terminal and type commands, you are already using Bash. A Bash <em>script</em> is simply a text file containing the same commands you would type interactively, executed in sequence.</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Interactive Shell</strong>
+                        <span>Type commands one at a time, see results immediately</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Scripting Language</strong>
+                        <span>Automate sequences of commands in reusable files</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>System Glue</strong>
+                        <span>Connect programs together with pipes and redirections</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Universal</strong>
+                        <span>Available on every Linux, macOS, and WSL system</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Shell vs Terminal</h2>
+                <p class="content-text">These two terms are often confused. The <strong>terminal</strong> (or terminal emulator) is the window that displays text. The <strong>shell</strong> is the program running inside that window, interpreting your commands.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Common Shells</div>
+                    <div class="command-output">
+                        <div><span class="output">bash    - Bourne Again Shell (most common on Linux)</span></div>
+                        <div><span class="output">zsh     - Z Shell (default on macOS since Catalina)</span></div>
+                        <div><span class="output">sh      - Original Bourne Shell (POSIX baseline)</span></div>
+                        <div><span class="output">fish    - Friendly Interactive Shell</span></div>
+                        <div><span class="output">dash    - Debian Almquist Shell (fast, minimal)</span></div>
+                    </div>
+                </div>
+
+                <p class="content-text">Check which shell you are currently running:</p>
+
+                <div class="command-card">
+                    <div class="command-name">echo $SHELL</div>
+                    <div class="command-desc">Prints the path to your default login shell</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> echo $SHELL</div>
+                        <div><span class="output">/bin/bash</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">The Shebang Line</h2>
+                <p class="content-text">Every script should start with a <strong>shebang</strong> -- the two characters <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">#!</code> followed by the path to the interpreter. This tells the OS which program should execute the file.</p>
+
+                <div class="command-card">
+                    <div class="command-name">#!/bin/bash</div>
+                    <div class="command-desc">The standard Bash shebang -- use this for all Bash scripts</div>
+                    <div class="command-output">
+                        <div><span class="comment">#!/bin/bash</span></div>
+                        <div><span class="comment"># This is a comment -- the shell ignores lines starting with #</span></div>
+                        <div><span class="output">echo "Hello from a Bash script!"</span></div>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p class="content-text"><strong>Portable alternative:</strong> <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">#!/usr/bin/env bash</code> uses the <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">env</code> command to find bash in the user's PATH. More portable across different systems where bash may not live at /bin/bash.</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Your First Script</h2>
+                <p class="content-text">Let's walk through the full lifecycle of creating and running a script.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Step 1: Create the file</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> echo '#!/bin/bash' > hello.sh</div>
+                        <div><span class="prompt">$</span> echo 'echo "Hello, $(whoami)! Today is $(date +%A)."' >> hello.sh</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Step 2: Make it executable</div>
+                    <div class="command-desc">Scripts need the execute permission before they can run directly</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> chmod +x hello.sh</div>
+                        <div><span class="prompt">$</span> ls -l hello.sh</div>
+                        <div><span class="output">-rwxr-xr-x 1 learner learner 62 Mar 15 10:00 hello.sh</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Step 3: Run it</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> ./hello.sh</div>
+                        <div><span class="output">Hello, learner! Today is Saturday.</span></div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p class="content-text"><strong>Why ./hello.sh?</strong> The <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">./</code> prefix tells the shell to look in the current directory. Without it, bash searches only your PATH directories and will report "command not found."</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Running Scripts Without chmod</h2>
+                <p class="content-text">You can also run a script by passing it directly to the bash interpreter. This does not require execute permissions:</p>
+
+                <div class="command-card">
+                    <div class="command-name">bash hello.sh</div>
+                    <div class="command-desc">Explicitly tells bash to interpret the file</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> bash hello.sh</div>
+                        <div><span class="output">Hello, learner! Today is Saturday.</span></div>
+                    </div>
+                </div>
+
+                <p class="content-text">This is useful for testing scripts quickly, but production scripts should always be made executable with chmod and run with <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">./</code> notation.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Script File Conventions</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>.sh Extension</strong>
+                        <span>Not required by the OS, but convention. Helps humans identify scripts.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Naming</strong>
+                        <span>Use lowercase with hyphens: backup-logs.sh, check-disk.sh</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Comments</strong>
+                        <span>Start with # -- explain why, not what. Document assumptions.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Header Block</strong>
+                        <span>Include author, date, purpose, and usage in top comments.</span>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Script Header Template</div>
+                    <div class="command-output">
+                        <div><span class="comment">#!/bin/bash</span></div>
+                        <div><span class="comment"># -------------------------------------------------</span></div>
+                        <div><span class="comment"># Script:  check-disk.sh</span></div>
+                        <div><span class="comment"># Purpose: Alert when disk usage exceeds threshold</span></div>
+                        <div><span class="comment"># Usage:   ./check-disk.sh [threshold]</span></div>
+                        <div><span class="comment"># -------------------------------------------------</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Bash is both an interactive shell and a scripting language</li>
+                    <li>The terminal is the window; the shell is the interpreter inside it</li>
+                    <li>Every script starts with a shebang: #!/bin/bash</li>
+                    <li>chmod +x makes a script executable; ./ runs it from the current directory</li>
+                    <li>Use clear naming conventions and header comments in every script</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="index.html" class="nav-btn disabled">&lt; Previous</a>
+                <a href="arm-bash-02-variables.module.html" class="nav-btn primary">Next: Variables &amp; Quoting &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('BASH-01', '#terminal', {
+            user: 'learner',
+            hostname: 'bash-lab',
+            startDir: '/home/learner',
+            height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'echo' && cmdLine.includes('$SHELL')) completeTask('echo');
+                if (cmdLine.includes("echo '#!/bin/bash'") || cmdLine.includes('echo "#!/bin/bash"')) completeTask('shebang');
+                if (cmdLine.includes('>> hello.sh') || cmdLine.includes("> hello.sh")) completeTask('script');
+                if (cmd === 'chmod' && cmdLine.includes('+x')) completeTask('chmod');
+                if (cmdLine.includes('./hello.sh') || (cmd === 'bash' && cmdLine.includes('hello.sh'))) completeTask('run');
+            }
+        });
+
+        var MODULE_ID = 'arm-bash-01-intro';
+        var tasks = { 'echo': false, 'shebang': false, 'script': false, 'chmod': false, 'run': false };
+        var TASK_ORDER = ['echo', 'shebang', 'script', 'chmod', 'run'];
+        var TASK_INSTRUCTIONS = {
+            'echo':    { number: 1, title: 'Check Your Shell',   description: 'Display the path to your current shell.',                    command: 'echo $SHELL',                    expect: 'Shows /bin/bash or similar' },
+            'shebang': { number: 2, title: 'Write the Shebang',  description: 'Create a new script file starting with the shebang line.',   command: "echo '#!/bin/bash' > hello.sh",  expect: 'Creates hello.sh with shebang' },
+            'script':  { number: 3, title: 'Add a Command',      description: 'Append an echo command to your script.',                     command: "echo 'echo \"Hello Bash!\"' >> hello.sh", expect: 'Adds echo line to hello.sh' },
+            'chmod':   { number: 4, title: 'Make It Executable',  description: 'Set the execute permission on your script.',                 command: 'chmod +x hello.sh',              expect: 'Script gains execute permission' },
+            'run':     { number: 5, title: 'Run Your Script',     description: 'Execute the script you just created.',                       command: './hello.sh',                     expect: 'Prints Hello Bash!' }
+        };
+
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId];
+            if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress();
+            saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You wrote and executed your first Bash script.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', 'arm-bash-01-intro', { returnUrl: 'arm-bash-02-variables.module.html' });
+            }
+        }
+
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            var total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (completed / total * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + total;
+        }
+
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = {
+                completed: allDone,
+                completedTasks: tasksDone,
+                lastAccess: Date.now(),
+                ...(allDone && { completedAt: new Date().toISOString() })
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var c = document.querySelector('.task-chip[data-task="' + t + '"]'); if (c) c.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

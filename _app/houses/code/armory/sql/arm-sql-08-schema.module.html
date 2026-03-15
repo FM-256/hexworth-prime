@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL-08: Schema Design | Code Armory</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #14b8a6; --accent-dim: rgba(20,184,166,0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78,201,176,0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; font-size: 0.78rem; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h3 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .syntax-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin: 14px 0; }
+        .syntax-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px; }
+        .syntax-code { font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--green); line-height: 1.8; }
+        .syntax-code .kw { color: var(--accent); font-weight: 600; }
+        .syntax-code .val { color: var(--yellow); }
+        .syntax-code .cmt { color: #6a9955; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .flag-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.9rem; }
+        .flag-table th, .flag-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        .flag-table th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .takeaways { background: linear-gradient(135deg, rgba(78,201,176,0.1), rgba(78,201,176,0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0d9488; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">SQL-08</span>
+            <h1>Schema Design</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; SQL Track</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="create-table" onclick="showTaskInstruction('create-table')">1</span>
+                    <span class="task-chip" data-task="constraint" onclick="showTaskInstruction('constraint')">2</span>
+                    <span class="task-chip" data-task="index-create" onclick="showTaskInstruction('index-create')">3</span>
+                    <span class="task-chip" data-task="alter-table" onclick="showTaskInstruction('alter-table')">4</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Create tables with appropriate data types</li>
+                    <li>Apply constraints: PRIMARY KEY, FOREIGN KEY, NOT NULL, UNIQUE, CHECK</li>
+                    <li>Create indexes for query performance</li>
+                    <li>Understand normalization forms (1NF, 2NF, 3NF)</li>
+                    <li>Read and design Entity-Relationship Diagrams (ERDs)</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">CREATE TABLE</h2>
+                <p class="content-text"><code>CREATE TABLE</code> defines a new table with named columns and data types. This is the foundation of database architecture.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Create a Security Audit Log Table</div>
+                    <div class="syntax-code">
+                        <span class="kw">CREATE TABLE</span> audit_log (<br>
+                        &nbsp;&nbsp;log_id <span class="val">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,<br>
+                        &nbsp;&nbsp;timestamp <span class="val">DATETIME</span> <span class="kw">NOT NULL DEFAULT</span> (datetime(<span class="val">'now'</span>)),<br>
+                        &nbsp;&nbsp;user_id <span class="val">INTEGER</span> <span class="kw">NOT NULL</span>,<br>
+                        &nbsp;&nbsp;action <span class="val">TEXT</span> <span class="kw">NOT NULL</span>,<br>
+                        &nbsp;&nbsp;target_table <span class="val">TEXT</span>,<br>
+                        &nbsp;&nbsp;ip_address <span class="val">TEXT</span>,<br>
+                        &nbsp;&nbsp;<span class="kw">FOREIGN KEY</span> (user_id) <span class="kw">REFERENCES</span> users(user_id)<br>
+                        );
+                    </div>
+                </div>
+
+                <table class="flag-table">
+                    <thead><tr><th>Data Type</th><th>Use Case</th><th>Example</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>INTEGER</code></td><td>Whole numbers, IDs, counts</td><td>user_id, port_number</td></tr>
+                        <tr><td><code>TEXT</code></td><td>Variable-length strings</td><td>username, email, ip_address</td></tr>
+                        <tr><td><code>REAL</code></td><td>Floating-point numbers</td><td>response_time, score</td></tr>
+                        <tr><td><code>DATETIME</code></td><td>Timestamps</td><td>created_at, last_login</td></tr>
+                        <tr><td><code>BLOB</code></td><td>Binary data</td><td>file_content, certificate</td></tr>
+                        <tr><td><code>BOOLEAN</code></td><td>True/false (stored as 0/1)</td><td>active, is_admin</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Constraints</h2>
+                <p class="content-text">Constraints enforce rules on your data, preventing invalid entries at the database level. They are your last line of defense against bad data.</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>PRIMARY KEY</strong>
+                        <span>Uniquely identifies each row. Auto-increment generates IDs automatically.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>FOREIGN KEY</strong>
+                        <span>References a primary key in another table. Enforces referential integrity.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>NOT NULL</strong>
+                        <span>Column cannot contain NULL. Every row must have a value.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>UNIQUE</strong>
+                        <span>No two rows can have the same value in this column (e.g., email, username).</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>CHECK</strong>
+                        <span>Custom validation rule. e.g., <code>CHECK(age >= 0)</code> prevents negative ages.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>DEFAULT</strong>
+                        <span>Provides a fallback value when none is specified during INSERT.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Indexes</h2>
+                <p class="content-text">An index speeds up queries by creating a sorted lookup structure -- like an index in a book. Without indexes, the database scans every row (full table scan).</p>
+
+                <div class="command-card">
+                    <div class="command-name">CREATE INDEX idx_login_user ON login_logs(user_id);</div>
+                    <div class="command-desc">Create an index on user_id. Queries filtering by user_id will be dramatically faster.</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">CREATE INDEX idx_login_status_time ON login_logs(status, timestamp);</div>
+                    <div class="command-desc">Composite index on two columns. Optimizes queries that filter by both status and time.</div>
+                </div>
+
+                <p class="content-text"><strong style="color:var(--accent)">Trade-off:</strong> Indexes speed up reads but slow down writes (INSERT/UPDATE/DELETE), because the index must be updated. Index strategically -- focus on columns used in WHERE, JOIN, and ORDER BY.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Normalization</h2>
+                <p class="content-text">Normalization is the process of organizing tables to reduce redundancy and prevent anomalies. There are three main normal forms:</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>1NF -- First Normal Form</strong>
+                        <span>Each column holds atomic (indivisible) values. No repeating groups. Each row is unique.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>2NF -- Second Normal Form</strong>
+                        <span>Meets 1NF + every non-key column depends on the entire primary key (no partial dependencies).</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>3NF -- Third Normal Form</strong>
+                        <span>Meets 2NF + no transitive dependencies. Non-key columns depend only on the primary key.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Denormalization</strong>
+                        <span>Sometimes you intentionally break normalization for read performance. Common in analytics/reporting databases.</span>
+                    </div>
+                </div>
+
+                <p class="content-text"><strong style="color:var(--accent)">Security impact:</strong> Poor normalization leads to data inconsistencies. If a user's role is stored in multiple tables without foreign keys, changing it in one place creates privilege confusion -- a real attack vector.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">ALTER TABLE and DROP</h2>
+                <p class="content-text">Modify existing table structures with <code>ALTER TABLE</code>. Destroy tables with <code>DROP TABLE</code>.</p>
+
+                <div class="command-card">
+                    <div class="command-name">ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 0;</div>
+                    <div class="command-desc">Add a multi-factor authentication flag to the users table.</div>
+                </div>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Other ALTER Operations</div>
+                    <div class="syntax-code">
+                        <span class="cmt">-- Rename a table</span><br>
+                        <span class="kw">ALTER TABLE</span> old_name <span class="kw">RENAME TO</span> new_name;<br><br>
+                        <span class="cmt">-- Drop a table entirely (DANGER)</span><br>
+                        <span class="kw">DROP TABLE IF EXISTS</span> temp_data;
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Entity-Relationship Diagrams</h2>
+                <p class="content-text">An ERD visually maps tables, their columns, and relationships. Before writing CREATE TABLE, design your ERD to ensure proper structure.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Security Database ERD (Text Representation)</div>
+                    <div class="syntax-code" style="font-size:0.82rem;">
+                        [users] 1---* [login_logs]<br>
+                        &nbsp;&nbsp;user_id PK&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;log_id PK<br>
+                        &nbsp;&nbsp;username&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user_id FK<br>
+                        &nbsp;&nbsp;email&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timestamp<br>
+                        &nbsp;&nbsp;role&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;status<br>
+                        &nbsp;&nbsp;active&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ip_address<br><br>
+                        [users] 1---* [permissions]<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perm_id PK<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user_id FK<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;permission<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;granted_by
+                    </div>
+                </div>
+                <p class="content-text">The <code>1---*</code> notation means "one-to-many." One user can have many login logs and many permissions.</p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><code>CREATE TABLE</code> defines structure; choose appropriate data types</li>
+                    <li>Constraints (PK, FK, NOT NULL, UNIQUE, CHECK) enforce data integrity at the database level</li>
+                    <li>Indexes speed up reads but slow down writes -- index strategically</li>
+                    <li>Normalization (1NF/2NF/3NF) reduces redundancy and prevents data anomalies</li>
+                    <li>Design ERDs before writing SQL -- plan the structure, then build it</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-sql-07-crud.module.html" class="nav-btn">&lt; Previous: CRUD</a>
+                <a href="arm-sql-09-security.module.html" class="nav-btn primary">Next: SQL Security &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('SQL-08', '#terminal', {
+            user: 'analyst', hostname: 'sql-lab', startDir: '/home/analyst', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
+                if (lower.includes('create table')) completeTask('create-table');
+                if (lower.includes('primary key') || lower.includes('foreign key') || lower.includes('not null') || lower.includes('unique') || lower.includes('check(')) completeTask('constraint');
+                if (lower.includes('create index')) completeTask('index-create');
+                if (lower.includes('alter table')) completeTask('alter-table');
+            }
+        });
+        var MODULE_ID = 'arm-sql-08-schema';
+        var tasks = { 'create-table': false, 'constraint': false, 'index-create': false, 'alter-table': false };
+        var TASK_ORDER = ['create-table', 'constraint', 'index-create', 'alter-table'];
+        var TASK_INSTRUCTIONS = {
+            'create-table': { number: 1, title: 'Create a Table', description: 'Define a new table with at least two columns.', command: 'CREATE TABLE audit_log (log_id INTEGER PRIMARY KEY, action TEXT NOT NULL);', expect: 'New table is created' },
+            'constraint': { number: 2, title: 'Use a Constraint', description: 'Include a constraint (PRIMARY KEY, NOT NULL, UNIQUE, etc.) in a CREATE TABLE or standalone.', command: 'CREATE TABLE sessions (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, token TEXT UNIQUE);', expect: 'Constraint enforces a rule on the data' },
+            'index-create': { number: 3, title: 'Create an Index', description: 'Build an index on a frequently-queried column.', command: 'CREATE INDEX idx_logs_user ON login_logs(user_id);', expect: 'Index created for faster lookups' },
+            'alter-table': { number: 4, title: 'Alter a Table', description: 'Modify an existing table with ALTER TABLE.', command: 'ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 0;', expect: 'Table structure is modified' }
+        };
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You have mastered schema design.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-sql-09-security.module.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            document.getElementById('progressFill').style.width = (completed / Object.keys(tasks).length * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + Object.keys(tasks).length;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now() };
+            if (allDone) progress.code[MODULE_ID].completedAt = new Date().toISOString();
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var chip = document.querySelector('.task-chip[data-task="' + t + '"]'); if (chip) chip.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

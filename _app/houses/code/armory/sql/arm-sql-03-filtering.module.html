@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL-03: Filtering &amp; Operators | Code Armory</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117;
+            --accent: #14b8a6; --accent-dim: rgba(20, 184, 166, 0.15);
+            --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12;
+            --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
+
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h3 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .syntax-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin: 14px 0; }
+        .syntax-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px; }
+        .syntax-code { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: var(--green); line-height: 1.8; }
+        .syntax-code .kw { color: var(--accent); font-weight: 600; }
+        .syntax-code .val { color: var(--yellow); }
+
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+
+        .flag-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.9rem; }
+        .flag-table th, .flag-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        .flag-table th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+        .flag-table td code { font-size: 0.85rem; }
+
+        .warn-box { background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .warn-box strong { color: var(--red); }
+        .warn-box p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0d9488; }
+
+        @media (max-width: 1100px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .content-panel { max-height: none; }
+            .terminal-panel { position: relative; top: 0; height: 500px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">SQL-03</span>
+            <h1>Filtering &amp; Operators</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; SQL Track</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="and-or" onclick="showTaskInstruction('and-or')">1</span>
+                    <span class="task-chip" data-task="in-op" onclick="showTaskInstruction('in-op')">2</span>
+                    <span class="task-chip" data-task="between-op" onclick="showTaskInstruction('between-op')">3</span>
+                    <span class="task-chip" data-task="like-op" onclick="showTaskInstruction('like-op')">4</span>
+                    <span class="task-chip" data-task="is-null" onclick="showTaskInstruction('is-null')">5</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Combine conditions with AND, OR, and NOT</li>
+                    <li>Use IN for matching against value lists</li>
+                    <li>Filter ranges with BETWEEN</li>
+                    <li>Pattern-match text with LIKE and wildcards</li>
+                    <li>Handle NULL values correctly with IS NULL / IS NOT NULL</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Logical Operators: AND, OR, NOT</h2>
+                <p class="content-text">Combine multiple conditions to build precise filters. <code>AND</code> requires all conditions to be true. <code>OR</code> requires at least one. <code>NOT</code> negates a condition.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE role = 'user' AND active = 1;</div>
+                    <div class="command-desc">Find active users with the 'user' role. Both conditions must match.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM users WHERE role = 'user' AND active = 1;</div>
+                        <div><span class="output">2|jsmith|john.smith@corp.com|user|1</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE role = 'admin' OR role = 'analyst';</div>
+                    <div class="command-desc">Find users who are either admins or analysts.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM users WHERE role = 'admin' OR role = 'analyst';</div>
+                        <div><span class="output">1|admin|admin@hexworth.io|admin|1</span></div>
+                        <div><span class="output">3|analyst1|sec.analyst@corp.com|analyst|1</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE NOT active = 1;</div>
+                    <div class="command-desc">Find all inactive (disabled) accounts. NOT inverts the condition.</div>
+                </div>
+
+                <p class="content-text"><strong style="color:var(--accent)">Operator precedence:</strong> <code>NOT</code> is evaluated first, then <code>AND</code>, then <code>OR</code>. Use parentheses to make your intent clear:</p>
+                <div class="syntax-box">
+                    <div class="syntax-label">Parentheses for Clarity</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> login_logs<br>
+                        <span class="kw">WHERE</span> (status = <span class="val">'FAILED'</span> <span class="kw">OR</span> status = <span class="val">'BLOCKED'</span>)<br>
+                        <span class="kw">AND</span> ip_address = <span class="val">'192.168.1.99'</span>;
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">IN -- Matching Value Lists</h2>
+                <p class="content-text"><code>IN</code> checks if a value matches any item in a list. It is a cleaner alternative to chaining multiple OR conditions.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE role IN ('admin', 'analyst');</div>
+                    <div class="command-desc">Find users whose role is either admin or analyst. Equivalent to role = 'admin' OR role = 'analyst'.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM users WHERE role IN ('admin', 'analyst');</div>
+                        <div><span class="output">1|admin|admin@hexworth.io|admin|1</span></div>
+                        <div><span class="output">3|analyst1|sec.analyst@corp.com|analyst|1</span></div>
+                    </div>
+                </div>
+
+                <p class="content-text">Use <code>NOT IN</code> to exclude values: <code>WHERE role NOT IN ('user', 'guest')</code></p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">BETWEEN -- Range Filtering</h2>
+                <p class="content-text"><code>BETWEEN</code> filters values within a range, inclusive of both endpoints. Works with numbers, dates, and text.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM login_logs WHERE timestamp BETWEEN '2026-03-14' AND '2026-03-15';</div>
+                    <div class="command-desc">Find all login events within a 24-hour window. Critical for incident timeline reconstruction.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM login_logs WHERE timestamp BETWEEN '2026-03-14' AND '2026-03-15';</div>
+                        <div><span class="output">2026-03-14 17:00:00|jsmith|SUCCESS|10.0.0.50</span></div>
+                        <div><span class="output">2026-03-15 09:30:00|admin|SUCCESS|10.0.0.1</span></div>
+                        <div><span class="output">2026-03-15 11:45:00|hacker|FAILED|192.168.1.99</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE user_id BETWEEN 2 AND 4;</div>
+                    <div class="command-desc">Find users with IDs from 2 to 4 inclusive.</div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">LIKE -- Pattern Matching</h2>
+                <p class="content-text"><code>LIKE</code> performs pattern matching on text columns using two wildcards:</p>
+
+                <table class="flag-table">
+                    <thead><tr><th>Wildcard</th><th>Meaning</th><th>Example</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>%</code></td><td>Zero or more characters</td><td><code>'%admin%'</code> matches "admin", "sysadmin", "admin_backup"</td></tr>
+                        <tr><td><code>_</code></td><td>Exactly one character</td><td><code>'user_'</code> matches "user1", "userA" but not "user" or "user12"</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE email LIKE '%@corp.com';</div>
+                    <div class="command-desc">Find all users with corporate email addresses.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM users WHERE email LIKE '%@corp.com';</div>
+                        <div><span class="output">2|jsmith|john.smith@corp.com|user|1</span></div>
+                        <div><span class="output">3|analyst1|sec.analyst@corp.com|analyst|1</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE username LIKE 'a%';</div>
+                    <div class="command-desc">Find all usernames starting with the letter 'a'.</div>
+                </div>
+
+                <div class="warn-box">
+                    <strong>Security Note</strong>
+                    <p>Attackers use LIKE with wildcards during SQL injection to enumerate database contents. For example: <code>admin' OR username LIKE '%' --</code> can reveal all usernames if the input is not sanitized.</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">IS NULL / IS NOT NULL</h2>
+                <p class="content-text"><code>NULL</code> represents missing or unknown data. You cannot use <code>=</code> to check for NULL -- you must use <code>IS NULL</code> or <code>IS NOT NULL</code>.</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT * FROM users WHERE last_login IS NULL;</div>
+                    <div class="command-desc">Find users who have never logged in. These could be dormant accounts -- a security risk.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT * FROM users WHERE last_login IS NULL;</div>
+                        <div><span class="output">4|hacker|pwned@evil.com|user|0</span></div>
+                    </div>
+                </div>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Common Mistake</div>
+                    <div class="syntax-code">
+                        -- WRONG: This will never match anything<br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> users <span class="kw">WHERE</span> last_login = <span class="val">NULL</span>;<br><br>
+                        -- CORRECT: Use IS NULL<br>
+                        <span class="kw">SELECT</span> * <span class="kw">FROM</span> users <span class="kw">WHERE</span> last_login <span class="kw">IS NULL</span>;
+                    </div>
+                </div>
+
+                <p class="content-text">This is because NULL is not a value -- it is the absence of a value. Any comparison with NULL using <code>=</code> returns NULL (neither true nor false), so no rows match.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Combining Everything</h2>
+                <p class="content-text">Real-world queries combine multiple operators. Here is a forensic query that finds suspicious login activity:</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Incident Response Query</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> username, ip_address, status, timestamp<br>
+                        <span class="kw">FROM</span> login_logs<br>
+                        <span class="kw">WHERE</span> status = <span class="val">'FAILED'</span><br>
+                        <span class="kw">AND</span> timestamp <span class="kw">BETWEEN</span> <span class="val">'2026-03-15 00:00:00'</span> <span class="kw">AND</span> <span class="val">'2026-03-15 23:59:59'</span><br>
+                        <span class="kw">AND</span> ip_address <span class="kw">NOT IN</span> (<span class="val">'10.0.0.1'</span>, <span class="val">'10.0.0.50'</span>)<br>
+                        <span class="kw">ORDER BY</span> timestamp <span class="kw">DESC</span>;
+                    </div>
+                </div>
+                <p class="content-text">This query finds all failed logins today from non-internal IP addresses, sorted newest first. This is exactly the kind of query you would run during an active investigation.</p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><code>AND</code> requires all conditions true; <code>OR</code> requires at least one; <code>NOT</code> negates</li>
+                    <li><code>IN ('a', 'b', 'c')</code> is cleaner than chaining OR conditions</li>
+                    <li><code>BETWEEN</code> filters inclusive ranges -- works for numbers, dates, and text</li>
+                    <li><code>LIKE</code> with <code>%</code> (any characters) and <code>_</code> (single character) for pattern matching</li>
+                    <li>Always use <code>IS NULL</code> / <code>IS NOT NULL</code> -- never <code>= NULL</code></li>
+                    <li>Use parentheses to control operator precedence in complex conditions</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-sql-02-select.module.html" class="nav-btn">&lt; Previous: SELECT</a>
+                <a href="arm-sql-04-joins.module.html" class="nav-btn primary">Next: JOIN Operations &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('SQL-03', '#terminal', {
+            user: 'analyst', hostname: 'sql-lab', startDir: '/home/analyst', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
+                if ((lower.includes(' and ') || lower.includes(' or ')) && lower.includes('where')) completeTask('and-or');
+                if (lower.includes(' in ') && lower.includes('(')) completeTask('in-op');
+                if (lower.includes('between')) completeTask('between-op');
+                if (lower.includes('like')) completeTask('like-op');
+                if (lower.includes('is null') || lower.includes('is not null')) completeTask('is-null');
+            }
+        });
+
+        var MODULE_ID = 'arm-sql-03-filtering';
+        var tasks = { 'and-or': false, 'in-op': false, 'between-op': false, 'like-op': false, 'is-null': false };
+        var TASK_ORDER = ['and-or', 'in-op', 'between-op', 'like-op', 'is-null'];
+        var TASK_INSTRUCTIONS = {
+            'and-or': { number: 1, title: 'Use AND or OR', description: 'Combine two conditions in a WHERE clause using AND or OR.', command: "SELECT * FROM users WHERE role = 'user' AND active = 1;", expect: 'Returns rows matching both conditions' },
+            'in-op': { number: 2, title: 'Use IN Operator', description: 'Match a column against a list of values using IN.', command: "SELECT * FROM users WHERE role IN ('admin', 'analyst');", expect: 'Returns rows matching any value in the list' },
+            'between-op': { number: 3, title: 'Use BETWEEN', description: 'Filter a range of values with BETWEEN.', command: "SELECT * FROM login_logs WHERE timestamp BETWEEN '2026-03-14' AND '2026-03-15';", expect: 'Returns rows within the specified range' },
+            'like-op': { number: 4, title: 'Pattern Match with LIKE', description: 'Use LIKE with wildcards to search text patterns.', command: "SELECT * FROM users WHERE email LIKE '%@corp.com';", expect: 'Returns rows where email ends with @corp.com' },
+            'is-null': { number: 5, title: 'Check for NULL', description: 'Find rows with missing data using IS NULL.', command: 'SELECT * FROM users WHERE last_login IS NULL;', expect: 'Returns rows where last_login has no value' }
+        };
+
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You have mastered SQL filtering operators.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-sql-04-joins.module.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            document.getElementById('progressFill').style.width = (completed / Object.keys(tasks).length * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + Object.keys(tasks).length;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now() };
+            if (allDone) progress.code[MODULE_ID].completedAt = new Date().toISOString();
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var chip = document.querySelector('.task-chip[data-task="' + t + '"]'); if (chip) chip.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

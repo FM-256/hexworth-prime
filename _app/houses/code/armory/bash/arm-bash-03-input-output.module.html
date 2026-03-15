@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BASH-03: Input &amp; Output | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #4ade80; --accent-dim: rgba(74,222,128,0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78,201,176,0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+        .command-output .comment { color: #6a737d; }
+        .warning-box { background: rgba(231,76,60,0.1); border-left: 3px solid var(--red); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+        .warning-box strong { color: var(--red); }
+        .info-box { background: rgba(59,130,246,0.1); border-left: 3px solid #3b82f6; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+        .info-box strong { color: #3b82f6; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .takeaways { background: linear-gradient(135deg, rgba(78,201,176,0.1), rgba(78,201,176,0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #22c55e; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">BASH-03</span>
+            <h1>Input &amp; Output</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Track Home</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="printf" onclick="showTaskInstruction('printf')">1</span>
+                    <span class="task-chip" data-task="redirect" onclick="showTaskInstruction('redirect')">2</span>
+                    <span class="task-chip" data-task="append" onclick="showTaskInstruction('append')">3</span>
+                    <span class="task-chip" data-task="pipe" onclick="showTaskInstruction('pipe')">4</span>
+                    <span class="task-chip" data-task="stderr" onclick="showTaskInstruction('stderr')">5</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h2>Learning Objectives</h2>
+                <ul>
+                    <li>Use echo and printf for formatted output</li>
+                    <li>Redirect stdout and stderr to files</li>
+                    <li>Append output without overwriting</li>
+                    <li>Chain commands with pipes</li>
+                    <li>Use here-documents and here-strings</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">echo vs printf</h2>
+                <p class="content-text"><code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">echo</code> is simple and fast. <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">printf</code> gives you precise formatting control -- it works the same way across all POSIX systems.</p>
+
+                <div class="command-card">
+                    <div class="command-name">echo Options</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> echo "Hello World"</div>
+                        <div><span class="output">Hello World</span></div>
+                        <div><span class="prompt">$</span> echo -n "No newline"</div>
+                        <div><span class="output">No newline$</span></div>
+                        <div><span class="prompt">$</span> echo -e "Tab:\there\nNew line"</div>
+                        <div><span class="output">Tab:    here</span></div>
+                        <div><span class="output">New line</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">printf Formatting</div>
+                    <div class="command-desc">C-style format strings -- predictable across all shells</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> printf "%-15s %5d\n" "Alice" 95</div>
+                        <div><span class="output">Alice                95</span></div>
+                        <div><span class="prompt">$</span> printf "%-15s %5d\n" "Bob" 87</div>
+                        <div><span class="output">Bob                  87</span></div>
+                        <div><span class="prompt">$</span> printf "Hex: %x  Octal: %o\n" 255 255</div>
+                        <div><span class="output">Hex: ff  Octal: 377</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Output Redirection</h2>
+                <p class="content-text">Every process has three standard streams: stdin (0), stdout (1), and stderr (2). Redirection lets you route these streams to files.</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>&gt; file</strong>
+                        <span>Redirect stdout to file (overwrite)</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>&gt;&gt; file</strong>
+                        <span>Append stdout to file</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>2&gt; file</strong>
+                        <span>Redirect stderr to file</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>&amp;&gt; file</strong>
+                        <span>Redirect both stdout and stderr</span>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Redirection Examples</div>
+                    <div class="command-output">
+                        <div><span class="comment"># Overwrite file with command output</span></div>
+                        <div><span class="prompt">$</span> ls /etc > etc_listing.txt</div>
+                        <div></div>
+                        <div><span class="comment"># Append to an existing log</span></div>
+                        <div><span class="prompt">$</span> echo "$(date): Script started" >> script.log</div>
+                        <div></div>
+                        <div><span class="comment"># Capture errors separately</span></div>
+                        <div><span class="prompt">$</span> find / -name "*.conf" 2> /dev/null</div>
+                        <div></div>
+                        <div><span class="comment"># Redirect stdout to file AND stderr to another file</span></div>
+                        <div><span class="prompt">$</span> command > output.txt 2> errors.txt</div>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p class="content-text"><strong>/dev/null</strong> is the "black hole" -- anything redirected there is silently discarded. Essential for suppressing unwanted error messages in scripts.</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Pipes</h2>
+                <p class="content-text">The pipe operator <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">|</code> connects the stdout of one command to the stdin of the next. This is the fundamental building block of Unix philosophy: small tools chained together.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Pipe Chains</div>
+                    <div class="command-output">
+                        <div><span class="comment"># Count files in /etc</span></div>
+                        <div><span class="prompt">$</span> ls /etc | wc -l</div>
+                        <div><span class="output">198</span></div>
+                        <div></div>
+                        <div><span class="comment"># Find running processes and filter</span></div>
+                        <div><span class="prompt">$</span> ps aux | grep ssh | grep -v grep</div>
+                        <div></div>
+                        <div><span class="comment"># Sort and show top disk usage</span></div>
+                        <div><span class="prompt">$</span> du -sh /var/log/* 2>/dev/null | sort -rh | head -5</div>
+                        <div></div>
+                        <div><span class="comment"># Extract unique IPs from a log</span></div>
+                        <div><span class="prompt">$</span> cat /var/log/auth.log | grep "Failed" | awk '{print $11}' | sort -u</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Input Redirection &amp; Here-Documents</h2>
+                <p class="content-text">Input redirection feeds file contents into a command's stdin. Here-documents let you embed multi-line input directly in a script.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Input Redirection</div>
+                    <div class="command-output">
+                        <div><span class="comment"># Feed a file into a command</span></div>
+                        <div><span class="prompt">$</span> wc -l &lt; /etc/passwd</div>
+                        <div><span class="output">42</span></div>
+                        <div></div>
+                        <div><span class="comment"># Sort lines from a file</span></div>
+                        <div><span class="prompt">$</span> sort &lt; unsorted.txt &gt; sorted.txt</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Here-Document (&lt;&lt;)</div>
+                    <div class="command-desc">Embed multi-line input directly in your script</div>
+                    <div class="command-output">
+                        <div><span class="comment">#!/bin/bash</span></div>
+                        <div><span class="output">cat &lt;&lt;EOF</span></div>
+                        <div><span class="output">================================</span></div>
+                        <div><span class="output">  System Report - $(date)</span></div>
+                        <div><span class="output">  Host: $(hostname)</span></div>
+                        <div><span class="output">  User: $(whoami)</span></div>
+                        <div><span class="output">================================</span></div>
+                        <div><span class="output">EOF</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Here-String (&lt;&lt;&lt;)</div>
+                    <div class="command-desc">Feed a single string as stdin -- no pipe needed</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> wc -w &lt;&lt;&lt; "count these words"</div>
+                        <div><span class="output">3</span></div>
+                        <div><span class="prompt">$</span> bc &lt;&lt;&lt; "scale=2; 100/7"</div>
+                        <div><span class="output">14.28</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Practical: Build a Log Writer</h2>
+                <p class="content-text">Combine what you have learned into a reusable logging pattern for scripts:</p>
+
+                <div class="command-card">
+                    <div class="command-name">log-writer.sh</div>
+                    <div class="command-output">
+                        <div><span class="comment">#!/bin/bash</span></div>
+                        <div><span class="output">LOGFILE="/tmp/myapp.log"</span></div>
+                        <div></div>
+                        <div><span class="output">log() {</span></div>
+                        <div><span class="output">    printf "[%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOGFILE"</span></div>
+                        <div><span class="output">}</span></div>
+                        <div></div>
+                        <div><span class="output">log "Script started"</span></div>
+                        <div><span class="output">log "Checking disk space..."</span></div>
+                        <div><span class="output">USAGE=$(df -h / | awk 'NR==2{print $5}')</span></div>
+                        <div><span class="output">log "Root partition usage: $USAGE"</span></div>
+                        <div><span class="output">log "Script finished"</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>printf gives you consistent, formatted output across all systems</li>
+                    <li>&gt; overwrites, &gt;&gt; appends, 2&gt; captures stderr</li>
+                    <li>Pipes chain commands -- the output of one feeds the next</li>
+                    <li>Here-documents (&lt;&lt;EOF) embed multi-line text in scripts</li>
+                    <li>/dev/null silently discards unwanted output</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-bash-02-variables.module.html" class="nav-btn">&lt; Previous: Variables</a>
+                <a href="arm-bash-04-conditionals.module.html" class="nav-btn primary">Next: Conditionals &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('BASH-03', '#terminal', {
+            user: 'learner', hostname: 'bash-lab', startDir: '/home/learner', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmd === 'printf') completeTask('printf');
+                if (cmdLine.includes('>') && !cmdLine.includes('>>') && !cmdLine.includes('2>')) completeTask('redirect');
+                if (cmdLine.includes('>>')) completeTask('append');
+                if (cmdLine.includes('|')) completeTask('pipe');
+                if (cmdLine.includes('2>') || cmdLine.includes('&>')) completeTask('stderr');
+            }
+        });
+
+        var MODULE_ID = 'arm-bash-03-input-output';
+        var tasks = { 'printf': false, 'redirect': false, 'append': false, 'pipe': false, 'stderr': false };
+        var TASK_ORDER = ['printf', 'redirect', 'append', 'pipe', 'stderr'];
+        var TASK_INSTRUCTIONS = {
+            'printf':   { number: 1, title: 'Use printf',          description: 'Print formatted output with printf.',                       command: 'printf "Name: %s\\n" "Alice"',       expect: 'Formatted output appears' },
+            'redirect': { number: 2, title: 'Redirect to File',    description: 'Send command output to a file with >.',                     command: 'echo "hello" > test.txt',             expect: 'File created with output' },
+            'append':   { number: 3, title: 'Append to File',      description: 'Append output without overwriting using >>.',               command: 'echo "line two" >> test.txt',         expect: 'Line added to file' },
+            'pipe':     { number: 4, title: 'Use a Pipe',          description: 'Chain two commands together with |.',                       command: 'ls /etc | wc -l',                     expect: 'Shows count of items' },
+            'stderr':   { number: 5, title: 'Redirect stderr',     description: 'Redirect error output to /dev/null.',                      command: 'ls /nonexistent 2> /dev/null',        expect: 'Errors are suppressed' }
+        };
+
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You mastered I/O redirection and pipes.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-bash-04-conditionals.module.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            var total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (completed / total * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + total;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now(), ...(allDone && { completedAt: new Date().toISOString() }) };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var c = document.querySelector('.task-chip[data-task="' + t + '"]'); if (c) c.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

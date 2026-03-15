@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BASH-02: Variables &amp; Quoting | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117;
+            --accent: #4ade80; --accent-dim: rgba(74, 222, 128, 0.15);
+            --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12;
+            --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+        .command-output .comment { color: #6a737d; }
+        .warning-box { background: rgba(231, 76, 60, 0.1); border-left: 3px solid var(--red); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+        .warning-box strong { color: var(--red); }
+        .info-box { background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 14px 0; }
+        .info-box strong { color: #3b82f6; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #22c55e; }
+        .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">BASH-02</span>
+            <h1>Variables &amp; Quoting</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Track Home</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="assign" onclick="showTaskInstruction('assign')">1</span>
+                    <span class="task-chip" data-task="expand" onclick="showTaskInstruction('expand')">2</span>
+                    <span class="task-chip" data-task="cmdsub" onclick="showTaskInstruction('cmdsub')">3</span>
+                    <span class="task-chip" data-task="arith" onclick="showTaskInstruction('arith')">4</span>
+                    <span class="task-chip" data-task="env" onclick="showTaskInstruction('env')">5</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h2>Learning Objectives</h2>
+                <ul>
+                    <li>Assign and reference shell variables</li>
+                    <li>Understand single quotes, double quotes, and no quotes</li>
+                    <li>Use command substitution to capture output</li>
+                    <li>Perform arithmetic with $(( )) and let</li>
+                    <li>Work with environment variables and export</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Variable Assignment</h2>
+                <p class="content-text">In bash, variables are assigned with the <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">NAME=value</code> syntax. There must be <strong>no spaces</strong> around the equals sign.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Basic Assignment</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> NAME="Alice"</div>
+                        <div><span class="prompt">$</span> AGE=30</div>
+                        <div><span class="prompt">$</span> LOGFILE="/var/log/auth.log"</div>
+                        <div><span class="prompt">$</span> echo "User: $NAME, Age: $AGE"</div>
+                        <div><span class="output">User: Alice, Age: 30</span></div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p class="content-text"><strong>Common mistake:</strong> <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">NAME = "Alice"</code> with spaces will fail. Bash interprets NAME as a command and = as its first argument.</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Quoting Rules</h2>
+                <p class="content-text">Quoting controls how the shell interprets special characters. This is one of the most important concepts in bash scripting.</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Double Quotes " "</strong>
+                        <span>Variables and command substitution expand. Spaces preserved. Use for most strings.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Single Quotes ' '</strong>
+                        <span>Everything is literal. No expansion at all. Use when you want exact text.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>No Quotes</strong>
+                        <span>Word splitting and globbing occur. Dangerous with filenames containing spaces.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Backticks ` `</strong>
+                        <span>Legacy command substitution. Prefer $() instead -- it nests cleanly.</span>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Quoting in Action</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> GREETING="Hello"</div>
+                        <div><span class="prompt">$</span> echo "$GREETING World"</div>
+                        <div><span class="output">Hello World</span></div>
+                        <div><span class="prompt">$</span> echo '$GREETING World'</div>
+                        <div><span class="output">$GREETING World</span></div>
+                        <div><span class="prompt">$</span> echo $GREETING World</div>
+                        <div><span class="output">Hello World</span></div>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p class="content-text"><strong>Rule of thumb:</strong> Always double-quote your variables unless you have a specific reason not to. Unquoted variables break on filenames with spaces and can introduce security bugs.</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Command Substitution</h2>
+                <p class="content-text">Capture the output of a command and store it in a variable using <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">$(command)</code>.</p>
+
+                <div class="command-card">
+                    <div class="command-name">$(command) Syntax</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> CURRENT_USER=$(whoami)</div>
+                        <div><span class="prompt">$</span> TODAY=$(date +%Y-%m-%d)</div>
+                        <div><span class="prompt">$</span> FILE_COUNT=$(ls | wc -l)</div>
+                        <div><span class="prompt">$</span> echo "User $CURRENT_USER has $FILE_COUNT files as of $TODAY"</div>
+                        <div><span class="output">User learner has 3 files as of 2026-03-15</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Nested Substitution</div>
+                    <div class="command-desc">$() nests cleanly -- backticks cannot do this</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> KERNEL=$(uname -r)</div>
+                        <div><span class="prompt">$</span> echo "Kernel: $KERNEL"</div>
+                        <div><span class="output">Kernel: 5.15.0-91-generic</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Arithmetic</h2>
+                <p class="content-text">Bash supports integer arithmetic natively. Use <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">$(( ))</code> for arithmetic expansion.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Arithmetic Expansion</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> A=10</div>
+                        <div><span class="prompt">$</span> B=3</div>
+                        <div><span class="prompt">$</span> echo "Sum: $((A + B))"</div>
+                        <div><span class="output">Sum: 13</span></div>
+                        <div><span class="prompt">$</span> echo "Product: $((A * B))"</div>
+                        <div><span class="output">Product: 30</span></div>
+                        <div><span class="prompt">$</span> echo "Division: $((A / B))"</div>
+                        <div><span class="output">Division: 3</span></div>
+                        <div><span class="prompt">$</span> echo "Modulo: $((A % B))"</div>
+                        <div><span class="output">Modulo: 1</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Increment and Decrement</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> COUNT=0</div>
+                        <div><span class="prompt">$</span> ((COUNT++))</div>
+                        <div><span class="prompt">$</span> ((COUNT++))</div>
+                        <div><span class="prompt">$</span> echo "$COUNT"</div>
+                        <div><span class="output">2</span></div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p class="content-text"><strong>Integer only:</strong> Bash cannot do floating-point math. For decimals, pipe to <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">bc</code>: <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">echo "scale=2; 10/3" | bc</code></p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Environment Variables</h2>
+                <p class="content-text">Shell variables exist only in the current shell. <strong>Environment variables</strong> are exported and inherited by child processes.</p>
+
+                <div class="command-card">
+                    <div class="command-name">export</div>
+                    <div class="command-desc">Promotes a shell variable to an environment variable</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> MY_VAR="local only"</div>
+                        <div><span class="prompt">$</span> export MY_VAR</div>
+                        <div><span class="comment"># Now child processes can see MY_VAR</span></div>
+                        <div><span class="prompt">$</span> export DB_HOST="192.168.1.100"</div>
+                        <div><span class="comment"># Assign and export in one step</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Common Environment Variables</div>
+                    <div class="command-output">
+                        <div><span class="output">$HOME     - User's home directory</span></div>
+                        <div><span class="output">$USER     - Current username</span></div>
+                        <div><span class="output">$PATH     - Search directories for commands</span></div>
+                        <div><span class="output">$PWD      - Current working directory</span></div>
+                        <div><span class="output">$SHELL    - Default login shell</span></div>
+                        <div><span class="output">$HOSTNAME - Machine hostname</span></div>
+                        <div><span class="output">$RANDOM   - Random integer 0-32767</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Special Variables</h2>
+                <p class="content-text">Bash provides several built-in variables for script control flow:</p>
+
+                <div class="command-card">
+                    <div class="command-name">Script Parameters &amp; Status</div>
+                    <div class="command-output">
+                        <div><span class="output">$0   - Name of the script</span></div>
+                        <div><span class="output">$1   - First argument</span></div>
+                        <div><span class="output">$2   - Second argument (and so on)</span></div>
+                        <div><span class="output">$#   - Number of arguments</span></div>
+                        <div><span class="output">$@   - All arguments (preserves quoting)</span></div>
+                        <div><span class="output">$*   - All arguments (as single string)</span></div>
+                        <div><span class="output">$?   - Exit status of last command</span></div>
+                        <div><span class="output">$$   - PID of the current shell</span></div>
+                        <div><span class="output">$!   - PID of last background process</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>No spaces around = in variable assignment: NAME="value"</li>
+                    <li>Double quotes expand variables; single quotes are literal</li>
+                    <li>$(command) captures command output into a variable</li>
+                    <li>$(( )) handles integer arithmetic -- use bc for decimals</li>
+                    <li>export makes variables visible to child processes</li>
+                    <li>Always double-quote variables to prevent word splitting bugs</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-bash-01-intro.module.html" class="nav-btn">&lt; Previous: Intro to Bash</a>
+                <a href="arm-bash-03-input-output.module.html" class="nav-btn primary">Next: Input &amp; Output &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('BASH-02', '#terminal', {
+            user: 'learner', hostname: 'bash-lab', startDir: '/home/learner', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                if (cmdLine.match(/^[A-Z_]+=/) && !cmdLine.includes('export')) completeTask('assign');
+                if (cmd === 'echo' && cmdLine.includes('$')) completeTask('expand');
+                if (cmdLine.includes('$(') && cmdLine.includes(')')) completeTask('cmdsub');
+                if (cmdLine.includes('$((') || cmd === 'let') completeTask('arith');
+                if (cmdLine.includes('export') || (cmd === 'echo' && cmdLine.match(/\$(HOME|USER|PATH|PWD)/))) completeTask('env');
+            }
+        });
+
+        var MODULE_ID = 'arm-bash-02-variables';
+        var tasks = { 'assign': false, 'expand': false, 'cmdsub': false, 'arith': false, 'env': false };
+        var TASK_ORDER = ['assign', 'expand', 'cmdsub', 'arith', 'env'];
+        var TASK_INSTRUCTIONS = {
+            'assign': { number: 1, title: 'Assign a Variable',      description: 'Create a variable with no spaces around the equals sign.',   command: 'NAME="Alice"',                      expect: 'Variable is set silently' },
+            'expand': { number: 2, title: 'Expand a Variable',      description: 'Use echo with $ to print a variable value.',                 command: 'echo "Hello $NAME"',                expect: 'Prints Hello Alice' },
+            'cmdsub': { number: 3, title: 'Command Substitution',   description: 'Capture command output into a variable.',                    command: 'TODAY=$(date +%Y-%m-%d)',            expect: 'Variable holds current date' },
+            'arith':  { number: 4, title: 'Do Arithmetic',          description: 'Use arithmetic expansion to calculate.',                     command: 'echo $((10 + 5))',                  expect: 'Prints 15' },
+            'env':    { number: 5, title: 'Check Environment',      description: 'Print an environment variable or use export.',               command: 'echo $HOME',                        expect: 'Shows your home directory' }
+        };
+
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+
+        function completeTask(taskId) {
+            if (tasks[taskId]) return;
+            tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]');
+            if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You understand variables, quoting, and arithmetic in Bash.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', 'arm-bash-02-variables', { returnUrl: 'arm-bash-03-input-output.module.html' });
+            }
+        }
+
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            var total = Object.keys(tasks).length;
+            document.getElementById('progressFill').style.width = (completed / total * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + total;
+        }
+
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now(), ...(allDone && { completedAt: new Date().toISOString() }) };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var c = document.querySelector('.task-chip[data-task="' + t + '"]'); if (c) c.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask();
+            if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

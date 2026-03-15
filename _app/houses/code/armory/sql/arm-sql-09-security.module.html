@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL-09: SQL Security | Code Armory</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #14b8a6; --accent-dim: rgba(20,184,166,0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--red); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78,201,176,0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; font-size: 0.78rem; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .section-title--red { color: var(--red); }
+        .section-title--red::before { background: var(--red); }
+        .objectives { background: rgba(239,68,68,0.1); border-left: 3px solid var(--red); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h3 { color: var(--red); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--red); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .syntax-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin: 14px 0; }
+        .syntax-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px; }
+        .syntax-code { font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--green); line-height: 1.8; }
+        .syntax-code .kw { color: var(--accent); font-weight: 600; }
+        .syntax-code .val { color: var(--yellow); }
+        .syntax-code .cmt { color: #6a9955; }
+        .syntax-code .danger { color: var(--red); font-weight: 600; }
+        .syntax-code .safe { color: var(--green); font-weight: 600; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+        .warn-box { background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .warn-box strong { color: var(--red); }
+        .warn-box p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .safe-box { background: rgba(78,201,176,0.08); border: 1px solid rgba(78,201,176,0.3); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .safe-box strong { color: var(--green); }
+        .safe-box p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .attack-flow { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 14px 0; }
+        .attack-step { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; gap: 12px; align-items: flex-start; }
+        .attack-step-num { background: rgba(239,68,68,0.15); color: var(--red); font-weight: 700; font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+        .attack-step-text { color: var(--text-secondary); font-size: 0.88rem; }
+        .attack-step-text strong { color: var(--text-primary); }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .takeaways { background: linear-gradient(135deg, rgba(78,201,176,0.1), rgba(78,201,176,0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0d9488; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">SQL-09</span>
+            <h1>SQL Security</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; SQL Track</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 5</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="sqli-basic" onclick="showTaskInstruction('sqli-basic')">1</span>
+                    <span class="task-chip" data-task="sqli-union" onclick="showTaskInstruction('sqli-union')">2</span>
+                    <span class="task-chip" data-task="param-query" onclick="showTaskInstruction('param-query')">3</span>
+                    <span class="task-chip" data-task="grant-cmd" onclick="showTaskInstruction('grant-cmd')">4</span>
+                    <span class="task-chip" data-task="revoke-cmd" onclick="showTaskInstruction('revoke-cmd')">5</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives -- CRITICAL MODULE</h3>
+                <ul>
+                    <li>Understand how SQL injection works at the query level</li>
+                    <li>Recognize classic, UNION-based, blind, and second-order injection</li>
+                    <li>Implement parameterized queries as the primary defense</li>
+                    <li>Apply defense-in-depth: input validation, least privilege, WAF</li>
+                    <li>Manage database permissions with GRANT and REVOKE</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title section-title--red">SQL Injection: The Attack</h2>
+                <p class="content-text">SQL injection (SQLi) occurs when user input is concatenated directly into SQL queries without sanitization. The attacker manipulates the query structure to execute unintended commands.</p>
+                <p class="content-text">SQLi has been the #1 web application vulnerability for over two decades. It leads to data theft, authentication bypass, privilege escalation, and complete database compromise.</p>
+
+                <div class="warn-box">
+                    <strong>Ethical Disclaimer</strong>
+                    <p>SQL injection techniques are taught here for defensive purposes. Understanding the attack is prerequisite to building effective defenses. Only practice on systems you own or have explicit authorization to test.</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title section-title--red">How SQLi Works</h2>
+                <p class="content-text">Consider a login form that builds a query by concatenating user input:</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Vulnerable Code (Pseudocode)</div>
+                    <div class="syntax-code">
+                        query = <span class="danger">"SELECT * FROM users WHERE username = '"</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="danger">userInput</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="danger">"' AND password = '"</span> + <span class="danger">passInput</span> + <span class="danger">"'"</span>;
+                    </div>
+                </div>
+
+                <div class="attack-flow">
+                    <div class="attack-step">
+                        <span class="attack-step-num">1</span>
+                        <div class="attack-step-text"><strong>Normal input:</strong> username = <code>admin</code>, password = <code>secret</code><br>Query becomes: <code>SELECT * FROM users WHERE username = 'admin' AND password = 'secret'</code></div>
+                    </div>
+                    <div class="attack-step">
+                        <span class="attack-step-num">2</span>
+                        <div class="attack-step-text"><strong>Malicious input:</strong> username = <code>admin' --</code><br>Query becomes: <code>SELECT * FROM users WHERE username = 'admin' --' AND password = ''</code><br>The <code>--</code> comments out the password check. Attacker logs in as admin.</div>
+                    </div>
+                    <div class="attack-step">
+                        <span class="attack-step-num">3</span>
+                        <div class="attack-step-text"><strong>Bypass all auth:</strong> username = <code>' OR '1'='1' --</code><br>Query becomes: <code>SELECT * FROM users WHERE username = '' OR '1'='1' --'</code><br>The <code>OR '1'='1'</code> is always true. Returns ALL users.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title section-title--red">UNION-Based Injection</h2>
+                <p class="content-text"><code>UNION</code> injection appends a second query to extract data from other tables. The attacker must match the number and type of columns in the original query.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">UNION Attack Example</div>
+                    <div class="syntax-code">
+                        <span class="cmt">-- Original query returns 3 columns</span><br>
+                        <span class="kw">SELECT</span> id, username, email <span class="kw">FROM</span> users <span class="kw">WHERE</span> id = <span class="danger">[user_input]</span><br><br>
+                        <span class="cmt">-- Attacker injects:</span><br>
+                        <span class="danger">1 UNION SELECT 1, password, role FROM users --</span><br><br>
+                        <span class="cmt">-- Resulting query:</span><br>
+                        <span class="kw">SELECT</span> id, username, email <span class="kw">FROM</span> users <span class="kw">WHERE</span> id = <span class="val">1</span><br>
+                        <span class="kw">UNION SELECT</span> <span class="val">1</span>, password, role <span class="kw">FROM</span> users <span class="danger">--</span>
+                    </div>
+                </div>
+                <p class="content-text">The attacker now sees password hashes and roles alongside the legitimate data.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Other Injection Types</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong style="color:var(--red)">Blind SQLi</strong>
+                        <span>No visible output. Attacker asks true/false questions: <code>AND 1=1</code> vs <code>AND 1=2</code> and observes behavior differences (page content, response time).</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong style="color:var(--red)">Time-Based Blind</strong>
+                        <span>Uses <code>WAITFOR DELAY</code> or <code>SLEEP()</code> to detect injection via response timing. If the page takes 5 extra seconds, the condition was true.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong style="color:var(--red)">Second-Order SQLi</strong>
+                        <span>Payload is stored in the database and executed later when a different query reads and uses it. Harder to detect because injection and execution are separated.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong style="color:var(--red)">Stacked Queries</strong>
+                        <span>Some databases allow multiple statements separated by semicolons: <code>; DROP TABLE users; --</code>. This can execute arbitrary destructive commands.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Defense: Parameterized Queries</h2>
+                <p class="content-text">The primary defense against SQL injection is <strong>parameterized queries</strong> (also called prepared statements). Instead of concatenating user input into the query string, you pass it as a separate parameter. The database engine treats it as data, never as SQL code.</p>
+
+                <div class="safe-box">
+                    <strong>The #1 Rule: Never concatenate user input into SQL</strong>
+                    <p>If you remember nothing else from this module, remember this. Parameterized queries prevent SQL injection by design.</p>
+                </div>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Vulnerable vs. Safe (Python Example)</div>
+                    <div class="syntax-code">
+                        <span class="cmt"># VULNERABLE -- string concatenation</span><br>
+                        <span class="danger">cursor.execute("SELECT * FROM users WHERE username = '" + username + "'")</span><br><br>
+                        <span class="cmt"># SAFE -- parameterized query</span><br>
+                        <span class="safe">cursor.execute("SELECT * FROM users WHERE username = ?", (username,))</span>
+                    </div>
+                </div>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Parameterized Query in Different Languages</div>
+                    <div class="syntax-code">
+                        <span class="cmt"># Python (sqlite3)</span><br>
+                        <span class="safe">cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))</span><br><br>
+                        <span class="cmt">// JavaScript (Node.js mysql2)</span><br>
+                        <span class="safe">connection.execute("SELECT * FROM users WHERE id = ?", [userId])</span><br><br>
+                        <span class="cmt">// Java (JDBC)</span><br>
+                        <span class="safe">PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?");</span><br>
+                        <span class="safe">ps.setInt(1, userId);</span><br><br>
+                        <span class="cmt">// PHP (PDO)</span><br>
+                        <span class="safe">$stmt = $pdo->prepare("SELECT * FROM users WHERE id = :id");</span><br>
+                        <span class="safe">$stmt->execute(['id' => $userId]);</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Defense-in-Depth</h2>
+                <p class="content-text">Parameterized queries are the foundation, but defense-in-depth adds additional layers:</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>Input Validation</strong>
+                        <span>Whitelist allowed characters. Reject unexpected patterns. Validate data types server-side.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Least Privilege</strong>
+                        <span>Database accounts should have minimal permissions. The web app account should not have DROP or GRANT rights.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Web Application Firewall</strong>
+                        <span>WAFs detect common SQLi patterns in HTTP requests and block them before they reach the application.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>Error Handling</strong>
+                        <span>Never expose database error messages to users. Detailed errors help attackers map your schema.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">GRANT and REVOKE</h2>
+                <p class="content-text">Database-level access control uses <code>GRANT</code> and <code>REVOKE</code> to manage who can do what. This enforces least privilege at the database layer.</p>
+
+                <div class="command-card">
+                    <div class="command-name">GRANT SELECT ON users TO 'webapp'@'localhost';</div>
+                    <div class="command-desc">Allow the web application account to read the users table -- but nothing else.</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">GRANT SELECT, INSERT ON login_logs TO 'webapp'@'localhost';</div>
+                    <div class="command-desc">The web app can read and write to login_logs, but cannot UPDATE or DELETE entries.</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">REVOKE DELETE ON users FROM 'webapp'@'localhost';</div>
+                    <div class="command-desc">Remove the ability to delete user records. Even if SQLi occurs, the attacker cannot delete data.</div>
+                </div>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Permission Hierarchy</div>
+                    <div class="syntax-code">
+                        <span class="kw">GRANT ALL PRIVILEGES</span> &mdash; Full access (admin only)<br>
+                        <span class="kw">GRANT SELECT</span> &mdash; Read only<br>
+                        <span class="kw">GRANT SELECT, INSERT</span> &mdash; Read + write new records<br>
+                        <span class="kw">GRANT EXECUTE</span> &mdash; Run stored procedures only<br>
+                        <span class="kw">REVOKE</span> &mdash; Remove any granted permission
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>SQL injection exploits string concatenation in queries -- attacker injects SQL code via user input</li>
+                    <li>Classic, UNION, blind, time-based, and second-order are the major injection categories</li>
+                    <li>Parameterized queries are the #1 defense -- they separate code from data by design</li>
+                    <li>Defense-in-depth: input validation + least privilege + WAF + proper error handling</li>
+                    <li>GRANT/REVOKE control database permissions -- always apply least privilege</li>
+                    <li>Never expose database error details to end users</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-sql-08-schema.module.html" class="nav-btn">&lt; Previous: Schema</a>
+                <a href="arm-sql-10-practical.module.html" class="nav-btn primary">Next: Practical SQL &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('SQL-09', '#terminal', {
+            user: 'analyst', hostname: 'sql-lab', startDir: '/home/analyst', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
+                if (lower.includes("' or") || lower.includes("'--") || lower.includes("' --") || lower.includes("1=1")) completeTask('sqli-basic');
+                if (lower.includes('union') && lower.includes('select')) completeTask('sqli-union');
+                if (lower.includes('?') || lower.includes(':id') || lower.includes('prepare')) completeTask('param-query');
+                if (lower.includes('grant')) completeTask('grant-cmd');
+                if (lower.includes('revoke')) completeTask('revoke-cmd');
+            }
+        });
+        var MODULE_ID = 'arm-sql-09-security';
+        var tasks = { 'sqli-basic': false, 'sqli-union': false, 'param-query': false, 'grant-cmd': false, 'revoke-cmd': false };
+        var TASK_ORDER = ['sqli-basic', 'sqli-union', 'param-query', 'grant-cmd', 'revoke-cmd'];
+        var TASK_INSTRUCTIONS = {
+            'sqli-basic': { number: 1, title: 'Try a Basic SQLi', description: "Enter a classic SQL injection payload to understand how it works.", command: "SELECT * FROM users WHERE username = '' OR '1'='1' --';", expect: 'Returns all users -- authentication bypassed' },
+            'sqli-union': { number: 2, title: 'Try UNION Injection', description: "Use UNION SELECT to extract data from another part of the table.", command: "SELECT id, username, email FROM users WHERE id = 1 UNION SELECT 1, password, role FROM users;", expect: 'Exposes password hashes and roles' },
+            'param-query': { number: 3, title: 'Write a Parameterized Query', description: "Show the safe version using parameter placeholders (? or :name).", command: "SELECT * FROM users WHERE username = ?;", expect: 'Placeholder prevents injection' },
+            'grant-cmd': { number: 4, title: 'Grant a Permission', description: "Use GRANT to assign a specific privilege to a user.", command: "GRANT SELECT ON users TO 'webapp'@'localhost';", expect: 'Read-only access granted' },
+            'revoke-cmd': { number: 5, title: 'Revoke a Permission', description: "Use REVOKE to remove a privilege.", command: "REVOKE DELETE ON users FROM 'webapp'@'localhost';", expect: 'Delete permission removed' }
+        };
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You understand SQL injection and its defenses. Critical knowledge for any security professional.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-sql-10-practical.module.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            document.getElementById('progressFill').style.width = (completed / Object.keys(tasks).length * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + Object.keys(tasks).length;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now() };
+            if (allDone) progress.code[MODULE_ID].completedAt = new Date().toISOString();
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var chip = document.querySelector('.task-chip[data-task="' + t + '"]'); if (chip) chip.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

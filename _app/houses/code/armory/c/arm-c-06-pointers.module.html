@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-06: Pointers | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #ef4444; --accent-dim: rgba(239, 68, 68, 0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .code-editor { flex: 1; min-height: 0; overflow-y: auto; background: var(--bg-terminal); padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: var(--text-secondary); }
+        .code-editor .line { display: flex; } .code-editor .line-num { color: #555; min-width: 35px; text-align: right; padding-right: 15px; user-select: none; }
+        .code-editor .kw { color: #c586c0; } .code-editor .type { color: #4EC9B0; } .code-editor .func { color: #dcdcaa; } .code-editor .str { color: #ce9178; } .code-editor .cmt { color: #6a9955; } .code-editor .num { color: #b5cea8; } .code-editor .pp { color: #c586c0; } .code-editor .inc { color: #ce9178; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; } .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); } .command-output .output { color: var(--text-secondary); }
+        .warning-box { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px; margin: 14px 0; }
+        .warning-box strong { color: var(--red); }
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; } .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #dc2626; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">C-06</span>
+            <h1>Pointers</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Course Home</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="t1" onclick="showTaskInstruction('t1')">1</span>
+                    <span class="task-chip" data-task="t2" onclick="showTaskInstruction('t2')">2</span>
+                    <span class="task-chip" data-task="t3" onclick="showTaskInstruction('t3')">3</span>
+                    <span class="task-chip" data-task="t4" onclick="showTaskInstruction('t4')">4</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="code-editor">
+                <div class="line"><span class="line-num">1</span><span class="pp">#include</span> <span class="inc">&lt;stdio.h&gt;</span></div>
+                <div class="line"><span class="line-num">2</span></div>
+                <div class="line"><span class="line-num">3</span><span class="type">int</span> <span class="func">main</span>(<span class="type">void</span>) {</div>
+                <div class="line"><span class="line-num">4</span>    <span class="type">int</span> value = <span class="num">42</span>;</div>
+                <div class="line"><span class="line-num">5</span>    <span class="type">int</span> *ptr = &amp;value;  <span class="cmt">// ptr stores address of value</span></div>
+                <div class="line"><span class="line-num">6</span></div>
+                <div class="line"><span class="line-num">7</span>    <span class="func">printf</span>(<span class="str">"Value:   %d\n"</span>, value);   <span class="cmt">// 42</span></div>
+                <div class="line"><span class="line-num">8</span>    <span class="func">printf</span>(<span class="str">"Address: %p\n"</span>, (<span class="type">void</span>*)ptr); <span class="cmt">// 0x7ffd...</span></div>
+                <div class="line"><span class="line-num">9</span>    <span class="func">printf</span>(<span class="str">"Deref:   %d\n"</span>, *ptr);    <span class="cmt">// 42</span></div>
+                <div class="line"><span class="line-num">10</span></div>
+                <div class="line"><span class="line-num">11</span>    *ptr = <span class="num">99</span>;  <span class="cmt">// Modify value through pointer</span></div>
+                <div class="line"><span class="line-num">12</span>    <span class="func">printf</span>(<span class="str">"Value:   %d\n"</span>, value);   <span class="cmt">// 99</span></div>
+                <div class="line"><span class="line-num">13</span></div>
+                <div class="line"><span class="line-num">14</span>    <span class="cmt">// Pointer arithmetic</span></div>
+                <div class="line"><span class="line-num">15</span>    <span class="type">int</span> arr[] = {<span class="num">10</span>, <span class="num">20</span>, <span class="num">30</span>, <span class="num">40</span>};</div>
+                <div class="line"><span class="line-num">16</span>    <span class="type">int</span> *p = arr;  <span class="cmt">// Points to arr[0]</span></div>
+                <div class="line"><span class="line-num">17</span></div>
+                <div class="line"><span class="line-num">18</span>    <span class="func">printf</span>(<span class="str">"%d\n"</span>, *p);       <span class="cmt">// 10</span></div>
+                <div class="line"><span class="line-num">19</span>    <span class="func">printf</span>(<span class="str">"%d\n"</span>, *(p + <span class="num">1</span>));  <span class="cmt">// 20</span></div>
+                <div class="line"><span class="line-num">20</span>    <span class="func">printf</span>(<span class="str">"%d\n"</span>, *(p + <span class="num">2</span>));  <span class="cmt">// 30</span></div>
+                <div class="line"><span class="line-num">21</span></div>
+                <div class="line"><span class="line-num">22</span>    <span class="cmt">// p + 1 advances by sizeof(int) = 4 bytes</span></div>
+                <div class="line"><span class="line-num">23</span>    <span class="cmt">// Not 1 byte -- the type determines step size</span></div>
+                <div class="line"><span class="line-num">24</span></div>
+                <div class="line"><span class="line-num">25</span>    <span class="kw">return</span> <span class="num">0</span>;</div>
+                <div class="line"><span class="line-num">26</span>}</div>
+            </div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h2>Learning Objectives</h2>
+                <ul>
+                    <li>Understand what a pointer is and how memory addressing works</li>
+                    <li>Use the address-of (&amp;) and dereference (*) operators</li>
+                    <li>Perform pointer arithmetic on arrays</li>
+                    <li>Recognize dangling pointers and NULL pointer risks</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">What is a Pointer?</h2>
+                <p class="content-text">A pointer is a variable that stores a memory address. Instead of holding data directly, it holds the location where data lives. This is the core concept that makes C powerful -- and dangerous. Every exploit that overwrites a return address, function pointer, or vtable pointer depends on understanding this.</p>
+
+                <div class="command-card">
+                    <div class="command-name">The two pointer operators</div>
+                    <div class="command-output">
+                        <div><span class="type">int</span> x = <span class="num">42</span>;</div>
+                        <div><span class="type">int</span> *p = &amp;x;   <span class="cmt">// & = address-of: p stores where x lives</span></div>
+                        <div><span class="type">int</span> v = *p;    <span class="cmt">// * = dereference: read the value at that address</span></div>
+                        <div></div>
+                        <div><span class="cmt">// Memory visualization:</span></div>
+                        <div><span class="cmt">// Address     Value</span></div>
+                        <div><span class="cmt">// 0x1000      42        &lt;-- x lives here</span></div>
+                        <div><span class="cmt">// 0x1008      0x1000    &lt;-- p stores x's address</span></div>
+                    </div>
+                </div>
+
+                <p class="content-text">On a 64-bit system, all pointers are 8 bytes (64 bits), regardless of what they point to. A <code>char*</code> is the same size as an <code>int*</code> -- both store an address. The type tells the compiler how many bytes to read/write when you dereference.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Pointer Arithmetic</h2>
+                <p class="content-text">When you add 1 to a pointer, it advances by <code>sizeof(pointed_type)</code> bytes, not by 1 byte. This is how you traverse arrays using pointers instead of indices.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Pointer arithmetic is type-aware</div>
+                    <div class="command-output">
+                        <div><span class="type">int</span> arr[] = {<span class="num">10</span>, <span class="num">20</span>, <span class="num">30</span>};</div>
+                        <div><span class="type">int</span> *p = arr;</div>
+                        <div></div>
+                        <div><span class="cmt">// p     points to arr[0] at address 0x1000</span></div>
+                        <div><span class="cmt">// p+1   points to arr[1] at address 0x1004 (+4 bytes)</span></div>
+                        <div><span class="cmt">// p+2   points to arr[2] at address 0x1008 (+8 bytes)</span></div>
+                        <div></div>
+                        <div><span class="cmt">// These are equivalent:</span></div>
+                        <div>arr[i]    ==  *(arr + i)</div>
+                        <div>&amp;arr[i]  ==  arr + i</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Walking a byte buffer</div>
+                    <div class="command-desc">For security tools, you often walk raw bytes. Use unsigned char* for byte-level access:</div>
+                    <div class="command-output">
+                        <div><span class="type">unsigned char</span> *byte_ptr = (<span class="type">unsigned char</span> *)arr;</div>
+                        <div><span class="cmt">// Now byte_ptr + 1 advances by 1 byte</span></div>
+                        <div><span class="cmt">// You can inspect each byte of the int array</span></div>
+                        <div><span class="kw">for</span> (<span class="type">int</span> i = <span class="num">0</span>; i &lt; <span class="kw">sizeof</span>(arr); i++) {</div>
+                        <div>    <span class="func">printf</span>(<span class="str">"%02x "</span>, byte_ptr[i]);</div>
+                        <div>}</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Arrays and Pointers</h2>
+                <p class="content-text">In most contexts, an array name decays to a pointer to its first element. This is why you can pass an array to a function that expects a pointer. But arrays and pointers are not identical -- <code>sizeof(array)</code> gives the total array size, while <code>sizeof(pointer)</code> gives 8 (on 64-bit).</p>
+
+                <div class="command-card">
+                    <div class="command-name">Passing arrays to functions</div>
+                    <div class="command-output">
+                        <div><span class="cmt">// These two declarations are equivalent:</span></div>
+                        <div><span class="type">void</span> <span class="func">process</span>(<span class="type">int</span> arr[], <span class="type">int</span> len);</div>
+                        <div><span class="type">void</span> <span class="func">process</span>(<span class="type">int</span> *arr, <span class="type">int</span> len);</div>
+                        <div></div>
+                        <div><span class="cmt">// Inside the function, arr is a pointer.</span></div>
+                        <div><span class="cmt">// sizeof(arr) == 8, NOT the array size!</span></div>
+                        <div><span class="cmt">// That's why you must pass len separately.</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Dangerous Pointers</h2>
+
+                <div class="warning-box">
+                    <strong>NULL pointer dereference:</strong> Accessing memory at address 0. Causes a segfault. Always check for NULL before dereferencing.
+                    <div class="command-output" style="margin-top: 10px;">
+                        <div><span class="type">int</span> *p = NULL;</div>
+                        <div>*p = <span class="num">42</span>;  <span class="cmt">// CRASH: segmentation fault</span></div>
+                        <div></div>
+                        <div><span class="cmt">// Always check:</span></div>
+                        <div><span class="kw">if</span> (p != NULL) { *p = <span class="num">42</span>; }</div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>Dangling pointer:</strong> Points to freed or out-of-scope memory. The address is valid but the data is gone.
+                    <div class="command-output" style="margin-top: 10px;">
+                        <div><span class="type">int</span> *<span class="func">bad_function</span>(<span class="type">void</span>) {</div>
+                        <div>    <span class="type">int</span> local = <span class="num">42</span>;</div>
+                        <div>    <span class="kw">return</span> &amp;local;  <span class="cmt">// DANGER: local is destroyed on return!</span></div>
+                        <div>}</div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>Wild pointer:</strong> Uninitialized pointer -- points to random memory.
+                    <div class="command-output" style="margin-top: 10px;">
+                        <div><span class="type">int</span> *p;       <span class="cmt">// Uninitialized -- contains garbage address</span></div>
+                        <div>*p = <span class="num">42</span>;      <span class="cmt">// Writing to random memory -- catastrophic</span></div>
+                        <div></div>
+                        <div><span class="cmt">// Always initialize:</span></div>
+                        <div><span class="type">int</span> *p = NULL;</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Pointers in Security</h2>
+                <p class="content-text">Pointers are central to exploit development. Buffer overflows overwrite pointers on the stack. Use-after-free bugs exploit dangling pointers. Format string attacks use pointer values for arbitrary reads and writes. Understanding pointers is understanding the attack surface of every C program.</p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">&amp;</code> gets an address, <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">*</code> dereferences (reads/writes the value at the address)</li>
+                    <li>Pointer arithmetic steps by <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">sizeof(type)</code> bytes, not 1 byte</li>
+                    <li>NULL, dangling, and wild pointers are all sources of crashes and vulnerabilities</li>
+                    <li>Pointer manipulation is the foundation of exploit development and reverse engineering</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-c-05-arrays-strings.module.html" class="nav-btn">&lt; Previous: Arrays & Strings</a>
+                <a href="arm-c-07-memory.module.html" class="nav-btn primary">Next: Dynamic Memory &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        const MODULE_ID = 'arm-c-06-pointers';
+        const tasks = { 't1': false, 't2': false, 't3': false, 't4': false };
+        const TASK_ORDER = ['t1', 't2', 't3', 't4'];
+        const TASK_INSTRUCTIONS = {
+            't1': { number: 1, title: 'Address vs Value', description: 'If int x = 42 and int *p = &x, what does *p return?', command: 'Answer: 42 (the value at the address)', expect: 'Understanding dereference' },
+            't2': { number: 2, title: 'Pointer Arithmetic', description: 'If int *p points to address 0x1000, what address does p+1 point to?', command: 'Answer: 0x1004 (advances by sizeof(int) = 4)', expect: 'Type-aware pointer arithmetic' },
+            't3': { number: 3, title: 'Dangerous Pointers', description: 'Name three types of dangerous pointers and what makes each one dangerous.', command: 'Answer: NULL (address 0), dangling (freed memory), wild (uninitialized)', expect: 'Recognizing pointer hazards' },
+            't4': { number: 4, title: 'Array Equivalence', description: 'What is the pointer equivalent of arr[3]?', command: 'Answer: *(arr + 3)', expect: 'Understanding array-pointer equivalence' }
+        };
+        function showTaskInstruction(taskId) { var info = TASK_INSTRUCTIONS[taskId]; if (!info) return; var el = document.getElementById('taskInstruction'); el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>'; el.classList.add('visible'); document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); }); var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active'); }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        document.querySelectorAll('.task-chip').forEach(function(chip) { chip.addEventListener('click', function() { completeTask(this.getAttribute('data-task')); }); });
+        function completeTask(taskId) { if (tasks[taskId]) return; tasks[taskId] = true; var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); } updateProgress(); saveProgress(); var next = getNextIncompleteTask(); if (next) { showTaskInstruction(next); } else { var el = document.getElementById('taskInstruction'); el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>Pointers and memory addressing mastered.</div>'; el.classList.add('visible'); ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-c-07-memory.module.html' }); } }
+        function updateProgress() { var completed = Object.values(tasks).filter(function(v) { return v; }).length; var total = Object.keys(tasks).length; document.getElementById('progressFill').style.width = (completed / total * 100) + '%'; document.getElementById('progressText').textContent = completed + ' / ' + total; }
+        function saveProgress() { var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); if (!progress.code) progress.code = {}; var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; }); var allDone = tasksDone.length === Object.keys(tasks).length; progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now(), ...(allDone && { completedAt: new Date().toISOString() }) }; localStorage.setItem('hexworth_progress', JSON.stringify(progress)); }
+        (function loadProgress() { var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); var saved = progress.code && progress.code[MODULE_ID]; if (saved) { var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []); taskList.forEach(function(t) { tasks[t] = true; var c = document.querySelector('.task-chip[data-task="' + t + '"]'); if (c) c.classList.add('completed'); }); updateProgress(); } var next = getNextIncompleteTask(); if (next) showTaskInstruction(next); })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

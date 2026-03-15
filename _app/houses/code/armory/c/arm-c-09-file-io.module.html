@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-09: File I/O | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #ef4444; --accent-dim: rgba(239, 68, 68, 0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .code-editor { flex: 1; min-height: 0; overflow-y: auto; background: var(--bg-terminal); padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: var(--text-secondary); }
+        .code-editor .line { display: flex; } .code-editor .line-num { color: #555; min-width: 35px; text-align: right; padding-right: 15px; user-select: none; }
+        .code-editor .kw { color: #c586c0; } .code-editor .type { color: #4EC9B0; } .code-editor .func { color: #dcdcaa; } .code-editor .str { color: #ce9178; } .code-editor .cmt { color: #6a9955; } .code-editor .num { color: #b5cea8; } .code-editor .pp { color: #c586c0; } .code-editor .inc { color: #ce9178; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; } .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); } .command-output .output { color: var(--text-secondary); }
+        .warning-box { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px; margin: 14px 0; }
+        .warning-box strong { color: var(--red); }
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; } .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #dc2626; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">C-09</span>
+            <h1>File I/O</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Course Home</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="t1" onclick="showTaskInstruction('t1')">1</span>
+                    <span class="task-chip" data-task="t2" onclick="showTaskInstruction('t2')">2</span>
+                    <span class="task-chip" data-task="t3" onclick="showTaskInstruction('t3')">3</span>
+                    <span class="task-chip" data-task="t4" onclick="showTaskInstruction('t4')">4</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="code-editor">
+                <div class="line"><span class="line-num">1</span><span class="pp">#include</span> <span class="inc">&lt;stdio.h&gt;</span></div>
+                <div class="line"><span class="line-num">2</span><span class="pp">#include</span> <span class="inc">&lt;stdlib.h&gt;</span></div>
+                <div class="line"><span class="line-num">3</span></div>
+                <div class="line"><span class="line-num">4</span><span class="cmt">// Log file parser -- forensics tool</span></div>
+                <div class="line"><span class="line-num">5</span><span class="type">int</span> <span class="func">main</span>(<span class="type">int</span> argc, <span class="type">char</span> *argv[]) {</div>
+                <div class="line"><span class="line-num">6</span>    <span class="kw">if</span> (argc &lt; <span class="num">2</span>) {</div>
+                <div class="line"><span class="line-num">7</span>        <span class="func">fprintf</span>(stderr, <span class="str">"Usage: %s &lt;logfile&gt;\n"</span>, argv[<span class="num">0</span>]);</div>
+                <div class="line"><span class="line-num">8</span>        <span class="kw">return</span> <span class="num">1</span>;</div>
+                <div class="line"><span class="line-num">9</span>    }</div>
+                <div class="line"><span class="line-num">10</span></div>
+                <div class="line"><span class="line-num">11</span>    <span class="type">FILE</span> *fp = <span class="func">fopen</span>(argv[<span class="num">1</span>], <span class="str">"r"</span>);</div>
+                <div class="line"><span class="line-num">12</span>    <span class="kw">if</span> (!fp) {</div>
+                <div class="line"><span class="line-num">13</span>        <span class="func">perror</span>(<span class="str">"fopen"</span>);</div>
+                <div class="line"><span class="line-num">14</span>        <span class="kw">return</span> <span class="num">1</span>;</div>
+                <div class="line"><span class="line-num">15</span>    }</div>
+                <div class="line"><span class="line-num">16</span></div>
+                <div class="line"><span class="line-num">17</span>    <span class="type">char</span> line[<span class="num">1024</span>];</div>
+                <div class="line"><span class="line-num">18</span>    <span class="type">int</span> count = <span class="num">0</span>;</div>
+                <div class="line"><span class="line-num">19</span></div>
+                <div class="line"><span class="line-num">20</span>    <span class="kw">while</span> (<span class="func">fgets</span>(line, <span class="kw">sizeof</span>(line), fp)) {</div>
+                <div class="line"><span class="line-num">21</span>        <span class="kw">if</span> (<span class="func">strstr</span>(line, <span class="str">"FAILED"</span>)) {</div>
+                <div class="line"><span class="line-num">22</span>            <span class="func">printf</span>(<span class="str">"[!] %s"</span>, line);</div>
+                <div class="line"><span class="line-num">23</span>            count++;</div>
+                <div class="line"><span class="line-num">24</span>        }</div>
+                <div class="line"><span class="line-num">25</span>    }</div>
+                <div class="line"><span class="line-num">26</span></div>
+                <div class="line"><span class="line-num">27</span>    <span class="func">printf</span>(<span class="str">"\nTotal failures: %d\n"</span>, count);</div>
+                <div class="line"><span class="line-num">28</span>    <span class="func">fclose</span>(fp);</div>
+                <div class="line"><span class="line-num">29</span>    <span class="kw">return</span> <span class="num">0</span>;</div>
+                <div class="line"><span class="line-num">30</span>}</div>
+            </div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h2>Learning Objectives</h2>
+                <ul>
+                    <li>Open, read, write, and close files with stdio functions</li>
+                    <li>Read and write binary data with fread/fwrite</li>
+                    <li>Handle file errors with perror and errno</li>
+                    <li>Build a practical log parser for forensics</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Opening and Closing Files</h2>
+                <p class="content-text">C uses <code>FILE*</code> pointers to represent open files. <code>fopen</code> opens a file and returns a pointer. <code>fclose</code> flushes buffers and releases the file handle. Always check the return value -- <code>fopen</code> returns NULL on failure.</p>
+
+                <div class="command-card">
+                    <div class="command-name">fopen modes</div>
+                    <div class="command-output">
+                        <div><span class="str">"r"</span>   <span class="cmt">Read only. File must exist.</span></div>
+                        <div><span class="str">"w"</span>   <span class="cmt">Write only. Creates or truncates.</span></div>
+                        <div><span class="str">"a"</span>   <span class="cmt">Append. Creates if needed.</span></div>
+                        <div><span class="str">"rb"</span>  <span class="cmt">Read binary.</span></div>
+                        <div><span class="str">"wb"</span>  <span class="cmt">Write binary.</span></div>
+                        <div><span class="str">"r+"</span>  <span class="cmt">Read and write. Must exist.</span></div>
+                        <div><span class="str">"w+"</span>  <span class="cmt">Read and write. Creates or truncates.</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Text File Operations</h2>
+
+                <div class="command-card">
+                    <div class="command-name">Reading text line by line</div>
+                    <div class="command-output">
+                        <div><span class="type">FILE</span> *fp = <span class="func">fopen</span>(<span class="str">"/etc/passwd"</span>, <span class="str">"r"</span>);</div>
+                        <div><span class="type">char</span> line[<span class="num">256</span>];</div>
+                        <div><span class="kw">while</span> (<span class="func">fgets</span>(line, <span class="kw">sizeof</span>(line), fp)) {</div>
+                        <div>    <span class="func">printf</span>(<span class="str">"%s"</span>, line);</div>
+                        <div>}</div>
+                        <div><span class="func">fclose</span>(fp);</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Writing text</div>
+                    <div class="command-output">
+                        <div><span class="type">FILE</span> *fp = <span class="func">fopen</span>(<span class="str">"output.txt"</span>, <span class="str">"w"</span>);</div>
+                        <div><span class="func">fprintf</span>(fp, <span class="str">"Scan completed: %d hosts\n"</span>, count);</div>
+                        <div><span class="func">fputs</span>(<span class="str">"No vulnerabilities found.\n"</span>, fp);</div>
+                        <div><span class="func">fclose</span>(fp);</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Character-level I/O</div>
+                    <div class="command-output">
+                        <div><span class="type">int</span> ch;</div>
+                        <div><span class="kw">while</span> ((ch = <span class="func">fgetc</span>(fp)) != EOF) {</div>
+                        <div>    <span class="func">fputc</span>(ch, stdout);</div>
+                        <div>}</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Binary File Operations</h2>
+                <p class="content-text">Binary I/O reads and writes raw bytes -- no character encoding, no newline translation. Essential for parsing file formats, network captures, and firmware images.</p>
+
+                <div class="command-card">
+                    <div class="command-name">fread / fwrite</div>
+                    <div class="command-output">
+                        <div><span class="cmt">// Read a binary file header</span></div>
+                        <div><span class="kw">typedef struct</span> {</div>
+                        <div>    <span class="type">uint8_t</span>  magic[<span class="num">4</span>];</div>
+                        <div>    <span class="type">uint32_t</span> version;</div>
+                        <div>    <span class="type">uint32_t</span> data_size;</div>
+                        <div>} <span class="type">FileHeader</span>;</div>
+                        <div></div>
+                        <div><span class="type">FileHeader</span> hdr;</div>
+                        <div><span class="type">FILE</span> *fp = <span class="func">fopen</span>(<span class="str">"data.bin"</span>, <span class="str">"rb"</span>);</div>
+                        <div><span class="func">fread</span>(&amp;hdr, <span class="kw">sizeof</span>(<span class="type">FileHeader</span>), <span class="num">1</span>, fp);</div>
+                        <div></div>
+                        <div><span class="cmt">// Write binary data</span></div>
+                        <div><span class="type">uint8_t</span> payload[<span class="num">1024</span>];</div>
+                        <div><span class="type">FILE</span> *out = <span class="func">fopen</span>(<span class="str">"output.bin"</span>, <span class="str">"wb"</span>);</div>
+                        <div><span class="func">fwrite</span>(payload, <span class="num">1</span>, <span class="kw">sizeof</span>(payload), out);</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">File seeking</div>
+                    <div class="command-desc">Jump to any position in a file. Critical for parsing binary formats where data is at known offsets.</div>
+                    <div class="command-output">
+                        <div><span class="func">fseek</span>(fp, <span class="num">0</span>, SEEK_END);     <span class="cmt">// Go to end</span></div>
+                        <div><span class="type">long</span> size = <span class="func">ftell</span>(fp);       <span class="cmt">// Get position = file size</span></div>
+                        <div><span class="func">fseek</span>(fp, <span class="num">0</span>, SEEK_SET);     <span class="cmt">// Back to start</span></div>
+                        <div><span class="func">fseek</span>(fp, <span class="num">512</span>, SEEK_SET);   <span class="cmt">// Jump to offset 512</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Error Handling</h2>
+                <div class="command-card">
+                    <div class="command-name">perror and errno</div>
+                    <div class="command-output">
+                        <div><span class="type">FILE</span> *fp = <span class="func">fopen</span>(<span class="str">"/root/secret.txt"</span>, <span class="str">"r"</span>);</div>
+                        <div><span class="kw">if</span> (!fp) {</div>
+                        <div>    <span class="func">perror</span>(<span class="str">"Cannot open file"</span>);</div>
+                        <div>    <span class="cmt">// Output: Cannot open file: Permission denied</span></div>
+                        <div>    <span class="kw">return</span> <span class="num">1</span>;</div>
+                        <div>}</div>
+                        <div></div>
+                        <div><span class="cmt">// Check for read errors</span></div>
+                        <div><span class="kw">if</span> (<span class="func">ferror</span>(fp)) {</div>
+                        <div>    <span class="func">fprintf</span>(stderr, <span class="str">"Read error occurred\n"</span>);</div>
+                        <div>}</div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>Security Note:</strong> Always validate file paths and check permissions before operations. Path traversal attacks (e.g., <code>../../etc/shadow</code>) exploit programs that construct file paths from user input without sanitization. Never use user input directly in <code>fopen</code> without validation.
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Standard Streams</h2>
+                <p class="content-text">C programs have three pre-opened file streams. Understanding them is key for building tools that work with Unix pipes.</p>
+
+                <div class="command-card">
+                    <div class="command-name">stdin, stdout, stderr</div>
+                    <div class="command-output">
+                        <div><span class="cmt">stdin   -- Standard input  (keyboard or piped data)</span></div>
+                        <div><span class="cmt">stdout  -- Standard output (terminal or piped output)</span></div>
+                        <div><span class="cmt">stderr  -- Standard error  (always goes to terminal)</span></div>
+                        <div></div>
+                        <div><span class="cmt">// Read from stdin (works with pipes)</span></div>
+                        <div><span class="kw">while</span> (<span class="func">fgets</span>(line, <span class="kw">sizeof</span>(line), stdin)) { ... }</div>
+                        <div></div>
+                        <div><span class="cmt">// Errors to stderr, data to stdout</span></div>
+                        <div><span class="func">fprintf</span>(stderr, <span class="str">"[ERROR] %s\n"</span>, msg);</div>
+                        <div><span class="func">fprintf</span>(stdout, <span class="str">"%s\n"</span>, result);</div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Always check <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">fopen</code> return value -- NULL means failure</li>
+                    <li>Use <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">"rb"</code>/<code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">"wb"</code> modes for binary data like network captures and firmware</li>
+                    <li>fread/fwrite handle raw bytes; fgets/fprintf handle text</li>
+                    <li>Always <code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">fclose</code> files when done to flush buffers and release handles</li>
+                    <li>Never construct file paths from unsanitized user input</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-c-08-structs-unions.module.html" class="nav-btn">&lt; Previous: Structs & Unions</a>
+                <a href="arm-c-10-preprocessor.module.html" class="nav-btn primary">Next: Preprocessor &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        const MODULE_ID = 'arm-c-09-file-io';
+        const tasks = { 't1': false, 't2': false, 't3': false, 't4': false };
+        const TASK_ORDER = ['t1', 't2', 't3', 't4'];
+        const TASK_INSTRUCTIONS = {
+            't1': { number: 1, title: 'File Modes', description: 'What mode do you use to read a binary file?', command: 'Answer: "rb"', expect: 'Choosing correct fopen mode' },
+            't2': { number: 2, title: 'Error Handling', description: 'What does fopen return when it fails, and how do you get the error message?', command: 'Answer: Returns NULL; use perror() for message', expect: 'Proper file error handling' },
+            't3': { number: 3, title: 'Binary vs Text', description: 'Why use fread/fwrite instead of fgets/fprintf for binary files?', command: 'Answer: fgets stops at newlines; fread reads raw bytes', expect: 'Understanding binary I/O' },
+            't4': { number: 4, title: 'Path Traversal', description: 'Why is fopen(user_input, "r") dangerous?', command: 'Answer: Path traversal -- user can read any file', expect: 'Recognizing file path injection' }
+        };
+        function showTaskInstruction(taskId) { var info = TASK_INSTRUCTIONS[taskId]; if (!info) return; var el = document.getElementById('taskInstruction'); el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>'; el.classList.add('visible'); document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); }); var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active'); }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        document.querySelectorAll('.task-chip').forEach(function(chip) { chip.addEventListener('click', function() { completeTask(this.getAttribute('data-task')); }); });
+        function completeTask(taskId) { if (tasks[taskId]) return; tasks[taskId] = true; var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); } updateProgress(); saveProgress(); var next = getNextIncompleteTask(); if (next) { showTaskInstruction(next); } else { var el = document.getElementById('taskInstruction'); el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>File I/O for text and binary data mastered.</div>'; el.classList.add('visible'); ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-c-10-preprocessor.module.html' }); } }
+        function updateProgress() { var completed = Object.values(tasks).filter(function(v) { return v; }).length; var total = Object.keys(tasks).length; document.getElementById('progressFill').style.width = (completed / total * 100) + '%'; document.getElementById('progressText').textContent = completed + ' / ' + total; }
+        function saveProgress() { var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); if (!progress.code) progress.code = {}; var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; }); var allDone = tasksDone.length === Object.keys(tasks).length; progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now(), ...(allDone && { completedAt: new Date().toISOString() }) }; localStorage.setItem('hexworth_progress', JSON.stringify(progress)); }
+        (function loadProgress() { var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); var saved = progress.code && progress.code[MODULE_ID]; if (saved) { var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []); taskList.forEach(function(t) { tasks[t] = true; var c = document.querySelector('.task-chip[data-task="' + t + '"]'); if (c) c.classList.add('completed'); }); updateProgress(); } var next = getNextIncompleteTask(); if (next) showTaskInstruction(next); })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

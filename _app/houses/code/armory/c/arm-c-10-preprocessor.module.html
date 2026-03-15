@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-10: Preprocessor & Build | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117; --accent: #ef4444; --accent-dim: rgba(239, 68, 68, 0.15); --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .code-editor { flex: 1; min-height: 0; overflow-y: auto; background: var(--bg-terminal); padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; color: var(--text-secondary); }
+        .code-editor .line { display: flex; } .code-editor .line-num { color: #555; min-width: 35px; text-align: right; padding-right: 15px; user-select: none; }
+        .code-editor .kw { color: #c586c0; } .code-editor .type { color: #4EC9B0; } .code-editor .func { color: #dcdcaa; } .code-editor .str { color: #ce9178; } .code-editor .cmt { color: #6a9955; } .code-editor .num { color: #b5cea8; } .code-editor .pp { color: #c586c0; } .code-editor .inc { color: #ce9178; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; } .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); } .command-output .output { color: var(--text-secondary); }
+        .warning-box { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px; margin: 14px 0; }
+        .warning-box strong { color: var(--red); }
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; } .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #dc2626; }
+        .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        @media (max-width: 1100px) { .main-layout { grid-template-columns: 1fr; } .content-panel { max-height: none; } .terminal-panel { position: relative; top: 0; height: 500px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">C-10</span>
+            <h1>Preprocessor & Build</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Course Home</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="t1" onclick="showTaskInstruction('t1')">1</span>
+                    <span class="task-chip" data-task="t2" onclick="showTaskInstruction('t2')">2</span>
+                    <span class="task-chip" data-task="t3" onclick="showTaskInstruction('t3')">3</span>
+                    <span class="task-chip" data-task="t4" onclick="showTaskInstruction('t4')">4</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="code-editor">
+                <div class="line"><span class="line-num">1</span><span class="cmt">// config.h -- Project configuration</span></div>
+                <div class="line"><span class="line-num">2</span><span class="pp">#ifndef</span> CONFIG_H</div>
+                <div class="line"><span class="line-num">3</span><span class="pp">#define</span> CONFIG_H</div>
+                <div class="line"><span class="line-num">4</span></div>
+                <div class="line"><span class="line-num">5</span><span class="pp">#define</span> <span class="func">VERSION</span>       <span class="str">"1.0.0"</span></div>
+                <div class="line"><span class="line-num">6</span><span class="pp">#define</span> <span class="func">MAX_BUFFER</span>    <span class="num">4096</span></div>
+                <div class="line"><span class="line-num">7</span><span class="pp">#define</span> <span class="func">MAX_CLIENTS</span>   <span class="num">256</span></div>
+                <div class="line"><span class="line-num">8</span></div>
+                <div class="line"><span class="line-num">9</span><span class="cmt">// Function-like macro</span></div>
+                <div class="line"><span class="line-num">10</span><span class="pp">#define</span> <span class="func">MAX</span>(a, b)  ((a) > (b) ? (a) : (b))</div>
+                <div class="line"><span class="line-num">11</span><span class="pp">#define</span> <span class="func">MIN</span>(a, b)  ((a) &lt; (b) ? (a) : (b))</div>
+                <div class="line"><span class="line-num">12</span></div>
+                <div class="line"><span class="line-num">13</span><span class="cmt">// Conditional compilation</span></div>
+                <div class="line"><span class="line-num">14</span><span class="pp">#ifdef</span> DEBUG</div>
+                <div class="line"><span class="line-num">15</span>    <span class="pp">#define</span> <span class="func">LOG</span>(msg) <span class="func">fprintf</span>(stderr, <span class="str">"[DEBUG] %s\n"</span>, msg)</div>
+                <div class="line"><span class="line-num">16</span><span class="pp">#else</span></div>
+                <div class="line"><span class="line-num">17</span>    <span class="pp">#define</span> <span class="func">LOG</span>(msg)  <span class="cmt">/* no-op in release */</span></div>
+                <div class="line"><span class="line-num">18</span><span class="pp">#endif</span></div>
+                <div class="line"><span class="line-num">19</span></div>
+                <div class="line"><span class="line-num">20</span><span class="cmt">// Platform detection</span></div>
+                <div class="line"><span class="line-num">21</span><span class="pp">#if defined</span>(__linux__)</div>
+                <div class="line"><span class="line-num">22</span>    <span class="pp">#define</span> <span class="func">PLATFORM</span> <span class="str">"Linux"</span></div>
+                <div class="line"><span class="line-num">23</span><span class="pp">#elif defined</span>(__APPLE__)</div>
+                <div class="line"><span class="line-num">24</span>    <span class="pp">#define</span> <span class="func">PLATFORM</span> <span class="str">"macOS"</span></div>
+                <div class="line"><span class="line-num">25</span><span class="pp">#elif defined</span>(_WIN32)</div>
+                <div class="line"><span class="line-num">26</span>    <span class="pp">#define</span> <span class="func">PLATFORM</span> <span class="str">"Windows"</span></div>
+                <div class="line"><span class="line-num">27</span><span class="pp">#else</span></div>
+                <div class="line"><span class="line-num">28</span>    <span class="pp">#define</span> <span class="func">PLATFORM</span> <span class="str">"Unknown"</span></div>
+                <div class="line"><span class="line-num">29</span><span class="pp">#endif</span></div>
+                <div class="line"><span class="line-num">30</span></div>
+                <div class="line"><span class="line-num">31</span><span class="pp">#endif</span> <span class="cmt">// CONFIG_H</span></div>
+            </div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h2>Learning Objectives</h2>
+                <ul>
+                    <li>Use #define for constants and function-like macros</li>
+                    <li>Write include guards for header files</li>
+                    <li>Use conditional compilation for debug/release and cross-platform code</li>
+                    <li>Build multi-file projects with Makefiles</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">The Preprocessor</h2>
+                <p class="content-text">The C preprocessor runs before the compiler. It handles directives that start with <code>#</code> -- text substitution, file inclusion, and conditional compilation. Preprocessor output is pure C code with no directives remaining. You can see the output with <code>gcc -E</code>.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">#define Constants and Macros</h2>
+
+                <div class="command-card">
+                    <div class="command-name">Object-like macros (constants)</div>
+                    <div class="command-output">
+                        <div><span class="pp">#define</span> <span class="func">PORT</span>         <span class="num">8080</span></div>
+                        <div><span class="pp">#define</span> <span class="func">MAX_PATH</span>     <span class="num">4096</span></div>
+                        <div><span class="pp">#define</span> <span class="func">AUTHOR</span>       <span class="str">"HexTeam"</span></div>
+                        <div></div>
+                        <div><span class="cmt">// Usage -- preprocessor replaces the name with the value</span></div>
+                        <div><span class="type">char</span> buf[MAX_PATH];</div>
+                        <div><span class="func">listen</span>(sock, PORT);</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Function-like macros</div>
+                    <div class="command-output">
+                        <div><span class="pp">#define</span> <span class="func">SQUARE</span>(x)     ((x) * (x))</div>
+                        <div><span class="pp">#define</span> <span class="func">ABS</span>(x)        ((x) &lt; 0 ? -(x) : (x))</div>
+                        <div><span class="pp">#define</span> <span class="func">ARRAY_LEN</span>(a)  (<span class="kw">sizeof</span>(a) / <span class="kw">sizeof</span>((a)[<span class="num">0</span>]))</div>
+                        <div></div>
+                        <div><span class="type">int</span> arr[] = {<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>,<span class="num">4</span>,<span class="num">5</span>};</div>
+                        <div><span class="type">int</span> len = <span class="func">ARRAY_LEN</span>(arr);  <span class="cmt">// 5</span></div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>Macro Pitfall:</strong> Always parenthesize macro arguments. Without parentheses, <code>SQUARE(1+2)</code> expands to <code>1+2 * 1+2 = 5</code> instead of <code>(1+2) * (1+2) = 9</code>. This is a common source of subtle bugs.
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">#include and Include Guards</h2>
+                <p class="content-text"><code>#include &lt;file&gt;</code> searches system paths. <code>#include "file"</code> searches the current directory first. Include guards prevent a header from being processed twice, which would cause duplicate definition errors.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Include guard pattern</div>
+                    <div class="command-output">
+                        <div><span class="pp">#ifndef</span> MYHEADER_H     <span class="cmt">// If not defined yet...</span></div>
+                        <div><span class="pp">#define</span> MYHEADER_H     <span class="cmt">// ...define it (marks as included)</span></div>
+                        <div></div>
+                        <div><span class="cmt">// Header contents here</span></div>
+                        <div><span class="type">void</span> <span class="func">do_something</span>(<span class="type">void</span>);</div>
+                        <div></div>
+                        <div><span class="pp">#endif</span>                 <span class="cmt">// End of guard</span></div>
+                        <div></div>
+                        <div><span class="cmt">// Modern alternative (non-standard but widely supported):</span></div>
+                        <div><span class="pp">#pragma once</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Conditional Compilation</h2>
+                <p class="content-text">Conditional directives include or exclude code based on compile-time conditions. This is how you write code that works on multiple platforms or has debug/release modes.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Debug mode via command line</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> gcc -DDEBUG program.c -o program_debug</div>
+                        <div><span class="prompt">$</span> gcc program.c -o program_release</div>
+                        <div></div>
+                        <div><span class="cmt">// In code:</span></div>
+                        <div><span class="pp">#ifdef</span> DEBUG</div>
+                        <div>    <span class="func">printf</span>(<span class="str">"[DEBUG] ptr = %p, val = %d\n"</span>, ptr, *ptr);</div>
+                        <div><span class="pp">#endif</span></div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Predefined macros (useful for security tools)</div>
+                    <div class="command-output">
+                        <div>__FILE__    <span class="cmt">// Current source file name</span></div>
+                        <div>__LINE__    <span class="cmt">// Current line number</span></div>
+                        <div>__func__    <span class="cmt">// Current function name</span></div>
+                        <div>__DATE__    <span class="cmt">// Compilation date</span></div>
+                        <div>__TIME__    <span class="cmt">// Compilation time</span></div>
+                        <div></div>
+                        <div><span class="cmt">// Error reporting macro:</span></div>
+                        <div><span class="pp">#define</span> <span class="func">DIE</span>(msg) do { \</div>
+                        <div>    <span class="func">fprintf</span>(stderr, <span class="str">"FATAL [%s:%d] %s\n"</span>, \</div>
+                        <div>        __FILE__, __LINE__, msg); \</div>
+                        <div>    <span class="func">exit</span>(<span class="num">1</span>); \</div>
+                        <div>} <span class="kw">while</span>(<span class="num">0</span>)</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Makefiles</h2>
+                <p class="content-text">For projects with multiple files, a Makefile automates the build process. Make only recompiles files that changed, saving time on large projects.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Basic Makefile</div>
+                    <div class="command-output">
+                        <div>CC = gcc</div>
+                        <div>CFLAGS = -Wall -Wextra -std=c11 -g</div>
+                        <div>TARGET = scanner</div>
+                        <div>SRCS = main.c network.c parser.c</div>
+                        <div>OBJS = $(SRCS:.c=.o)</div>
+                        <div></div>
+                        <div>$(TARGET): $(OBJS)</div>
+                        <div>	$(CC) $(OBJS) -o $(TARGET)</div>
+                        <div></div>
+                        <div>%.o: %.c</div>
+                        <div>	$(CC) $(CFLAGS) -c $&lt; -o $@</div>
+                        <div></div>
+                        <div>clean:</div>
+                        <div>	rm -f $(OBJS) $(TARGET)</div>
+                        <div></div>
+                        <div>debug: CFLAGS += -DDEBUG</div>
+                        <div>debug: $(TARGET)</div>
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">Using make</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> make           <span class="cmt"># Build the project</span></div>
+                        <div><span class="prompt">$</span> make clean      <span class="cmt"># Remove built files</span></div>
+                        <div><span class="prompt">$</span> make debug      <span class="cmt"># Build with debug mode</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Security Hardening Flags</h2>
+                <p class="content-text">Modern compilers and linkers provide security features that make exploitation harder. Always enable these in production builds.</p>
+
+                <div class="command-card">
+                    <div class="command-name">Hardened compilation</div>
+                    <div class="command-output">
+                        <div><span class="prompt">$</span> gcc -Wall -Wextra -Werror \</div>
+                        <div>    -fstack-protector-strong \  <span class="cmt"># Stack canaries</span></div>
+                        <div>    -D_FORTIFY_SOURCE=2 \       <span class="cmt"># Buffer overflow detection</span></div>
+                        <div>    -pie -fPIE \                <span class="cmt"># Position-independent (ASLR)</span></div>
+                        <div>    -Wl,-z,relro,-z,now \       <span class="cmt"># Full RELRO (GOT protection)</span></div>
+                        <div>    -Wl,-z,noexecstack \        <span class="cmt"># Non-executable stack</span></div>
+                        <div>    -o program program.c</div>
+                    </div>
+                </div>
+
+                <p class="content-text">These flags enable stack canaries, ASLR, RELRO, and NX -- the four pillars of modern binary protection. Understanding what each one does is essential for both hardening your code and understanding exploit mitigations during penetration testing.</p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><code style="background:var(--bg-terminal);padding:2px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--green);">#define</code> creates text substitutions -- always parenthesize macro arguments</li>
+                    <li>Include guards prevent double-inclusion of headers</li>
+                    <li>Conditional compilation enables debug/release modes and cross-platform code</li>
+                    <li>Makefiles automate multi-file builds with incremental compilation</li>
+                    <li>Security hardening flags (stack protector, ASLR, RELRO, NX) are mandatory for production C code</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-c-09-file-io.module.html" class="nav-btn">&lt; Previous: File I/O</a>
+                <a href="index.html" class="nav-btn primary">Back to Course Home &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        const MODULE_ID = 'arm-c-10-preprocessor';
+        const tasks = { 't1': false, 't2': false, 't3': false, 't4': false };
+        const TASK_ORDER = ['t1', 't2', 't3', 't4'];
+        const TASK_INSTRUCTIONS = {
+            't1': { number: 1, title: 'Macro Safety', description: 'Why must you parenthesize arguments in function-like macros?', command: 'Answer: Without parens, operator precedence breaks expansion', expect: 'Understanding macro pitfalls' },
+            't2': { number: 2, title: 'Include Guards', description: 'What happens if you include the same header twice without include guards?', command: 'Answer: Duplicate definition errors', expect: 'Purpose of include guards' },
+            't3': { number: 3, title: 'Conditional Compilation', description: 'How do you enable DEBUG mode from the command line without editing source?', command: 'Answer: gcc -DDEBUG program.c', expect: 'Using -D flag for compile-time defines' },
+            't4': { number: 4, title: 'Security Hardening', description: 'Name the four main binary protection mechanisms enabled by compiler flags.', command: 'Answer: Stack canaries, ASLR (PIE), RELRO, NX (no-exec stack)', expect: 'Knowing modern binary protections' }
+        };
+        function showTaskInstruction(taskId) { var info = TASK_INSTRUCTIONS[taskId]; if (!info) return; var el = document.getElementById('taskInstruction'); el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>'; el.classList.add('visible'); document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); }); var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active'); }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        document.querySelectorAll('.task-chip').forEach(function(chip) { chip.addEventListener('click', function() { completeTask(this.getAttribute('data-task')); }); });
+        function completeTask(taskId) { if (tasks[taskId]) return; tasks[taskId] = true; var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); } updateProgress(); saveProgress(); var next = getNextIncompleteTask(); if (next) { showTaskInstruction(next); } else { var el = document.getElementById('taskInstruction'); el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>C Programming track complete! You understand the preprocessor, build system, and security hardening.</div>'; el.classList.add('visible'); ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'index.html' }); } }
+        function updateProgress() { var completed = Object.values(tasks).filter(function(v) { return v; }).length; var total = Object.keys(tasks).length; document.getElementById('progressFill').style.width = (completed / total * 100) + '%'; document.getElementById('progressText').textContent = completed + ' / ' + total; }
+        function saveProgress() { var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); if (!progress.code) progress.code = {}; var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; }); var allDone = tasksDone.length === Object.keys(tasks).length; progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now(), ...(allDone && { completedAt: new Date().toISOString() }) }; localStorage.setItem('hexworth_progress', JSON.stringify(progress)); }
+        (function loadProgress() { var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); var saved = progress.code && progress.code[MODULE_ID]; if (saved) { var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []); taskList.forEach(function(t) { tasks[t] = true; var c = document.querySelector('.task-chip[data-task="' + t + '"]'); if (c) c.classList.add('completed'); }); updateProgress(); } var next = getNextIncompleteTask(); if (next) showTaskInstruction(next); })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL-04: JOIN Operations | Code Armory</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117;
+            --accent: #14b8a6; --accent-dim: rgba(20, 184, 166, 0.15);
+            --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12;
+            --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); height: 100vh; overflow: hidden; line-height: 1.6; }
+        code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; color: var(--green); }
+
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        .main-layout { display: grid; grid-template-columns: 480px 1fr; min-height: calc(100vh - 50px); }
+        .content-panel { padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 50px); }
+        .terminal-panel { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 50px); position: sticky; top: 50px; }
+        .panel-tasks { padding: 15px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .panel-tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .panel-tasks-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+        .panel-tasks-progress { font-size: 0.8rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .progress-bar { height: 4px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .task-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .task-chip { font-size: 0.75rem; padding: 4px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+        .task-chip.completed { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
+        .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
+        .task-instruction.visible { display: block; }
+        .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+        .task-instruction .task-cmd { background: var(--bg-terminal); padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin: 6px 0; display: inline-block; }
+        .task-instruction .task-expect { color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; font-style: italic; }
+        .terminal-container { flex: 1; min-height: 0; }
+
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h3 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .syntax-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin: 14px 0; }
+        .syntax-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px; }
+        .syntax-code { font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; color: var(--green); line-height: 1.8; }
+        .syntax-code .kw { color: var(--accent); font-weight: 600; }
+        .syntax-code .val { color: var(--yellow); }
+
+        .command-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; transition: border-color 0.2s; }
+        .command-card:hover { border-color: var(--accent); }
+        .command-name { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: var(--green); margin-bottom: 6px; }
+        .command-desc { color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem; }
+        .command-output { background: var(--bg-terminal); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; }
+        .command-output .prompt { color: var(--green); }
+        .command-output .output { color: var(--text-secondary); }
+
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        .join-diagram { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); white-space: pre; overflow-x: auto; }
+        .join-diagram .hl { color: var(--accent); font-weight: 600; }
+        .join-diagram .match { color: var(--green); }
+
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0d9488; }
+
+        @media (max-width: 1100px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .content-panel { max-height: none; }
+            .terminal-panel { position: relative; top: 0; height: 500px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">SQL-04</span>
+            <h1>JOIN Operations</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; SQL Track</a>
+    </header>
+
+    <div class="main-layout">
+        <div class="terminal-panel">
+            <div class="panel-tasks">
+                <div class="panel-tasks-header">
+                    <span class="panel-tasks-title">Tasks</span>
+                    <span class="panel-tasks-progress" id="progressText">0 / 4</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="task-row">
+                    <span class="task-chip" data-task="inner-join" onclick="showTaskInstruction('inner-join')">1</span>
+                    <span class="task-chip" data-task="left-join" onclick="showTaskInstruction('left-join')">2</span>
+                    <span class="task-chip" data-task="alias" onclick="showTaskInstruction('alias')">3</span>
+                    <span class="task-chip" data-task="multi-join" onclick="showTaskInstruction('multi-join')">4</span>
+                </div>
+                <div class="task-instruction" id="taskInstruction"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="objectives">
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand why JOINs are necessary in relational databases</li>
+                    <li>Write INNER JOIN to combine matching rows from two tables</li>
+                    <li>Use LEFT and RIGHT JOIN to include unmatched rows</li>
+                    <li>Apply table aliases for readable multi-table queries</li>
+                    <li>Chain multiple JOINs in a single query</li>
+                </ul>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Why JOINs?</h2>
+                <p class="content-text">Relational databases split data across multiple tables to avoid duplication. JOINs reconnect that data by matching rows based on related columns (typically primary key to foreign key).</p>
+                <p class="content-text">Example: A <code>users</code> table stores account info. A <code>login_logs</code> table stores login events. To see which username is associated with each login, you JOIN the tables on the user ID.</p>
+
+                <div class="join-diagram"><span class="hl">users table</span>                  <span class="hl">login_logs table</span>
++----+----------+          +----+---------+--------+
+| <span class="match">id</span> | username |          | id | <span class="match">user_id</span> | status |
++----+----------+          +----+---------+--------+
+|  1 | admin    |  &lt;------&gt;  |  1 |       1 | OK     |
+|  2 | jsmith   |  &lt;------&gt;  |  2 |       2 | OK     |
+|  3 | analyst1 |          |  3 |       1 | FAIL   |
++----+----------+          +----+---------+--------+
+                      JOIN ON users.id = login_logs.user_id</div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">INNER JOIN</h2>
+                <p class="content-text"><code>INNER JOIN</code> returns only rows where there is a match in both tables. If a user has no login logs, they will not appear in the results.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Syntax</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> columns<br>
+                        <span class="kw">FROM</span> table_a<br>
+                        <span class="kw">INNER JOIN</span> table_b <span class="kw">ON</span> table_a.col = table_b.col;
+                    </div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT users.username, login_logs.status, login_logs.timestamp FROM users INNER JOIN login_logs ON users.user_id = login_logs.user_id;</div>
+                    <div class="command-desc">Combine user names with their login events. Only users who have log entries appear.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT users.username, login_logs.status, login_logs.timestamp</div>
+                        <div><span class="prompt">   &gt;</span> FROM users INNER JOIN login_logs ON users.user_id = login_logs.user_id;</div>
+                        <div><span class="output">admin|SUCCESS|2026-03-15 09:30:00</span></div>
+                        <div><span class="output">jsmith|SUCCESS|2026-03-14 17:00:00</span></div>
+                        <div><span class="output">hacker|FAILED|2026-03-15 11:45:00</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">LEFT JOIN</h2>
+                <p class="content-text"><code>LEFT JOIN</code> returns all rows from the left table, even if there is no match in the right table. Unmatched columns from the right table show as NULL.</p>
+                <p class="content-text">This is critical for security auditing -- you want to find users who have never logged in (potential orphaned accounts).</p>
+
+                <div class="command-card">
+                    <div class="command-name">SELECT u.username, l.timestamp, l.status FROM users u LEFT JOIN login_logs l ON u.user_id = l.user_id;</div>
+                    <div class="command-desc">Show all users, including those with no login records. Notice the NULL values for users who never logged in.</div>
+                    <div class="command-output">
+                        <div><span class="prompt">sql&gt;</span> SELECT u.username, l.timestamp, l.status</div>
+                        <div><span class="prompt">   &gt;</span> FROM users u LEFT JOIN login_logs l ON u.user_id = l.user_id;</div>
+                        <div><span class="output">admin|2026-03-15 09:30:00|SUCCESS</span></div>
+                        <div><span class="output">jsmith|2026-03-14 17:00:00|SUCCESS</span></div>
+                        <div><span class="output">analyst1|NULL|NULL</span></div>
+                        <div><span class="output">hacker|2026-03-15 11:45:00|FAILED</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">RIGHT JOIN and FULL OUTER JOIN</h2>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <strong>RIGHT JOIN</strong>
+                        <span>Opposite of LEFT JOIN. Returns all rows from the right table, with NULLs for unmatched left rows. Less commonly used -- you can always swap table order and use LEFT JOIN instead.</span>
+                    </div>
+                    <div class="feature-card">
+                        <strong>FULL OUTER JOIN</strong>
+                        <span>Returns all rows from both tables. Unmatched rows on either side show NULLs. Note: SQLite does not support FULL OUTER JOIN natively -- use UNION of LEFT and RIGHT JOIN.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Table Aliases</h2>
+                <p class="content-text">When working with multiple tables, aliases keep your queries short and readable. Define an alias after the table name:</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Alias Syntax</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> <span class="val">u</span>.username, <span class="val">p</span>.permission<br>
+                        <span class="kw">FROM</span> users <span class="val">u</span><br>
+                        <span class="kw">INNER JOIN</span> permissions <span class="val">p</span> <span class="kw">ON</span> <span class="val">u</span>.user_id = <span class="val">p</span>.user_id;
+                    </div>
+                </div>
+
+                <p class="content-text">The <code>AS</code> keyword is optional: <code>FROM users AS u</code> and <code>FROM users u</code> are identical.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Multi-Table JOINs</h2>
+                <p class="content-text">Chain multiple JOINs to combine three or more tables. This is common in forensic investigations where you need to correlate users, logs, and permissions.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Three-Table Join</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> u.username, l.status, l.ip_address, p.permission<br>
+                        <span class="kw">FROM</span> users u<br>
+                        <span class="kw">INNER JOIN</span> login_logs l <span class="kw">ON</span> u.user_id = l.user_id<br>
+                        <span class="kw">INNER JOIN</span> permissions p <span class="kw">ON</span> u.user_id = p.user_id<br>
+                        <span class="kw">WHERE</span> l.status = <span class="val">'FAILED'</span><br>
+                        <span class="kw">ORDER BY</span> l.timestamp <span class="kw">DESC</span>;
+                    </div>
+                </div>
+
+                <p class="content-text">This query answers: "Show me every failed login attempt, including the user's permissions and the source IP." This is exactly what you would run when triaging a brute-force attack.</p>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Self-Joins</h2>
+                <p class="content-text">A self-join joins a table with itself. This is useful for hierarchical data like org charts, or for comparing rows within the same table.</p>
+
+                <div class="syntax-box">
+                    <div class="syntax-label">Self-Join Example: Find Users Who Share an IP</div>
+                    <div class="syntax-code">
+                        <span class="kw">SELECT</span> a.username <span class="kw">AS</span> user_a, b.username <span class="kw">AS</span> user_b, a.ip_address<br>
+                        <span class="kw">FROM</span> login_logs a<br>
+                        <span class="kw">INNER JOIN</span> login_logs b <span class="kw">ON</span> a.ip_address = b.ip_address<br>
+                        <span class="kw">WHERE</span> a.username != b.username;
+                    </div>
+                </div>
+
+                <p class="content-text">This detects account sharing or lateral movement -- two different usernames logging in from the same IP address.</p>
+            </section>
+
+            <div class="takeaways">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><code>INNER JOIN</code> returns only matching rows from both tables</li>
+                    <li><code>LEFT JOIN</code> includes all rows from the left table, NULLs for non-matches</li>
+                    <li>Table aliases (<code>u</code>, <code>l</code>, <code>p</code>) keep multi-table queries readable</li>
+                    <li>Chain multiple JOINs to correlate data across three or more tables</li>
+                    <li>Self-joins compare rows within the same table -- useful for detecting shared credentials or IPs</li>
+                </ul>
+            </div>
+
+            <nav class="nav-footer">
+                <a href="arm-sql-03-filtering.module.html" class="nav-btn">&lt; Previous: Filtering</a>
+                <a href="arm-sql-05-aggregation.module.html" class="nav-btn primary">Next: Aggregation &gt;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        LinuxTerminal.init('SQL-04', '#terminal', {
+            user: 'analyst', hostname: 'sql-lab', startDir: '/home/analyst', height: '100%',
+            onCommand: function(cmdLine, output, cmd, args) {
+                var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
+                if (lower.includes('inner join')) completeTask('inner-join');
+                if (lower.includes('left join')) completeTask('left-join');
+                if (/from\s+\w+\s+[a-z]\s/i.test(lower) || /join\s+\w+\s+[a-z]\s+on/i.test(lower)) completeTask('alias');
+                if ((lower.match(/join/g) || []).length >= 2) completeTask('multi-join');
+            }
+        });
+
+        var MODULE_ID = 'arm-sql-04-joins';
+        var tasks = { 'inner-join': false, 'left-join': false, 'alias': false, 'multi-join': false };
+        var TASK_ORDER = ['inner-join', 'left-join', 'alias', 'multi-join'];
+        var TASK_INSTRUCTIONS = {
+            'inner-join': { number: 1, title: 'Write an INNER JOIN', description: 'Join two tables using INNER JOIN to combine matching rows.', command: 'SELECT u.username, l.status FROM users u INNER JOIN login_logs l ON u.user_id = l.user_id;', expect: 'Shows combined data from both tables' },
+            'left-join': { number: 2, title: 'Write a LEFT JOIN', description: 'Use LEFT JOIN to include all users, even those without log entries.', command: 'SELECT u.username, l.status FROM users u LEFT JOIN login_logs l ON u.user_id = l.user_id;', expect: 'Shows all users; NULLs for unmatched' },
+            'alias': { number: 3, title: 'Use Table Aliases', description: 'Use short aliases (u, l, p) for table names in a JOIN query.', command: 'SELECT u.username, p.permission FROM users u INNER JOIN permissions p ON u.user_id = p.user_id;', expect: 'Query uses single-letter table aliases' },
+            'multi-join': { number: 4, title: 'Chain Multiple JOINs', description: 'Join three tables in a single query using two JOIN clauses.', command: 'SELECT u.username, l.status, p.permission FROM users u INNER JOIN login_logs l ON u.user_id = l.user_id INNER JOIN permissions p ON u.user_id = p.user_id;', expect: 'Combines data from three tables' }
+        };
+
+        function showTaskInstruction(taskId) {
+            var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
+            var el = document.getElementById('taskInstruction');
+            el.innerHTML = '<div class="task-number">Task ' + info.number + ': ' + info.title + '</div><div>' + info.description + '</div><div class="task-cmd">' + info.command + '</div><div class="task-expect">' + info.expect + '</div>';
+            el.classList.add('visible');
+            document.querySelectorAll('.task-chip').forEach(function(c) { c.classList.remove('active'); });
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip && !chip.classList.contains('completed')) chip.classList.add('active');
+        }
+        function getNextIncompleteTask() { return TASK_ORDER.find(function(t) { return !tasks[t]; }) || null; }
+        function completeTask(taskId) {
+            if (tasks[taskId]) return; tasks[taskId] = true;
+            var chip = document.querySelector('.task-chip[data-task="' + taskId + '"]'); if (chip) { chip.classList.add('completed'); chip.classList.remove('active'); }
+            updateProgress(); saveProgress();
+            var next = getNextIncompleteTask();
+            if (next) { showTaskInstruction(next); } else {
+                var el = document.getElementById('taskInstruction');
+                el.innerHTML = '<div class="task-number" style="color: var(--green);">All Tasks Complete!</div><div>You have mastered SQL JOIN operations.</div>';
+                el.classList.add('visible');
+                ModuleProgress.complete('code', MODULE_ID, { returnUrl: 'arm-sql-05-aggregation.module.html' });
+            }
+        }
+        function updateProgress() {
+            var completed = Object.values(tasks).filter(function(v) { return v; }).length;
+            document.getElementById('progressFill').style.width = (completed / Object.keys(tasks).length * 100) + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + Object.keys(tasks).length;
+        }
+        function saveProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.code) progress.code = {};
+            var tasksDone = Object.entries(tasks).filter(function(e) { return e[1]; }).map(function(e) { return e[0]; });
+            var allDone = tasksDone.length === Object.keys(tasks).length;
+            progress.code[MODULE_ID] = { completed: allDone, completedTasks: tasksDone, lastAccess: Date.now() };
+            if (allDone) progress.code[MODULE_ID].completedAt = new Date().toISOString();
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+        (function loadProgress() {
+            var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            var saved = progress.code && progress.code[MODULE_ID];
+            if (saved) {
+                var taskList = saved.completedTasks || (saved.completed === true ? Object.keys(tasks) : []);
+                taskList.forEach(function(t) { tasks[t] = true; var chip = document.querySelector('.task-chip[data-task="' + t + '"]'); if (chip) chip.classList.add('completed'); });
+                updateProgress();
+            }
+            var next = getNextIncompleteTask(); if (next) showTaskInstruction(next);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
