@@ -354,9 +354,9 @@ const ModuleProgress = (function() {
             checkExplorerAchievement(progress);
         }
 
-        // Show notification
+        // Show completion UI
         if (!silent) {
-            showCompletionNotification(houseId, moduleId);
+            showCompletionOverlay(houseId, moduleId);
         }
 
         console.log(`<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Module completed: ${houseId}/${moduleId}`);
@@ -369,29 +369,27 @@ const ModuleProgress = (function() {
             ActivityFeed.moduleComplete(moduleId, prettyTitle);
         }
 
-        // Return to destination — wait for Firestore sync first (max 8s timeout)
-        // Arctic path override: if user came from Arctic, go to next module in sequence
+        // Arctic path override: if user came from Arctic, navigate directly
         if (returnToDashboard || returnUrl) {
-            let destination = returnUrl || null;
+            let arcticDest = null;
             try {
                 const arcticNext = localStorage.getItem('hexworth_arctic_next');
                 if (arcticNext) {
                     const parsed = JSON.parse(arcticNext);
-                    if (parsed.href) {
-                        destination = parsed.href;
-                    }
+                    if (parsed.href) arcticDest = parsed.href;
                     localStorage.removeItem('hexworth_arctic_next');
                 }
             } catch (e) { /* ignore */ }
 
-            const navigateFn = destination
-                ? () => { window.location.href = destination; }
-                : navigateToDashboard;
-            if (silent) {
-                navigateFn();
-            } else {
-                const timeout = new Promise(r => setTimeout(r, 8000));
-                Promise.race([syncPromise, timeout]).then(navigateFn, navigateFn);
+            // Only auto-navigate for Arctic paths — everything else gets the overlay
+            if (arcticDest) {
+                const navigateFn = () => { window.location.href = arcticDest; };
+                if (silent) {
+                    navigateFn();
+                } else {
+                    const timeout = new Promise(r => setTimeout(r, 8000));
+                    Promise.race([syncPromise, timeout]).then(navigateFn, navigateFn);
+                }
             }
         }
 
@@ -571,66 +569,152 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Show module completion notification
+     * Detect navigation links from the page's nav footer.
+     * Returns { nextUrl, nextLabel, courseHomeUrl, indexUrl }.
      */
-    function showCompletionNotification(houseId, moduleId) {
-        const notification = document.createElement('div');
-        notification.className = 'module-complete-notification';
-        notification.innerHTML = `
-            <div class="mcn-icon">✓</div>
-            <div class="mcn-text">Module Complete!</div>
-            <div class="mcn-subtext">Progress saved</div>
-        `;
+    function detectNavLinks() {
+        const result = { nextUrl: null, nextLabel: null, courseHomeUrl: null, indexUrl: null };
 
-        // Add styles if not present
+        // Look for nav-btn links in the footer
+        const navBtns = document.querySelectorAll('.nav-footer a.nav-btn, .nav-btn.primary, a[class*="nav-btn"]');
+        navBtns.forEach(a => {
+            const text = (a.textContent || '').trim();
+            const href = a.getAttribute('href');
+            if (!href || a.classList.contains('disabled')) return;
+
+            // "Next:" links
+            if (/next/i.test(text) && !a.classList.contains('disabled')) {
+                result.nextUrl = href;
+                result.nextLabel = text.replace(/^Next:\s*/i, '').replace(/\s*>\s*$/, '').trim();
+            }
+        });
+
+        // Look for index.html link (course home)
+        const allLinks = document.querySelectorAll('a[href]');
+        allLinks.forEach(a => {
+            const href = a.getAttribute('href') || '';
+            if (href === 'index.html' || href.endsWith('/index.html')) {
+                result.indexUrl = href;
+            }
+        });
+
+        // Derive course home from current path
+        const path = window.location.pathname;
+        const lastSlash = path.lastIndexOf('/');
+        if (lastSlash > 0) {
+            result.courseHomeUrl = path.substring(0, lastSlash + 1) + 'index.html';
+        }
+
+        return result;
+    }
+
+    /**
+     * Show completion overlay with navigation choices.
+     * Options: Next Module, Stay & Explore, Course Home, Dashboard
+     */
+    function showCompletionOverlay(houseId, moduleId) {
+        // Inject styles if not present
         if (!document.getElementById('module-progress-styles')) {
             const styles = document.createElement('style');
             styles.id = 'module-progress-styles';
             styles.textContent = `
-                .module-complete-notification {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95));
-                    border-radius: 16px;
-                    padding: 30px 50px;
-                    text-align: center;
+                .mp-overlay {
+                    position: fixed;
+                    inset: 0;
                     z-index: 100000;
-                    animation: mcnAppear 0.5s ease-out;
-                    box-shadow: 0 0 50px rgba(34, 197, 94, 0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: rgba(0, 0, 0, 0.75);
+                    backdrop-filter: blur(4px);
+                    animation: mpFadeIn 0.3s ease-out;
                 }
-
-                @keyframes mcnAppear {
-                    from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-                    to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                @keyframes mpFadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
                 }
-
-                .mcn-icon {
-                    font-size: 4rem;
-                    margin-bottom: 10px;
-                    animation: mcnBounce 0.5s ease-out 0.3s;
+                .mp-card {
+                    background: #161822;
+                    border: 1px solid rgba(34, 197, 94, 0.3);
+                    border-radius: 16px;
+                    padding: 32px 40px;
+                    text-align: center;
+                    max-width: 420px;
+                    width: 90%;
+                    box-shadow: 0 0 60px rgba(34, 197, 94, 0.2);
+                    animation: mpScaleIn 0.4s ease-out;
                 }
-
-                @keyframes mcnBounce {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.2); }
+                @keyframes mpScaleIn {
+                    from { transform: scale(0.85); opacity: 0; }
+                    to { transform: scale(1); opacity: 1; }
                 }
-
-                .mcn-text {
-                    font-size: 1.5rem;
-                    font-weight: bold;
+                .mp-check {
+                    width: 56px;
+                    height: 56px;
+                    margin: 0 auto 16px;
+                    background: linear-gradient(135deg, #22c55e, #16a34a);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 28px;
                     color: #fff;
-                    margin-bottom: 5px;
+                    font-weight: bold;
                 }
-
-                .mcn-subtext {
+                .mp-title {
+                    font-size: 1.4rem;
+                    font-weight: 700;
+                    color: #22c55e;
+                    margin-bottom: 6px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                }
+                .mp-subtitle {
+                    font-size: 0.85rem;
+                    color: #94a3b8;
+                    margin-bottom: 24px;
+                }
+                .mp-actions {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                .mp-btn {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    padding: 12px 20px;
+                    border: none;
+                    border-radius: 8px;
                     font-size: 0.9rem;
-                    color: rgba(255,255,255,0.8);
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    font-family: inherit;
+                    text-decoration: none;
+                    color: #fff;
                 }
-
+                .mp-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+                .mp-btn-next {
+                    background: linear-gradient(135deg, #22c55e, #16a34a);
+                }
+                .mp-btn-stay {
+                    background: rgba(99, 102, 241, 0.2);
+                    border: 1px solid rgba(99, 102, 241, 0.4);
+                    color: #a5b4fc;
+                }
+                .mp-btn-course {
+                    background: rgba(245, 158, 11, 0.15);
+                    border: 1px solid rgba(245, 158, 11, 0.3);
+                    color: #fbbf24;
+                }
+                .mp-btn-dash {
+                    background: rgba(255, 255, 255, 0.06);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    color: #94a3b8;
+                }
                 .quiz-notification {
-                    position: absolute;
+                    position: fixed;
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);
@@ -638,26 +722,22 @@ const ModuleProgress = (function() {
                     padding: 30px 50px;
                     text-align: center;
                     z-index: 100000;
-                    animation: mcnAppear 0.5s ease-out;
+                    animation: mpScaleIn 0.4s ease-out;
                 }
-
                 .quiz-notification.passed {
                     background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95));
                     box-shadow: 0 0 50px rgba(34, 197, 94, 0.5);
                 }
-
                 .quiz-notification.failed {
                     background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(185, 28, 28, 0.95));
                     box-shadow: 0 0 50px rgba(239, 68, 68, 0.5);
                 }
-
                 .qn-score {
                     font-size: 3rem;
                     font-weight: bold;
                     color: #fff;
                     margin-bottom: 10px;
                 }
-
                 .qn-text {
                     font-size: 1.2rem;
                     color: #fff;
@@ -666,7 +746,43 @@ const ModuleProgress = (function() {
             document.head.appendChild(styles);
         }
 
-        document.body.appendChild(notification);
+        const nav = detectNavLinks();
+
+        // Build action buttons
+        let actionsHtml = '';
+
+        // Next Module (if available)
+        if (nav.nextUrl) {
+            const label = nav.nextLabel || 'Next Module';
+            actionsHtml += `<a href="${nav.nextUrl}" class="mp-btn mp-btn-next">Next: ${label} &rarr;</a>`;
+        }
+
+        // Stay & Explore
+        actionsHtml += `<button class="mp-btn mp-btn-stay" onclick="this.closest('.mp-overlay').remove()">Stay &amp; Explore</button>`;
+
+        // Course Home
+        if (nav.indexUrl || nav.courseHomeUrl) {
+            const courseUrl = nav.indexUrl || nav.courseHomeUrl;
+            actionsHtml += `<a href="${courseUrl}" class="mp-btn mp-btn-course">Course Home</a>`;
+        }
+
+        // Dashboard
+        actionsHtml += `<a href="javascript:void(0)" class="mp-btn mp-btn-dash" onclick="ModuleProgress._goToDashboard()">Dashboard</a>`;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'mp-overlay';
+        overlay.innerHTML = `
+            <div class="mp-card">
+                <div class="mp-check">&check;</div>
+                <div class="mp-title">Module Complete!</div>
+                <div class="mp-subtitle">Progress saved. What's next?</div>
+                <div class="mp-actions">
+                    ${actionsHtml}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
     }
 
     /**
@@ -733,7 +849,8 @@ const ModuleProgress = (function() {
         getStats,
         getModuleProgress,
         isCompleted,
-        updateStreak
+        updateStreak,
+        _goToDashboard: navigateToDashboard
     };
 })();
 
