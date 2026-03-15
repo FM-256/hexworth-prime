@@ -96,6 +96,42 @@ class LearningPaths {
                     duration: '45 min',
                     href: 'tools/shield-yara.tool.html',
                     prerequisites: ['shield-crypto-intro']
+                },
+                {
+                    id: 'shield-contra',
+                    title: 'Contra',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'games/shield-contra.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'shield-debugger',
+                    title: 'Debugger',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'games/shield-debugger.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'shield-threatdex',
+                    title: 'ThreatDex',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'games/shield-threatdex.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'shield-web-security-headers-lab',
+                    title: 'Web Security Headers Lab',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'games/shield-web-security-headers-lab.applet.html',
+                    prerequisites: []
                 }
             ]
         },
@@ -195,6 +231,24 @@ class LearningPaths {
                     duration: '60 min',
                     href: 'simulators/web-interactive-network-simulatorv2.simulator.html',
                     prerequisites: ['web-routing']
+                },
+                {
+                    id: 'web-dns-resolver-race',
+                    title: 'DNS Resolver Race',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'games/web-dns-resolver-race.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'web-subnet-siege',
+                    title: 'Subnet Siege',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'games/web-subnet-siege.applet.html',
+                    prerequisites: []
                 }
             ]
         },
@@ -496,6 +550,79 @@ class LearningPaths {
             ]
         },
 
+        'cloud-api': {
+            name: 'Cloud API Series',
+            description: 'API security, design patterns, and cloud platform APIs',
+            icon: '/assets/images/icons/icon-globe.webp',
+            color: '#06b6d4',
+            courseHref: 'houses/cloud/index.html',
+            modules: [
+                {
+                    id: 'cloud-api-002',
+                    title: 'Authentication & Authorization',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/api/cloud-api-002.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'cloud-api-003',
+                    title: 'API Design & Documentation',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/api/cloud-api-003.presentation.html',
+                    prerequisites: ['cloud-api-002']
+                },
+                {
+                    id: 'cloud-api-004',
+                    title: 'Rate Limiting, Throttling & Resilience',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/api/cloud-api-004.presentation.html',
+                    prerequisites: ['cloud-api-003']
+                },
+                {
+                    id: 'cloud-api-005',
+                    title: 'OWASP API Security Top 10',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/cloud/api/cloud-api-005.presentation.html',
+                    prerequisites: ['cloud-api-004']
+                },
+                {
+                    id: 'cloud-api-006',
+                    title: 'Hands-On API Penetration Testing',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/cloud/api/cloud-api-006.lab.html',
+                    prerequisites: ['cloud-api-005']
+                },
+                {
+                    id: 'cloud-api-007',
+                    title: 'Cloud APIs: AWS, Azure & GCP Patterns',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/cloud/api/cloud-api-007.presentation.html',
+                    prerequisites: ['cloud-api-006']
+                },
+                {
+                    id: 'cloud-api-foundations-lab',
+                    title: 'API Foundations Lab',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/cloud/games/cloud-api-foundations-lab.applet.html',
+                    prerequisites: ['cloud-api-007']
+                }
+            ]
+        },
+
         code: {
             name: 'Code House - DevOps',
             description: 'Master CI/CD and infrastructure as code',
@@ -629,7 +756,295 @@ class LearningPaths {
                     href: 'houses/code/modules/python-engineering/code-pye-chapter03.module.html',
                     prerequisites: ['code-pye-ch02']
                 },
-                // Chapters 4-10 and midterm will be added as they are built
+                {
+                    id: 'code-pye-ch04',
+                    title: 'Error Handling & Logging',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours',
+                    href: 'houses/code/modules/python-engineering/code-pye-chapter04.module.html',
+                    prerequisites: ['code-pye-ch03']
+                },
+                {
+                    id: 'code-pye-ch05',
+                    title: 'OOP Design Patterns',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '2 hours 30 min',
+                    href: 'houses/code/modules/python-engineering/code-pye-chapter05.module.html',
+                    prerequisites: ['code-pye-ch04']
+                },
+                {
+                    id: 'code-pye-midterm',
+                    title: 'Midterm: Security Event Processor',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '3 hours',
+                    href: 'houses/code/modules/python-engineering/code-pye-midterm.module.html',
+                    prerequisites: ['code-pye-ch05']
+                },
+                {
+                    id: 'code-pye-ch06',
+                    title: 'Type Hints & Testing',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '2 hours 30 min',
+                    href: 'houses/code/modules/python-engineering/code-pye-chapter06.module.html',
+                    prerequisites: ['code-pye-midterm']
+                },
+                {
+                    id: 'code-pye-ch07',
+                    title: 'APIs & Web Services',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '2 hours 30 min',
+                    href: 'houses/code/modules/python-engineering/code-pye-chapter07.module.html',
+                    prerequisites: ['code-pye-ch06']
+                },
+                {
+                    id: 'code-pye-ch08',
+                    title: 'Database Access',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '2 hours 30 min',
+                    href: 'houses/code/modules/python-engineering/code-pye-chapter08.module.html',
+                    prerequisites: ['code-pye-ch07']
+                },
+                {
+                    id: 'code-pye-ch09',
+                    title: 'Async & Concurrency',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '2 hours 30 min',
+                    href: 'houses/code/modules/python-engineering/code-pye-chapter09.module.html',
+                    prerequisites: ['code-pye-ch08']
+                },
+                {
+                    id: 'code-pye-ch10',
+                    title: 'DevOps Scripting',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '2 hours 30 min',
+                    href: 'houses/code/modules/python-engineering/code-pye-chapter10.module.html',
+                    prerequisites: ['code-pye-ch09']
+                },
+                {
+                    id: 'code-pye-capstone',
+                    title: 'Capstone: Security Operations Toolkit',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '4 hours',
+                    href: 'houses/code/modules/python-engineering/code-pye-capstone.module.html',
+                    prerequisites: ['code-pye-ch10']
+                }
+            ]
+        },
+
+        'python-hub': {
+            name: 'Python Hub - Graphics, Stdlib & Projects',
+            description: 'Visual programming, standard library mastery, and capstone projects',
+            icon: '/assets/images/icons/icon-snake.webp',
+            color: '#4ade80',
+            courseHref: 'houses/code/modules/python-hub/index.html',
+            modules: [
+                {
+                    id: 'pyh-graphics-01',
+                    title: 'Turtle Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '45 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-graphics-01.module.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'pyh-graphics-02',
+                    title: 'Turtle Patterns & Fractals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '45 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-graphics-02.module.html',
+                    prerequisites: ['pyh-graphics-01']
+                },
+                {
+                    id: 'pyh-graphics-03',
+                    title: 'tkinter Basics',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '50 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-graphics-03.module.html',
+                    prerequisites: ['pyh-graphics-02']
+                },
+                {
+                    id: 'pyh-graphics-04',
+                    title: 'tkinter Canvas & Widgets',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '50 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-graphics-04.module.html',
+                    prerequisites: ['pyh-graphics-03']
+                },
+                {
+                    id: 'pyh-graphics-05',
+                    title: 'Matplotlib Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '50 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-graphics-05.module.html',
+                    prerequisites: ['pyh-graphics-04']
+                },
+                {
+                    id: 'pyh-graphics-06',
+                    title: 'Matplotlib Advanced',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '50 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-graphics-06.module.html',
+                    prerequisites: ['pyh-graphics-05']
+                },
+                {
+                    id: 'pyh-graphics-07',
+                    title: 'Pillow Image Processing',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '50 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-graphics-07.module.html',
+                    prerequisites: ['pyh-graphics-06']
+                },
+                {
+                    id: 'pyh-graphics-08',
+                    title: 'Pygame Game Development',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '60 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-graphics-08.module.html',
+                    prerequisites: ['pyh-graphics-07']
+                },
+                {
+                    id: 'pyh-stdlib-01',
+                    title: 'Files, Paths & OS',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '45 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-stdlib-01.module.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'pyh-stdlib-02',
+                    title: 'Text Processing',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '45 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-stdlib-02.module.html',
+                    prerequisites: ['pyh-stdlib-01']
+                },
+                {
+                    id: 'pyh-stdlib-03',
+                    title: 'Data Formats',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-stdlib-03.module.html',
+                    prerequisites: ['pyh-stdlib-02']
+                },
+                {
+                    id: 'pyh-stdlib-04',
+                    title: 'Collections & Itertools',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '50 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-stdlib-04.module.html',
+                    prerequisites: ['pyh-stdlib-03']
+                },
+                {
+                    id: 'pyh-stdlib-05',
+                    title: 'Date, Time & Math',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-stdlib-05.module.html',
+                    prerequisites: ['pyh-stdlib-04']
+                },
+                {
+                    id: 'pyh-stdlib-06',
+                    title: 'CLI & Arguments',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-stdlib-06.module.html',
+                    prerequisites: ['pyh-stdlib-05']
+                },
+                {
+                    id: 'pyh-stdlib-07',
+                    title: 'Subprocess & Automation',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '50 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-stdlib-07.module.html',
+                    prerequisites: ['pyh-stdlib-06']
+                },
+                {
+                    id: 'pyh-stdlib-08',
+                    title: 'Logging & Debugging',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '50 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-stdlib-08.module.html',
+                    prerequisites: ['pyh-stdlib-07']
+                },
+                {
+                    id: 'pyh-project-01',
+                    title: 'Project: CLI Toolkit',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '60 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-project-01.module.html',
+                    prerequisites: ['pyh-stdlib-08']
+                },
+                {
+                    id: 'pyh-project-02',
+                    title: 'Project: Log Analyzer',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '60 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-project-02.module.html',
+                    prerequisites: ['pyh-project-01']
+                },
+                {
+                    id: 'pyh-project-03',
+                    title: 'Project: Fractal Generator',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '60 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-project-03.module.html',
+                    prerequisites: ['pyh-project-02']
+                },
+                {
+                    id: 'pyh-project-04',
+                    title: 'Project: Data Dashboard',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '90 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-project-04.module.html',
+                    prerequisites: ['pyh-project-03']
+                },
+                {
+                    id: 'pyh-project-05',
+                    title: 'Project: Image Filter Studio',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '90 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-project-05.module.html',
+                    prerequisites: ['pyh-project-04']
+                },
+                {
+                    id: 'pyh-project-06',
+                    title: 'Project: Snake Game',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '90 min',
+                    href: 'houses/code/modules/python-hub/modules/pyh-project-06.module.html',
+                    prerequisites: ['pyh-project-05']
+                }
             ]
         },
 
@@ -800,6 +1215,42 @@ class LearningPaths {
                     duration: '40 min',
                     href: 'presentations/eye-network-traffic-analysis.presentation.html',
                     prerequisites: ['eye-hunt-workbench']
+                },
+                {
+                    id: 'eye-detection-engineering',
+                    title: 'Detection Engineering',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'games/eye-detection-engineering.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'eye-log-analysis-lab',
+                    title: 'Log Analysis Lab',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'games/eye-log-analysis-lab.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'eye-security-onion-soc',
+                    title: 'Security Onion SOC',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'games/eye-security-onion-soc.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'eye-threat-hunting-lab',
+                    title: 'Threat Hunting Lab',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'games/eye-threat-hunting-lab.applet.html',
+                    prerequisites: []
                 }
             ]
         },
@@ -1740,6 +2191,27 @@ class LearningPaths {
                     title: 'Hardware & Network Troubleshooting',
                     type: 'chapter',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch12-hw-network-troubleshooting/index.html'
+                },
+                {
+                    id: 'forge-aplus-core1-prep-round-2',
+                    title: 'A+ Core 1 Prep — Round 2',
+                    type: 'quiz',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html',
+                    prerequisites: ['forge-aplus-core1-ch12']
+                },
+                {
+                    id: 'forge-aplus-core1-prep-round-3',
+                    title: 'A+ Core 1 Prep — Round 3',
+                    type: 'quiz',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html',
+                    prerequisites: ['forge-aplus-core1-prep-round-2']
+                },
+                {
+                    id: 'forge-aplus-core1-prep-round-4',
+                    title: 'A+ Core 1 Prep — Round 4',
+                    type: 'quiz',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html',
+                    prerequisites: ['forge-aplus-core1-prep-round-3']
                 }
             ]
         },
@@ -1966,6 +2438,290 @@ class LearningPaths {
                     title: 'Lab: Hardware & Driver Troubleshooting',
                     type: 'lab',
                     href: 'houses/forge/md-100/labs/forge-md100-m11-hardware.lab.html'
+                },
+                {
+                    id: 'forge-md100-m01-sim',
+                    title: 'Sim: Operation First Boot',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m01-sim.lab.html',
+                    prerequisites: ['forge-md100-m01-lab']
+                },
+                {
+                    id: 'forge-md100-m02-sim',
+                    title: 'Sim: Operation Lockdown',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m02-sim.lab.html',
+                    prerequisites: ['forge-md100-m01-sim']
+                },
+                {
+                    id: 'forge-md100-m03-sim',
+                    title: 'Sim: Operation Executive Suite',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m03-sim.lab.html',
+                    prerequisites: ['forge-md100-m02-sim']
+                },
+                {
+                    id: 'forge-md100-m04-sim',
+                    title: 'Sim: Operation Dark Subnet',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m04-sim.lab.html',
+                    prerequisites: ['forge-md100-m03-sim']
+                },
+                {
+                    id: 'forge-md100-m05-sim',
+                    title: 'Sim: Operation Capacity Zero',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m05-sim.lab.html',
+                    prerequisites: ['forge-md100-m04-sim']
+                },
+                {
+                    id: 'forge-md100-midterm-sim',
+                    title: 'Sim: WORKSTATION Midterm',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-midterm-sim.lab.html',
+                    prerequisites: ['forge-md100-m05-sim']
+                },
+                {
+                    id: 'forge-md100-m06-sim',
+                    title: 'Sim: Operation Need to Know',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m06-sim.lab.html',
+                    prerequisites: ['forge-md100-midterm-sim']
+                },
+                {
+                    id: 'forge-md100-m07-sim',
+                    title: 'Sim: Operation Sales Floor',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m07-sim.lab.html',
+                    prerequisites: ['forge-md100-m06-sim']
+                },
+                {
+                    id: 'forge-md100-m08-sim',
+                    title: 'Sim: Operation Containment',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m08-sim.lab.html',
+                    prerequisites: ['forge-md100-m07-sim']
+                },
+                {
+                    id: 'forge-md100-m09-sim',
+                    title: 'Sim: Operation Bottleneck',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m09-sim.lab.html',
+                    prerequisites: ['forge-md100-m08-sim']
+                },
+                {
+                    id: 'forge-md100-m10-sim',
+                    title: 'Sim: Operation Phoenix',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m10-sim.lab.html',
+                    prerequisites: ['forge-md100-m09-sim']
+                },
+                {
+                    id: 'forge-md100-m11-sim',
+                    title: 'Sim: Operation Triage',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/forge-md100-m11-sim.lab.html',
+                    prerequisites: ['forge-md100-m10-sim']
+                }
+            ]
+        },
+
+        // Microsoft MD-101: Managing Modern Desktops — Forge House
+        'md-101': {
+            name: 'MD-101: Managing Modern Desktops',
+            description: 'Microsoft 365 Modern Desktop Administrator — device enrollment, profiles, application management, security, deployment, and updates',
+            icon: '/assets/images/icons/icon-window.webp',
+            color: '#ea580c',
+            courseHref: 'houses/forge/md-101/index.html',
+            modules: [
+                {
+                    id: 'forge-md101-m01',
+                    title: 'Modern Management',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m01-modern-management.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'forge-md101-m01-lab',
+                    title: 'Lab: Modern Management',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m01-modern-management.lab.html',
+                    prerequisites: ['forge-md101-m01']
+                },
+                {
+                    id: 'forge-md101-m01-quiz',
+                    title: 'Quiz: Modern Management',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m01-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m01-lab']
+                },
+                {
+                    id: 'forge-md101-m02',
+                    title: 'Device Enrollment',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m02-device-enrollment.presentation.html',
+                    prerequisites: ['forge-md101-m01-quiz']
+                },
+                {
+                    id: 'forge-md101-m02-lab',
+                    title: 'Lab: Device Enrollment',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m02-device-enrollment.lab.html',
+                    prerequisites: ['forge-md101-m02']
+                },
+                {
+                    id: 'forge-md101-m02-quiz',
+                    title: 'Quiz: Device Enrollment',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m02-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m02-lab']
+                },
+                {
+                    id: 'forge-md101-m03',
+                    title: 'Configuring Profiles',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html',
+                    prerequisites: ['forge-md101-m02-quiz']
+                },
+                {
+                    id: 'forge-md101-m03-lab',
+                    title: 'Lab: Configuring Profiles',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m03-configuring-profiles.lab.html',
+                    prerequisites: ['forge-md101-m03']
+                },
+                {
+                    id: 'forge-md101-m03-quiz',
+                    title: 'Quiz: Configuring Profiles',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m03-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m03-lab']
+                },
+                {
+                    id: 'forge-md101-m04',
+                    title: 'Application Management',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html',
+                    prerequisites: ['forge-md101-m03-quiz']
+                },
+                {
+                    id: 'forge-md101-m04-lab',
+                    title: 'Lab: Application Management',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m04-application-management.lab.html',
+                    prerequisites: ['forge-md101-m04']
+                },
+                {
+                    id: 'forge-md101-m04-quiz',
+                    title: 'Quiz: Application Management',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m04-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m04-lab']
+                },
+                {
+                    id: 'forge-md101-m05',
+                    title: 'Authentication & Compliance',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m05-auth-compliance.presentation.html',
+                    prerequisites: ['forge-md101-m04-quiz']
+                },
+                {
+                    id: 'forge-md101-m05-lab',
+                    title: 'Lab: Authentication & Compliance',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m05-auth-compliance.lab.html',
+                    prerequisites: ['forge-md101-m05']
+                },
+                {
+                    id: 'forge-md101-m05-quiz',
+                    title: 'Quiz: Authentication & Compliance',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m05-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m05-lab']
+                },
+                {
+                    id: 'forge-md101-m06',
+                    title: 'Managing Security',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m06-managing-security.presentation.html',
+                    prerequisites: ['forge-md101-m05-quiz']
+                },
+                {
+                    id: 'forge-md101-m06-lab',
+                    title: 'Lab: Managing Security',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m06-managing-security.lab.html',
+                    prerequisites: ['forge-md101-m06']
+                },
+                {
+                    id: 'forge-md101-m06-quiz',
+                    title: 'Quiz: Managing Security',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m06-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m06-lab']
+                },
+                {
+                    id: 'forge-md101-m07',
+                    title: 'Deployment with Endpoint Manager I',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html',
+                    prerequisites: ['forge-md101-m06-quiz']
+                },
+                {
+                    id: 'forge-md101-m07-lab',
+                    title: 'Lab: Deployment with Endpoint Manager I',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m07-deployment-part1.lab.html',
+                    prerequisites: ['forge-md101-m07']
+                },
+                {
+                    id: 'forge-md101-m07-quiz',
+                    title: 'Quiz: Deployment with Endpoint Manager I',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m07-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m07-lab']
+                },
+                {
+                    id: 'forge-md101-m08',
+                    title: 'Deployment with Endpoint Manager II',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html',
+                    prerequisites: ['forge-md101-m07-quiz']
+                },
+                {
+                    id: 'forge-md101-m08-lab',
+                    title: 'Lab: Deployment with Endpoint Manager II',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m08-deployment-part2.lab.html',
+                    prerequisites: ['forge-md101-m08']
+                },
+                {
+                    id: 'forge-md101-m08-quiz',
+                    title: 'Quiz: Deployment with Endpoint Manager II',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m08-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m08-lab']
+                },
+                {
+                    id: 'forge-md101-m09',
+                    title: 'Managing Updates',
+                    type: 'presentation',
+                    href: 'houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html',
+                    prerequisites: ['forge-md101-m08-quiz']
+                },
+                {
+                    id: 'forge-md101-m09-lab',
+                    title: 'Lab: Managing Updates',
+                    type: 'lab',
+                    href: 'houses/forge/md-101/labs/forge-md101-m09-managing-updates.lab.html',
+                    prerequisites: ['forge-md101-m09']
+                },
+                {
+                    id: 'forge-md101-m09-quiz',
+                    title: 'Quiz: Managing Updates',
+                    type: 'quiz',
+                    href: 'houses/forge/md-101/quizzes/forge-md101-m09-quiz.quiz.html',
+                    prerequisites: ['forge-md101-m09-lab']
                 }
             ]
         },
@@ -5089,6 +5845,15 @@ class LearningPaths {
                     prerequisites: ['ai-agent-components']
                 },
                 {
+                    id: 'ai-llm-comparison',
+                    title: 'LLM Comparison Calculator',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/ai/tools/ai-llm-comparison.tool.html',
+                    prerequisites: ['ai-model-architecture-presentation']
+                },
+                {
                     id: 'ai-foundations-quiz',
                     title: 'AI Foundations Quiz',
                     type: 'quiz',
@@ -5216,6 +5981,15 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
+                    id: 'ai-agent-builder-sim',
+                    title: 'Agent Builder Sim',
+                    type: 'game',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/ai/games/ai-agent-builder.applet.html',
+                    prerequisites: ['ai-agent-workflow-lab']
+                },
+                {
                     id: 'ai-builder-quiz',
                     title: 'Agent Builder Quiz',
                     type: 'quiz',
@@ -5298,6 +6072,24 @@ class LearningPaths {
                     prerequisites: ['ai-prompt-injection-lab']
                 },
                 {
+                    id: 'ai-guardrail-challenge',
+                    title: 'Guardrail Challenge',
+                    type: 'game',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/ai/games/ai-guardrail-challenge.applet.html',
+                    prerequisites: ['ai-guardrails']
+                },
+                {
+                    id: 'ai-triage-trainer',
+                    title: 'Triage Trainer',
+                    type: 'game',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/ai/games/ai-triage-trainer.applet.html',
+                    prerequisites: ['ai-soc-triage-lab']
+                },
+                {
                     id: 'ai-security-quiz',
                     title: 'AI Security Quiz',
                     type: 'quiz',
@@ -5305,6 +6097,196 @@ class LearningPaths {
                     duration: '15 min',
                     href: 'houses/ai/quizzes/ai-security.quiz.html',
                     prerequisites: ['ai-prompt-injection-lab']
+                }
+            ]
+        },
+
+        // Signal Toolkit — standalone tool reference pages (not in any house)
+        'signal-toolkit': {
+            name: 'Signal Toolkit Library',
+            description: 'Field-ready tool reference guides for IT and cybersecurity professionals',
+            icon: '/assets/images/icons/icon-tools.webp',
+            color: '#10b981',
+            modules: [
+                {
+                    id: 'signal-tool-arduino-ide',
+                    title: 'Arduino IDE',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/arduino-ide.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-balenaetcher',
+                    title: 'balenaEtcher',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/balenaetcher.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-clonezilla',
+                    title: 'Clonezilla',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/clonezilla.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-coolterm',
+                    title: 'CoolTerm',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/coolterm.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-dban',
+                    title: 'DBAN',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/dban.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-gparted',
+                    title: 'GParted',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/gparted.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-hirens-bootcd',
+                    title: "Hiren's BootCD",
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/hirens-bootcd.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-memtest86',
+                    title: 'MemTest86',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/memtest86.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-minicom',
+                    title: 'Minicom',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/minicom.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-nmap',
+                    title: 'Nmap',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/nmap.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-platformio',
+                    title: 'PlatformIO',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/platformio.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-putty',
+                    title: 'PuTTY',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/putty.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-raspberry-pi-imager',
+                    title: 'Raspberry Pi Imager',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/raspberry-pi-imager.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-retropie',
+                    title: 'RetroPie',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/retropie.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-rufus',
+                    title: 'Rufus',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/rufus.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-screen',
+                    title: 'GNU Screen',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/screen.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-thonny',
+                    title: 'Thonny',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/thonny.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-ventoy',
+                    title: 'Ventoy',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/ventoy.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-vscode',
+                    title: 'VS Code',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/vscode.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'signal-tool-wireshark',
+                    title: 'Wireshark',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '10 min',
+                    href: 'signal/toolkit/tools/wireshark.tool.html',
+                    prerequisites: []
                 }
             ]
         }
