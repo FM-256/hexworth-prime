@@ -308,6 +308,8 @@ const BoxEngine = {
     _buildSurveyModal(type, questions, callback) {
         const overlay = document.createElement('div');
         overlay.className = 'survey-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
 
         const title = type === 'pre' ? 'Pre-Challenge Survey' : 'Post-Challenge Survey';
         const subtitle = type === 'pre'
@@ -332,6 +334,7 @@ const BoxEngine = {
             `;
         });
 
+        overlay.setAttribute('aria-label', title);
         overlay.innerHTML = `
             <div class="survey-card">
                 <h3 class="survey-title">${title}</h3>
@@ -480,15 +483,17 @@ const BoxEngine = {
         // Taskbar
         const taskbar = document.createElement('div');
         taskbar.className = 'arena-taskbar';
+        taskbar.setAttribute('role', 'toolbar');
+        taskbar.setAttribute('aria-label', 'Arena taskbar');
         taskbar.innerHTML = `
             <div class="taskbar-left">
                 <span class="taskbar-box-name">${this._escHtml(this.config.title || 'CTF Arena')}</span>
             </div>
-            <div class="taskbar-center" id="taskbarCenter"></div>
+            <div class="taskbar-center" id="taskbarCenter" role="group" aria-label="Open windows"></div>
             <div class="taskbar-right">
-                <span class="taskbar-clock" id="taskbarClock"></span>
-                <span class="taskbar-score" id="taskbarScore" title="Click for details">SCORE: ${this.state.score}</span>
-                <button class="taskbar-flag-btn" id="taskbarFlagBtn">SUBMIT FLAG</button>
+                <span class="taskbar-clock" id="taskbarClock" role="timer" aria-label="Elapsed time"></span>
+                <span class="taskbar-score" id="taskbarScore" role="status" aria-live="polite" title="Click for details" tabindex="0" aria-label="Score: ${this.state.score}">SCORE: ${this.state.score}</span>
+                <button class="taskbar-flag-btn" id="taskbarFlagBtn" aria-label="Submit a flag">SUBMIT FLAG</button>
             </div>
         `;
         this._desktopEl.appendChild(taskbar);
@@ -537,11 +542,17 @@ const BoxEngine = {
         icons.forEach(icon => {
             const el = document.createElement('div');
             el.className = 'desktop-icon';
+            el.setAttribute('role', 'button');
+            el.setAttribute('tabindex', '0');
+            el.setAttribute('aria-label', 'Open ' + this._escHtml(icon.label));
             el.innerHTML = `
-                <span class="icon-emoji">${icon.icon}</span>
+                <span class="icon-emoji" aria-hidden="true">${icon.icon}</span>
                 <span class="icon-label">${this._escHtml(icon.label)}</span>
             `;
             el.addEventListener('dblclick', () => this._launchApp(icon));
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._launchApp(icon); }
+            });
             el.addEventListener('click', () => {
                 container.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
                 el.classList.add('selected');
@@ -561,15 +572,16 @@ const BoxEngine = {
         ).join('');
 
         overlay.innerHTML = `
-            <div class="flag-modal">
-                <h3>&#9873; Submit Flag</h3>
-                <div class="flag-badges">${badgesHtml}</div>
-                <input type="text" class="flag-modal-input" id="flagModalInput" placeholder="flag{...}" autocomplete="off">
+            <div class="flag-modal" role="dialog" aria-modal="true" aria-label="Submit Flag">
+                <h3 id="flagModalTitle">&#9873; Submit Flag</h3>
+                <div class="flag-badges" role="group" aria-label="Flag status">${badgesHtml}</div>
+                <label for="flagModalInput" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;">Enter flag value</label>
+                <input type="text" class="flag-modal-input" id="flagModalInput" placeholder="flag{...}" autocomplete="off" aria-label="Enter flag value">
                 <div class="flag-modal-btns">
                     <button class="flag-modal-submit" id="flagModalSubmit">Submit</button>
                     <button class="flag-modal-cancel" id="flagModalCancel">Cancel</button>
                 </div>
-                <div class="flag-modal-msg" id="flagModalMsg"></div>
+                <div class="flag-modal-msg" id="flagModalMsg" role="status" aria-live="polite"></div>
             </div>
         `;
 
@@ -600,12 +612,14 @@ const BoxEngine = {
         const panel = document.createElement('div');
         panel.className = 'hint-panel';
         panel.id = 'hintPanel';
+        panel.setAttribute('role', 'complementary');
+        panel.setAttribute('aria-label', 'Hints panel');
         panel.innerHTML = `
             <div class="hint-panel-header">
                 <h3>Hints</h3>
-                <button class="hint-panel-close" id="hintPanelClose">&times;</button>
+                <button class="hint-panel-close" id="hintPanelClose" aria-label="Close hints panel">&times;</button>
             </div>
-            <div class="hint-list" id="hintList"></div>
+            <div class="hint-list" id="hintList" role="list"></div>
         `;
         parent.appendChild(panel);
 
@@ -617,6 +631,9 @@ const BoxEngine = {
         const overlay = document.createElement('div');
         overlay.className = 'completion-overlay';
         overlay.id = 'completionOverlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Box completion');
         overlay.innerHTML = `
             <div class="completion-card">
                 <h2><img src="/assets/images/icons/icon-scales.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> BOX PWNED</h2>
@@ -822,17 +839,20 @@ const BoxEngine = {
         const left = 100 + (count * 40) % 300;
         win.style.cssText = `top:${top}px; left:${left}px; width:700px; height:500px; z-index:${++this._zIndex};`;
 
+        win.setAttribute('role', 'dialog');
+        win.setAttribute('aria-label', title);
+
         win.innerHTML = `
             <div class="window-titlebar">
-                <span class="win-icon">${icon || ''}</span>
+                <span class="win-icon" aria-hidden="true">${icon || ''}</span>
                 <span class="win-title">${this._escHtml(title)}</span>
                 <div class="win-buttons">
-                    <button class="win-btn win-btn-minimize" data-action="minimize"></button>
-                    <button class="win-btn win-btn-close" data-action="close"></button>
+                    <button class="win-btn win-btn-minimize" data-action="minimize" aria-label="Minimize ${this._escHtml(title)}"></button>
+                    <button class="win-btn win-btn-close" data-action="close" aria-label="Close ${this._escHtml(title)}"></button>
                 </div>
             </div>
             <div class="window-content"></div>
-            <div class="window-resize"></div>
+            <div class="window-resize" aria-hidden="true"></div>
         `;
 
         // Append content
@@ -1041,7 +1061,10 @@ const BoxEngine = {
 
     _updateScoreBadge() {
         const badge = document.getElementById('taskbarScore');
-        if (badge) badge.textContent = 'SCORE: ' + this.state.score;
+        if (badge) {
+            badge.textContent = 'SCORE: ' + this.state.score;
+            badge.setAttribute('aria-label', 'Score: ' + this.state.score);
+        }
     },
 
     _toggleScoreDetail() {
@@ -1175,6 +1198,76 @@ const BoxEngine = {
             console.error('[ARENA] Local hash fallback failed:', e);
             return { correct: false, flagId: null, source: 'local_error' };
         }
+    },
+
+    // ── SEC-2: Flag Delivery (server-side flag text) ──────────────
+
+    /** Delivered flag cache: { flagId: flagText } */
+    _deliveredFlags: {},
+
+    /**
+     * Request flag text from server for display.
+     * Called when the student earns a flag (scenario complete, phase unlock, etc.)
+     * Returns the plaintext flag for rendering in terminal/GUI.
+     */
+    async requestFlagText(flagId) {
+        // Return cached if already delivered
+        if (this._deliveredFlags[flagId]) return this._deliveredFlags[flagId];
+
+        // Restore from state (persisted across page refreshes)
+        if (this.state._deliveredFlags && this.state._deliveredFlags[flagId]) {
+            this._deliveredFlags[flagId] = this.state._deliveredFlags[flagId];
+            return this._deliveredFlags[flagId];
+        }
+
+        const hasAuth = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
+        const boxId = this.config.registryId;
+
+        if (!hasAuth || !boxId) {
+            console.warn('[ARENA] Cannot deliver flag — no auth or registryId');
+            return null;
+        }
+
+        try {
+            const result = await FirebaseAuth.callFunction('deliverFlag', { boxId, flagId });
+            const data = result.data || result;
+            if (data.flagText) {
+                this._deliveredFlags[flagId] = data.flagText;
+                // Persist to state so page refresh retains delivered flags
+                if (!this.state._deliveredFlags) this.state._deliveredFlags = {};
+                this.state._deliveredFlags[flagId] = data.flagText;
+                this.save();
+                return data.flagText;
+            }
+        } catch (err) {
+            console.warn('[ARENA] Flag delivery failed:', err.message);
+        }
+        return null;
+    },
+
+    /**
+     * Synchronous read of a previously delivered flag.
+     * Returns null if not yet delivered.
+     */
+    getDeliveredFlag(flagId) {
+        if (this._deliveredFlags[flagId]) return this._deliveredFlags[flagId];
+        if (this.state._deliveredFlags && this.state._deliveredFlags[flagId]) {
+            this._deliveredFlags[flagId] = this.state._deliveredFlags[flagId];
+            return this._deliveredFlags[flagId];
+        }
+        return null;
+    },
+
+    /**
+     * Replace {{FLAG:id}} tokens in text with delivered flag values.
+     * Used by Terminal._appendOutput and custom command handlers.
+     * Unresolved tokens show a placeholder.
+     */
+    resolveFlagTokens(text) {
+        if (!text || typeof text !== 'string') return text;
+        return text.replace(/\{\{FLAG:(\w+)\}\}/g, (match, id) => {
+            return this.getDeliveredFlag(id) || '[FLAG PENDING - Complete the challenge]';
+        });
     },
 
     /**
@@ -2151,12 +2244,14 @@ const BoxEngine = {
         panel.className = 'phase-panel';
         panel.id = 'phasePanel';
 
+        panel.setAttribute('role', 'complementary');
+        panel.setAttribute('aria-label', 'Attack phases');
         panel.innerHTML = `
             <div class="phase-panel-header">
                 <h4>Attack Phases</h4>
-                <button class="phase-panel-close" id="phasePanelClose">&times;</button>
+                <button class="phase-panel-close" id="phasePanelClose" aria-label="Close phase panel">&times;</button>
             </div>
-            <div class="phase-panel-list" id="phasePanelList"></div>
+            <div class="phase-panel-list" id="phasePanelList" role="list"></div>
         `;
 
         this._desktopEl.appendChild(panel);

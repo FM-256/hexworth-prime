@@ -63,7 +63,14 @@ const CertPathRenderer = (() => {
         const el = id => document.getElementById(id);
         if (el('stat-done'))  el('stat-done').textContent  = done;
         if (el('stat-pct'))   el('stat-pct').textContent   = pct + '%';
-        if (el('prog-bar'))   el('prog-bar').style.width   = pct + '%';
+        if (el('prog-bar'))   {
+            el('prog-bar').style.width   = pct + '%';
+            const progWrap = el('prog-bar').parentElement;
+            if (progWrap) {
+                progWrap.setAttribute('aria-valuenow', pct);
+                progWrap.setAttribute('aria-label', 'Course completion: ' + pct + '%');
+            }
+        }
 
         pathData.modules.forEach(m => {
             const cb  = el('cb-' + m.id);
@@ -78,11 +85,14 @@ const CertPathRenderer = (() => {
         activeTab = tabId;
         localStorage.setItem('hexworth_certpath_tab_' + pathId, tabId);
 
-        document.querySelectorAll('.cp-tab').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tabId);
+        document.querySelectorAll('.cp-tab[role="tab"]').forEach(btn => {
+            const isActive = btn.dataset.tab === tabId;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            btn.setAttribute('tabindex', isActive ? '0' : '-1');
         });
 
-        document.querySelectorAll('.cp-panel').forEach(panel => {
+        document.querySelectorAll('.cp-panel[role="tabpanel"]').forEach(panel => {
             panel.classList.toggle('active', panel.dataset.tab === tabId);
         });
 
@@ -181,6 +191,7 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
 .cp-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:transparent;border:1px solid transparent;border-radius:8px;color:#808080;font-size:.8rem;font-family:inherit;letter-spacing:.1em;cursor:pointer;transition:all .25s}
 .cp-tab:hover{background:rgba(255,255,255,.04);color:#bbb}
 .cp-tab.active{background:rgba(255,255,255,.06);border-color:var(--pb);color:var(--pc)}
+.cp-tab:focus-visible{outline:2px solid var(--pc);outline-offset:-2px}
 .cp-tab-icon{font-size:1rem}
 .cp-tab-label{text-transform:uppercase;font-weight:500}
 
@@ -258,20 +269,20 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
     <div class="st"><div class="st-v" id="stat-pct">${pct}%</div><div class="st-l">Progress</div></div>
   </div>
 
-  <div class="prog"><div class="prog-f" id="prog-bar" style="width:${pct}%"></div></div>
+  <div class="prog" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Course completion: ${pct}%"><div class="prog-f" id="prog-bar" style="width:${pct}%"></div></div>
 
-  <nav class="cp-tab-bar" aria-label="${pathData.name} navigation">
-    <button class="cp-tab active" data-tab="modules" aria-label="Course Modules">
+  <nav class="cp-tab-bar" role="tablist" aria-label="${pathData.name} navigation">
+    <button class="cp-tab active" role="tab" id="cp-tab-modules" data-tab="modules" aria-label="Course Modules" aria-selected="true" aria-controls="cp-panel-modules" tabindex="0">
       <span class="cp-tab-icon"><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
       <span class="cp-tab-label">Course Modules</span>
     </button>
-    <button class="cp-tab" data-tab="explore" aria-label="Explore All">
+    <button class="cp-tab" role="tab" id="cp-tab-explore" data-tab="explore" aria-label="Explore All" aria-selected="false" aria-controls="cp-panel-explore" tabindex="-1">
       <span class="cp-tab-icon"><img src="/assets/images/icons/icon-map.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>
       <span class="cp-tab-label">Explore All</span>
     </button>
   </nav>
 
-  <div class="cp-panel active" data-tab="modules" role="region" aria-label="Course modules">
+  <div class="cp-panel active" id="cp-panel-modules" data-tab="modules" role="tabpanel" aria-labelledby="cp-tab-modules" tabindex="0">
     <div class="sec-lbl">Course Modules</div>
     <div class="mlist">
       ${pathData.modules.map((m, i) => {
@@ -283,7 +294,7 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
           const chk = completed[m.id] ? 'checked' : '';
           const cls = completed[m.id] ? ' completed' : '';
           return `<div class="mrow${cls}" id="row-${m.id}">
-        <input type="checkbox" class="mcb" id="cb-${m.id}" ${chk} onchange="CertPathRenderer.toggle('${m.id}')">
+        <input type="checkbox" class="mcb" id="cb-${m.id}" ${chk} onchange="CertPathRenderer.toggle('${m.id}')" aria-label="Mark ${m.title} complete">
         <span class="mnum">${String(i+1).padStart(2,'0')}</span>
         <span class="mtype" title="${m.type||'module'}">${ic}</span>
         <div class="minfo">
@@ -298,7 +309,7 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
     </div>
   </div>
 
-  <div class="cp-panel" data-tab="explore" role="region" aria-label="Explore all content">
+  <div class="cp-panel" id="cp-panel-explore" data-tab="explore" role="tabpanel" aria-labelledby="cp-tab-explore" tabindex="0">
     <div class="cp-explore-info">Search across all houses and content types</div>
     <div id="discoveryAnchor"></div>
   </div>
@@ -310,6 +321,22 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
         document.querySelectorAll('.cp-tab').forEach(btn => {
             btn.addEventListener('click', () => switchTab(btn.dataset.tab));
         });
+
+        // Keyboard navigation for tab list
+        const cpTabBar = document.querySelector('.cp-tab-bar[role="tablist"]');
+        if (cpTabBar) {
+            cpTabBar.addEventListener('keydown', function(e) {
+                const tabs = Array.from(cpTabBar.querySelectorAll('[role="tab"]'));
+                const idx = tabs.indexOf(document.activeElement);
+                if (idx < 0) return;
+                let target = null;
+                if (e.key === 'ArrowRight') target = tabs[(idx + 1) % tabs.length];
+                else if (e.key === 'ArrowLeft') target = tabs[(idx - 1 + tabs.length) % tabs.length];
+                else if (e.key === 'Home') target = tabs[0];
+                else if (e.key === 'End') target = tabs[tabs.length - 1];
+                if (target) { e.preventDefault(); target.focus(); switchTab(target.dataset.tab); }
+            });
+        }
 
         // Restore saved tab
         const saved = localStorage.getItem('hexworth_certpath_tab_' + pathId);

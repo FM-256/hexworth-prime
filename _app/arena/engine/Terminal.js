@@ -33,20 +33,28 @@ class TerminalInstance {
     // ────────────────────────────────────────────────
 
     _build(container) {
+        container.setAttribute('role', 'application');
+        container.setAttribute('aria-label', 'Terminal emulator');
+
         this.outputEl = document.createElement('div');
         this.outputEl.className = 'terminal-output';
+        this.outputEl.setAttribute('role', 'log');
+        this.outputEl.setAttribute('aria-live', 'polite');
+        this.outputEl.setAttribute('aria-label', 'Terminal output');
 
         const inputLine = document.createElement('div');
         inputLine.className = 'terminal-input-line';
 
         this.promptEl = document.createElement('span');
         this.promptEl.className = 'prompt';
+        this.promptEl.setAttribute('aria-hidden', 'true');
         this._updatePrompt();
 
         this.inputEl = document.createElement('input');
         this.inputEl.type = 'text';
         this.inputEl.autocomplete = 'off';
         this.inputEl.spellcheck = false;
+        this.inputEl.setAttribute('aria-label', 'Terminal command input');
 
         inputLine.appendChild(this.promptEl);
         inputLine.appendChild(this.inputEl);
@@ -535,6 +543,10 @@ class TerminalInstance {
 
     _appendOutput(text) {
         if (!text && text !== '') return;
+        // SEC-2: Resolve {{FLAG:id}} tokens via engine
+        if (this.engine && this.engine.resolveFlagTokens) {
+            text = this.engine.resolveFlagTokens(text);
+        }
         const line = document.createElement('div');
         line.className = 'term-output';
         line.textContent = text;
@@ -549,6 +561,10 @@ class TerminalInstance {
     }
 
     _appendHtml(html) {
+        // SEC-2: Resolve {{FLAG:id}} tokens via engine
+        if (this.engine && this.engine.resolveFlagTokens) {
+            html = this.engine.resolveFlagTokens(html);
+        }
         const line = document.createElement('div');
         line.className = 'term-output';
         line.innerHTML = html;

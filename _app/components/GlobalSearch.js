@@ -421,6 +421,9 @@
         // Overlay
         overlay = document.createElement('div');
         overlay.className = 'gs-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Global search');
 
         // Container
         const container = document.createElement('div');
@@ -433,6 +436,7 @@
         const searchIcon = document.createElement('span');
         searchIcon.className = 'gs-search-icon';
         searchIcon.textContent = '\u{1F50D}';
+        searchIcon.setAttribute('aria-hidden', 'true');
         inputWrap.appendChild(searchIcon);
 
         input = document.createElement('input');
@@ -441,6 +445,10 @@
         input.placeholder = 'Search all modules...';
         input.setAttribute('autocomplete', 'off');
         input.setAttribute('spellcheck', 'false');
+        input.setAttribute('aria-label', 'Search all modules');
+        input.setAttribute('role', 'combobox');
+        input.setAttribute('aria-expanded', 'false');
+        input.setAttribute('aria-controls', 'gs-results-list');
         inputWrap.appendChild(input);
 
         const escHint = document.createElement('span');
@@ -473,6 +481,9 @@
         // Results
         resultsContainer = document.createElement('div');
         resultsContainer.className = 'gs-results';
+        resultsContainer.id = 'gs-results-list';
+        resultsContainer.setAttribute('role', 'listbox');
+        resultsContainer.setAttribute('aria-label', 'Search results');
         resultsContainer.innerHTML = '<div class="gs-empty">Type to search 1,500+ modules</div>' +
             '<div class="gs-shortcut-hint"><kbd>\u2191</kbd> <kbd>\u2193</kbd> navigate \u00B7 <kbd>Enter</kbd> open \u00B7 <kbd>Esc</kbd> close</div>';
         container.appendChild(resultsContainer);

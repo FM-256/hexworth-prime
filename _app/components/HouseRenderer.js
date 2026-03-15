@@ -1130,20 +1130,20 @@ const HouseRenderer = (function() {
                 </div>
             </section>
 
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <div class="stat-value" id="hrTotalModules">0</div>
+            <div class="stats-bar" role="group" aria-label="House statistics">
+                <div class="stat-item" role="group" aria-label="Total Modules">
+                    <div class="stat-value" id="hrTotalModules" aria-live="polite">0</div>
                     <div class="stat-label">Total Modules</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="hrCompleted">0</div>
+                <div class="stat-item" role="group" aria-label="Completed">
+                    <div class="stat-value" id="hrCompleted" aria-live="polite">0</div>
                     <div class="stat-label">Completed</div>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item" role="group" aria-label="Hours of Content">
                     <div class="stat-value" id="hrHours">0</div>
                     <div class="stat-label">Hours of Content</div>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item" role="group" aria-label="Cert Paths">
                     <div class="stat-value" id="hrCertPaths">${(config.paths || []).length}</div>
                     <div class="stat-label">Cert Paths</div>
                 </div>
@@ -1184,9 +1184,10 @@ const HouseRenderer = (function() {
 
         const tabBar = document.createElement('nav');
         tabBar.className = 'hr-tab-bar';
+        tabBar.setAttribute('role', 'tablist');
         tabBar.setAttribute('aria-label', config.fullTitle + ' navigation');
-        tabBar.innerHTML = tabs.map(t =>
-            `<button class="hr-tab" data-tab="${t.id}" aria-label="${t.label}">
+        tabBar.innerHTML = tabs.map((t, i) =>
+            `<button class="hr-tab" role="tab" id="hr-tab-${t.id}" data-tab="${t.id}" aria-label="${t.label}" aria-selected="${i === 0 ? 'true' : 'false'}" aria-controls="hr-panel-${t.id}" tabindex="${i === 0 ? '0' : '-1'}">
                 <span class="hr-tab-icon" aria-hidden="true">${t.icon}</span>
                 <span class="hr-tab-label">${t.label}</span>
             </button>`
@@ -1206,8 +1207,9 @@ const HouseRenderer = (function() {
             panel.className = 'hr-panel';
             panel.id = 'hr-panel-' + t.id;
             panel.dataset.tab = t.id;
-            panel.setAttribute('role', 'region');
-            panel.setAttribute('aria-label', panelLabels[t.id] || t.label);
+            panel.setAttribute('role', 'tabpanel');
+            panel.setAttribute('aria-labelledby', 'hr-tab-' + t.id);
+            panel.setAttribute('tabindex', '0');
             main.appendChild(panel);
         });
 
@@ -1236,6 +1238,31 @@ const HouseRenderer = (function() {
         document.querySelectorAll('.hr-tab').forEach(btn => {
             btn.addEventListener('click', () => switchTab(btn.dataset.tab));
         });
+
+        // Keyboard navigation for tab list (Arrow keys, Home, End)
+        const tabBar = document.querySelector('.hr-tab-bar[role="tablist"]');
+        if (tabBar) {
+            tabBar.addEventListener('keydown', function(e) {
+                const tabs = Array.from(tabBar.querySelectorAll('[role="tab"]'));
+                const idx = tabs.indexOf(document.activeElement);
+                if (idx < 0) return;
+                let target = null;
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    target = tabs[(idx + 1) % tabs.length];
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    target = tabs[(idx - 1 + tabs.length) % tabs.length];
+                } else if (e.key === 'Home') {
+                    target = tabs[0];
+                } else if (e.key === 'End') {
+                    target = tabs[tabs.length - 1];
+                }
+                if (target) {
+                    e.preventDefault();
+                    target.focus();
+                    switchTab(target.dataset.tab);
+                }
+            });
+        }
 
         switchTab(activeTab);
 
@@ -1345,13 +1372,16 @@ const HouseRenderer = (function() {
         activeTab = tabId;
         localStorage.setItem('hexworth_house_tab_' + config.houseId, tabId);
 
-        // Update tab buttons
-        document.querySelectorAll('.hr-tab').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tabId);
+        // Update tab buttons + ARIA
+        document.querySelectorAll('.hr-tab[role="tab"]').forEach(btn => {
+            const isActive = btn.dataset.tab === tabId;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            btn.setAttribute('tabindex', isActive ? '0' : '-1');
         });
 
         // Update panels
-        document.querySelectorAll('.hr-panel').forEach(panel => {
+        document.querySelectorAll('.hr-panel[role="tabpanel"]').forEach(panel => {
             panel.classList.toggle('active', panel.dataset.tab === tabId);
         });
 
@@ -1672,6 +1702,66 @@ const HouseRenderer = (function() {
                         <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="The Colosseum" onerror="this.onerror=null;this.src='/assets/images/icons/icon-institution.webp'"></div>
                         <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#808080;font-weight:400;" aria-hidden="true">↗</span></div>
                         <div class="hr-feature-desc">Incident response card game — live multiplayer cybersecurity battle simulator</div>
+                    </a>
+                    <a href="/dispatch/index.html" class="hr-feature-card feat-dispatch" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-wrench.webp" alt="Dispatch" onerror="this.onerror=null;this.src='/assets/images/icons/icon-tools.webp'"></div>
+                        <div class="hr-feature-name" style="color:#fb923c;">Dispatch</div>
+                        <div class="hr-feature-desc">IT troubleshooting simulations — network, hardware, OS, AD, and printer scenarios</div>
+                    </a>
+                    <a href="/operator/index.html" class="hr-feature-card feat-operator" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/command-line.webp" alt="Operator" onerror="this.onerror=null;this.src='/assets/images/icons/icon-terminal.webp'"></div>
+                        <div class="hr-feature-name" style="color:#4ade80;">Operator</div>
+                        <div class="hr-feature-desc">Grid-based terminal missions — recon, forensics, incident response, and privilege escalation</div>
+                    </a>
+                    <a href="/signal/index.html" class="hr-feature-card feat-signal" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-antenna.webp" alt="Signal" onerror="this.onerror=null;this.src='/assets/images/icons/icon-signal.webp'"></div>
+                        <div class="hr-feature-name" style="color:#ff6b35;">The Signal</div>
+                        <div class="hr-feature-desc">Hardware projects — badge hacking, firmware ops, IoT security, and RF exploration</div>
+                    </a>
+                    <a href="/houses/code/devops/index.html" class="hr-feature-card feat-forge" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/devops-automation.webp" alt="DevOps Forge" onerror="this.onerror=null;this.src='/assets/images/icons/icon-refresh.webp'"></div>
+                        <div class="hr-feature-name" style="color:#60a5fa;">The Forge</div>
+                        <div class="hr-feature-desc">DevOps hub — CI/CD pipelines, GitHub Actions, containers, and infrastructure as code</div>
+                    </a>
+                    <a href="/dark-arts/vault/bug-hunting/index.html" class="hr-feature-card feat-bughunt" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-spider.webp" alt="Bug Hunting" onerror="this.onerror=null;this.src='/assets/images/icons/icon-target.webp'"></div>
+                        <div class="hr-feature-name" style="color:#c084fc;">Bug Hunting Hub</div>
+                        <div class="hr-feature-desc">Security research — AI exploit lab, bug bounty simulation, vulnerability hunting</div>
+                    </a>
+                    <a href="/projects/index.html" class="hr-feature-card feat-projects" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-construction.webp" alt="Projects" onerror="this.onerror=null;this.src='/assets/images/icons/icon-tools.webp'"></div>
+                        <div class="hr-feature-name" style="color:#fbbf24;">Projects</div>
+                        <div class="hr-feature-desc">Build and ship real-world portfolio projects across cybersecurity domains</div>
+                    </a>
+                    <a href="/houses/code/armory/index.html" class="hr-feature-card feat-armory" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-swords.webp" alt="Code Armory" onerror="this.onerror=null;this.src='/assets/images/icons/icon-code.webp'"></div>
+                        <div class="hr-feature-name" style="color:#f59e0b;">Code Armory</div>
+                        <div class="hr-feature-desc">Programming languages hub — Python, JavaScript, C, Go, Rust, Bash, SQL, and more</div>
+                    </a>
+                    <a href="/houses/web/backbone/index.html" class="hr-feature-card feat-backbone" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-network.webp" alt="Backbone" onerror="this.onerror=null;this.src='/assets/images/icons/icon-globe.webp'"></div>
+                        <div class="hr-feature-name" style="color:#3b82f6;">The Backbone</div>
+                        <div class="hr-feature-desc">Advanced networking — BGP, MPLS, data center, SDN, wireless, and WAN technologies</div>
+                    </a>
+                    <a href="/houses/code/algorithms/index.html" class="hr-feature-card feat-algo" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-dna.webp" alt="Algorithms" onerror="this.onerror=null;this.src='/assets/images/icons/icon-lightning.webp'"></div>
+                        <div class="hr-feature-name" style="color:#10b981;">Algorithm Chamber</div>
+                        <div class="hr-feature-desc">Data structures, discrete math, algorithm design, and computational problem solving</div>
+                    </a>
+                    <a href="/houses/code/cortex/index.html" class="hr-feature-card feat-cortex" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-brain.webp" alt="Cortex" onerror="this.onerror=null;this.src='/assets/images/icons/icon-robot.webp'"></div>
+                        <div class="hr-feature-name" style="color:#a855f7;">The Cortex</div>
+                        <div class="hr-feature-desc">AI and machine learning with a cybersecurity lens — foundations through deep learning</div>
+                    </a>
+                    <a href="/career/index.html" class="hr-feature-card feat-career" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-rocket.webp" alt="Career" onerror="this.onerror=null;this.src='/assets/images/icons/icon-graduation.webp'"></div>
+                        <div class="hr-feature-name" style="color:#ec4899;">Career Launchpad</div>
+                        <div class="hr-feature-desc">Job boards, resume builder, interview prep, career path explorer, and salary research</div>
+                    </a>
+                    <a href="/funding/index.html" class="hr-feature-card feat-funding" role="listitem">
+                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-money.webp" alt="Funding" onerror="this.onerror=null;this.src='/assets/images/icons/icon-gear.webp'"></div>
+                        <div class="hr-feature-name" style="color:#22c55e;">Funding Hub</div>
+                        <div class="hr-feature-desc">Grants, scholarships, funding calendar, and application tracker for students and educators</div>
                     </a>
                 </div>
             </div>
