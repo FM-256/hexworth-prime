@@ -15,9 +15,10 @@
 (function () {
     'use strict';
 
-    // ── Asset paths (relative to site root) ──
+    // ── Config ──
     var VIDEO_PATH = '/components/lockscreen/dancing-trex.mp4';
     var AUDIO_PATH = '/components/lockscreen/sneaky-mischief.mp3';
+    var LOCKOUT_DURATION_MS = (4 * 60 + 20) * 60 * 1000; // 4 hours 20 minutes
 
     // ── State ──
     var _locked = false;
@@ -176,10 +177,14 @@
             '  <div class="ls-title">Account Locked</div>',
             '  <div class="ls-subtitle">Roxy says: Integrity violation — admin review required</div>',
             '  <div class="ls-timer-row">',
-            '    <span class="ls-timer-label">Time in violation:</span>',
+            '    <span class="ls-timer-label">Time served:</span>',
             '    <span class="ls-timer" id="ls-timer">' + timerText + '</span>',
             '  </div>',
-            '  <div class="ls-message">See your instructor to resolve this. Refreshing won\'t help.</div>',
+            '  <div class="ls-timer-row">',
+            '    <span class="ls-timer-label" style="color:#22c55e">Roxy leaves in:</span>',
+            '    <span class="ls-timer" id="ls-countdown" style="color:#4ade80">--</span>',
+            '  </div>',
+            '  <div class="ls-message">Enjoy the show. Roxy leaves when she\'s ready.</div>',
             '</div>'
         ].join('\n');
 
@@ -270,10 +275,52 @@
     }
 
     function startLiveTimer(isoDate) {
-        setInterval(function () {
+        var startTime = new Date(isoDate).getTime();
+        var timerInterval = setInterval(function () {
+            if (!_locked) { clearInterval(timerInterval); return; }
+
+            var now = Date.now();
+            var elapsed = now - startTime;
+            var remaining = LOCKOUT_DURATION_MS - elapsed;
+
+            // Update time served
             var el = document.getElementById('ls-timer');
             if (el) el.textContent = formatDuration(isoDate);
+
+            // Update countdown
+            var cd = document.getElementById('ls-countdown');
+            if (cd) {
+                if (remaining <= 0) {
+                    cd.textContent = '0m 0s';
+                } else {
+                    cd.textContent = formatCountdown(remaining);
+                }
+            }
+
+            // Auto-release when time is up
+            if (remaining <= 0) {
+                clearInterval(timerInterval);
+                _nativeRemoveItem('hexworth_integrity');
+                disengageLockscreen();
+                console.log('[IntegrityLockscreen] Roxy has left the building. Lockout expired after 4h 20m.');
+            }
         }, 1000);
+    }
+
+    function formatCountdown(ms) {
+        var seconds = Math.floor(ms / 1000);
+        var minutes = Math.floor(seconds / 60);
+        var hours = Math.floor(minutes / 60);
+
+        hours %= 24;
+        minutes %= 60;
+        seconds %= 60;
+
+        var parts = [];
+        if (hours > 0) parts.push(hours + 'h');
+        parts.push(minutes + 'm');
+        parts.push(seconds + 's');
+        return parts.join(' ');
     }
 
     // ================================================================
@@ -345,6 +392,18 @@
         if (checkLocalIntegrity()) {
             try {
                 var data = JSON.parse(localStorage.getItem('hexworth_integrity'));
+
+                // Check if lockout already expired
+                if (data && data.detectedAt) {
+                    var elapsed = Date.now() - new Date(data.detectedAt).getTime();
+                    if (elapsed >= LOCKOUT_DURATION_MS) {
+                        // Time served — clear and move on
+                        _nativeRemoveItem('hexworth_integrity');
+                        console.log('[IntegrityLockscreen] Lockout expired. Roxy has left.');
+                        return;
+                    }
+                }
+
                 engageLockscreen(data);
                 guardOverlay();
                 guardLocalStorage();
