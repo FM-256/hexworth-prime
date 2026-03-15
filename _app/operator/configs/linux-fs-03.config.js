@@ -458,7 +458,7 @@ var LINUX_FS_03_CONFIG = {
                 else if (node==='root-home'&&(file==='flag.txt'||file==='flag')) {
                     e.printLine('cat /root/flag.txt','heading');
                     e.printLine('','system');
-                    e.printLine('FLAG{pr1v3sc_m4st3r_r00t3d}','success');
+                    e.printLine(atob('RkxBR3twcjF2M3NjX200c3Qzcl9yMDB0M2R9'),'success');
                     e.printLine('','system');
                     e.printLine('[+] FLAG CAPTURED. Mission complete.','success');
                     e.checkObjectives();

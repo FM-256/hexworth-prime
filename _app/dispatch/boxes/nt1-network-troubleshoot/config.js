@@ -82,11 +82,11 @@ const NT1Config = {
     // ==========================================================
 
     _scenarioFlags: {
-        dns_poisoned:     'flag{cach3_p01s0n_cl34r3d}',
-        disabled_adapter: 'flag{4d4pt3r_0nl1n3}',
-        firewall_block:   'flag{f1r3w4ll_rul3_d1s4bl3d}',
-        wrong_subnet:     'flag{subn3t_r34l1gn3d}',
-        dhcp_stopped:     'flag{dhcp_s3rv1c3_r3st0r3d}'
+        dns_poisoned:     null,
+        disabled_adapter: null,
+        firewall_block:   null,
+        wrong_subnet:     null,
+        dhcp_stopped:     null
     },
 
     _poisonedDNS: {
@@ -256,10 +256,9 @@ const NT1Config = {
             NT1Config._flagRestored = true;
             const scenario = NT1Config._scenarios[engine.state._scenarioId];
             if (scenario) {
-                NT1Config.flags[0].value = NT1Config._scenarioFlags[scenario.id];
+                // Flag value lives server-side; validation uses aliases
                 // Restore per-scenario hints
                 NT1Config.hints = NT1Config._scenarioHints[scenario.id] || NT1Config._defaultHints;
-                if (engine._computeFlagHashes) engine._computeFlagHashes();
             }
         }
         return true;
@@ -276,18 +275,14 @@ const NT1Config = {
             engine.state[key] = overrides[key];
         }
 
-        // Set the dynamic flag value
+        // Flag value lives server-side; validation uses aliases
         const scenario = NT1Config._scenarios[idx];
-        NT1Config.flags[0].value = NT1Config._scenarioFlags[scenario.id];
         NT1Config._flagRestored = true;
 
         // Set per-scenario hints
         NT1Config.hints = NT1Config._scenarioHints[scenario.id] || NT1Config._defaultHints;
 
         engine.save();
-        if (engine._computeFlagHashes) {
-            engine._computeFlagHashes();
-        }
     },
 
     _getScenario(engine) {
@@ -410,7 +405,7 @@ const NT1Config = {
         return { success: true, ms: Math.floor(Math.random() * 30) + 15, ip: resolved };
     },
 
-    _checkLabComplete(target, result, engine) {
+    async _checkLabComplete(target, result, engine) {
         if (!result.success) return null;
         if (NT1Config._isIP(target)) return null;
         if (engine.state._labComplete) return null;
@@ -420,14 +415,14 @@ const NT1Config = {
         engine.save();
 
         const scenario = NT1Config._getScenario(engine);
-        const flagValue = scenario ? NT1Config._scenarioFlags[scenario.id] : 'flag{fixed}';
 
         // Only wrong_subnet shows flag in ping output
         if (scenario && scenario.id === 'wrong_subnet') {
+            const flagText = await engine.requestFlagText(scenario.id);
             setTimeout(() => {
                 engine.notify('Network restored! The flag is in the ping output above.', 'success');
             }, 600);
-            return flagValue;
+            return flagText;
         }
 
         // All other scenarios: flag hidden elsewhere
@@ -513,7 +508,7 @@ const NT1Config = {
     // ==========================================================
 
     flags: [
-        { id: 'fixed', value: 'flag{placeholder}', points: 500 }
+        { id: 'fixed', value: null, points: 500 }
     ],
 
     // ==========================================================
@@ -569,7 +564,7 @@ const NT1Config = {
 
         // --- IPCONFIG ---
 
-        ipconfig: function(args, term, engine) {
+        ipconfig: async function(args, term, engine) {
             const gate = NT1Config._requireScenario(engine);
             if (gate) return gate;
             const net = engine.state._networkConfig;
@@ -652,7 +647,7 @@ const NT1Config = {
 
                 // After flushing + lab complete: flag hidden here
                 if (engine.state._flagRevealed && NT1Config._getScenario(engine)?.id === 'dns_poisoned') {
-                    const flagVal = NT1Config._scenarioFlags.dns_poisoned;
+                    const flagVal = await engine.requestFlagText('dns_poisoned');
                     return '\nWindows IP Configuration\n\n    localhost\n    ----------------------------------------\n    Record Name . . . . . : localhost\n    Record Type . . . . . : 1\n    Time To Live  . . . . : 0\n    Data Length . . . . . : 4\n    Section . . . . . . . : Answer\n    A (Host) Record . . . : 127.0.0.1\n\n    recovery.hexworth.local\n    ----------------------------------------\n    Record Name . . . . . : recovery.hexworth.local\n    Record Type . . . . . : 16\n    Time To Live  . . . . : 300\n    Data Length . . . . . : 32\n    Section . . . . . . . : Answer\n    TXT Record  . . . . . : ' + flagVal + '\n';
                 }
 
@@ -672,7 +667,7 @@ const NT1Config = {
 
         // --- PING ---
 
-        ping: function(args, term, engine) {
+        ping: async function(args, term, engine) {
             const gate = NT1Config._requireScenario(engine);
             if (gate) return gate;
 
@@ -718,7 +713,7 @@ const NT1Config = {
 
             // Check lab completion
             if (result.success && !NT1Config._isIP(target)) {
-                const flagValue = NT1Config._checkLabComplete(target, result, engine);
+                const flagValue = await NT1Config._checkLabComplete(target, result, engine);
                 if (flagValue) {
                     output += '\n\n' + '='.repeat(52);
                     output += '\n  CONNECTIVITY RESTORED — FLAG RETRIEVED';
@@ -1279,14 +1274,14 @@ const NT1Config = {
         NT1Config._renderDeviceManager(engine);
     },
 
-    _renderDeviceManager(engine) {
+    async _renderDeviceManager(engine) {
         const container = document.getElementById('devmgrContainer');
         if (!container) return;
         const net = engine.state._networkConfig;
         const isDisabled = net.adapter === 'disabled';
         const scenario = NT1Config._getScenario(engine);
-        const flagVal = NT1Config._scenarioFlags.disabled_adapter;
         const showFlag = engine.state._flagRevealed && scenario?.id === 'disabled_adapter' && !isDisabled;
+        const flagVal = showFlag ? await engine.requestFlagText('disabled_adapter') : null;
 
         container.innerHTML = '<div style="font-size:1rem; font-weight:bold; color:#0078d4; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Device Manager — WORKSTATION01</div>'
 
@@ -1374,13 +1369,13 @@ const NT1Config = {
         NT1Config._renderFirewall(engine);
     },
 
-    _renderFirewall(engine) {
+    async _renderFirewall(engine) {
         const container = document.getElementById('fwContainer');
         if (!container) return;
         const isBlocking = engine.state._firewallBlocking;
         const scenario = NT1Config._getScenario(engine);
         const isFirewallScenario = scenario?.id === 'firewall_block';
-        const flagVal = NT1Config._scenarioFlags.firewall_block;
+        const flagVal = isFirewallScenario ? await engine.requestFlagText('firewall_block') : null;
 
         container.innerHTML = '<div style="font-size:1rem; font-weight:bold; color:#0078d4; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Windows Defender Firewall with Advanced Security</div>'
 
@@ -1454,14 +1449,14 @@ const NT1Config = {
         NT1Config._renderServices(engine);
     },
 
-    _renderServices(engine) {
+    async _renderServices(engine) {
         const container = document.getElementById('svcContainer');
         if (!container) return;
         const dhcpStopped = engine.state._dhcpServiceStopped;
         const scenario = NT1Config._getScenario(engine);
         const isDhcpScenario = scenario?.id === 'dhcp_stopped';
-        const flagVal = NT1Config._scenarioFlags.dhcp_stopped;
         const showFlag = engine.state._flagRevealed && isDhcpScenario && !dhcpStopped;
+        const flagVal = showFlag ? await engine.requestFlagText('dhcp_stopped') : null;
 
         const services = [
             { name: 'Background Intelligent Transfer', status: 'Running', startup: 'Automatic' },

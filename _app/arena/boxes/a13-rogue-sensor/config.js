@@ -662,7 +662,7 @@ eth1: &lt;BROADCAST,MULTICAST,UP&gt;
                     </div>
 
                     <div style="padding:8px 10px; background:#0d1a2e; border:1px solid #2a3a5a; border-radius:3px; font-size:0.68rem; color:#a8c8e8;">
-                        <strong>User Flag:</strong> <span style="color:#4ae44a; font-family:monospace;">flag{s3ns0r_n0d3_d3f4ult_cr3ds}</span>
+                        <strong>User Flag:</strong> <span style="color:#4ae44a; font-family:monospace;">{{FLAG:user}}</span>
                     </div>
                 </div>
             `;
@@ -1047,7 +1047,7 @@ admin@sensor-node-01:~$ ls /home/admin/
 user.txt  sensor_data.log  .ssh/
 
 admin@sensor-node-01:~$ cat /home/admin/user.txt
-flag{s3ns0r_n0d3_d3f4ult_cr3ds}
+{{FLAG:user}}
 
 [+] User flag found! The sensor node uses default admin:admin credentials.
 
@@ -1302,7 +1302,7 @@ Connected device: DATA-HUB-01 @ 10.10.2.10 (MongoDB:27017)
     "project": "Operation Canopy",
     "classification": "CONFIDENTIAL",
     "content": "Terraforming blueprint for urban sector 7-G. Soil reclamation, mycorrhizal network deployment, atmospheric scrubber placement.",
-    "flag": "flag{b10_m4n1f3st_p1v0t_succ3ss}",
+    "flag": "{{FLAG:root}}",
     "created": "2023-03-19T14:22:00Z"
   }
 ]`;
@@ -1573,7 +1573,7 @@ device_registry
     "phase4": "Sensor mesh — 50 nodes for continuous environmental monitoring"
   },
   "status": "ACTIVE",
-  "flag": "flag{b10_m4n1f3st_p1v0t_succ3ss}"
+  "flag": "{{FLAG:root}}"
 }
 {
   "_id": ObjectId("64b7f2a1c3d4e5f6a7b8c9d1"),
@@ -1588,7 +1588,7 @@ device_registry
   "status": "PLANNING"
 }
 
-[+] ROOT FLAG FOUND in Bio-Manifest: flag{b10_m4n1f3st_p1v0t_succ3ss}
+[+] ROOT FLAG FOUND in Bio-Manifest: {{FLAG:root}}
     The Arboreal Collective's terraforming blueprint has been retrieved.`;
         }
 

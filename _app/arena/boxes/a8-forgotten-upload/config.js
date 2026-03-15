@@ -809,7 +809,7 @@ AddHandler application/x-httpd-php .phtml .php5 .php7
 
         // cat user.txt (various paths)
         if (/cat\s+\/home\/www-data\/user\.txt/.test(c) || /cat\s+~\/user\.txt/.test(c) || /cat\s+user\.txt/.test(c)) {
-            return 'flag{4sh3n_4rch1v3_upl04d_byp4ss}';
+            return '{{FLAG:user}}';
         }
 
         // cat /etc/passwd
@@ -836,7 +836,7 @@ AddHandler application/x-httpd-php .phtml .php5 .php7
         // MUST come before the bare cat /root/root.txt deny check because the
         // full sudo find command contains the substring "cat /root/root.txt"
         if (/sudo\s+find/.test(c) && /root\.txt/.test(c)) {
-            return 'flag{4sh3n_r00t_f1nd_pr1v3sc}\n/root/root.txt';
+            return '{{FLAG:root}}\n/root/root.txt';
         }
 
         // cat /root/root.txt (without sudo) — permission denied, must use sudo find

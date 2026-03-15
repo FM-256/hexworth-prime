@@ -83,11 +83,11 @@ var OS1Config = {
     // ==========================================================
 
     _scenarioFlags: {
-        corrupted_bcd:      'FLAG{bcd_rebuilt}',
-        bad_driver:         'FLAG{driver_rolled_back}',
-        stuck_update:       'FLAG{update_reverted}',
-        disk_corruption:    'FLAG{disk_repaired}',
-        missing_bootloader: 'FLAG{bootloader_restored}'
+        corrupted_bcd:      null,
+        bad_driver:         null,
+        stuck_update:       null,
+        disk_corruption:    null,
+        missing_bootloader: null
     },
 
     _scenarios: [
@@ -209,9 +209,7 @@ var OS1Config = {
             OS1Config._flagRestored = true;
             const scenario = OS1Config._scenarios[engine.state._scenarioId];
             if (scenario) {
-                OS1Config.flags[0].value = OS1Config._scenarioFlags[scenario.id];
                 OS1Config.hints = OS1Config._scenarioHints[scenario.id] || OS1Config._defaultHints;
-                if (engine._computeFlagHashes) engine._computeFlagHashes();
             }
         }
         return true;
@@ -236,13 +234,10 @@ var OS1Config = {
         engine.state._startupRepairRun = false;
 
         const scenario = OS1Config._scenarios[idx];
-        OS1Config.flags[0].value = OS1Config._scenarioFlags[scenario.id];
-        OS1Config._flagRestored = true;
 
         OS1Config.hints = OS1Config._scenarioHints[scenario.id] || OS1Config._defaultHints;
 
         engine.save();
-        if (engine._computeFlagHashes) engine._computeFlagHashes();
     },
 
     _getScenario(engine) {
@@ -289,16 +284,27 @@ var OS1Config = {
         return complete;
     },
 
-    _revealFlag(engine, outputEl) {
+    async _revealFlag(engine, outputEl) {
         const scenario = OS1Config._getScenario(engine);
         if (!scenario) return;
-        const flagVal = OS1Config._scenarioFlags[scenario.id];
+
+        let flagVal = null;
+        try {
+            flagVal = await BoxEngine.requestFlagText(scenario.id);
+        } catch (e) {
+            flagVal = null;
+        }
 
         const box = document.createElement('div');
         box.style.cssText = 'margin-top:12px; padding:12px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.4); border-radius:4px; font-family:Consolas,monospace; font-size:0.8rem;';
-        box.innerHTML = '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">REPAIR COMPLETE — BOOT LOG ENTRY:</div>'
-            + '<div style="color:#c8e6c9;">' + flagVal + '</div>'
-            + '<div style="color:#888; font-size:0.7rem; margin-top:4px;">Submit this flag using the SUBMIT FLAG button.</div>';
+        if (flagVal) {
+            box.innerHTML = '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">REPAIR COMPLETE — BOOT LOG ENTRY:</div>'
+                + '<div style="color:#c8e6c9;">' + flagVal + '</div>'
+                + '<div style="color:#888; font-size:0.7rem; margin-top:4px;">Submit this flag using the SUBMIT FLAG button.</div>';
+        } else {
+            box.innerHTML = '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">REPAIR COMPLETE — BOOT LOG ENTRY:</div>'
+                + '<div style="color:#ffcc80;">Flag could not be retrieved. Please check your connection and try again.</div>';
+        }
         if (outputEl) outputEl.appendChild(box);
 
         setTimeout(function() {
@@ -372,7 +378,7 @@ var OS1Config = {
     // ==========================================================
 
     flags: [
-        { id: 'repaired', value: 'FLAG{placeholder}', points: 500 }
+        { id: 'repaired', value: null, points: 500 }
     ],
 
     // ==========================================================
@@ -453,8 +459,9 @@ var OS1Config = {
                 let out = '\nThe operation completed successfully.';
                 if (complete && scenario && scenario.id === 'corrupted_bcd') {
                     out += '\n\n[Boot sector written. BCD store rebuilt. System should boot on next restart.]';
-                    out += '\n\nBoot log entry: ' + OS1Config._scenarioFlags.corrupted_bcd;
+                    out += '\n\nBoot log entry: {{FLAG:corrupted_bcd}}';
                     out += '\n\nType EXIT to restart the machine.';
+                    OS1Config._revealFlag(engine, null);
                 } else if (!didRebuild && scenario && scenario.id === 'corrupted_bcd') {
                     out += '\n\n[Boot sector written, but BCD store may still be missing. Run: bootrec /rebuildbcd]';
                 }
@@ -505,8 +512,9 @@ var OS1Config = {
             let out = '\nBoot files successfully created.\n';
             if (complete && scenario && scenario.id === 'missing_bootloader') {
                 out += '\n[Boot partition configured. UEFI boot entry created.]';
-                out += '\n\nBoot log entry: ' + OS1Config._scenarioFlags.missing_bootloader;
+                out += '\n\nBoot log entry: {{FLAG:missing_bootloader}}';
                 out += '\n\nType EXIT to restart.';
+                OS1Config._revealFlag(engine, null);
             } else {
                 out += '\n[Boot files copied to system partition.]';
             }
@@ -636,8 +644,9 @@ var OS1Config = {
 
                 if (complete) {
                     out += '\n\n[All disk errors repaired. System files verified.]';
-                    out += '\n\nBoot log entry: ' + OS1Config._scenarioFlags.disk_corruption;
+                    out += '\n\nBoot log entry: {{FLAG:disk_corruption}}';
                     out += '\n\nType EXIT to restart the machine.';
+                    OS1Config._revealFlag(engine, null);
                 }
             } else {
                 out += '  No bad clusters detected.\n\n';
@@ -672,7 +681,8 @@ var OS1Config = {
 
                 if (isUpdateScenario) {
                     out += '\n\nThe operation completed successfully.\n\n[Update KB5034441 installation rolled back.]\n[Pending actions cleared from the offline image.]\n\n';
-                    out += 'Boot log entry: ' + OS1Config._scenarioFlags.stuck_update + '\n\nType EXIT to restart.';
+                    out += 'Boot log entry: {{FLAG:stuck_update}}\n\nType EXIT to restart.';
+                    OS1Config._revealFlag(engine, null);
                     engine.state._dismReverted = true;
                     engine.save();
                     OS1Config._checkRepairComplete(engine);
@@ -967,8 +977,9 @@ var OS1Config = {
                         + '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px; font-size:0.75rem; text-align:left;">'
                         + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Repair Log:</div>'
                         + '<div>Boot configuration verified and corrected.</div>'
-                        + '<div style="color:#2ecc71; margin-top:8px;">' + OS1Config._scenarioFlags.missing_bootloader + '</div>'
+                        + '<div class="os1-flag-slot" data-scenario="missing_bootloader" style="color:#2ecc71; margin-top:8px;">{{FLAG:missing_bootloader}}</div>'
                         + '</div></div>';
+                    OS1Config._fillFlagSlot(container, 'missing_bootloader');
                 } else {
                     const reasons = {
                         corrupted_bcd: 'The Boot Configuration Data store is missing or corrupted. Startup Repair cannot automatically rebuild BCD. Use Command Prompt: bootrec /rebuildbcd',
@@ -1116,9 +1127,11 @@ var OS1Config = {
             + (driverRolledBack
                 ? '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:10px; font-size:0.75rem; color:#2ecc71;">'
                 + 'Driver rolled back successfully. The workstation should now boot normally. '
-                + '<strong>' + OS1Config._scenarioFlags.bad_driver + '</strong>'
+                + '<strong class="os1-flag-slot" data-scenario="bad_driver">{{FLAG:bad_driver}}</strong>'
                 + '</div>'
                 : '');
+
+        if (driverRolledBack) OS1Config._fillFlagSlot(container, 'bad_driver');
 
         const devMgrBtn = document.getElementById('safeModeDevMgr');
         if (devMgrBtn) {
@@ -1136,8 +1149,6 @@ var OS1Config = {
         const scenario = OS1Config._getScenario(engine);
         const isBadDriver = scenario && scenario.id === 'bad_driver';
         const driverRolledBack = engine.state._driverRolledBack;
-        const flagVal = OS1Config._scenarioFlags.bad_driver;
-
         container.innerHTML = '<div style="font-size:1rem; font-weight:bold; color:#005ba1; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">'
             + 'Device Manager — WKST-042 [Safe Mode]</div>'
 
@@ -1178,7 +1189,7 @@ var OS1Config = {
                 ? '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:8px; margin-bottom:8px; font-size:0.75rem;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Driver Rollback Log:</div>'
                 + '<div style="color:#c8e6c9;">Previous driver (546.33) removed. Version 537.42 restored.</div>'
-                + '<div style="color:#2ecc71; margin-top:4px;">' + flagVal + '</div>'
+                + '<div class="os1-flag-slot" data-scenario="bad_driver" style="color:#2ecc71; margin-top:4px;">{{FLAG:bad_driver}}</div>'
                 + '</div>'
                 : '')
 
@@ -1194,6 +1205,8 @@ var OS1Config = {
 
             + '</div></div></div>'
             + '</div></div>';
+
+        if (driverRolledBack) OS1Config._fillFlagSlot(container, 'bad_driver');
 
         const rollBackBtn = document.getElementById('rollBackBtn');
         if (rollBackBtn) {
@@ -1250,9 +1263,10 @@ var OS1Config = {
                 + '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px; text-align:left;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Uninstall Log:</div>'
                 + '<div>KB5034441 removed. System restored to pre-update state.</div>'
-                + '<div style="color:#2ecc71; margin-top:8px;">' + OS1Config._scenarioFlags.stuck_update + '</div>'
+                + '<div class="os1-flag-slot" data-scenario="stuck_update" style="color:#2ecc71; margin-top:8px;">{{FLAG:stuck_update}}</div>'
                 + '</div>'
                 + '</div>';
+            OS1Config._fillFlagSlot(container, 'stuck_update');
             return;
         }
 
@@ -1357,8 +1371,9 @@ var OS1Config = {
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:12px;">System Restore completed successfully</div>'
                 + '<div style="color:#aaa; font-size:0.8rem; margin-bottom:20px;">The system has been restored to an earlier state.</div>'
                 + '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px; font-size:0.75rem;">'
-                + '<div style="color:#2ecc71; margin-top:4px;">' + OS1Config._scenarioFlags[scenario.id] + '</div>'
+                + '<div class="os1-flag-slot" data-scenario="' + scenario.id + '" style="color:#2ecc71; margin-top:4px;">{{FLAG:' + scenario.id + '}}</div>'
                 + '</div></div>';
+            OS1Config._fillFlagSlot(container, scenario.id);
             return;
         }
 
@@ -1445,6 +1460,20 @@ var OS1Config = {
         });
         document.getElementById('os1ResetCancel').addEventListener('click', function() { overlay.remove(); });
         overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    },
+
+    async _fillFlagSlot(container, scenarioId) {
+        let flagText = null;
+        try {
+            flagText = await BoxEngine.requestFlagText(scenarioId);
+        } catch (e) {
+            flagText = null;
+        }
+        if (!container) return;
+        const slots = container.querySelectorAll('.os1-flag-slot[data-scenario="' + scenarioId + '"]');
+        slots.forEach(function(el) {
+            el.textContent = flagText || 'Flag could not be retrieved. Please check your connection and try again.';
+        });
     },
 
     _escHtml(str) {

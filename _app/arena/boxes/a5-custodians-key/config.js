@@ -320,7 +320,7 @@ const A5Config = {
                                     children: {
                                         'user.txt': {
                                             type: 'file',
-                                            content: 'flag{cust0d14n_b4ckup_4cc3ss}'
+                                            content: '{{FLAG:user}}'
                                         },
                                         'notes.txt': {
                                             type: 'file',
@@ -413,7 +413,7 @@ const A5Config = {
                                     children: {
                                         'root.txt': {
                                             type: 'file',
-                                            content: 'flag{cust0d14ns_k3y_syst3m_0wn3d}'
+                                            content: '{{FLAG:root}}'
                                         },
                                         'admin_notes.txt': {
                                             type: 'file',
@@ -421,7 +421,7 @@ const A5Config = {
                                         },
                                         'flag_proof.txt': {
                                             type: 'file',
-                                            content: 'If you can read this, you have SYSTEM-level access.\nCongratulations on exploiting the unquoted service path.\n\nRoot flag: flag{cust0d14ns_k3y_syst3m_0wn3d}'
+                                            content: 'If you can read this, you have SYSTEM-level access.\nCongratulations on exploiting the unquoted service path.\n\nRoot flag: {{FLAG:root}}'
                                         }
                                     }
                                 },

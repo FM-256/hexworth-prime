@@ -309,7 +309,7 @@ public class ApiClient {
 
     // *** HARDCODED API KEY — Developer shortcut ***
     // TODO: Move to BuildConfig or secure keystore before release
-    private static final String API_KEY = "flag{v0y4g3r_h4rdc0d3d_4p1_k3y}";
+    private static final String API_KEY = "{{FLAG:user}}";
     private static final String BASE_URL = "https://api.digitalnomads.net/v2";
 
     private final OkHttpClient client;
@@ -465,7 +465,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("INSERT INTO safehouses VALUES (1, 'PHOENIX', 'Berlin, DE', 52.52, 13.405, 'active', 'Primary EU hub', NULL)");
         db.execSQL("INSERT INTO safehouses VALUES (2, 'MIRAGE', 'Bangkok, TH', 13.756, 100.502, 'active', 'Southeast Asia relay', NULL)");
         db.execSQL("INSERT INTO safehouses VALUES (3, 'GHOST', 'Reykjavik, IS', 64.147, -21.942, 'compromised', 'Nordic dead drop', NULL)");
-        db.execSQL("INSERT INTO safehouses VALUES (4, 'NOMAD-PRIME', 'Classified', 0.0, 0.0, 'active', 'The Manifest', 'flag{n0m4d_m4n1f3st_c0nt3nt_pr0v1d3r}')");
+        db.execSQL("INSERT INTO safehouses VALUES (4, 'NOMAD-PRIME', 'Classified', 0.0, 0.0, 'active', 'The Manifest', '{{FLAG:root}}')");
         db.execSQL("INSERT INTO safehouses VALUES (5, 'DRIFTER', 'Lisbon, PT', 38.722, -9.139, 'active', 'Atlantic staging point', NULL)");
     }
 
@@ -614,7 +614,7 @@ public class CryptoUtil {
         sharedPrefs: `<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
 <map>
     <string name="auth_token">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoibm9tYWRfYWxwaGEiLCJyb2xlIjoib3BlcmF0aXZlIiwiZXhwIjoxNzM5NTk5MjAwfQ.N0m4dT0k3n</string>
-    <string name="api_key">flag{v0y4g3r_h4rdc0d3d_4p1_k3y}</string>
+    <string name="api_key">{{FLAG:user}}</string>
     <string name="user_id">nomad_alpha</string>
     <long name="last_sync" value="1708128000000" />
     <boolean name="first_run" value="false" />
@@ -629,7 +629,7 @@ public class CryptoUtil {
                 { _id: 1, codename: 'PHOENIX',     location: 'Berlin, DE',     lat: 52.52,   lon: 13.405,  status: 'active',      notes: 'Primary EU hub',         flag: null },
                 { _id: 2, codename: 'MIRAGE',      location: 'Bangkok, TH',    lat: 13.756,  lon: 100.502, status: 'active',      notes: 'Southeast Asia relay',   flag: null },
                 { _id: 3, codename: 'GHOST',       location: 'Reykjavik, IS',  lat: 64.147,  lon: -21.942, status: 'compromised', notes: 'Nordic dead drop',       flag: null },
-                { _id: 4, codename: 'NOMAD-PRIME', location: 'Classified',     lat: 0.0,     lon: 0.0,     status: 'active',      notes: 'The Manifest',           flag: 'flag{n0m4d_m4n1f3st_c0nt3nt_pr0v1d3r}' },
+                { _id: 4, codename: 'NOMAD-PRIME', location: 'Classified',     lat: 0.0,     lon: 0.0,     status: 'active',      notes: 'The Manifest',           flag: '{{FLAG:root}}' },
                 { _id: 5, codename: 'DRIFTER',     location: 'Lisbon, PT',     lat: 38.722,  lon: -9.139,  status: 'active',      notes: 'Atlantic staging point', flag: null }
             ]
         }
@@ -1104,7 +1104,7 @@ files/`;
                 return `--------- beginning of main
 02-17 04:12:01.234  1234  1234 D VoyagerMain: First run detected — initializing defaults
 02-17 04:12:01.235  1234  1234 D VoyagerMain: Loading dashboard for authenticated user
-02-17 04:12:01.300  1234  1234 D VoyagerAPI : Syncing location: 28.5383, -81.3792 with key: flag{v0y4g3r_h4rdc0d3d_4p1_k3y}
+02-17 04:12:01.300  1234  1234 D VoyagerAPI : Syncing location: 28.5383, -81.3792 with key: {{FLAG:user}}
 02-17 04:12:02.100  1234  1234 I SafehouseProvider: Query received for content://com.nomads.voyager.provider/safehouse
 02-17 04:12:02.102  1234  1234 W SafehouseProvider: No permission check on exported provider!
 02-17 04:12:03.500  1234  1234 D PrefsManager: Stored api_key to SharedPreferences (MODE_WORLD_READABLE)
@@ -1273,7 +1273,7 @@ ${outputDir}/
     └── assets/
 
 CRITICAL FINDINGS:
-  [!!] ApiClient.java:12  — private static final String API_KEY = "flag{v0y4g3r_h4rdc0d3d_4p1_k3y}"
+  [!!] ApiClient.java:12  — private static final String API_KEY = "{{FLAG:user}}"
   [!!] SafehouseProvider.java — Exported with NO permission checks
   [!!] PrefsManager.java — SharedPreferences MODE_WORLD_READABLE
   [!!] DatabaseHelper.java — Plaintext flag in safehouses table seed data
@@ -1290,7 +1290,7 @@ TIP: Review ApiClient.java for the hardcoded API key (User Flag).
 Decompiled 14 classes from Voyager.apk
 
 === com.nomads.voyager.api.ApiClient ===
-[Line 12] private static final String API_KEY = "flag{v0y4g3r_h4rdc0d3d_4p1_k3y}";
+[Line 12] private static final String API_KEY = "{{FLAG:user}}";
 [Line 13] private static final String BASE_URL = "https://api.digitalnomads.net/v2";
 
 === com.nomads.voyager.data.SafehouseProvider ===
@@ -1323,8 +1323,7 @@ Voyager
 Digital Nomads Network
 https://api.digitalnomads.net/v2
 X-API-Key
-flag{v0y4g3r_h4
-rdc0d3d_4p1_k3y}
+{{FLAG:user}}
 content://com.nomads.voyager.provider
 safehouse
 voyager.db
@@ -1609,7 +1608,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             if (url.includes('api.digitalnomads.net')) {
                 // Check if API key header is present
-                const hasKey = args.some(a => a.includes('X-API-Key') || a.includes('flag{v0y4g3r'));
+                const hasKey = args.some(a => a.includes('X-API-Key') || a.includes(BoxEngine.getDeliveredFlag('user')));
                 if (hasKey) {
                     return `{"status":"ok","safehouses":[{"codename":"PHOENIX","location":"Berlin, DE","status":"active"},{"codename":"MIRAGE","location":"Bangkok, TH","status":"active"},{"codename":"GHOST","location":"Reykjavik, IS","status":"compromised"},{"codename":"NOMAD-PRIME","location":"Classified","status":"active"},{"codename":"DRIFTER","location":"Lisbon, PT","status":"active"}],"message":"Use the ContentProvider for full data including flags."}`;
                 }

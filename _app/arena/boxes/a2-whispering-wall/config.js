@@ -665,7 +665,7 @@ const A2Config = {
                 )}
 
                 <!-- Admin Notes: user flag stored in /var/www/user.txt -->
-                <!-- flag{wh1sp3r1ng_w4ll_x55_r3fl3ct3d} -->
+                <!-- {{FLAG:user}} -->
 
                 <div style="margin-top:16px;">
                     <a href="/wall/admin/config" style="color:#e67e22; font-size:0.8rem;"><img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Server Configuration</a>
@@ -719,7 +719,7 @@ const A2Config = {
 
             <div style="background:#0a0a0a; border:1px solid #333; border-radius:4px; padding:14px; font-family:monospace; font-size:0.75rem; color:#aaa; line-height:1.6; margin-bottom:16px;">
                 <div style="color:#808080;">## /root/root.txt</div>
-                <div style="color:#2ecc71; font-weight:700;">flag{0bs1d14n_h4nd_s3rv3r_c0mpr0m1s3d}</div>
+                <div style="color:#2ecc71; font-weight:700;">{{FLAG:root}}</div>
             </div>
 
             <div style="color:#aaa; font-size:0.7rem; letter-spacing:0.1em; margin-bottom:10px;">SSH KEYS</div>
@@ -932,12 +932,12 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                     if (!A2Config._state.adminAuthenticated) {
                         return '<html><body><h1>403 Forbidden</h1><p>Admin authentication required.</p></body></html>';
                     }
-                    return '<!DOCTYPE html>\n<html>\n<head><title>Server Config</title></head>\n<body>\n<h1>Server Configuration</h1>\n<pre>\nserver_name = wall.obsidian-hand.net\ndb_pass = Obs1d14n_DB_2024!\nxss_filter = disabled\ncsp_header = none\n</pre>\n<!-- root flag: flag{0bs1d14n_h4nd_s3rv3r_c0mpr0m1s3d} -->\n</body>\n</html>';
+                    return '<!DOCTYPE html>\n<html>\n<head><title>Server Config</title></head>\n<body>\n<h1>Server Configuration</h1>\n<pre>\nserver_name = wall.obsidian-hand.net\ndb_pass = Obs1d14n_DB_2024!\nxss_filter = disabled\ncsp_header = none\n</pre>\n<!-- root flag: {{FLAG:root}} -->\n</body>\n</html>';
                 }
 
                 // /wall/admin/
                 if (url.includes('/wall/admin')) {
-                    return '<!DOCTYPE html>\n<html>\n<head><title>Admin Panel</title></head>\n<body>\n<h1>Admin Panel - Access Denied</h1>\n<p>Authentication token required.</p>\n<form action="/wall/admin/login" method="POST">\n  <input name="token" placeholder="Admin token...">\n  <button type="submit">Login</button>\n</form>\n<!-- TODO: remove debug flag from source -->\n<!-- user flag: flag{wh1sp3r1ng_w4ll_x55_r3fl3ct3d} -->\n</body>\n</html>';
+                    return '<!DOCTYPE html>\n<html>\n<head><title>Admin Panel</title></head>\n<body>\n<h1>Admin Panel - Access Denied</h1>\n<p>Authentication token required.</p>\n<form action="/wall/admin/login" method="POST">\n  <input name="token" placeholder="Admin token...">\n  <button type="submit">Login</button>\n</form>\n<!-- TODO: remove debug flag from source -->\n<!-- user flag: {{FLAG:user}} -->\n</body>\n</html>';
                 }
 
                 // /wall/search

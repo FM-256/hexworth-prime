@@ -10,7 +10,7 @@
    Overrides: scan, move (filesystem language), status, help
    ================================================================ */
 
-var LINUX_FS_01_CONFIG = {
+var LINUX_FS_01_CONFIG = (function() { var _d = function(s) { return atob(s); }; return {
     id: 'linux-fs-01',
     missionTitle: 'LINUX-FS-01',
     title: 'Root Access',
@@ -42,13 +42,13 @@ var LINUX_FS_01_CONFIG = {
     },
 
     nodes: {
-        'root-home': { label: '/root',      abbr: 'ROOT', ip: '(superuser)', os: 'drwx------',  ports: ['.bashrc','.ssh/','flag1.txt'],               desc: 'Root home directory -- restricted access',            hasFlag: true,  flagFile: 'flag1.txt', flagValue: 'FLAG{r00t_4ccess_gr4nted}' },
+        'root-home': { label: '/root',      abbr: 'ROOT', ip: '(superuser)', os: 'drwx------',  ports: ['.bashrc','.ssh/','flag1.txt'],               desc: 'Root home directory -- restricted access',            hasFlag: true,  flagFile: 'flag1.txt', flagValue: _d('RkxBR3tyMDB0XzRjY2Vzc19ncjRudGVkfQ==') },
         'etc-dir':   { label: '/etc',       abbr: 'ETC',  ip: '(configs)',   os: 'drwxr-xr-x', ports: ['passwd','shadow','hosts','crontab'],           desc: 'System configuration files',                         hasFlag: false },
-        'var-log':   { label: '/var/log',   abbr: 'LOG',  ip: '(logs)',      os: 'drwxr-xr-x', ports: ['syslog','auth.log','kern.log','flag2.txt'],    desc: 'System and application log files',                   hasFlag: true,  flagFile: 'flag2.txt', flagValue: 'FLAG{l0g_4nalysis_m4ster}' },
+        'var-log':   { label: '/var/log',   abbr: 'LOG',  ip: '(logs)',      os: 'drwxr-xr-x', ports: ['syslog','auth.log','kern.log','flag2.txt'],    desc: 'System and application log files',                   hasFlag: true,  flagFile: 'flag2.txt', flagValue: _d('RkxBR3tsMGdfNG5hbHlzaXNfbTRzdGVyfQ==') },
         'usr-bin':   { label: '/usr/bin',   abbr: 'BIN',  ip: '(binaries)',  os: 'drwxr-xr-x', ports: ['python3','vim','git','curl','nmap'],            desc: 'User command binaries',                              hasFlag: false },
-        'opt-dir':   { label: '/opt',       abbr: 'OPT',  ip: '(optional)',  os: 'drwxr-xr-x', ports: ['webapp/','tools/','flag3.txt'],                desc: 'Optional third-party software',                      hasFlag: true,  flagFile: 'flag3.txt', flagValue: 'FLAG{0pt_d1rectory_h1dden}' },
+        'opt-dir':   { label: '/opt',       abbr: 'OPT',  ip: '(optional)',  os: 'drwxr-xr-x', ports: ['webapp/','tools/','flag3.txt'],                desc: 'Optional third-party software',                      hasFlag: true,  flagFile: 'flag3.txt', flagValue: _d('RkxBR3swcHRfZDFyZWN0b3J5X2gxZGRlbn0=') },
         'tmp-dir':   { label: '/tmp',       abbr: 'TMP',  ip: '(temp)',      os: 'drwxrwxrwt', ports: ['.hidden/','session.tmp','exploit.sh'],         desc: 'Temporary files -- world-writable',                  hasFlag: false },
-        'srv-dir':   { label: '/srv',       abbr: 'SRV',  ip: '(services)',  os: 'drwxr-xr-x', ports: ['www/','ftp/','flag4.txt'],                     desc: 'Service data directory',                              hasFlag: true,  flagFile: 'flag4.txt', flagValue: 'FLAG{s3rv1ce_d4ta_f0und}' },
+        'srv-dir':   { label: '/srv',       abbr: 'SRV',  ip: '(services)',  os: 'drwxr-xr-x', ports: ['www/','ftp/','flag4.txt'],                     desc: 'Service data directory',                              hasFlag: true,  flagFile: 'flag4.txt', flagValue: _d('RkxBR3tzM3J2MWNlX2Q0dGFfZjB1bmR9') },
         'home-user': { label: '/home/user', abbr: 'USR',  ip: '(student)',   os: 'drwxr-xr-x', ports: ['Desktop/','Documents/','notes.txt'],           desc: 'Student home directory',                              hasFlag: false },
         'dev-dir':   { label: '/dev',       abbr: 'DEV',  ip: '(devices)',   os: 'drwxr-xr-x', ports: ['null','zero','random','sda1'],                 desc: 'Device special files',                                hasFlag: false }
     },
@@ -58,7 +58,7 @@ var LINUX_FS_01_CONFIG = {
         'root-home': {
             '.bashrc':    'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin\nexport PS1="root@hexworth:~# "\nalias ll="ls -la"\nalias rm="rm -i"',
             '.ssh/':      '[directory] authorized_keys  id_rsa  id_rsa.pub  known_hosts',
-            'flag1.txt':  'FLAG{r00t_4ccess_gr4nted}'
+            'flag1.txt':  _d('RkxBR3tyMDB0XzRjY2Vzc19ncjRudGVkfQ==')
         },
         'etc-dir': {
             'passwd':     'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin\nsys:x:3:3:sys:/dev:/usr/sbin/nologin\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\nstudent:x:1000:1000:student:/home/user:/bin/bash',
@@ -70,7 +70,7 @@ var LINUX_FS_01_CONFIG = {
             'syslog':     'Mar  5 08:12:01 hexworth systemd[1]: Started Session 42 of user root.\nMar  5 08:12:03 hexworth kernel: [42069.123] eth0: link up\nMar  5 08:15:22 hexworth CRON[1337]: (root) CMD (/opt/tools/backup.sh)\nMar  5 08:20:01 hexworth systemd[1]: Starting Cleanup of Temporary Directories...',
             'auth.log':   'Mar  5 03:14:07 hexworth sshd[9001]: Failed password for root from 192.168.1.50 port 44231\nMar  5 03:14:09 hexworth sshd[9001]: Failed password for root from 192.168.1.50 port 44231\nMar  5 03:14:12 hexworth sshd[9001]: Failed password for root from 192.168.1.50 port 44231\nMar  5 03:14:15 hexworth sshd[9001]: Connection closed by 192.168.1.50 port 44231 [preauth]\nMar  5 06:00:01 hexworth sshd[9200]: Accepted publickey for root from 10.0.0.1 port 22',
             'kern.log':   'Mar  5 00:00:02 hexworth kernel: [    0.000000] Linux version 6.1.0-hexworth (gcc 12.2.0)\nMar  5 00:00:02 hexworth kernel: [    0.000000] Command line: BOOT_IMAGE=/vmlinuz-6.1.0\nMar  5 00:00:02 hexworth kernel: [    0.523104] EXT4-fs (sda1): mounted filesystem with ordered data mode',
-            'flag2.txt':  'FLAG{l0g_4nalysis_m4ster}'
+            'flag2.txt':  _d('RkxBR3tsMGdfNG5hbHlzaXNfbTRzdGVyfQ==')
         },
         'usr-bin': {
             'python3':    '[binary] Python 3.12.1 interpreter  /usr/bin/python3',
@@ -82,7 +82,7 @@ var LINUX_FS_01_CONFIG = {
         'opt-dir': {
             'webapp/':    '[directory] index.html  app.js  config.json  .env',
             'tools/':     '[directory] backup.sh  monitor.py  deploy.sh',
-            'flag3.txt':  'FLAG{0pt_d1rectory_h1dden}'
+            'flag3.txt':  _d('RkxBR3swcHRfZDFyZWN0b3J5X2gxZGRlbn0=')
         },
         'tmp-dir': {
             '.hidden/':   '[directory] .cache  .runtime  .sock',
@@ -92,7 +92,7 @@ var LINUX_FS_01_CONFIG = {
         'srv-dir': {
             'www/':       '[directory] html/  cgi-bin/  logs/  .htaccess',
             'ftp/':       '[directory] pub/  incoming/  users/',
-            'flag4.txt':  'FLAG{s3rv1ce_d4ta_f0und}'
+            'flag4.txt':  _d('RkxBR3tzM3J2MWNlX2Q0dGFfZjB1bmR9')
         },
         'home-user': {
             'Desktop/':   '[directory] (empty)',
@@ -346,4 +346,4 @@ var LINUX_FS_01_CONFIG = {
             }
         }
     }
-};
+}; })();

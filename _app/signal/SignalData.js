@@ -64,6 +64,22 @@ const SignalData = {
             icon: '../../assets/images/icons/icon-desktop.webp',
             color: '#c084fc',
             description: 'Full Linux SBC. Network probes, encryption stations, IDS, Tor routing.'
+        },
+        'workstation': {
+            name: 'Any PC / Laptop',
+            kit: 'Your existing computer',
+            approxCost: 0,
+            icon: '../../assets/images/icons/icon-laptop.webp',
+            color: '#94a3b8',
+            description: 'Standard PC or laptop. No special hardware — just a computer and common peripherals.'
+        },
+        'rp2040-pico': {
+            name: 'Raspberry Pi Pico',
+            kit: 'RP2040-Zero or Pi Pico + MicroSD Breakout',
+            approxCost: 12,
+            icon: '../../assets/images/icons/icon-memory.webp',
+            color: '#22d3ee',
+            description: 'RP2040 microcontroller with native USB. USB devices, HID projects, mass storage builds.'
         }
     },
 
@@ -194,6 +210,16 @@ const SignalData = {
             color: '#ec4899',
             colorDim: 'rgba(236, 72, 153, 0.15)',
             sections: ['arcade-ops']
+        },
+        {
+            id: 'field-prep',
+            name: 'Field Prep',
+            tagline: 'Gear up.',
+            description: 'Essential IT field skills — bootable media, drive imaging, workstation setup, cable making, and deployment kits. Day-one skills for any tech role.',
+            icon: '../../assets/images/icons/icon-tools.webp',
+            color: '#94a3b8',
+            colorDim: 'rgba(148, 163, 184, 0.15)',
+            sections: ['field-prep']
         }
     ],
 
@@ -1040,6 +1066,72 @@ const SignalData = {
                         'Assemble cabinet with display, controls, and audio',
                         'Configure RetroPie with auto-launch and attract mode',
                         'Add LED marquee, coin counter sound effects, and cabinet art'
+                    ]
+                }
+            ]
+        },
+
+        // =================================================================
+        // FIELD PREP — Practical IT field skills, workstation builds
+        // =================================================================
+        {
+            id: 'field-prep',
+            name: 'Field Prep',
+            track: 'field-prep',
+            icon: '../../assets/images/icons/icon-tools.webp',
+            description: 'Essential IT field skills — bootable media, drive imaging, workstation setup, and deployment kits.',
+            color: '#94a3b8',
+            projects: [
+                {
+                    id: 'sg-31',
+                    title: 'Build a Bootable USB Drive',
+                    type: 'build',
+                    difficulty: 'recruit',
+                    platform: 'workstation',
+                    buildTime: '45m',
+                    cost: '$8',
+                    status: 'ready',
+                    href: 'sg-31-bootable-usb.html',
+                    skills: ['linux-admin', 'usb-protocol'],
+                    prerequisites: [],
+                    parts: [
+                        { component: 'USB Flash Drive (8GB+)', qty: 1, inKit: false },
+                        { component: 'PC or Laptop', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Create bootable USB drives for Windows, Linux, and recovery tools',
+                        'Understand BIOS vs UEFI boot modes and GPT vs MBR',
+                        'Use Rufus, Ventoy, and dd to write bootable media',
+                        'Build a multi-boot USB toolkit with Ventoy',
+                        'Configure BIOS/UEFI boot order and Secure Boot'
+                    ]
+                },
+                {
+                    id: 'sg-32',
+                    title: 'Build a USB Flash Drive from Scratch',
+                    type: 'build',
+                    difficulty: 'operative',
+                    platform: 'rp2040-pico',
+                    buildTime: '2-3h',
+                    cost: '$12',
+                    status: 'ready',
+                    href: 'sg-32-build-usb-drive.html',
+                    skills: ['usb-protocol', 'firmware-dev', 'physical-security'],
+                    prerequisites: [],
+                    parts: [
+                        { component: 'Raspberry Pi Pico or RP2040-Zero', qty: 1, inKit: false },
+                        { component: 'MicroSD Breakout Board', qty: 1, inKit: false },
+                        { component: 'MicroSD Card (any size)', qty: 1, inKit: false },
+                        { component: 'Jumper Wires (6x male-to-male)', qty: 6, inKit: false },
+                        { component: 'Breadboard (half-size)', qty: 1, inKit: false },
+                        { component: 'USB Micro-B or USB-C Cable', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Understand USB flash drive architecture at the component level',
+                        'Wire an RP2040 to an SD card over SPI',
+                        'Flash TinyUSB firmware for USB Mass Storage Class',
+                        'Build a working USB storage device that any OS recognizes',
+                        'Explain USB enumeration, device descriptors, and block storage protocol'
                     ]
                 }
             ]

@@ -196,7 +196,7 @@ const A1Config = {
             { id: 5, username: 'arch_overseer', password_hash: '$2b$12$Hy4t6wQ...0v3rs33r_k3y', role: 'administrator', email: 'overseer@crimson-dawn.net' }
         ],
         stellar_forge_codes: [
-            { code_id: 1, project: 'Stellar Forge Alpha', value: 'flag{st3ll4r_f0rg3_4ll0c4t10n_c0d3s}', classification: 'TOP SECRET' },
+            { code_id: 1, project: 'Stellar Forge Alpha', value: '{{FLAG:root}}', classification: 'TOP SECRET' },
             { code_id: 2, project: 'Project Eclipse', value: 'CLASSIFIED-REDACTED', classification: 'SECRET' },
             { code_id: 3, project: 'Omega Protocol', value: 'CLASSIFIED-REDACTED', classification: 'TOP SECRET' }
         ],
@@ -400,7 +400,7 @@ const A1Config = {
     _handleLoadFile(input) {
         if (input.includes('user.txt') || input.includes('/home/www-data')) {
             return `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
-                <tr><td colspan="4" style="color:#2ecc71; padding:10px; font-weight:bold;">flag{4nc13nt_l3dg3r_sql1_d1sc0v3r3d}</td></tr>
+                <tr><td colspan="4" style="color:#2ecc71; padding:10px; font-weight:bold;">{{FLAG:user}}</td></tr>
             </table>
             <div style="color:#2ecc71; background:rgba(46,204,113,0.08); border:1px solid rgba(46,204,113,0.2); border-radius:4px; padding:10px; margin-top:10px; font-size:0.8rem;">
                 File contents retrieved from the server filesystem.
@@ -517,7 +517,7 @@ ledger_app:x:1001:1001::/home/ledger_app:/bin/bash</td></tr>
                 db.stellar_forge_codes.map(s => [
                     s.code_id,
                     s.project,
-                    `<span style="color:${s.value.startsWith('flag{') ? '#2ecc71; font-weight:bold' : '#888'}">${s.value}</span>`,
+                    `<span style="color:${s.value.startsWith('{{FLAG:') ? '#2ecc71; font-weight:bold' : '#888'}">${s.value}</span>`,
                     s.classification
                 ])) +
                 '<div style="color:#2ecc71; background:rgba(46,204,113,0.08); border:1px solid rgba(46,204,113,0.2); border-radius:4px; padding:10px; margin-top:10px; font-size:0.8rem;">Classified data extracted! The Stellar Forge allocation codes are revealed.</div>';

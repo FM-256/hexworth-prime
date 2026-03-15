@@ -646,22 +646,22 @@ User www-data may run the following commands on iron-bastion:
 
             // sudo /usr/bin/env cat /root/root.txt
             if (execCmd.includes('cat') && execCmd.includes('/root/root.txt')) {
-                return 'flag{1r0n_b4st10n_r00t_c0mpr0m1s3d}';
+                return '{{FLAG:root}}';
             }
 
             // sudo /usr/bin/env /bin/bash -c "cat /root/root.txt"
             if (execCmd.includes('bash') && execCmd.includes('/root/root.txt')) {
-                return 'flag{1r0n_b4st10n_r00t_c0mpr0m1s3d}';
+                return '{{FLAG:root}}';
             }
 
             // sudo /usr/bin/env /bin/sh -c "cat /root/root.txt"
             if (execCmd.includes('sh') && execCmd.includes('/root/root.txt')) {
-                return 'flag{1r0n_b4st10n_r00t_c0mpr0m1s3d}';
+                return '{{FLAG:root}}';
             }
 
             // sudo /usr/bin/env cat /root/
             if (execCmd.includes('cat') && execCmd.includes('/root/')) {
-                return 'flag{1r0n_b4st10n_r00t_c0mpr0m1s3d}';
+                return '{{FLAG:root}}';
             }
 
             // sudo /usr/bin/env ls /root/
@@ -702,7 +702,7 @@ User www-data may run the following commands on iron-bastion:
         const p = path.trim();
 
         if (p.includes('/home/monitor_svc/user.txt') || p === 'user.txt') {
-            return 'flag{ph4nt0m_sh3ll_1nj3ct10n_d1sc0v3r3d}';
+            return '{{FLAG:user}}';
         }
 
         if (p.includes('/etc/passwd')) {

@@ -158,11 +158,11 @@ var AD001Config = {
     // ==========================================================
 
     _scenarioFlags: {
-        stale_creds:    'flag{st4l3_cr3d_f0und}',
-        expired_svc:    'flag{svc_4cc0unt_r3n3w3d}',
-        brute_force:    'flag{brut3_f0rc3_bl0ck3d}',
-        gpo_misconfig:  'flag{gp0_p0l1cy_f1x3d}',
-        rogue_task:     'flag{r0gu3_t4sk_k1ll3d}'
+        stale_creds:    null,
+        expired_svc:    null,
+        brute_force:    null,
+        gpo_misconfig:  null,
+        rogue_task:     null
     },
 
     // ==========================================================
@@ -377,9 +377,7 @@ var AD001Config = {
             AD001Config._flagRestored = true;
             var scenario = AD001Config._scenarios[engine.state._scenarioId];
             if (scenario) {
-                AD001Config.flags[0].value = AD001Config._scenarioFlags[scenario.id];
                 AD001Config.hints = AD001Config._scenarioHints[scenario.id] || AD001Config._defaultHints;
-                if (engine._computeFlagHashes) engine._computeFlagHashes();
             }
         }
         return true;
@@ -430,12 +428,10 @@ var AD001Config = {
         }
 
         var scenario = AD001Config._scenarios[idx];
-        AD001Config.flags[0].value = AD001Config._scenarioFlags[scenario.id];
         AD001Config._flagRestored = true;
         AD001Config.hints = AD001Config._scenarioHints[scenario.id] || AD001Config._defaultHints;
 
         engine.save();
-        if (engine._computeFlagHashes) engine._computeFlagHashes();
     },
 
     _getScenario: function(engine) {
@@ -496,9 +492,16 @@ var AD001Config = {
             engine.state._labComplete = true;
             engine.state._flagRevealed = true;
             engine.save();
-            setTimeout(function() {
-                engine.notify('Incident resolved. All root causes addressed and accounts restored. Check ADUC for the incident closure token.', 'success');
-            }, 400);
+            // Request flag from server asynchronously
+            engine.requestFlagText(scenario.id).then(function(flagText) {
+                if (flagText) {
+                    engine.notify('Incident resolved. All root causes addressed and accounts restored. Check ADUC for the incident closure token.', 'success');
+                } else {
+                    engine.notify('Incident resolved. Flag delivery pending -- refresh ADUC to check.', 'success');
+                }
+            }).catch(function() {
+                engine.notify('Incident resolved. Flag delivery pending -- refresh ADUC to check.', 'success');
+            });
         }
     },
 
@@ -566,7 +569,7 @@ var AD001Config = {
     // ==========================================================
 
     flags: [
-        { id: 'fixed', value: 'flag{placeholder}', points: 500 }
+        { id: 'fixed', value: '{{FLAG:ad001}}', points: 500 }
     ],
 
     // ==========================================================
@@ -1262,7 +1265,7 @@ var AD001Config = {
 
             if (activeTab === 0) {
                 // Account tab
-                var flagVal = engine.state._flagRevealed ? AD001Config._scenarioFlags[scenario ? scenario.id : ''] || '' : '';
+                var flagVal = (engine.state._flagRevealed && engine._deliveredFlags && engine._deliveredFlags[scenario ? scenario.id : '']) ? engine._deliveredFlags[scenario.id] : '';
                 bodyHtml = '<div style="padding:16px;">'
                     + '<div style="margin-bottom:12px;"><div style="color:#888; font-size:0.7rem;">User logon name</div>'
                     + '<div style="font-weight:bold;">' + user.username + '@hexworth.local</div></div>'
@@ -1782,7 +1785,7 @@ var AD001Config = {
                 + '</div>'
                 + '</div>';
         } else {
-            var flagVal = engine.state._flagRevealed ? AD001Config._scenarioFlags.brute_force : '';
+            var flagVal = (engine.state._flagRevealed && engine._deliveredFlags && engine._deliveredFlags['brute_force']) ? engine._deliveredFlags['brute_force'] : '';
             html += '<div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); flex-shrink:0; background:rgba(46,204,113,0.05);">'
                 + '<div style="color:#2ecc71; font-size:0.8rem; font-weight:bold; margin-bottom:4px;">Deny rule active — attack source blocked.</div>'
                 + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + flagVal + '</div>' : '<div style="color:#888; font-size:0.75rem;">Bulk-unlock accounts to complete remediation and retrieve the incident token.</div>')
@@ -2067,7 +2070,7 @@ var AD001Config = {
         html += '</div>';
 
         if (portDisabled) {
-            var flagVal = engine.state._flagRevealed ? AD001Config._scenarioFlags.rogue_task : '';
+            var flagVal = (engine.state._flagRevealed && engine._deliveredFlags && engine._deliveredFlags['rogue_task']) ? engine._deliveredFlags['rogue_task'] : '';
             html += '<div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); flex-shrink:0; background:rgba(46,204,113,0.05);">'
                 + '<div style="color:#2ecc71; font-weight:bold; font-size:0.8rem;">Gi0/21 disabled — DESK-142 is offline. Rogue scheduled task neutralized.</div>'
                 + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + flagVal + '</div>' : '<div style="color:#888; font-size:0.75rem; margin-top:4px;">Unlock affected accounts to complete remediation.</div>')

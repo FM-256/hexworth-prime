@@ -64,6 +64,17 @@
         }
     })();
 
+    // ── IntegrityLockscreen.js (Full-screen lock for integrity violations) ──
+    (function() {
+        var cs = document.currentScript;
+        if (cs && cs.src) {
+            var s = document.createElement('script');
+            s.src = cs.src.replace('FluxCapacitor.js', 'IntegrityLockscreen.js');
+            s.async = true;
+            document.head.appendChild(s);
+        }
+    })();
+
     // ═══════════════════════════════════════════════════════════════
     // CONFIGURATION
     // ═══════════════════════════════════════════════════════════════

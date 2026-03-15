@@ -1,5 +1,5 @@
 /**
- * Seed script — populates flag_registry in Firestore for all 20 arena boxes
+ * Seed script — populates flag_registry in Firestore for all arena + dispatch boxes
  * so the validateFlag Cloud Function can verify submissions server-side.
  *
  * Usage:  node seed-flags.js
@@ -94,6 +94,69 @@ const FLAG_REGISTRY = {
     'a20-project-chimera': {
         user: 'flag{g3n3s1s_supply_ch41n_l1bcor3}',
         root: 'flag{gl0b4l_d0m1n4t10n_pr0t0c0l}'
+    },
+
+    // ── Dispatch Boxes ──
+
+    'nt1-network-troubleshoot': {
+        dns_poisoned: 'flag{cach3_p01s0n_cl34r3d}',
+        disabled_adapter: 'flag{4d4pt3r_0nl1n3}',
+        firewall_block: 'flag{f1r3w4ll_rul3_d1s4bl3d}',
+        wrong_subnet: 'flag{subn3t_r34l1gn3d}',
+        dhcp_stopped: 'flag{dhcp_s3rv1c3_r3st0r3d}'
+    },
+    'os001-boot-failure': {
+        corrupted_bcd: 'FLAG{bcd_rebuilt}',
+        bad_driver: 'FLAG{driver_rolled_back}',
+        stuck_update: 'FLAG{update_reverted}',
+        disk_corruption: 'FLAG{disk_repaired}',
+        missing_bootloader: 'FLAG{bootloader_restored}'
+    },
+    'hw001-dead-workstation': {
+        unseated_ram: 'FLAG{ram_reseated}',
+        dead_gpu: 'FLAG{gpu_replaced}',
+        failed_psu: 'FLAG{psu_replaced}',
+        cpu_overheat: 'FLAG{thermal_restored}',
+        bad_sata: 'FLAG{cable_replaced}'
+    },
+    'ad001-lockout-storm': {
+        stale_creds: 'flag{st4l3_cr3d_f0und}',
+        expired_svc: 'flag{svc_4cc0unt_r3n3w3d}',
+        brute_force: 'flag{brut3_f0rc3_bl0ck3d}',
+        gpo_misconfig: 'flag{gp0_p0l1cy_f1x3d}',
+        rogue_task: 'flag{r0gu3_t4sk_k1ll3d}'
+    },
+    'pr001-printer-nightmare': {
+        spooler_crash: 'FLAG{spooler_resurrected}',
+        wrong_driver: 'FLAG{driver_corrected}',
+        ip_changed: 'FLAG{port_repointed}',
+        perms_denied: 'FLAG{access_granted}',
+        stuck_queue: 'FLAG{queue_cleared}'
+    }
+};
+
+// Dispatch boxes use scenario-based flags (multiple scenario IDs map to one config flag ID).
+// The aliases tell validateFlag to return the config flag ID so the client can match it.
+const DISPATCH_ALIASES = {
+    'nt1-network-troubleshoot': {
+        configFlagId: 'fixed',
+        scenarioIds: ['dns_poisoned', 'disabled_adapter', 'firewall_block', 'wrong_subnet', 'dhcp_stopped']
+    },
+    'os001-boot-failure': {
+        configFlagId: 'repaired',
+        scenarioIds: ['corrupted_bcd', 'bad_driver', 'stuck_update', 'disk_corruption', 'missing_bootloader']
+    },
+    'hw001-dead-workstation': {
+        configFlagId: 'repaired',
+        scenarioIds: ['unseated_ram', 'dead_gpu', 'failed_psu', 'cpu_overheat', 'bad_sata']
+    },
+    'ad001-lockout-storm': {
+        configFlagId: 'fixed',
+        scenarioIds: ['stale_creds', 'expired_svc', 'brute_force', 'gpo_misconfig', 'rogue_task']
+    },
+    'pr001-printer-nightmare': {
+        configFlagId: 'fixed',
+        scenarioIds: ['spooler_crash', 'wrong_driver', 'ip_changed', 'perms_denied', 'stuck_queue']
     }
 };
 
@@ -102,12 +165,24 @@ async function seed() {
     let count = 0;
 
     for (const [boxId, flags] of Object.entries(FLAG_REGISTRY)) {
-        batch.set(db.doc(`flag_registry/${boxId}`), { flags }, { merge: true });
+        const docData = { flags };
+
+        // Add aliases for dispatch boxes
+        const aliasConfig = DISPATCH_ALIASES[boxId];
+        if (aliasConfig) {
+            const aliases = {};
+            for (const sid of aliasConfig.scenarioIds) {
+                aliases[sid] = aliasConfig.configFlagId;
+            }
+            docData.aliases = aliases;
+        }
+
+        batch.set(db.doc(`flag_registry/${boxId}`), docData, { merge: true });
         count++;
     }
 
     await batch.commit();
-    console.log(`Seeded flag_registry for ${count} boxes`);
+    console.log(`Seeded flag_registry for ${count} boxes (${Object.keys(DISPATCH_ALIASES).length} with aliases)`);
 }
 
 seed().catch(err => {

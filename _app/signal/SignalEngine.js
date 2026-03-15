@@ -194,7 +194,11 @@ const SignalEngine = (() => {
                     <span class="se-stat-num">${platforms}</span>
                     <span class="se-stat-label">Platforms</span>
                 </div>
-            </div>`;
+            </div>
+            <a href="toolkit/index.html" class="se-toolkit-link">
+                <img src="${_icon('../../assets/images/icons/icon-tools.webp')}" alt="Toolkit" width="18" height="18" style="vertical-align:middle;margin-right:6px;opacity:0.9">
+                Signal Toolkit &mdash; Software Downloads &amp; Tools
+            </a>`;
         return hero;
     }
 
@@ -749,6 +753,18 @@ a { color: inherit; text-decoration: none; }
 .se-stat { text-align: center; }
 .se-stat-num { display: block; font-size: 28px; font-weight: 800; color: ${PRIMARY}; }
 .se-stat-label { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
+
+/* Toolkit link */
+.se-toolkit-link {
+    display: inline-block; margin-top: 20px; padding: 10px 20px;
+    background: rgba(255, 107, 53, 0.1); border: 1px solid rgba(255, 107, 53, 0.3);
+    border-radius: 8px; color: ${PRIMARY}; text-decoration: none;
+    font-size: 13px; font-weight: 600; transition: all 0.2s;
+}
+.se-toolkit-link:hover {
+    background: rgba(255, 107, 53, 0.2); border-color: ${PRIMARY};
+    box-shadow: 0 0 15px rgba(255, 107, 53, 0.15);
+}
 
 /* Platform overview */
 .se-platform-overview { margin-bottom: 32px; }

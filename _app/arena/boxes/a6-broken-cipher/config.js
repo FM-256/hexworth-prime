@@ -269,20 +269,20 @@ const A6Config = {
         // Base64 of: "CipherKey: S1l3nt_0rd3r" — also the admin API key header
         b64ApiKey: 'Q2lwaGVyS2V5OiBTMWwzbnRfMHJkM3I=',
 
-        // XOR 0x42 hex bytes — decodes to: "user flag: flag{s1l3nt_0rd3r_cr4ck3d_c1ph3r}"
+        // XOR 0x42 hex bytes — decodes to: "user flag: {{FLAG:user}}"
         // Generated: each char.charCodeAt(0) ^ 0x42 as two-digit hex
         xorHex: '37 31 27 30 62 24 2e 23 25 78 62 24 2e 23 25 39 31 73 2e 71 2c 36 1d 72 30 26 71 30 1d 21 30 76 21 29 71 26 1d 21 73 32 2a 71 30 3f',
 
         // Decoded values
         rot13Decoded:   'The admin API key is encoded in message number three',
         b64Decoded:     'CipherKey: S1l3nt_0rd3r',
-        xorDecoded:     'user flag: flag{s1l3nt_0rd3r_cr4ck3d_c1ph3r}',
+        xorDecoded:     'user flag: {{FLAG:user}}',
 
         // The raw API key (after stripping "CipherKey: ")
         apiKey: 'S1l3nt_0rd3r',
 
         // Vault master key = root flag
-        vaultMasterKey: 'flag{br0k3n_c1ph3r_v4ult_m4st3r}'
+        vaultMasterKey: '{{FLAG:root}}'
     },
 
     // ═══════════════════════════════════════════════════════
@@ -334,7 +334,7 @@ const A6Config = {
                                 <span style="color:#f39c12; font-size:0.72rem; font-weight:700; letter-spacing:0.08em;">MESSAGE #2 — CIPHER: XOR-42 (HEX ENCODED)</span>
                                 <span style="color:#8a8a8a; font-size:0.68rem;">From: <strong style="color:#aaa;">hex_phantom</strong> &nbsp;&bull;&nbsp; 2026-02-14 11:42</span>
                             </div>
-                            <!-- XOR(0x42) hex of: "user flag: flag{s1l3nt_0rd3r_cr4ck3d_c1ph3r}" -->
+                            <!-- XOR(0x42) hex of: "user flag: {{FLAG:user}}" -->
                             <p style="color:#c9a0e0; font-family:monospace; font-size:0.78rem; margin:0 0 8px; word-break:break-all;">37 31 27 30 62 24 2e 23 25 78 62 24 2e 23 25 39 31 73 2e 71 2c 36 1d 72 30 26 71 30 1d 21 30 76 21 29 71 26 1d 21 73 32 2a 71 30 3f</p>
                             <!-- XOR key visible in page source comment -->
                             <!-- XOR KEY: 0x42 — apply to each hex byte to recover plaintext -->
@@ -705,7 +705,7 @@ const A6Config = {
                                         },
                                         'fake_flag.txt': {
                                             type: 'file',
-                                            content: 'flag{th1s_1s_n0t_th3_r34l_fl4g_k33p_l00k1ng}\n\n[This stub was planted by a previous operator. Do not submit — it will score zero.\nThe real flags are inside the Cipher Vault web application.]'
+                                            content: '{{FLAG:decoy_fake}}\n\n[This stub was planted by a previous operator. Do not submit — it will score zero.\nThe real flags are inside the Cipher Vault web application.]'
                                         }
                                     }
                                 },
@@ -790,7 +790,7 @@ const A6Config = {
                         },
                         'master.key.bak': {
                             type: 'file',
-                            content: '[ BACKUP — DO NOT USE — superseded 2026-01-01 ]\nflag{0ld_v4ult_k3y_n0t_v4l1d_4nym0r3}\n\n[DECOY: This backup key was invalidated after the January rotation. The current master key must be retrieved via the web vault interface — the admin panel reveals where.]'
+                            content: '[ BACKUP — DO NOT USE — superseded 2026-01-01 ]\n{{FLAG:decoy_old_key}}\n\n[DECOY: This backup key was invalidated after the January rotation. The current master key must be retrieved via the web vault interface — the admin panel reveals where.]'
                         },
                         'README.txt': {
                             type: 'file',

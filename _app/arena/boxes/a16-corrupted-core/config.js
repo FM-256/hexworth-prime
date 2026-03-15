@@ -547,7 +547,7 @@ PID 1842  crimson_ghost<br>
                                     children: {
                                         'decrypt.py': {
                                             type: 'file',
-                                            content: '#!/usr/bin/env python3\n"""\ndecrypt.py — Crimson Ghost Payload Decryptor\nUsage: python3 decrypt.py <key>\n\nDecrypts the extracted payload using the recovered XOR key.\nThe key must be extracted from the binary\'s decryption routine.\n"""\nimport sys\n\ndef xor_decrypt(data, key):\n    return bytes([b ^ key[i % len(key)] for i, b in enumerate(data)])\n\nif __name__ == "__main__":\n    if len(sys.argv) < 2:\n        print("Usage: python3 decrypt.py <key>")\n        print("Extract the key from the XOR routine at 0x4011a0 using GDB")\n        sys.exit(1)\n\n    key = sys.argv[1].encode()\n    # Simulated encrypted payload\n    encrypted = b"\\x43\\x47\\x02\\x01..."  # truncated\n    decrypted = xor_decrypt(encrypted, key)\n    print(f"[*] Decrypting payload with key: {sys.argv[1]}")\n    print(f"[+] Decrypted payload:")\n    print(f"    {decrypted[:64]}")\n    print(f"[+] Flag: flag{{gh0st_pr0t0c0l_d3crypt10n_k3y}}")'
+                                            content: '#!/usr/bin/env python3\n"""\ndecrypt.py — Crimson Ghost Payload Decryptor\nUsage: python3 decrypt.py <key>\n\nDecrypts the extracted payload using the recovered XOR key.\nThe key must be extracted from the binary\'s decryption routine.\n"""\nimport sys\n\ndef xor_decrypt(data, key):\n    return bytes([b ^ key[i % len(key)] for i, b in enumerate(data)])\n\nif __name__ == "__main__":\n    if len(sys.argv) < 2:\n        print("Usage: python3 decrypt.py <key>")\n        print("Extract the key from the XOR routine at 0x4011a0 using GDB")\n        sys.exit(1)\n\n    key = sys.argv[1].encode()\n    # Simulated encrypted payload\n    encrypted = b"\\x43\\x47\\x02\\x01..."  # truncated\n    decrypted = xor_decrypt(encrypted, key)\n    print(f"[*] Decrypting payload with key: {sys.argv[1]}")\n    print(f"[+] Decrypted payload:")\n    print(f"    {decrypted[:64]}")\n    print(f"[+] Flag: {{FLAG:root}}")'
                                         },
                                         'yara_rules.yar': {
                                             type: 'file',
@@ -1190,12 +1190,12 @@ xinput list | grep -i keyboard | grep -oP 'id=\\K\\d+' | while read id; do
 done
 
 # Root flag embedded as verification hash
-# flag{gh0st_pr0t0c0l_d3crypt10n_k3y}
+# {{FLAG:root}}
 
 echo "[*] Ghost Protocol active"
 =========================
 
-[+] Root flag found: flag{gh0st_pr0t0c0l_d3crypt10n_k3y}
+[+] Root flag found: {{FLAG:root}}
 [+] Payload functionality: persistence + SSH key exfiltration + keylogger`;
                 }
 

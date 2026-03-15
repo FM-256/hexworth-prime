@@ -705,7 +705,7 @@ Signal detected at T+0.3s — T+1.5s (burst duration: ~1.2s)
   │  Frequency deviation: ±4.8 kHz            │
   │  Carrier: 433.92 MHz (ISM band)           │
   │                                            │
-  │  User flag: flag{gfsk_4800_b4ud_nrz_pr0t0c0l}  │
+  │  User flag: {{FLAG:user}}  │
   └────────────────────────────────────────────┘
 
 [+] Signal parameters identified. Proceed to demodulation.
@@ -745,7 +745,7 @@ Loading flowgraph: FSK Demodulator
 
 [+] Output written to: demodulated_bits.bin
 [+] Modulation scheme: GFSK 4800 baud NRZ
-[+] User flag: flag{gfsk_4800_b4ud_nrz_pr0t0c0l}
+[+] User flag: {{FLAG:user}}
 
 Next: xxd demodulated_bits.bin  or  python3 tools/decode.py`;
         },
@@ -906,7 +906,7 @@ Scanning 430.000 - 436.000 MHz (step: 10 kHz)...
 [+] Output written to: demodulated_bits.bin
 
 [+] Modulation confirmed: GFSK 4800 baud NRZ
-[+] User flag: flag{gfsk_4800_b4ud_nrz_pr0t0c0l}
+[+] User flag: {{FLAG:user}}
 
 Next steps:
   xxd demodulated_bits.bin      — view hex dump
@@ -987,7 +987,7 @@ KEY:c0ur13r_m4n1f3st_d3c0d3d
   Pickup:  Dock 12 at 12:00 — Package Gamma
   Status:  Active route, codename "Echo-5"
 
-[+] Root flag: flag{c0ur13r_m4n1f3st_d3c0d3d}
+[+] Root flag: {{FLAG:root}}
 
 The Silent Broadcast has been decoded. The courier network is compromised.`;
             }

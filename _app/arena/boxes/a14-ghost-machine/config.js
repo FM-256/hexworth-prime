@@ -345,7 +345,7 @@ const A14Config = {
                     children: {
                         'operational_mandate.txt': {
                             type: 'file',
-                            content: '╔══════════════════════════════════════════════════════════════╗\n║          VANGUARD NETWORK — OPERATIONAL MANDATE             ║\n╠══════════════════════════════════════════════════════════════╣\n║                                                              ║\n║  Classification: TOP SECRET // VANGUARD // NOFORN            ║\n║  Date: 2024-11-20                                            ║\n║  Author: Director, Vanguard Operations                       ║\n║                                                              ║\n║  All monitoring infrastructure shall be maintained at         ║\n║  DEFCON-2 readiness. SRV-OPS-MONITOR is the primary          ║\n║  telemetry aggregation point for the entire eastern           ║\n║  perimeter defense grid.                                     ║\n║                                                              ║\n║  Compromise of this system would constitute a critical        ║\n║  breach of operational security.                              ║\n║                                                              ║\n║  flag{v4ngu4rd_0p3r4t10n4l_m4nd4t3}                          ║\n║                                                              ║\n╚══════════════════════════════════════════════════════════════╝'
+                            content: '╔══════════════════════════════════════════════════════════════╗\n║          VANGUARD NETWORK — OPERATIONAL MANDATE             ║\n╠══════════════════════════════════════════════════════════════╣\n║                                                              ║\n║  Classification: TOP SECRET // VANGUARD // NOFORN            ║\n║  Date: 2024-11-20                                            ║\n║  Author: Director, Vanguard Operations                       ║\n║                                                              ║\n║  All monitoring infrastructure shall be maintained at         ║\n║  DEFCON-2 readiness. SRV-OPS-MONITOR is the primary          ║\n║  telemetry aggregation point for the entire eastern           ║\n║  perimeter defense grid.                                     ║\n║                                                              ║\n║  Compromise of this system would constitute a critical        ║\n║  breach of operational security.                              ║\n║                                                              ║\n║  {{FLAG:root}}                          ║\n║                                                              ║\n╚══════════════════════════════════════════════════════════════╝'
                         },
                         '.bashrc': {
                             type: 'file',
@@ -746,7 +746,7 @@ const A14Config = {
                     type: 'file',
                     content: '/* Covert persistence stub — LD_PRELOAD payload */\n' +
                         '/* Loaded into every process via /etc/ld.so.preload */\n' +
-                        'flag{gh0st_p3rs1st3nc3_ld_pr3l04d}'
+                        '{{FLAG:user}}'
                 };
 
                 return '';
@@ -1215,7 +1215,7 @@ const A14Config = {
                     A14Config.filesystem['/'].children['tmp'].children[outName] = {
                         type: 'file',
                         content: '/* Compiled shared library — LD_PRELOAD persistence payload */\n' +
-                            'flag{gh0st_p3rs1st3nc3_ld_pr3l04d}'
+                            '{{FLAG:user}}'
                     };
                 }
 
@@ -1224,7 +1224,7 @@ const A14Config = {
                     '[*] To activate: echo "' + outFile + '" >> /etc/ld.so.preload (requires root)\n' +
                     '[*] Or use: export LD_PRELOAD=' + outFile + ' for session-level injection\n\n' +
                     'The user flag is embedded in this persistence mechanism:\n' +
-                    'flag{gh0st_p3rs1st3nc3_ld_pr3l04d}';
+                    '{{FLAG:user}}';
             }
             if (!args.length) return 'Usage: gcc [options] file...\n  -shared -fPIC -o output.so input.c  — compile shared library';
             return 'gcc: error: no input files';

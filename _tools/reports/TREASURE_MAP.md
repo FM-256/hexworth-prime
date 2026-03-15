@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-03-13 4:59:55 AM
+                    Scanned: 2026-03-14 11:53:14 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,20 +10,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 2354 |
-| Directories | 599 |
-| Content Files | 2354 |
-| Scan Duration | 306ms |
+| Files Scanned | 2378 |
+| Directories | 602 |
+| Content Files | 2378 |
+| Scan Duration | 286ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
 | presentation | 986 |
-| html | 648 |
+| html | 671 |
 | lab | 398 |
 | quiz | 241 |
-| applet | 81 |
+| applet | 82 |
 
 ### ContentCatalog Validation
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 13 |
-| Warning | 589 |
-| Info | 338 |
-| **Total** | **4160** |
+| Warning | 590 |
+| Info | 339 |
+| **Total** | **4086** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1701 |
+| Ready | 1702 |
 | Not Ready | 5 |
-| Unknown | 648 |
+| Unknown | 671 |
 
 
 ## FILE HIERARCHY
@@ -2937,49 +2937,76 @@
 ├── 📁 scripts
 ├── 📁 signal
 │   ├── 📍 index.html
-│   └── 📁 sections
-│       ├── 📁 arcade-ops
-│       │   ├── 📍 index.html
-│       │   ├── 📄 sg-26-esp32-pong.html
-│       │   ├── 📄 sg-27-handheld-gameboy.html
-│       │   ├── 📄 sg-28-retropie-station.html
-│       │   ├── 📄 sg-29-arcade-controller.html
-│       │   └── 📄 sg-30-mini-arcade.html
-│       ├── 📁 firmware-ops
-│       │   ├── 📍 index.html
-│       │   ├── 📄 sg-21-custom-firmware.html
-│       │   ├── 📄 sg-22-badge-hacking.html
-│       │   ├── 📄 sg-23-field-terminal.html
-│       │   ├── 📄 sg-24-anomaly-monitor.html
-│       │   └── 📄 sg-25-network-ids.html
-│       ├── 📁 foundations
-│       │   ├── 📍 index.html
-│       │   ├── 📄 sg-01-blink-breadboard.html
-│       │   ├── 📄 sg-02-sensor-io.html
-│       │   ├── 📄 sg-03-serial-bridge.html
-│       │   ├── 📄 sg-04-lcd-dashboard.html
-│       │   └── 📄 sg-05-data-logger.html
-│       ├── 📁 network-recon
-│       │   ├── 📍 index.html
-│       │   ├── 📄 sg-06-wifi-recon.html
-│       │   ├── 📄 sg-07-bluetooth-scanner.html
-│       │   ├── 📄 sg-08-packet-dashboard.html
-│       │   ├── 📄 sg-09-network-probe.html
-│       │   └── 📄 sg-10-deauth-detector.html
-│       ├── 📁 privacy-builds
-│       │   ├── 📍 index.html
-│       │   ├── 📄 sg-16-encrypted-dead-drop.html
-│       │   ├── 📄 sg-17-faraday-test.html
-│       │   ├── 📄 sg-18-air-gap-station.html
-│       │   ├── 📄 sg-19-tor-router.html
-│       │   └── 📄 sg-20-jammer-detector.html
-│       └── 📁 security-tools
-│           ├── 📍 index.html
-│           ├── 📄 sg-11-rfid-controller.html
-│           ├── 📄 sg-12-keylogger-detector.html
-│           ├── 🔬 sg-13-bad-usb-lab.html
-│           ├── 📄 sg-14-motion-surveillance.html
-│           └── 📄 sg-15-perimeter-alarm.html
+│   ├── 📁 sections
+│   │   ├── 📁 arcade-ops
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-26-esp32-pong.html
+│   │   │   ├── 📄 sg-27-handheld-gameboy.html
+│   │   │   ├── 📄 sg-28-retropie-station.html
+│   │   │   ├── 📄 sg-29-arcade-controller.html
+│   │   │   └── 📄 sg-30-mini-arcade.html
+│   │   ├── 📁 field-prep
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-31-bootable-usb.html
+│   │   │   └── 📄 sg-32-build-usb-drive.html
+│   │   ├── 📁 firmware-ops
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-21-custom-firmware.html
+│   │   │   ├── 📄 sg-22-badge-hacking.html
+│   │   │   ├── 📄 sg-23-field-terminal.html
+│   │   │   ├── 📄 sg-24-anomaly-monitor.html
+│   │   │   └── 📄 sg-25-network-ids.html
+│   │   ├── 📁 foundations
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-01-blink-breadboard.html
+│   │   │   ├── 📄 sg-02-sensor-io.html
+│   │   │   ├── 📄 sg-03-serial-bridge.html
+│   │   │   ├── 📄 sg-04-lcd-dashboard.html
+│   │   │   └── 📄 sg-05-data-logger.html
+│   │   ├── 📁 network-recon
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-06-wifi-recon.html
+│   │   │   ├── 📄 sg-07-bluetooth-scanner.html
+│   │   │   ├── 📄 sg-08-packet-dashboard.html
+│   │   │   ├── 📄 sg-09-network-probe.html
+│   │   │   └── 📄 sg-10-deauth-detector.html
+│   │   ├── 📁 privacy-builds
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 sg-16-encrypted-dead-drop.html
+│   │   │   ├── 📄 sg-17-faraday-test.html
+│   │   │   ├── 📄 sg-18-air-gap-station.html
+│   │   │   ├── 📄 sg-19-tor-router.html
+│   │   │   └── 📄 sg-20-jammer-detector.html
+│   │   └── 📁 security-tools
+│   │       ├── 📍 index.html
+│   │       ├── 📄 sg-11-rfid-controller.html
+│   │       ├── 📄 sg-12-keylogger-detector.html
+│   │       ├── 🔬 sg-13-bad-usb-lab.html
+│   │       ├── 📄 sg-14-motion-surveillance.html
+│   │       └── 📄 sg-15-perimeter-alarm.html
+│   └── 📁 toolkit
+│       ├── 📍 index.html
+│       └── 📁 tools
+│           ├── 📄 arduino-ide.tool.html
+│           ├── 📄 balenaetcher.tool.html
+│           ├── 📄 clonezilla.tool.html
+│           ├── 📄 coolterm.tool.html
+│           ├── 📄 dban.tool.html
+│           ├── 📄 gparted.tool.html
+│           ├── 📄 hirens-bootcd.tool.html
+│           ├── 📄 memtest86.tool.html
+│           ├── 📄 minicom.tool.html
+│           ├── 📄 nmap.tool.html
+│           ├── 📄 platformio.tool.html
+│           ├── 📄 putty.tool.html
+│           ├── 📄 raspberry-pi-imager.tool.html
+│           ├── 📄 retropie.tool.html
+│           ├── 📄 rufus.tool.html
+│           ├── 📄 screen.tool.html
+│           ├── 📄 thonny.tool.html
+│           ├── 📄 ventoy.tool.html
+│           ├── 📄 vscode.tool.html
+│           └── 📄 wireshark.tool.html
 ├── 📄 sorting.html
 ├── 📁 styles
 ├── 🔬 syllabus-template.html
@@ -4686,6 +4713,7 @@
 | shield-log-analyzer | applet | ✓ | 1 |
 | web-pi-network-probe | applet | ✓ | 1 |
 | web-topology-visualizer | applet | ✓ | 1 |
+| dban.tool | applet | ✓ | 1 |
 | current | applet | ✓ | 1 |
 
 ### WEB (Networking)
@@ -4842,7 +4870,7 @@
   File: `houses/web/games/web-packet-sniffer.applet.html`
   Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
-### WARNING (589)
+### WARNING (590)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
@@ -6664,6 +6692,10 @@
   File: `projects/web-topology-visualizer.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `signal/toolkit/tools/dban.tool.html`
+  Fix: Add entry to content-registry.js
+
 **[LP-003]** Duplicate module ID 'code-git-basics' found in 'devops-fundamentals' (also in 'code')
   File: `./components/LearningPaths.js`
 
@@ -7068,7 +7100,7 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-### INFO (338)
+### INFO (339)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -7420,6 +7452,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/web-topology-visualizer.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/toolkit/tools/dban.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8418,7 +8454,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (450)
+### Unregistered Content (451)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8872,6 +8908,7 @@
 | projects/shield-log-analyzer.html | applet | - |
 | projects/web-pi-network-probe.html | applet | - |
 | projects/web-topology-visualizer.html | applet | - |
+| signal/toolkit/tools/dban.tool.html | applet | - |
 
 ### Orphaned Registry Entries (0)
 

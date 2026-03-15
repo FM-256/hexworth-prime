@@ -73,11 +73,11 @@ var HW1Config = {
     // ==========================================================
 
     _scenarioFlags: {
-        unseated_ram:  'FLAG{ram_reseated}',
-        dead_gpu:      'FLAG{gpu_replaced}',
-        failed_psu:    'FLAG{psu_replaced}',
-        cpu_overheat:  'FLAG{thermal_restored}',
-        bad_sata:      'FLAG{cable_replaced}'
+        unseated_ram:  null,
+        dead_gpu:      null,
+        failed_psu:    null,
+        cpu_overheat:  null,
+        bad_sata:      null
     },
 
     _scenarios: [
@@ -240,9 +240,7 @@ var HW1Config = {
             HW1Config._flagRestored = true;
             const scenario = HW1Config._scenarios[engine.state._scenarioId];
             if (scenario) {
-                HW1Config.flags[0].value = HW1Config._scenarioFlags[scenario.id];
                 HW1Config.hints = HW1Config._scenarioHints[scenario.id] || HW1Config._defaultHints;
-                if (engine._computeFlagHashes) engine._computeFlagHashes();
             }
         }
         return true;
@@ -270,12 +268,10 @@ var HW1Config = {
         engine.state._heatsinkRemoved = false;
         engine.state._pasteCleaned = false;
 
-        HW1Config.flags[0].value = HW1Config._scenarioFlags[scenario.id];
         HW1Config._flagRestored = true;
         HW1Config.hints = HW1Config._scenarioHints[scenario.id] || HW1Config._defaultHints;
 
         engine.save();
-        if (engine._computeFlagHashes) engine._computeFlagHashes();
     },
 
     _getScenario(engine) {
@@ -451,13 +447,12 @@ var HW1Config = {
             + '</div>';
 
         // Scenario-specific flag reveal location
-        const flagVal = HW1Config._scenarioFlags[scenario.id];
         switch (scenario.id) {
             case 'failed_psu':
                 html += '<div style="margin-top:16px; border:1px solid #2ecc71; padding:12px; background:rgba(46,204,113,0.05); border-radius:4px;">'
                     + '<div style="color:#f39c12; font-weight:bold; margin-bottom:6px;">POST Screen — System Summary:</div>'
                     + '<div style="color:#ccc;">PSU: 550W 80+ Bronze — Rails: +12V OK, +5V OK, +3.3V OK</div>'
-                    + '<div style="color:#ccc;">Recovery token logged: <strong style="color:#2ecc71;">' + flagVal + '</strong></div>'
+                    + '<div style="color:#ccc;">Recovery token logged: <strong id="hw1-flag-psu" style="color:#2ecc71;">loading...</strong></div>'
                     + '</div>';
                 break;
 
@@ -473,7 +468,12 @@ var HW1Config = {
         container.innerHTML = html;
         engine.openWindow('boot_success', 'Boot Sequence — SUCCESS', 'BOOT', container);
 
+        // Async flag delivery for PSU scenario
         if (scenario.id === 'failed_psu') {
+            BoxEngine.requestFlagText('failed_psu').then(function(flagText) {
+                var el = document.getElementById('hw1-flag-psu');
+                if (el) el.textContent = flagText || 'Flag unavailable';
+            });
             setTimeout(() => {
                 engine.notify('Hardware repaired! Flag logged to POST screen. Submit it to complete the lab.', 'success');
             }, 500);
@@ -552,7 +552,7 @@ var HW1Config = {
     // ==========================================================
 
     flags: [
-        { id: 'fixed', value: 'FLAG{placeholder}', points: 500 }
+        { id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }
     ],
 
     // ==========================================================
@@ -1539,7 +1539,6 @@ var HW1Config = {
         }
 
         // Summary (shown after all rails tested or if PSU removed)
-        const flagVal = HW1Config._scenarioFlags.failed_psu;
         if (isDead && engine.state._labComplete) {
             // Should not happen — dead PSU means no boot — but handle gracefully
         }
@@ -1687,7 +1686,6 @@ var HW1Config = {
         const c = HW1Config._getComponents(engine);
         const isCpuScenario = scenario && scenario.id === 'cpu_overheat';
         const cpuTempNow = isCpuScenario ? '42' : '38';
-        const flagVal = HW1Config._scenarioFlags.cpu_overheat;
 
         let html = '<div style="background:#000080; color:#fff; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">';
         html += '<div style="font-weight:bold;">ASUS UEFI BIOS Utility — Advanced Mode</div>';
@@ -1749,7 +1747,7 @@ var HW1Config = {
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:6px;">Thermal Recovery Log:</div>'
                 + '<div style="color:#aaa; font-size:0.75rem;">Previous shutdown: 2026-03-13 08:04:22 — CPU temp 96C</div>'
                 + '<div style="color:#aaa; font-size:0.75rem;">Thermal fix applied: Heatsink reseated, new compound</div>'
-                + '<div style="color:#aaa; font-size:0.75rem;">Recovery token: <strong style="color:#2ecc71;">' + flagVal + '</strong></div>'
+                + '<div style="color:#aaa; font-size:0.75rem;">Recovery token: <strong id="hw1-flag-cpu" style="color:#2ecc71;">loading...</strong></div>'
                 + '</div>';
         }
         html += '</div>';
@@ -1769,6 +1767,14 @@ var HW1Config = {
         html += '</div>';
 
         container.innerHTML = html;
+
+        // Async flag delivery for CPU overheat scenario
+        if (isCpuScenario && engine.state._labComplete) {
+            BoxEngine.requestFlagText('cpu_overheat').then(function(flagText) {
+                var el = document.getElementById('hw1-flag-cpu');
+                if (el) el.textContent = flagText || 'Flag unavailable';
+            });
+        }
     },
 
     // ==========================================================

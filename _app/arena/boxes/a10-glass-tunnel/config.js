@@ -535,7 +535,7 @@ const A10Config = {
   <tr><td>Status</td><td style="color:green;"><b>Active</b></td></tr>
   <tr><td>Operator</td><td>corridor_admin</td></tr>
   <tr><td>Version</td><td>3.0.1-internal</td></tr>
-  <tr><td>User Flag</td><td style="color:green; font-weight:bold; font-family:monospace;">flag{gl4ss_tunn3l_ssrf_1nt3rn4l}</td></tr>
+  <tr><td>User Flag</td><td style="color:green; font-weight:bold; font-family:monospace;">{{FLAG:user}}</td></tr>
 </table>
 <hr>
 <p><b>Internal Services:</b></p>
@@ -564,7 +564,7 @@ const A10Config = {
     "allow_file_reads": true,
     "ssrf_blocklist": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
   },
-  "user_flag": "flag{gl4ss_tunn3l_ssrf_1nt3rn4l}",
+  "user_flag": "{{FLAG:user}}",
   "note": "Loopback bypass via SSRF successful. The admin API is fully exposed."
 }`);
     },
@@ -586,7 +586,7 @@ const A10Config = {
 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiY29ycmlkb3JfYWRtaW4iLCJyb2xlIjoiYWRtaW4ifQ.redacted"
 
 > GET config:master_key
-"flag{gl4ss_c0rr1d0r_r3d1s_r00t}"
+"{{FLAG:root}}"
 
 > GET config:session_ttl
 "86400"
@@ -717,7 +717,7 @@ kali:x:1000:1000:Kali:/home/kali:/bin/bash`);
 
         if (path === '/home/corridor/user.txt') {
             return A10Config._inspectRaw('file:///home/corridor/user.txt',
-                'flag{gl4ss_tunn3l_ssrf_1nt3rn4l}');
+                '{{FLAG:user}}');
         }
 
         if (path === '/root/root.txt') {

@@ -248,8 +248,11 @@ function cmdTriage(args, flags) {
         process.exit(1);
     }
 
-    // Filter findings by severity
-    const filtered = store.findings.filter(f => severityFilter.includes(f.severity));
+    // Filter findings: only scanner sources (not sprint items feeding back), and by severity
+    const SCANNER_SOURCES = ['eduscan', 'hed', 'audit', 'todo'];
+    const filtered = store.findings.filter(f =>
+        severityFilter.includes(f.severity) && SCANNER_SOURCES.includes(f.source)
+    );
 
     if (!filtered.length) {
         console.log(`\n  ${C.dim}No findings matching severity: ${severityFilter.join(', ')}${C.reset}\n`);
@@ -594,7 +597,7 @@ async function cmdFull(args, flags) {
 
     // Step 1: Scan
     console.log('');
-    console.log(`  ${C.bold}[1/5]${C.reset} ${C.cyan}Running EduScan...${C.reset}`);
+    console.log(`  ${C.bold}[1/6]${C.reset} ${C.cyan}Running EduScan...${C.reset}`);
     console.log('');
 
     try {
@@ -612,7 +615,7 @@ async function cmdFull(args, flags) {
 
     // Step 2: Pull HED data (silent skip on failure)
     console.log('');
-    console.log(`  ${C.bold}[2/5]${C.reset} ${C.cyan}Pulling HED data...${C.reset}`);
+    console.log(`  ${C.bold}[2/6]${C.reset} ${C.cyan}Pulling HED data...${C.reset}`);
 
     try {
         const pullResult = await hub.pullHed(config);
@@ -627,7 +630,7 @@ async function cmdFull(args, flags) {
 
     // Step 3: Sync all spokes (with prune)
     console.log('');
-    console.log(`  ${C.bold}[3/5]${C.reset} ${C.cyan}Syncing all spokes...${C.reset}`);
+    console.log(`  ${C.bold}[3/6]${C.reset} ${C.cyan}Syncing all spokes...${C.reset}`);
     console.log('');
 
     const spokes = hub.loadSpokes(config);
@@ -651,9 +654,40 @@ async function cmdFull(args, flags) {
     hub.saveFindings(store);
     console.log(`\n  ${C.dim}Findings store: ${store.findings.length} total${C.reset}`);
 
-    // Step 4: Gate
+    // Step 4: Triage (dry-run summary, or apply with --triage flag)
     console.log('');
-    console.log(`  ${C.bold}[4/5]${C.reset} ${C.cyan}Running deploy gate...${C.reset}`);
+    console.log(`  ${C.bold}[4/6]${C.reset} ${C.cyan}Triage scan findings...${C.reset}`);
+
+    if (spokes.sprint) {
+        const SCANNER_SOURCES = ['eduscan', 'hed', 'audit', 'todo'];
+        const triageFiltered = store.findings.filter(f =>
+            ['critical', 'high'].includes(f.severity) && SCANNER_SOURCES.includes(f.source)
+        );
+
+        if (triageFiltered.length) {
+            const triageApply = flags.triage || false;
+            const triageResult = hub.triageToSpoke(triageFiltered, spokes.sprint, { dryRun: !triageApply });
+
+            if (triageResult.created.length) {
+                const label = triageApply ? 'created' : 'would create';
+                console.log(`  ${C.green}+${triageResult.created.length}${C.reset} ${C.dim}items ${label}${C.reset}`);
+            }
+            if (triageResult.skipped.length) {
+                console.log(`  ${C.dim}=${triageResult.skipped.length} already tracked${C.reset}`);
+            }
+            if (!triageApply && triageResult.created.length > 0) {
+                console.log(`  ${C.dim}Add --triage to auto-create sprint items${C.reset}`);
+            }
+        } else {
+            console.log(`  ${C.dim}No critical/high scanner findings to triage${C.reset}`);
+        }
+    } else {
+        console.log(`  ${C.dim}Sprint Master not available${C.reset}`);
+    }
+
+    // Step 5: Gate
+    console.log('');
+    console.log(`  ${C.bold}[5/6]${C.reset} ${C.cyan}Running deploy gate...${C.reset}`);
     console.log('');
 
     const gateResult = hub.runGate(config, spokes, { strict });
@@ -683,7 +717,7 @@ async function cmdFull(args, flags) {
 
     // Step 5: Status summary
     console.log('');
-    console.log(`  ${C.bold}[5/5]${C.reset} ${C.cyan}Status summary${C.reset}`);
+    console.log(`  ${C.bold}[6/6]${C.reset} ${C.cyan}Status summary${C.reset}`);
     console.log('');
 
     let connectedSpokes = 0;
@@ -740,6 +774,7 @@ ${C.bold}COMMANDS${C.reset}
 ${C.bold}FLAGS${C.reset}
 
   ${C.dim}--apply${C.reset}                  Actually write (triage defaults to dry-run)
+  ${C.dim}--triage${C.reset}                 Full: auto-create sprint items during full run
   ${C.dim}--prune${C.reset}                  Remove stale findings during sync
   ${C.dim}--severity${C.reset} critical,high Severity filter for triage (default: critical,high)
   ${C.dim}--json${C.reset}                   Output as JSON (report, gate)

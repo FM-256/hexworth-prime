@@ -210,7 +210,7 @@ const A7Config = {
             { id: 5, username: 'scribe',     password: 'scr1b3_n0t3s',            name: 'Record Scribe',     role: 'scribe',     accessLevel: 'Write Only',      email: 'scribe@void-collective.net'    }
         ],
         vault_keys: [
-            { id: 1, keyName: 'Master Encryption Key', value: 'flag{v01d_c0ll3ct1v3_m4st3r_k3y}', classification: 'TOP SECRET'  },
+            { id: 1, keyName: 'Master Encryption Key', value: '{{FLAG:root}}', classification: 'TOP SECRET'  },
             { id: 2, keyName: 'Archive Cipher',         value: 'CLASSIFIED',                        classification: 'SECRET'      },
             { id: 3, keyName: 'Comm Channel Key',       value: 'CLASSIFIED',                        classification: 'RESTRICTED'  }
         ]
@@ -393,7 +393,7 @@ const A7Config = {
                                     style="padding:8px 18px; background:#2ecc71; color:#071a17; border:none; border-radius:4px; font-size:0.8rem; font-weight:700; cursor:pointer;">Query Vault</button>
                         </div>
                         <div style="margin-top:10px; color:#456b63; font-size:0.7rem;">
-                            User flag location: <span style="font-family:monospace; color:#f39c12;">flag{h0ll0w_db_n0sql_byp4ss}</span>
+                            User flag location: <span style="font-family:monospace; color:#f39c12;">{{FLAG:user}}</span>
                         </div>
                     </div>
 
@@ -744,12 +744,12 @@ const A7Config = {
             results.map(k => [
                 k.id,
                 k.keyName,
-                `<span style="color:${k.value.startsWith('flag{') ? '#2ecc71; font-weight:bold' : '#7fa89e'}">${A7Config._escHtml(k.value)}</span>`,
+                `<span style="color:${k.value.startsWith(BoxEngine.getDeliveredFlag('root')) ? '#2ecc71; font-weight:bold' : '#7fa89e'}">${A7Config._escHtml(k.value)}</span>`,
                 `<span style="color:${k.classification === 'TOP SECRET' ? '#e74c3c' : k.classification === 'SECRET' ? '#f39c12' : '#7fa89e'}">${k.classification}</span>`
             ])
         ) + A7Config._successHtml(
             `${results.length} vault record(s) retrieved from the '${collection}' collection.` +
-            (results.some(r => r.value.startsWith('flag{'))
+            (results.some(r => r.value.startsWith(BoxEngine.getDeliveredFlag('root')))
                 ? ' <strong>Root flag located in Master Encryption Key!</strong>'
                 : '')
         );
@@ -791,7 +791,7 @@ const A7Config = {
 
             <div style="background:#0d1f15; border:1px solid #f39c12; border-radius:6px; padding:16px; margin-bottom:16px;">
                 <div style="color:#f39c12; font-size:0.65rem; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:10px;">&#9873; User Flag</div>
-                <div style="font-family:monospace; color:#2ecc71; font-size:0.9rem; font-weight:bold; letter-spacing:0.05em;">flag{h0ll0w_db_n0sql_byp4ss}</div>
+                <div style="font-family:monospace; color:#2ecc71; font-size:0.9rem; font-weight:bold; letter-spacing:0.05em;">{{FLAG:user}}</div>
                 <div style="color:#456b63; font-size:0.7rem; margin-top:6px;">Admin dashboard unlocked via NoSQL operator bypass.</div>
             </div>
 

@@ -326,7 +326,7 @@ const A4Config = {
                             children: {
                                 'user.txt': {
                                     type: 'file',
-                                    content: 'flag{c1t4d3l_m41nt_4cc3ss_gr4nt3d}'
+                                    content: '{{FLAG:user}}'
                                 },
                                 'notes.txt': {
                                     type: 'file',
@@ -383,7 +383,7 @@ const A4Config = {
                     children: {
                         'root.txt': {
                             type: 'file',
-                            content: 'flag{l0st_r00t_pr1v3sc_c0mpl3t3}'
+                            content: '{{FLAG:root}}'
                         },
                         '.bash_history': {
                             type: 'file',

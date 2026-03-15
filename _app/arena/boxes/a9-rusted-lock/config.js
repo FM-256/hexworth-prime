@@ -603,7 +603,7 @@ const A9Config = {
                 <div style="color:#e74c3c; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px;"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Restricted — Admin Eyes Only</div>
                 <div style="font-family:monospace; font-size:0.8rem; color:#00ff88; background:#0d0d0d; padding:10px; border-radius:3px;">
                     <div style="color:#888; margin-bottom:4px;"># /home/www-data/user.txt</div>
-                    <div style="color:#2ecc71; font-weight:700;">flag{rust3d_l0ck_d3s3r14l1z3d}</div>
+                    <div style="color:#2ecc71; font-weight:700;">{{FLAG:user}}</div>
                 </div>
                 <div style="color:#888; font-size:0.7rem; margin-top:8px;">
                     Debug Console: <a href="/forge/debug/" style="color:#e67e22; font-weight:700;">/forge/debug/</a> — admin diagnostic endpoint (runs as root)
@@ -797,7 +797,7 @@ const A9Config = {
         if (c === 'pwd') return '/root';
         if (c === 'ls' || c === 'ls /root' || c === 'ls /root/') return 'root.txt  .bashrc  .bash_history  .ssh/';
         if (c.includes('cat /root/root.txt') || c.includes('cat root.txt')) {
-            return 'flag{f0rg3_r3mn4nts_rc3_m4st3r}';
+            return '{{FLAG:root}}';
         }
         if (c.includes('cat /etc/passwd')) {
             return 'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\nforge_app:x:1001:1001:Forge Portal:/home/forge_app:/bin/bash\nmysql:x:27:27:MySQL Server:/var/lib/mysql:/bin/false';
@@ -1030,7 +1030,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.02 seconds`;
                             const roleM   = decoded.match(/s:4:"role";s:\d+:"([^"]+)"/);
                             const role    = roleM ? roleM[1] : 'unknown';
                             if (role === 'admin') {
-                                return `HTTP/1.1 200 OK\n\nAdmin dashboard loaded.\nUser flag: flag{rust3d_l0ck_d3s3r14l1z3d}\nDebug console: /forge/debug/`;
+                                return `HTTP/1.1 200 OK\n\nAdmin dashboard loaded.\nUser flag: {{FLAG:user}}\nDebug console: /forge/debug/`;
                             }
                             return `HTTP/1.1 200 OK\n\nMember dashboard loaded. Role: ${role}. Access limited.`;
                         } catch(e) {

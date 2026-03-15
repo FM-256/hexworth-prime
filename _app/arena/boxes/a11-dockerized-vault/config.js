@@ -177,7 +177,7 @@ const A11Config = {
                 { id: 'T1610', name: 'Deploy Container', tactic: 'Defense Evasion' }
             ],
             hint: 'Once inside the container, check group membership (id) and look at /var/run/ — the docker.sock file is your primary vector.',
-            completeWhen: 'Player submits user flag (flag{d0ck3r_s0ck3t_3xp0s3d_v4ult})'
+            completeWhen: 'Player submits user flag ({{FLAG:user}})'
         },
         {
             id: 'phase3',
@@ -227,7 +227,7 @@ const A11Config = {
                 { id: 'T1003', name: 'OS Credential Dumping', tactic: 'Credential Access' }
             ],
             hint: 'You are root on the host. The Master Manifest is in /opt/. The shadow file is a bonus. Document your escape path for the debrief.',
-            completeWhen: 'Player submits root flag (flag{c0nt41n3r_3sc4p3_m4st3r_m4n1f3st})'
+            completeWhen: 'Player submits root flag ({{FLAG:root}})'
         }
     ],
 
@@ -1150,12 +1150,12 @@ Docker Host Credentials:
   root password hash: $6$rounds=65536$GuildS4lt$...
   Docker registry: registry.archivist-guild.internal:5000
 
-Root Flag: flag{c0nt41n3r_3sc4p3_m4st3r_m4n1f3st}
+Root Flag: {{FLAG:root}}
 
 --- END OF MANIFEST ---`;
                 }
                 if (target === '/root/root.txt') {
-                    return 'flag{c0nt41n3r_3sc4p3_m4st3r_m4n1f3st}';
+                    return '{{FLAG:root}}';
                 }
                 if (target === '/etc/hostname') {
                     return 'vault-host';
@@ -1192,7 +1192,7 @@ archivist:$6$ArChIvIsT$mP3nQ5rS7tU9vW1xY3zA5bC7dE9fG1hI3jK5lM7n:19693:0:99999:7:
             // ── Container shell ──
             if (A11Config._sshSessionActive) {
                 if (target === '/var/log/vault/user.txt') {
-                    return `flag{d0ck3r_s0ck3t_3xp0s3d_v4ult}
+                    return `{{FLAG:user}}
 
 Docker socket confirmed accessible.
 The indexer container has been misconfigured with socket mount access.

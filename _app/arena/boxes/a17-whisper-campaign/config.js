@@ -230,7 +230,7 @@ const A17Config = {
         },
         {
             id: 'hint3',
-            text: "The user flag from the image is also the passphrase for steghide extraction from the audio file. Try: steghide extract -sf audio_nature.wav -p \"flag{...}\"",
+            text: "The user flag from the image is also the passphrase for steghide extraction from the audio file. Try: steghide extract -sf audio_nature.wav -p \"<the_user_flag>\"",
             cost: 50,
             penalty: -50
         },
@@ -410,7 +410,7 @@ const A17Config = {
                                     children: {
                                         'landscape.png': {
                                             type: 'file',
-                                            content: '[PNG IMAGE DATA — 1920x1080 RGBA — "Morning Serenity"]\n[Binary content: 2,457,600 bytes]\n[LSB Channel: flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}]\n[Appended ZIP at offset 0x1C2000]\n[EXIF Comment: "Layer: embedded"]'
+                                            content: '[PNG IMAGE DATA — 1920x1080 RGBA — "Morning Serenity"]\n[Binary content: 2,457,600 bytes]\n[LSB Channel: {{FLAG:user}}]\n[Appended ZIP at offset 0x1C2000]\n[EXIF Comment: "Layer: embedded"]'
                                         },
                                         'audio_nature.wav': {
                                             type: 'file',
@@ -795,12 +795,12 @@ Examples:
 
                 const extractMode = args.includes('-E') || args.includes('--extract');
                 if (extractMode) {
-                    return 'flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}';
+                    return '{{FLAG:user}}';
                 }
 
-                return `imagedata           .. text: "flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}"
-b1,rgb,lsb,xy       .. text: "flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}"
-b1,r,lsb,xy         .. text: "flag{wh1"
+                return `imagedata           .. text: "{{FLAG:user}}"
+b1,rgb,lsb,xy       .. text: "{{FLAG:user}}"
+b1,r,lsb,xy         .. text: "{{FLAG:user}}"
 b1,g,lsb,xy         .. text: "sp3r_lsb"
 b1,b,lsb,xy         .. text: "_h1dd3n_"
 b1,a,lsb,xy         .. text: "p4ssphr4"
@@ -854,7 +854,7 @@ Loading image: landscape.png (1920 x 1080, RGBA)
 
 [Analysis Mode: Extract]
   Channel: RGB LSB (xy order)
-  Extracted text: "flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}"
+  Extracted text: "{{FLAG:user}}"
 
 [Analysis Mode: File Format]
   Trailing data detected after IEND chunk
@@ -862,7 +862,7 @@ Loading image: landscape.png (1920 x 1080, RGBA)
 
 [Summary]
   LSB steganography confirmed in RGB channels
-  Hidden text: flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}
+  Hidden text: {{FLAG:user}}
   Recommendation: Use binwalk to extract trailing data`;
             }
 
@@ -932,7 +932,7 @@ steghide: could not extract any data with that passphrase!
                     }
 
                     // Correct passphrase: the user flag
-                    if (passphrase === 'flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}') {
+                    if (passphrase === BoxEngine.getDeliveredFlag('user')) {
                         if (engine.state) engine.state.archivePassword = true;
 
                         return `wrote extracted data to "hidden_message.txt".
@@ -1326,7 +1326,7 @@ Foremost finished at Mon Nov 20 14:30:01 2024
   Cycle: 47 | Author: The Founder
 ========================================
 
-  flag{wh1sp3r_c0d3_f1n4l_m4n1f3st}
+  {{FLAG:root}}
 
   Operation Status: ACTIVE
   Cells: 14 embedded worldwide
@@ -1442,7 +1442,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.04 seconds`;
 [*] Extracting RGB LSB bits...
 [*] Total bits: 6,220,800
 [*] Converting to bytes...
-[+] Extracted: flag{wh1sp3r_lsb_h1dd3n_p4ssphr4s3}`;
+[+] Extracted: {{FLAG:user}}`;
             }
 
             if (script.includes('steg_check')) {

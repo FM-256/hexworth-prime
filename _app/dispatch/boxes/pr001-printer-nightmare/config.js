@@ -97,11 +97,11 @@ var PR1Config = {
     // ==========================================================
 
     _scenarioFlags: {
-        spooler_crash:    'FLAG{spooler_resurrected}',
-        wrong_driver:     'FLAG{driver_corrected}',
-        ip_changed:       'FLAG{port_repointed}',
-        perms_denied:     'FLAG{access_granted}',
-        stuck_queue:      'FLAG{queue_cleared}'
+        spooler_crash:    null,
+        wrong_driver:     null,
+        ip_changed:       null,
+        perms_denied:     null,
+        stuck_queue:      null
     },
 
     // ==========================================================
@@ -215,9 +215,7 @@ var PR1Config = {
             PR1Config._flagRestored = true;
             const scenario = PR1Config._scenarios[engine.state._scenarioId];
             if (scenario) {
-                PR1Config.flags[0].value = PR1Config._scenarioFlags[scenario.id];
                 PR1Config.hints = PR1Config._scenarioHints[scenario.id] || PR1Config._defaultHints;
-                if (engine._computeFlagHashes) engine._computeFlagHashes();
             }
         }
         return true;
@@ -244,14 +242,12 @@ var PR1Config = {
             engine.state[key] = overrides[key];
         }
 
-        // Set dynamic flag and hints
+        // Set dynamic hints
         const scenario = PR1Config._scenarios[idx];
-        PR1Config.flags[0].value = PR1Config._scenarioFlags[scenario.id];
         PR1Config._flagRestored = true;
         PR1Config.hints = PR1Config._scenarioHints[scenario.id] || PR1Config._defaultHints;
 
         engine.save();
-        if (engine._computeFlagHashes) engine._computeFlagHashes();
     },
 
     _getScenario(engine) {
@@ -365,7 +361,7 @@ var PR1Config = {
     // ==========================================================
 
     flags: [
-        { id: 'fixed', value: 'FLAG{placeholder}', points: 500 }
+        { id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }
     ],
 
     // ==========================================================
@@ -1458,8 +1454,6 @@ var PR1Config = {
         var spoolerRunning = PR1Config._isSpoolerRunning(engine);
         var isSpoolerScenario = scenario && scenario.id === 'spooler_crash';
         var isStuckQueue = scenario && scenario.id === 'stuck_queue';
-        var flagVal = PR1Config._scenarioFlags.spooler_crash;
-        var queueFlagVal = PR1Config._scenarioFlags.stuck_queue;
         var showSpoolerFlag = engine.state._flagRevealed && isSpoolerScenario && spoolerRunning;
         var showQueueFlag = engine.state._flagRevealed && isStuckQueue && engine.state._queueCleared;
 
@@ -1512,7 +1506,7 @@ var PR1Config = {
             html += '<div style="margin-top:16px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Print Spooler — Recovery Log:</div>'
                 + '<div style="color:#c8e6c9; font-size:0.8rem;">Service restarted successfully after spool file purge.</div>'
-                + '<div style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Recovery token: ' + flagVal + '</div></div>';
+                + '<div id="pr1-flag-spooler" style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Recovery token: loading...</div></div>';
         }
 
         // Flag reveal for queue scenario
@@ -1520,10 +1514,24 @@ var PR1Config = {
             html += '<div style="margin-top:16px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Print Spooler — Queue Recovery Log:</div>'
                 + '<div style="color:#c8e6c9; font-size:0.8rem;">Stuck job queue cleared. Spooler stable.</div>'
-                + '<div style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Recovery token: ' + queueFlagVal + '</div></div>';
+                + '<div id="pr1-flag-queue" style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Recovery token: loading...</div></div>';
         }
 
         container.innerHTML = html;
+
+        // Async flag delivery for spooler/queue scenarios
+        if (showSpoolerFlag) {
+            BoxEngine.requestFlagText('spooler_crash').then(function(flagText) {
+                var el = document.getElementById('pr1-flag-spooler');
+                if (el) el.textContent = 'Recovery token: ' + (flagText || 'Flag unavailable');
+            });
+        }
+        if (showQueueFlag) {
+            BoxEngine.requestFlagText('stuck_queue').then(function(flagText) {
+                var el = document.getElementById('pr1-flag-queue');
+                if (el) el.textContent = 'Recovery token: ' + (flagText || 'Flag unavailable');
+            });
+        }
 
         // Start button (S1: spooler crash — fails with stuck files, succeeds after clear)
         var startBtn = container.querySelector('.svc-start-btn');
@@ -1619,8 +1627,6 @@ var PR1Config = {
     _getFlagRevealHtml(engine) {
         var scenario = PR1Config._getScenario(engine);
         if (!engine.state._flagRevealed || !scenario) return '';
-        var flagVal = PR1Config._scenarioFlags[scenario.id];
-        if (!flagVal) return '';
 
         var labels = {
             wrong_driver:  'Driver correction confirmed. Print output restored.',
@@ -1628,11 +1634,20 @@ var PR1Config = {
             perms_denied:  'Users group restored. Print access granted to standard accounts.'
         };
         var label = labels[scenario.id] || 'Fix confirmed.';
+        var flagElId = 'pr1-flag-reveal-' + scenario.id;
+
+        // Async flag delivery after DOM insertion
+        setTimeout(function() {
+            BoxEngine.requestFlagText(scenario.id).then(function(flagText) {
+                var el = document.getElementById(flagElId);
+                if (el) el.textContent = 'Token: ' + (flagText || 'Flag unavailable');
+            });
+        }, 0);
 
         return '<div style="margin-top:16px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px;">'
             + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Fix Confirmed:</div>'
             + '<div style="color:#c8e6c9; font-size:0.8rem;">' + label + '</div>'
-            + '<div style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Token: ' + flagVal + '</div></div>';
+            + '<div id="' + flagElId + '" style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Token: loading...</div></div>';
     },
 
     // ==========================================================

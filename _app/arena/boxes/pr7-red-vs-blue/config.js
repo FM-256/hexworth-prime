@@ -39,10 +39,10 @@ const PR7Config = {
         sshPassword: 'N3xus!DevOps2024',
         // Flag values for secure comparison in BoxEngine
         flags: {
-            initial_access:  'flag{sh4d0wg4t3_init14l_4cc3ss_lf1}',
-            priv_esc:        'flag{sh4d0wg4t3_pr1v_3sc_sudo_www}',
-            lateral:         'flag{sh4d0wg4t3_l4t3r4l_dev0ps_p1v0t}',
-            exfil:           'flag{sh4d0wg4t3_3xf1l_s3cr3ts_g0n3}'
+            initial_access:  '{{FLAG:initial_access}}',
+            priv_esc:        '{{FLAG:priv_esc}}',
+            lateral:         '{{FLAG:lateral}}',
+            exfil:           '{{FLAG:exfil}}'
         }
     },
 
@@ -681,7 +681,7 @@ User devops may run the following commands on nexus-web01:
 [Hint: Read /root/root.txt or /home/devops/user.txt]`;
                     }
                     if (args.join(' ').includes('cat') && args.join(' ').includes('root.txt')) {
-                        return `flag{sh4d0wg4t3_pr1v_3sc_sudo_www}
+                        return `{{FLAG:priv_esc}}
 
 [Submit this as the priv_esc flag]`;
                     }
@@ -727,7 +727,7 @@ baseline anomaly signatures for 14 attack categories.
 
 Prototype deployment target: Q3 2024.
 
-[EXFIL FLAG]: flag{sh4d0wg4t3_3xf1l_s3cr3ts_g0n3}
+[EXFIL FLAG]: {{FLAG:exfil}}
 
 Submit this as the exfil flag.`;
                     }

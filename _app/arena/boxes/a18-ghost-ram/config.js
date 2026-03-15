@@ -298,7 +298,7 @@ const A18Config = {
             penalty: -50,
             phase: 'phase3',
             title: 'C2 Discovery — User Flag',
-            text: "Use vol.py -f alpha_memdump.raw windows.netscan to find active network connections. Look for the ESTABLISHED connection from chronos_agent.exe (PID 4892). The C2 IP forms the user flag: flag{chr0n0s_c2_<IP with dots replaced by underscores>}. Also try windows.malfind to see the injected PE payload.",
+            text: "Use vol.py -f alpha_memdump.raw windows.netscan to find active network connections. Look for the ESTABLISHED connection from chronos_agent.exe (PID 4892). The C2 IP forms the user flag. Also try windows.malfind to see the injected PE payload.",
             mitre: 'T1049 / T1055'
         },
         {
@@ -830,7 +830,7 @@ Memory dump complete. File: pid.${pid}.dmp`;
                     '  Key Finding: Their next operation targets SCADA systems\n' +
                     '  in the energy sector. Timeline: Q1 2025.\n' +
                     '\n' +
-                    '  Authorization Code: flag{1nt3l_br13f1ng_chr0n0s_d3f34t3d}\n' +
+                    '  Authorization Code: {{FLAG:root}}\n' +
                     '\n' +
                     '================================================================\n' +
                     '  END OF BRIEFING — DESTROY AFTER READING\n' +
@@ -860,7 +860,7 @@ Memory dump complete. File: pid.${pid}.dmp`;
                     '  Key Finding: Their next operation targets SCADA systems\n' +
                     '  in the energy sector. Timeline: Q1 2025.\n' +
                     '\n' +
-                    '  Authorization Code: flag{1nt3l_br13f1ng_chr0n0s_d3f34t3d}\n' +
+                    '  Authorization Code: {{FLAG:root}}\n' +
                     '\n' +
                     '================================================================\n' +
                     '  END OF BRIEFING — DESTROY AFTER READING\n' +
@@ -891,7 +891,7 @@ Memory dump complete. File: pid.${pid}.dmp`;
                     'ENCRYPT_KEY=aGV4d29ydGhfcHJpbWU=\n' +
                     '--- .data section ---\n' +
                     '... heap allocations ...\n' +
-                    'flag{chr0n0s_c2_10_13_37_100}\n' +
+                    '{{FLAG:user}}\n' +
                     '... additional data ...\n'
             };
         }
@@ -1318,7 +1318,7 @@ WriteProcessMemory
 chronos_agent.exe
 C:\\Windows\\Temp\\chronos_agent.exe
 10.13.37.100
-flag{chr0n0s_c2_10_13_37_100}
+{{FLAG:user}}
 C2_PRIMARY=10.13.37.100
 EXFIL_DOMAIN=data.chronos-c2.net
 WindowsHealthService
@@ -1328,7 +1328,7 @@ C:\\Users\\analyst\\Desktop\\intel_briefing.txt
 CLASSIFIED — INTEL BRIEFING
 OPERATION MIDNIGHT SUN
 Chronos Collective
-flag{1nt3l_br13f1ng_chr0n0s_d3f34t3d}
+{{FLAG:root}}
 TOP SECRET // NOFORN
 notepad.exe
 explorer.exe
@@ -1337,7 +1337,7 @@ cmd.exe /c whoami
 ipconfig /all
 netstat -an
 ... (output truncated — 847,291 strings found in 4 GB dump)
-... Use grep to filter: strings alpha_memdump.raw | grep -i "flag{"`;
+... Use grep to filter: strings alpha_memdump.raw | grep -i "flag"`;
             }
 
             // Check for dump files in the virtual filesystem
