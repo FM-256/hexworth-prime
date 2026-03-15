@@ -165,7 +165,7 @@ function extractViaRegex(configStr, filePath) {
 function stripCorrectFromHtml(htmlContent) {
     // Match `correct: N,` or `correct: N` (with optional trailing comma)
     // Only within question object context (after options array)
-    return htmlContent.replace(
+    let result = htmlContent.replace(
         /(\s*)correct\s*:\s*\d+\s*,?\s*\n?/g,
         (match, leadingWhitespace) => {
             // Check if the line only contains the correct property
@@ -173,6 +173,16 @@ function stripCorrectFromHtml(htmlContent) {
             return '';
         }
     );
+
+    // Inject serverGrading: true after moduleId if not already present
+    if (!result.includes('serverGrading')) {
+        result = result.replace(
+            /(moduleId\s*:\s*['"][^'"]+['"]\s*,?\s*\n)/,
+            '$1            serverGrading: true,\n'
+        );
+    }
+
+    return result;
 }
 
 // ─── File Discovery ──────────────────────────────────────────────
@@ -265,9 +275,19 @@ function main() {
 
         // Check for duplicate quizId
         if (quizKeys[quizId]) {
-            console.log(`  DUPE  ${relativePath} -> quizId "${quizId}" already exists from ${quizKeys[quizId].sourceFile}`);
-            errors.push({ file: relativePath, error: `Duplicate quizId: ${quizId}` });
-            continue;
+            const existingFile = quizKeys[quizId].sourceFile;
+            const newIsCourse = relativePath.includes('/courses/');
+            const existingIsCourse = existingFile.includes('/courses/');
+
+            if (newIsCourse && !existingIsCourse) {
+                // Prefer course-structured version over legacy flat directory
+                console.log(`  REPLACE ${relativePath} supersedes legacy ${existingFile} for quizId "${quizId}"`);
+                // Fall through to overwrite below
+            } else {
+                console.log(`  DUPE  ${relativePath} -> quizId "${quizId}" already exists from ${existingFile}`);
+                errors.push({ file: relativePath, error: `Duplicate quizId: ${quizId}` });
+                continue;
+            }
         }
 
         quizKeys[quizId] = {

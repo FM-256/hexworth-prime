@@ -230,6 +230,48 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
     return { correct: false, flagId: null };
 });
 
+// ─── SEC-2: Flag Delivery ────────────────────────────────────────
+
+/**
+ * deliverFlag — Returns plaintext flag text for display, only after auth.
+ * Separate from validateFlag: this is for rendering the flag in the UI
+ * after the student earns it, NOT for checking submissions.
+ *
+ * The flag text is never in the client-side JS. The student must:
+ * 1. Be authenticated
+ * 2. Request a specific boxId + flagId
+ * The server returns the flag text for display.
+ */
+exports.deliverFlag = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { boxId, flagId } = request.data || {};
+    if (!boxId || !flagId) {
+        throw new HttpsError('invalid-argument', 'Missing boxId or flagId.');
+    }
+
+    const flagDoc = await db.doc(`flag_registry/${boxId}`).get();
+    if (!flagDoc.exists) {
+        throw new HttpsError('not-found', 'Box not found.');
+    }
+
+    const flags = flagDoc.data().flags || {};
+    const flagText = flags[flagId];
+    if (!flagText) {
+        throw new HttpsError('not-found', 'Flag not found.');
+    }
+
+    // Log delivery
+    const uid = request.auth.uid;
+    db.doc(`users/${uid}/flag_deliveries/${boxId}_${flagId}`).set({
+        boxId, flagId, deliveredAt: FieldValue.serverTimestamp()
+    }).catch(e => console.warn('Delivery log failed:', e.message));
+
+    return { flagText, flagId };
+});
+
 // ─── Game Scoreboard ─────────────────────────────────────────────
 
 /**
@@ -1482,6 +1524,250 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     }
 
     return { score, total, percentage, passed, results };
+});
+
+// ─── SEC-4: Operator Mission Completion Validation ──────────────
+
+/**
+ * evaluateCheck — Server-side check expression evaluator.
+ * Mirrors the client-side evaluateCheck() in OperatorEngine.js exactly.
+ * Supports: boolean flags, .has(), .size comparisons, numeric comparisons,
+ * && (AND), || (OR) operators.
+ *
+ * State snapshot values:
+ *   - Sets are submitted as arrays and converted to Set objects here
+ *   - Booleans, numbers, and arrays are used as-is
+ */
+function evaluateCheck(checkExpr, state) {
+    try {
+        const expr = checkExpr;
+
+        // Handle Set.has() calls: nmapTargets.has("x")
+        const hasMatch = expr.match(/^(\w+)\.has\(["']([^"']+)["']\)$/);
+        if (hasMatch) {
+            const setName = hasMatch[1];
+            const value = hasMatch[2];
+            if (state[setName] && typeof state[setName].has === 'function') {
+                return state[setName].has(value);
+            }
+            return false;
+        }
+
+        // Handle OR: expr1 || expr2
+        const orParts = expr.split(/\s*\|\|\s*/);
+        if (orParts.length > 1) {
+            for (const part of orParts) {
+                if (evaluateCheck(part.trim(), state)) return true;
+            }
+            return false;
+        }
+
+        // Handle AND: expr1 && expr2
+        const andParts = expr.split(/\s*&&\s*/);
+        if (andParts.length > 1) {
+            for (const part of andParts) {
+                if (!evaluateCheck(part.trim(), state)) return false;
+            }
+            return true;
+        }
+
+        // Handle negation prefix: !flagName
+        const negMatch = expr.match(/^!(\w+)$/);
+        if (negMatch) {
+            return !state[negMatch[1]];
+        }
+
+        // Handle .indexOf() comparisons: flagsFound.indexOf("root-home") !== -1
+        const idxMatch = expr.match(/^(\w+)\.indexOf\(["']([^"']+)["']\)\s*(>=|<=|===|==|>|<|!==|!=)\s*(-?\d+)$/);
+        if (idxMatch) {
+            const arrName = idxMatch[1];
+            const searchVal = idxMatch[2];
+            const idxOp = idxMatch[3];
+            const idxNum = parseInt(idxMatch[4], 10);
+            const arr = state[arrName];
+            const idx = (Array.isArray(arr)) ? arr.indexOf(searchVal) : -1;
+            switch (idxOp) {
+                case '>=':  return idx >= idxNum;
+                case '<=':  return idx <= idxNum;
+                case '>':   return idx > idxNum;
+                case '<':   return idx < idxNum;
+                case '===': case '==': return idx === idxNum;
+                case '!==': case '!=': return idx !== idxNum;
+            }
+            return false;
+        }
+
+        // Handle .size comparisons: nodesDiscovered.size >= 4
+        const sizeMatch = expr.match(/^(\w+)\.size\s*(>=|<=|===|==|>|<|!==|!=)\s*(\d+)$/);
+        if (sizeMatch) {
+            const setObj = state[sizeMatch[1]];
+            const op = sizeMatch[2];
+            const num = parseInt(sizeMatch[3], 10);
+            const sz = (setObj && typeof setObj.size === 'number') ? setObj.size : 0;
+            switch (op) {
+                case '>=':  return sz >= num;
+                case '<=':  return sz <= num;
+                case '>':   return sz > num;
+                case '<':   return sz < num;
+                case '===': case '==': return sz === num;
+                case '!==': case '!=': return sz !== num;
+            }
+            return false;
+        }
+
+        // Handle plain boolean flag: firewallBypassed, etc.
+        if (/^\w+$/.test(expr)) {
+            return !!state[expr];
+        }
+
+        // Handle simple comparison: integrity >= 2, trapsTriggered === 0
+        const cmpMatch = expr.match(/^(\w+)\s*(>=|<=|===|==|>|<|!==|!=)\s*(\d+)$/);
+        if (cmpMatch) {
+            const val = state[cmpMatch[1]];
+            const cmpOp = cmpMatch[2];
+            const cmpNum = parseInt(cmpMatch[3], 10);
+            if (val === undefined) return false;
+            switch (cmpOp) {
+                case '>=':  return val >= cmpNum;
+                case '<=':  return val <= cmpNum;
+                case '>':   return val > cmpNum;
+                case '<':   return val < cmpNum;
+                case '===': case '==': return val === cmpNum;
+                case '!==': case '!=': return val !== cmpNum;
+            }
+        }
+
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Sanitize a state snapshot from the client.
+ * Converts array-encoded Sets back to Set objects, validates types,
+ * and strips any keys not in the allowed stateKeys list.
+ */
+function sanitizeStateSnapshot(snapshot, allowedKeys) {
+    const clean = {};
+    // Known Set-type state keys (always present on operator state)
+    const setKeys = ['nodesDiscovered', 'nmapTargets'];
+
+    for (const key of allowedKeys) {
+        if (!(key in snapshot)) continue;
+        const val = snapshot[key];
+
+        if (setKeys.includes(key)) {
+            // Convert array to Set for .has()/.size evaluation
+            clean[key] = new Set(Array.isArray(val) ? val : []);
+        } else if (typeof val === 'boolean' || typeof val === 'number' || typeof val === 'string') {
+            clean[key] = val;
+        } else if (Array.isArray(val)) {
+            clean[key] = val;
+        }
+        // Skip objects, functions, etc.
+    }
+
+    // Always include built-in numeric/boolean state keys if present
+    const builtins = ['integrity', 'trapsTriggered', 'agentCmdCount'];
+    for (const key of builtins) {
+        if (key in snapshot && !(key in clean)) {
+            const val = snapshot[key];
+            if (typeof val === 'number') clean[key] = val;
+        }
+    }
+
+    return clean;
+}
+
+/**
+ * validateMissionCompletion -- Server-side operator mission validation.
+ * The client submits its state snapshot; the server re-evaluates all
+ * check expressions against it using the authoritative keys from Firestore.
+ * NEVER reveals check expressions to the client.
+ */
+exports.validateMissionCompletion = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { missionId, stateSnapshot } = request.data || {};
+
+    if (!missionId || typeof missionId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing or invalid missionId.');
+    }
+
+    if (!stateSnapshot || typeof stateSnapshot !== 'object') {
+        throw new HttpsError('invalid-argument', 'Missing or invalid stateSnapshot.');
+    }
+
+    const uid = request.auth.uid;
+
+    // Look up mission key from Firestore
+    const keyDoc = await db.doc(`operator_keys/${missionId}`).get();
+    if (!keyDoc.exists) {
+        throw new HttpsError('not-found', 'Mission key not found. This mission may not support server-side validation.');
+    }
+
+    const keyData = keyDoc.data();
+    const objectives = keyData.objectives; // Array of { id, check }
+    const stateKeys = keyData.stateKeys || [];
+
+    if (!Array.isArray(objectives) || objectives.length === 0) {
+        throw new HttpsError('internal', 'Invalid mission key format.');
+    }
+
+    // Sanitize the submitted state — only allow declared state keys
+    // Include built-in keys that are always on operator state
+    const allAllowedKeys = [...stateKeys, 'nodesDiscovered', 'nmapTargets', 'integrity', 'trapsTriggered', 'agentCmdCount'];
+    const cleanState = sanitizeStateSnapshot(stateSnapshot, allAllowedKeys);
+
+    // Re-evaluate each objective check expression against the clean state
+    const completedObjectives = [];
+    let allValid = true;
+
+    for (const obj of objectives) {
+        const passed = evaluateCheck(obj.check, cleanState);
+        if (passed) {
+            completedObjectives.push(obj.id);
+        } else {
+            allValid = false;
+        }
+    }
+
+    const missionComplete = allValid && completedObjectives.length === objectives.length;
+
+    // Log completion to Firestore
+    if (missionComplete) {
+        try {
+            await db.doc(`users/${uid}/mission_completions/${missionId}`).set({
+                missionId,
+                completedAt: FieldValue.serverTimestamp(),
+                objectiveCount: objectives.length,
+                source: 'server'
+            });
+        } catch (e) {
+            console.warn('Mission completion log failed:', e.message);
+        }
+    }
+
+    // Log the validation attempt
+    try {
+        await db.collection(`users/${uid}/mission_attempts`).add({
+            missionId,
+            valid: missionComplete,
+            completedObjectives,
+            timestamp: FieldValue.serverTimestamp()
+        });
+    } catch (e) {
+        console.warn('Mission attempt log failed:', e.message);
+    }
+
+    return {
+        valid: missionComplete,
+        completedObjectives,
+        missionComplete
+    };
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────

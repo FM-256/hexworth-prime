@@ -356,6 +356,26 @@
                 return true;
             }
 
+            // Handle .indexOf() comparisons: flagsFound.indexOf("root-home") !== -1
+            var idxMatch = expr.match(/^(\w+)\.indexOf\(["']([^"']+)["']\)\s*(>=|<=|===|==|>|<|!==|!=)\s*(-?\d+)$/);
+            if (idxMatch) {
+                var arrName  = idxMatch[1];
+                var searchVal = idxMatch[2];
+                var idxOp    = idxMatch[3];
+                var idxNum   = parseInt(idxMatch[4], 10);
+                var arr      = state[arrName];
+                var idx      = (Array.isArray(arr)) ? arr.indexOf(searchVal) : -1;
+                switch (idxOp) {
+                    case '>=':  return idx >= idxNum;
+                    case '<=':  return idx <= idxNum;
+                    case '>':   return idx > idxNum;
+                    case '<':   return idx < idxNum;
+                    case '===': case '==': return idx === idxNum;
+                    case '!==': case '!=': return idx !== idxNum;
+                }
+                return false;
+            }
+
             // Handle .size comparisons: nodesDiscovered.size >= 4
             var sizeMatch = expr.match(/^(\w+)\.size\s*(>=|<=|===|==|>|<|!==|!=)\s*(\d+)$/);
             if (sizeMatch) {
@@ -426,30 +446,130 @@
                 if (!state.objectives[k]) { allDone = false; break; }
             }
             if (allDone) {
-                state.completed = true;
-                var elapsed = Math.floor((Date.now() - state.startTime) / 1000);
-
-                printLine('', 'system');
-                printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
-                printLine('Mission ' + config.id.toUpperCase() + ' accomplished.', 'success');
-
-                if (_els.headerStatus) {
-                    _els.headerStatus.textContent = 'COMPLETE';
-                    _els.headerStatus.style.color = '#39ff14';
-                }
-
-                // Save completion + clear save state
-                saveCompletion(state, config);
-                clearSaveState(config);
-
-                // Fire external hooks
-                fireCompletionHooks(state, config, elapsed);
-
-                setTimeout(function() {
-                    showMissionComplete(state, config, elapsed);
-                }, 1500);
+                // SEC-4: Server-side validation before awarding completion
+                _validateCompletionViaServer(state, config);
             }
         }
+    }
+
+    // ----------------------------------------------------------------
+    //  6b. SEC-4: SERVER-SIDE COMPLETION VALIDATION
+    // ----------------------------------------------------------------
+
+    /**
+     * Build a serializable state snapshot for server validation.
+     * Converts Sets to arrays, includes customState keys and built-in keys.
+     */
+    function buildStateSnapshot(state) {
+        var snapshot = {};
+        var keys = Object.keys(state);
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var val = state[key];
+            // Skip internal/non-serializable keys
+            if (key === 'position' || key === 'visibility' || key === 'objectives' ||
+                key === 'startTime' || key === 'completed' || key === 'scannedCells') {
+                continue;
+            }
+            if (val && typeof val === 'object' && typeof val.has === 'function') {
+                // Set -- convert to array
+                snapshot[key] = Array.from(val);
+            } else if (typeof val === 'boolean' || typeof val === 'number' || typeof val === 'string') {
+                snapshot[key] = val;
+            } else if (Array.isArray(val)) {
+                snapshot[key] = val;
+            }
+        }
+        return snapshot;
+    }
+
+    /**
+     * Finalize mission completion -- called after server validation succeeds
+     * or as offline fallback.
+     */
+    function finalizeCompletion(state, config, source) {
+        state.completed = true;
+        var elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+
+        printLine('', 'system');
+        printLine('\u2550\u2550\u2550 ALL OBJECTIVES COMPLETE \u2550\u2550\u2550', 'heading');
+        printLine('Mission ' + config.id.toUpperCase() + ' accomplished.', 'success');
+        if (source === 'local') {
+            printLine('[OFFLINE] Completion recorded locally. Server sync pending.', 'warning');
+        }
+
+        if (_els.headerStatus) {
+            _els.headerStatus.textContent = 'COMPLETE';
+            _els.headerStatus.style.color = '#39ff14';
+        }
+
+        // Save completion + clear save state
+        saveCompletion(state, config);
+        clearSaveState(config);
+
+        // Tag completion source for later sync
+        try {
+            var compKey = getCompletionKey(config);
+            var saved = localStorage.getItem(compKey);
+            if (saved) {
+                var data = JSON.parse(saved);
+                data.source = source || 'server';
+                localStorage.setItem(compKey, JSON.stringify(data));
+            }
+        } catch (e) { /* best effort */ }
+
+        // Fire external hooks
+        fireCompletionHooks(state, config, elapsed);
+
+        setTimeout(function() {
+            showMissionComplete(state, config, elapsed);
+        }, 1500);
+    }
+
+    /**
+     * SEC-4: Validate mission completion via server before awarding XP.
+     * Pattern matches BoxEngine._validateFlagViaServer.
+     *
+     * If server validates: finalize completion (award XP, show overlay).
+     * If server rejects: log warning, do NOT award completion.
+     * If server unavailable (offline): allow local completion with source:'local' tag.
+     */
+    function _validateCompletionViaServer(state, config) {
+        var hasAuth = typeof FirebaseAuth !== 'undefined' &&
+                      typeof FirebaseAuth.isSignedIn === 'function' &&
+                      FirebaseAuth.isSignedIn();
+
+        if (!hasAuth) {
+            // Offline / not signed in -- fallback to local completion
+            finalizeCompletion(state, config, 'local');
+            return;
+        }
+
+        var snapshot = buildStateSnapshot(state);
+
+        printLine('', 'system');
+        printLine('Validating mission completion...', 'system');
+
+        FirebaseAuth.callFunction('validateMissionCompletion', {
+            missionId: config.id,
+            stateSnapshot: snapshot
+        }).then(function(result) {
+            var data = result.data || result;
+            if (data.valid && data.missionComplete) {
+                finalizeCompletion(state, config, 'server');
+            } else {
+                // Server rejected -- objectives may have been manipulated
+                printLine('[VALIDATION FAILED] Server could not verify mission completion.', 'error');
+                printLine('Objectives may not be legitimately completed.', 'warning');
+                console.warn('[OPERATOR] Server rejected mission completion for ' + config.id, data);
+                // Do NOT finalize -- no XP awarded
+                state.completed = false;
+            }
+        }).catch(function(err) {
+            // Server unavailable -- fallback to local completion
+            console.warn('[OPERATOR] Server validation unavailable, falling back to local:', err.message);
+            finalizeCompletion(state, config, 'local');
+        });
     }
 
     // ----------------------------------------------------------------
