@@ -47,9 +47,9 @@
 - [x] **LP-006** (478→1): Fixed 477 module ID mismatches (prefix renames, href-based renames, house-level renames)
 - [x] **LP-007** (1530→1209): Wired 321 orphaned modules into learning paths via ID reconciliation
 - [x] Reconcile LearningPaths and ContentCatalog entries — 482 IDs renamed across all cert tracks
-- [ ] **FLOW-001**: Wire content HTML files not chained into any learning path (remaining work)
-- [ ] Run `npm run scan` to verify LP and FLOW counts resolved
-- [ ] Mark QC-14 and QC-15 done in sprints.json
+- [x] **FLOW-001**: 114 unchained files wired — forge (42), code (31), cloud (7), ai (4), eye/shield/web (10), signal toolkit (20)
+- [x] Run EduScan flow scan — 1568/1568 chained, 0 unchained
+- [x] Mark QC-14 and QC-15 done in sprints.json
 
 ---
 ## Wave 4: Accessibility Audit (2 parallel agents)
