@@ -3,7 +3,7 @@
  * Hexworth Prime — Integrity Enforcement Layer
  *
  * When a student's integrity status is "violated", this locks the entire
- * page with a full-screen overlay showing a dancing T-Rex and music.
+ * page with a full-screen overlay showing Roxy the dancing T-Rex and music.
  * Cannot be dismissed, closed, or bypassed. Only an admin reset clears it.
  *
  * Checks two sources (both must be clean to proceed):
@@ -174,7 +174,7 @@
             // HUD overlay at bottom
             '<div class="ls-hud">',
             '  <div class="ls-title">Account Locked</div>',
-            '  <div class="ls-subtitle">Integrity violation — admin review required</div>',
+            '  <div class="ls-subtitle">Roxy says: Integrity violation — admin review required</div>',
             '  <div class="ls-timer-row">',
             '    <span class="ls-timer-label">Time in violation:</span>',
             '    <span class="ls-timer" id="ls-timer">' + timerText + '</span>',
@@ -215,7 +215,7 @@
         // Prevent scroll on body
         document.body.style.overflow = 'hidden';
 
-        console.log('%c[IntegrityLockscreen] ENGAGED — account locked due to integrity violation',
+        console.log('%c[IntegrityLockscreen] ENGAGED — Roxy is watching. Account locked due to integrity violation.',
             'color: #ef4444; font-weight: bold; font-size: 14px;');
     }
 
