@@ -637,7 +637,7 @@ class UpdateManager {
                         ${Array.isArray(changelog)
                             ? changelog.map(item => `
                                 <div class="whatsnew-feature">
-                                    <span class="feature-icon">${item.icon || '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">'}</span>
+                                    <span class="feature-icon">${item.icon && item.icon.startsWith('img:') ? '<img src="' + item.icon.slice(4) + '" alt="" style="width:1.4em;height:1.4em;vertical-align:middle;object-fit:contain">' : (item.icon || '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.4em;height:1.4em;vertical-align:middle">')}</span>
                                     <div class="feature-content">
                                         <div class="feature-title">${item.title || item}</div>
                                         ${item.description ? `<div class="feature-desc">${item.description}</div>` : ''}
@@ -651,7 +651,7 @@ class UpdateManager {
 
                 <div class="update-modal-footer" style="flex-shrink:0;">
                     <button class="update-btn update-btn-primary" id="whatsNewContinue">
-                        ${isAuto ? "Let's Go! <img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">" : 'Close'}
+                        ${isAuto ? 'Let\'s Go! <img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' : 'Close'}
                     </button>
                 </div>
             </div>

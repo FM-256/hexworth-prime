@@ -90,28 +90,28 @@
 ## Wave 7: Code Armory — Systems Languages (4 parallel agents)
 *Sprints: PL-5, PL-6, PL-7, PL-15*
 
-- [ ] **PL-5** — C++ (OOP, STL, modern C++ — depends on PL-4)
-- [ ] **PL-6** — Go (cloud tooling, concurrency)
-- [ ] **PL-7** — Rust (memory-safe systems programming)
-- [ ] **PL-15** — Assembly (x86/x64, reverse engineering — depends on PL-4)
+- [x] **PL-5** — C++ (OOP, STL, modern C++ — depends on PL-4)
+- [x] **PL-6** — Go (cloud tooling, concurrency)
+- [x] **PL-7** — Rust (memory-safe systems programming)
+- [x] **PL-15** — Assembly (x86/x64, reverse engineering — depends on PL-4)
 
 ---
 ## Wave 8: Code Armory — Enterprise & Web (5 parallel agents)
 *Sprints: PL-8, PL-9, PL-11, PL-13, PL-14*
 
-- [ ] **PL-8** — Java (enterprise, Android)
-- [ ] **PL-9** — C# & .NET (Windows development)
-- [ ] **PL-11** — PowerShell (Windows administration)
-- [ ] **PL-13** — PHP (web development, legacy systems)
-- [ ] **PL-14** — Ruby (scripting, web development)
+- [x] **PL-8** — Java (enterprise, Android)
+- [x] **PL-9** — C# & .NET (Windows development)
+- [x] **PL-11** — PowerShell (Windows administration)
+- [x] **PL-13** — PHP (web development, legacy systems)
+- [x] **PL-14** — Ruby (scripting, web development)
 
 ---
 ## Wave 9: Code Armory — Extras & Cross-Cutting (4 parallel agents)
 *Sprints: PL-16, PL-17, PL-18, PL-19, PL-20, PL-21*
 
-- [ ] **PL-16** — Swift & Kotlin (modern mobile development)
-- [ ] **PL-17** — Lua, Perl, R (specialized scripting)
-- [ ] **PL-18** — Language comparison tool & recommendation engine
+- [x] **PL-16** — Swift & Kotlin (modern mobile development)
+- [x] **PL-17** — Lua, Perl, R (specialized scripting)
+- [x] **PL-18** — Language comparison tool & recommendation engine
 - [ ] **PL-19** — Per-language coding challenges (depends on PL-2/3/4/6/7)
 - [ ] **PL-20** — Security-focused language selection guide
 - [ ] **PL-21** — Python Graphics (turtle, pygame — depends on PL-2)
@@ -120,9 +120,9 @@
 ## Wave 10: The Backbone — Hub Design (1 agent)
 *Sprint: AN-1 — advanced networking course track*
 
-- [ ] Design The Backbone hub page and curriculum structure
-- [ ] Map content to CCNA/CCNP/Network+ cert objectives
-- [ ] Mark AN-1 done in sprints.json
+- [x] Design The Backbone hub page and curriculum structure
+- [x] Map content to CCNA/CCNP/Network+ cert objectives
+- [x] Mark AN-1 done in sprints.json
 
 ---
 ## Wave 11: The Backbone — Core Courses (5 parallel agents)
@@ -385,6 +385,40 @@ SG-32 becomes the testbed for rich visuals that will roll out to all 32 Signal g
 - [ ] **SIG-10** — Roll out to remaining sections (Privacy SG-16-20, Firmware SG-21-25, Arcade SG-26-30, Field Prep SG-31)
 
 **Commit message:** `feat: SIG-6 through SIG-10 — Signal visual template rollout to all 32 guides`
+
+---
+## Wave 25: Full WCAG 2.1 AA Accessibility Audit (3-4 parallel agents)
+*Sprint: AC-5 through AC-10 — comprehensive ADA compliance pass*
+
+Wave 4 (AC-1/AC-4) fixed color contrast and added ARIA to 7 core components. This wave audits the entire platform against the full WCAG 2.1 AA checklist.
+
+- [ ] **AC-5** — Screen reader audit: all pages must be navigable with NVDA/JAWS/VoiceOver. Semantic HTML, heading hierarchy, landmark regions, live regions for dynamic content
+- [ ] **AC-6** — Keyboard navigation: full tab order audit, focus trapping in modals/dialogs, skip-nav links, visible focus indicators on every interactive element, no keyboard traps
+- [ ] **AC-7** — Image & media audit: alt text on all images, decorative images marked aria-hidden, video captions/transcripts where applicable, SVG accessibility
+- [ ] **AC-8** — Form accessibility: all inputs have associated labels, error messages linked via aria-describedby, required fields marked, autocomplete attributes, validation announcements
+- [ ] **AC-9** — Motion & cognitive: prefers-reduced-motion media queries on all animations/particles, prefers-contrast support, touch target minimum 44x44px, reading level review
+- [ ] **AC-10** — Automated + manual testing: axe-core scan across all 700+ pages, generate remediation report, fix all critical/serious violations, document remaining known issues
+
+**Commit message:** `feat: AC-5 through AC-10 — full WCAG 2.1 AA accessibility audit and remediation`
+
+---
+## Wave 26: Code Armory WASM Sandboxes — In-Browser Code Runners (3 parallel agents)
+*Sprint: SB-1 through SB-5 — real execution in the browser, no server needed*
+
+Real interpreters/compilers running via WebAssembly inside the student's browser. Not simulated — actual code execution with real output and real errors. Covers languages where WASM solutions exist.
+
+- [ ] **SB-1** — Python sandbox: Pyodide (CPython compiled to WASM), pre-bundled security libs (hashlib, socket stubs, struct), inline "Run Code" button on all 10 Python modules
+- [ ] **SB-2** — C/C++ sandbox: Emscripten-based WASM compiler, gcc-like flags, memory visualization, inline runner on all 20 C/C++ modules
+- [ ] **SB-3** — SQL sandbox: sql.js (SQLite compiled to WASM), pre-loaded sample databases (incident logs, user tables), inline runner on all 10 SQL modules
+- [ ] **SB-4** — JavaScript sandbox: iframe-based execution (already native to browser), console output capture, inline runner on all 10 JS modules
+- [ ] **SB-5** — Shared sandbox UI component: `CodeRunner.js` — universal "Run Code" button, output panel, error formatting, reset button, copy-to-clipboard. All language sandboxes use this component.
+
+**Limitations (documented to students):** No sudo, no apt/pip install, no networking, no filesystem. For full labs, use the Container Sandbox (Wave 27).
+
+**Commit message:** `feat: SB-1 through SB-5 — WASM in-browser code runners for Python, C/C++, SQL, JavaScript`
+
+---
+*Note: Container Sandbox (Phase 2 — SB-6 through SB-14) is tracked in the sprint backlog, not the marathon. Depends on Neon Server (NE-1 through NE-6) being built first.*
 
 ---
 
