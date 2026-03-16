@@ -153,18 +153,18 @@
 ## Wave 13: Algorithm Chamber (5 parallel agents → serial chain)
 *Sprints: CS-1 through CS-12 — dependency chain*
 
-- [ ] **CS-1** — Design Algorithm Chamber hub page and curriculum
-- [ ] **CS-2** — Discrete mathematics (← CS-1)
-- [ ] **CS-3** — Graph theory and network algorithms (← CS-2)
-- [ ] **CS-4** — Big O notation and complexity analysis (← CS-2)
-- [ ] **CS-5** — Data structures deep dive (← CS-4)
-- [ ] **CS-6** — Sorting and searching algorithms (← CS-5)
-- [ ] **CS-7** — Greedy algorithms and optimization (← CS-5)
-- [ ] **CS-8** — Divide and conquer, dynamic programming (← CS-5)
-- [ ] **CS-9** — String algorithms and pattern matching (← CS-5)
-- [ ] **CS-10** — Applied algorithms capstone (← CS-4, CS-7)
-- [ ] **CS-11** — Computational geometry (← CS-5)
-- [ ] **CS-12** — Algorithm challenge platform (← CS-6, CS-7, CS-8)
+- [x] **CS-1** — Design Algorithm Chamber hub page and curriculum
+- [x] **CS-2** — Discrete mathematics (← CS-1)
+- [x] **CS-3** — Graph theory and network algorithms (← CS-2)
+- [x] **CS-4** — Big O notation and complexity analysis (← CS-2)
+- [x] **CS-5** — Data structures deep dive (← CS-4)
+- [x] **CS-6** — Sorting and searching algorithms (← CS-5)
+- [x] **CS-7** — Greedy algorithms and optimization (← CS-5)
+- [x] **CS-8** — Divide and conquer, dynamic programming (← CS-5)
+- [x] **CS-9** — String algorithms and pattern matching (← CS-5)
+- [x] **CS-10** — Applied algorithms capstone (← CS-4, CS-7)
+- [x] **CS-11** — Computational geometry (← CS-5)
+- [x] **CS-12** — Algorithm challenge platform (← CS-6, CS-7, CS-8)
 
 ---
 ## Wave 14: The Cortex — AI/ML Track (5 parallel agents → serial chain)
