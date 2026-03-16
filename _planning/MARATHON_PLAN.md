@@ -246,16 +246,16 @@
 ## Wave 20: Sprint Backlog Audit (1 agent)
 *Full reconciliation of sprints.json against actual project state*
 
-- [ ] **Status drift**: Scan all 537 sprint items — verify statuses match reality (done items actually shipped? blocked items still blocked? dependencies still valid?)
-- [ ] **Stale items**: Flag items created before 2026-02-01 that haven't been touched — are they still relevant or should they be archived/closed?
-- [ ] **Missing work**: Review git log since last audit — identify shipped features/fixes not tracked by any sprint item. Create backlog entries for undocumented work.
-- [ ] **Dependency accuracy**: Verify all `depends` chains — are blockers actually blocking? Have dependencies been resolved but downstream items not unblocked?
-- [ ] **Marathon coverage**: Cross-reference marathon waves against sprint backlog — any sprint items not captured in a wave? Any waves referencing items that don't exist?
-- [ ] **Duplicate detection**: Identify overlapping sprint items (e.g., ES-14 vs QC-13 heading fixes) — consolidate or link
-- [ ] **Priority recalibration**: Review priority assignments — have circumstances changed? (e.g., items marked low that are now needed for grants, items marked critical that were addressed by other work)
-- [ ] **Series health**: Check each series (DO, F, DA, AR, PL, etc.) — any series with all items done that can be closed? Any series missing items for planned features?
-- [ ] **Blocked item triage**: For each blocked item — is the blocker real? Can it be unblocked? Should it be deferred or redesigned?
-- [ ] Generate audit report: `_planning/SPRINT_AUDIT_REPORT.md` with findings, actions taken, and recommendations
+- [x] **Status drift**: Scan all 537 sprint items — verify statuses match reality (done items actually shipped? blocked items still blocked? dependencies still valid?)
+- [x] **Stale items**: Flag items created before 2026-02-01 that haven't been touched — are they still relevant or should they be archived/closed?
+- [x] **Missing work**: Review git log since last audit — identify shipped features/fixes not tracked by any sprint item. Create backlog entries for undocumented work.
+- [x] **Dependency accuracy**: Verify all `depends` chains — are blockers actually blocking? Have dependencies been resolved but downstream items not unblocked?
+- [x] **Marathon coverage**: Cross-reference marathon waves against sprint backlog — any sprint items not captured in a wave? Any waves referencing items that don't exist?
+- [x] **Duplicate detection**: Identify overlapping sprint items (e.g., ES-14 vs QC-13 heading fixes) — consolidate or link
+- [x] **Priority recalibration**: Review priority assignments — have circumstances changed? (e.g., items marked low that are now needed for grants, items marked critical that were addressed by other work)
+- [x] **Series health**: Check each series (DO, F, DA, AR, PL, etc.) — any series with all items done that can be closed? Any series missing items for planned features?
+- [x] **Blocked item triage**: For each blocked item — is the blocker real? Can it be unblocked? Should it be deferred or redesigned?
+- [x] Generate audit report: `_planning/SPRINT_AUDIT_REPORT.md` with findings, actions taken, and recommendations
 
 ---
 
