@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGP-03: Route Selection | The Backbone | Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #06b6d4; --accent-dim: rgba(6,182,212,0.12); --accent-border: rgba(6,182,212,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 14px; }
+        .bb-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .bb-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .bb-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .bb-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .bb-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .bb-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .bb-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); } .prompt { color: var(--green); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); }
+        .callout--warn h4 { color: var(--yellow); }
+        .callout p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .decision-list { list-style: none; counter-reset: decision-counter; margin: 16px 0; }
+        .decision-item { counter-increment: decision-counter; display: flex; align-items: flex-start; gap: 14px; padding: 12px 16px; margin-bottom: 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; }
+        .decision-item:hover { border-color: var(--accent); }
+        .decision-num { width: 28px; height: 28px; border-radius: 6px; background: rgba(6,182,212,0.12); color: var(--accent); border: 1px solid rgba(6,182,212,0.25); display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+        .decision-body { flex: 1; }
+        .decision-attr { font-size: 0.88rem; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+        .decision-rule { font-size: 0.83rem; color: var(--text-secondary); line-height: 1.5; }
+        .decision-scope { font-size: 0.75rem; color: #555; font-family: 'JetBrains Mono', monospace; margin-top: 3px; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--green); }
+        .try-it { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+        .try-it ol { padding-left: 18px; }
+        .try-it li { margin-bottom: 5px; }
+        .takeaways { background: linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.04)); border: 1px solid rgba(74,222,128,0.25); border-radius: 8px; padding: 20px; margin: 28px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 0.95rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.88rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 32px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+        .nav-btn.primary:hover { background: #0891b2; }
+        @media (max-width:700px) { .content-panel { padding: 20px 16px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="bb-header">
+        <div class="bb-header-left">
+            <span class="bb-badge">BGP-03</span>
+            <h1>BGP Route Selection</h1>
+        </div>
+        <a href="index.html" class="bb-back">&lt; BGP Course</a>
+    </header>
+    <nav class="bb-breadcrumb" aria-label="Breadcrumb">
+        <a href="/app/dashboard.html">Dashboard</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="../../index.html">Web House</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="../index.html">The Backbone</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="index.html">BGP</a><span class="bb-breadcrumb-sep">/</span>
+        <span>BGP Route Selection</span>
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Recite and apply all 13 steps of Cisco's BGP path selection algorithm in order</li>
+                <li>Predict which path BGP will select given a set of path attributes</li>
+                <li>Explain why a route marked valid may not be the best path</li>
+                <li>Use show commands to identify which step eliminated a competing path</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">The BGP Decision Process</h2>
+            <p class="content-text">When BGP has multiple paths to the same destination prefix, it applies a deterministic sequence of tiebreakers to select a single best path. This best path is installed in the routing table and advertised to peers. All other paths are retained in the BGP table as alternates but are not used unless the best path fails.</p>
+            <p class="content-text">Before any comparison occurs, a path must be <strong style="color:var(--accent)">valid</strong>: the next-hop must be reachable, the path must not be on the route suppression list, and the peer must be in Established state. Only valid paths enter the decision process.</p>
+
+            <div class="callout callout--info">
+                <h4>The Mnemonic: "We Love Oranges As Oranges Mean Pure Refreshment"</h4>
+                <p>Weight, Local-pref, Originated-locally, AS-path-length, Origin-type, MED, Paths-eBGP-over-iBGP, Router-ID (lowest). This covers the first eight steps -- the most important ones to memorize for CCNP-level exams and real-world troubleshooting.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">The 13-Step Decision Algorithm</h2>
+            <p class="content-text">Steps are evaluated in order. The first step that produces a winner ends the comparison. If all steps tie, the route is not added and BGP uses only one path (unless multipath is configured).</p>
+
+            <ol class="decision-list">
+                <li class="decision-item">
+                    <div class="decision-num">1</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Highest Weight</div>
+                        <div class="decision-rule">Prefer the path with the highest weight. Default is 0 for learned routes, 32768 for locally originated.</div>
+                        <div class="decision-scope">Cisco-proprietary -- local to this router only, not advertised</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">2</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Highest Local Preference</div>
+                        <div class="decision-rule">Prefer the path with the highest LOCAL_PREF. Default is 100. Applies within an AS via iBGP.</div>
+                        <div class="decision-scope">Well-known discretionary -- propagated to all iBGP peers</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">3</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Locally Originated Route</div>
+                        <div class="decision-rule">Prefer routes originated by the local router via <span class="inline-code">network</span>, <span class="inline-code">redistribute</span>, or <span class="inline-code">aggregate-address</span>.</div>
+                        <div class="decision-scope">Local -- this router originated the route into BGP</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">4</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Shortest AS Path</div>
+                        <div class="decision-rule">Prefer the path with the fewest AS hops. AS_SET counts as 1 regardless of its contents. Controllable via AS path prepending.</div>
+                        <div class="decision-scope">Well-known mandatory attribute -- key inbound traffic engineering lever</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">5</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Lowest Origin Type</div>
+                        <div class="decision-rule">IGP (i) preferred over EGP (e) preferred over Incomplete (?). In practice this usually means "network" command routes beat redistributed routes.</div>
+                        <div class="decision-scope">Well-known mandatory attribute</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">6</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Lowest MED</div>
+                        <div class="decision-rule">Prefer the path with the lowest MULTI_EXIT_DISC. Only compared between paths from the same neighboring AS by default.</div>
+                        <div class="decision-scope">Optional non-transitive -- not propagated beyond the neighboring AS</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">7</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">eBGP over iBGP</div>
+                        <div class="decision-rule">Prefer paths learned from external BGP peers over internal BGP peers.</div>
+                        <div class="decision-scope">Protocol behavior -- external routes considered more specific/authoritative</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">8</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Lowest IGP Metric to Next Hop</div>
+                        <div class="decision-rule">Prefer the path whose BGP next-hop is reachable via the lowest IGP metric (hot potato routing).</div>
+                        <div class="decision-scope">IGP-dependent -- OSPF cost, EIGRP metric, or static route distance</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">9</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Oldest eBGP Path</div>
+                        <div class="decision-rule">If multiple eBGP paths tie above, prefer the oldest (most stable) path. This step is skipped if <span class="inline-code">bgp deterministic-med</span> or <span class="inline-code">bgp bestpath as-path ignore</span> is configured.</div>
+                        <div class="decision-scope">Stability preference -- avoids unnecessary path oscillation</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">10</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Lowest BGP Router ID (Neighbor RID)</div>
+                        <div class="decision-rule">Prefer the path advertised by the neighbor with the lowest BGP Router ID. This is the primary tiebreaker when all attributes are equal.</div>
+                        <div class="decision-scope">If route reflectors are in use, use Originator ID instead of Router ID</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">11</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Shortest Cluster List</div>
+                        <div class="decision-rule">In route reflector environments, prefer the path with the shortest CLUSTER_LIST length.</div>
+                        <div class="decision-scope">Route reflector environments only</div>
+                    </div>
+                </li>
+                <li class="decision-item">
+                    <div class="decision-num">12</div>
+                    <div class="decision-body">
+                        <div class="decision-attr">Lowest Neighbor IP Address</div>
+                        <div class="decision-rule">Final tiebreaker: prefer the path from the neighbor with the numerically lowest IP address.</div>
+                        <div class="decision-scope">Final deterministic tiebreaker</div>
+                    </div>
+                </li>
+            </ol>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Reading Path Selection in show ip bgp</h2>
+            <p class="content-text">The <span class="inline-code">show ip bgp [prefix]</span> command shows all paths and why each one was or was not selected. The best path is marked with <span class="inline-code">&gt;</span>. For each non-best path, trace through the decision steps to find the first difference.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Detailed path output with decision reason</div>
+                <pre><span class="prompt">R1#</span> show ip bgp 203.0.113.0/24
+BGP routing table entry for <span class="hl">203.0.113.0/24</span>, version 42
+Paths: (3 available, best #1, table Default-IP-Routing-Table)
+
+  Advertised to non peer-group peers:
+   10.255.1.2
+
+  <span class="hl">64500</span>
+    <span class="num">10.0.0.2</span> from <span class="num">10.0.0.2</span> (<span class="num">2.2.2.2</span>)
+      Origin IGP, metric 0, localpref <span class="hl">200</span>, valid, external, <span class="out">best</span>
+      <span class="cm">! Best: higher local preference (200 > 100)</span>
+
+  <span class="hl">64501 64500</span>
+    <span class="num">10.0.1.2</span> from <span class="num">10.0.1.2</span> (<span class="num">3.3.3.3</span>)
+      Origin IGP, metric 0, localpref <span class="hl">100</span>, valid, external
+      <span class="cm">! Eliminated at step 2: lower local preference</span>
+
+  <span class="hl">64502 64500</span>
+    <span class="num">10.0.2.2</span> from <span class="num">10.0.2.2</span> (<span class="num">4.4.4.4</span>)
+      Origin IGP, metric 0, localpref <span class="hl">100</span>, valid, external
+      <span class="cm">! Eliminated at step 2: lower local preference</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">BGP Multipath</h2>
+            <p class="content-text">By default BGP installs only one best path into the routing table. Multipath configuration allows BGP to install multiple equal-cost paths, enabling load balancing. The paths must be equal through step 8 (IGP metric) before multipath can apply.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- BGP Multipath Configuration</div>
+                <pre>router bgp <span class="num">65001</span>
+ address-family ipv4 unicast
+  <span class="cm">! Allow up to 4 eBGP equal-cost paths</span>
+  maximum-paths <span class="num">4</span>
+  <span class="cm">! Allow up to 4 iBGP equal-cost paths</span>
+  maximum-paths ibgp <span class="num">4</span>
+  <span class="cm">! eiBGP multipath (mix of eBGP and iBGP)</span>
+  maximum-paths eibgp <span class="num">4</span></pre>
+            </div>
+
+            <div class="callout callout--warn">
+                <h4>Multipath Constraints</h4>
+                <p>For eBGP multipath, paths must have identical AS path length and the same neighbor AS (unless <span class="inline-code">bgp bestpath as-path multipath-relax</span> is configured). For iBGP multipath, all next-hops must have equal IGP metrics. Violating these conditions results in only one path being selected even with multipath enabled.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Conditional Route Advertisement</h2>
+            <p class="content-text">BGP advertises the best path to peers. It will not advertise a route to a peer if that peer is the source of the best path (split-horizon behavior for eBGP, plus iBGP split-horizon rules). Understanding this is critical when troubleshooting routes that appear in the local BGP table but are not being sent to a specific neighbor.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Verify what is being advertised to a peer</div>
+                <pre><span class="prompt">R1#</span> show ip bgp neighbors <span class="num">10.0.0.2</span> advertised-routes
+BGP table version is 42, local router ID is <span class="hl">1.1.1.1</span>
+Status codes: s suppressed, d damped, h history, * valid, > best, i - internal
+
+   Network          Next Hop         Metric LocPrf Weight Path
+*> <span class="num">10.1.0.0/24</span>     <span class="num">0.0.0.0</span>               0         <span class="num">32768</span> <span class="out">i</span>
+*> <span class="num">10.2.0.0/16</span>     <span class="num">0.0.0.0</span>               0         <span class="num">32768</span> <span class="out">i</span>
+
+Total number of prefixes 2</pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Practice Scenario</h3>
+            <p>Router R1 in AS 65100 has four paths to 198.51.100.0/24. Using the decision algorithm, determine which path wins:</p>
+            <ol>
+                <li>Path A: Weight 100, Local-Pref 150, AS-Path 64500, Origin IGP, MED 50, from eBGP peer 10.0.0.2</li>
+                <li>Path B: Weight 100, Local-Pref 200, AS-Path 64500 64501, Origin IGP, MED 10, from eBGP peer 10.0.1.2</li>
+                <li>Path C: Weight 200, Local-Pref 150, AS-Path 64500, Origin IGP, MED 100, from eBGP peer 10.0.2.2</li>
+                <li>Path D: Weight 100, Local-Pref 150, AS-Path 64500, Origin IGP, MED 50, from iBGP peer 192.168.1.1</li>
+            </ol>
+            <p style="margin-top:10px">Work through each step until a winner emerges. Which step determines the winner? Which paths are eliminated at each step?</p>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>A path must be valid (reachable next-hop, peer Established) before entering the decision process</li>
+                <li>The 13 steps are applied in order -- the first differentiator wins; remaining steps are skipped</li>
+                <li>First 8 steps (mnemonic "We Love Oranges...") cover all practical engineering scenarios</li>
+                <li>Weight and Local Preference are the primary levers operators use to control path selection</li>
+                <li>Steps 9-12 are tiebreakers for paths equal through step 8 -- rarely relevant in production unless paths are intentionally equal</li>
+                <li>BGP multipath requires equality through step 8; use maximum-paths to enable load balancing</li>
+                <li>Use <span class="inline-code">show ip bgp [prefix]</span> to see all paths and identify why a path was not selected</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="bb-bgp-02.html" class="nav-btn">&lt; Path Attributes</a>
+            <a href="bb-bgp-04.html" class="nav-btn primary">Next: BGP Configuration &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'bb-bgp-03';
+            var scrollThreshold = 0.8;
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= scrollThreshold) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.web) progress.web = {};
+                progress.web[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('web', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.web && progress.web[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

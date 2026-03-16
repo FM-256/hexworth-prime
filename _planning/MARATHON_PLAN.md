@@ -128,11 +128,11 @@
 ## Wave 11: The Backbone — Core Courses (5 parallel agents)
 *Sprints: AN-2, AN-3, AN-4, AN-6, AN-11 — depends on Wave 28*
 
-- [ ] **AN-2** — BGP (Border Gateway Protocol)
-- [ ] **AN-3** — MPLS and service provider technologies
-- [ ] **AN-4** — Data center networking and fabric architectures
-- [ ] **AN-6** — Software-Defined Networking (SDN)
-- [ ] **AN-11** — Network security architecture
+- [x] **AN-2** — BGP (Border Gateway Protocol)
+- [x] **AN-3** — MPLS and service provider technologies
+- [x] **AN-4** — Data center networking and fabric architectures
+- [x] **AN-6** — Software-Defined Networking (SDN)
+- [x] **AN-11** — Network security architecture
 
 ---
 ## Wave 12: The Backbone — Advanced Topics (5 parallel agents)

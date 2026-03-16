@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGP-08: BGP Troubleshooting | The Backbone | Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #06b6d4; --accent-dim: rgba(6,182,212,0.12); --accent-border: rgba(6,182,212,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 14px; }
+        .bb-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .bb-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .bb-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .bb-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .bb-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .bb-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .bb-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); } .prompt { color: var(--green); } .err { color: var(--red); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); }
+        .callout--warn h4 { color: var(--yellow); }
+        .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .callout ul { list-style: none; }
+        .callout ul li { padding-left: 16px; position: relative; margin-bottom: 4px; }
+        .callout ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--green); }
+        .trouble-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.85rem; }
+        .trouble-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .trouble-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .trouble-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .trouble-sym { color: var(--red); font-family: 'JetBrains Mono', monospace; }
+        .try-it { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+        .try-it ol { padding-left: 18px; }
+        .try-it li { margin-bottom: 5px; }
+        .takeaways { background: linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.04)); border: 1px solid rgba(74,222,128,0.25); border-radius: 8px; padding: 20px; margin: 28px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 0.95rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.88rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 32px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+        .nav-btn.primary:hover { background: #0891b2; }
+        @media (max-width:700px) { .content-panel { padding: 20px 16px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="bb-header">
+        <div class="bb-header-left">
+            <span class="bb-badge">BGP-08</span>
+            <h1>BGP Troubleshooting</h1>
+        </div>
+        <a href="index.html" class="bb-back">&lt; BGP Course</a>
+    </header>
+    <nav class="bb-breadcrumb" aria-label="Breadcrumb">
+        <a href="/app/dashboard.html">Dashboard</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="../../index.html">Web House</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="../index.html">The Backbone</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="index.html">BGP</a><span class="bb-breadcrumb-sep">/</span>
+        <span>BGP Troubleshooting</span>
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Apply a systematic BGP troubleshooting methodology: session, table, policy</li>
+                <li>Interpret show ip bgp summary output to identify session and prefix problems</li>
+                <li>Use targeted show commands to diagnose path selection and filtering issues</li>
+                <li>Safely use debug ip bgp commands without impacting production</li>
+                <li>Diagnose and resolve common BGP failure scenarios</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Troubleshooting Methodology</h2>
+            <p class="content-text">BGP problems fall into three layers. Work top-down: confirm the session is established before investigating the routing table, and confirm routes are in the table before investigating why they are not being used.</p>
+
+            <div class="callout callout--info">
+                <h4>Three-Layer Approach</h4>
+                <ul>
+                    <li>Layer 1 -- Session: Is the TCP session up? Is the peer in Established state?</li>
+                    <li>Layer 2 -- Table: Are the expected prefixes in the BGP table? Are they valid?</li>
+                    <li>Layer 3 -- Policy: Is the correct path selected? Are routes being filtered, modified, or suppressed?</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Session Troubleshooting</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Session State Diagnosis</div>
+                <pre><span class="cm">! Step 1: Check session state for all peers</span>
+<span class="prompt">R1#</span> show ip bgp summary
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+<span class="hl">10.0.0.2</span>        4 <span class="hl">65002</span>       0       0        0    0    0 <span class="err">00:01:23  Active</span>
+<span class="hl">10.0.0.3</span>        4 <span class="hl">65001</span>      44      47       12    0    0 <span class="out">02:14:05  8</span>
+
+<span class="cm">! 10.0.0.2 is stuck in Active -- session not established
+! Step 2: Check detailed neighbor info for the stuck peer</span>
+<span class="prompt">R1#</span> show ip bgp neighbors <span class="hl">10.0.0.2</span>
+BGP neighbor is <span class="hl">10.0.0.2</span>,  remote AS <span class="hl">65002</span>, external link
+  BGP version 4, remote router ID <span class="hl">0.0.0.0</span>
+  <span class="err">BGP state = Active</span>
+  Last reset 00:01:23, due to Active open failed
+  Connect Retry timer is running
+
+<span class="cm">! Step 3: Verify TCP reachability</span>
+<span class="prompt">R1#</span> telnet <span class="hl">10.0.0.2</span> 179
+Trying 10.0.0.2, 179 ...
+<span class="err">% Connection refused by remote host</span>
+
+<span class="cm">! TCP refused means BGP process may not be running on peer,
+! wrong IP/port, or firewall blocking port 179</span></pre>
+            </div>
+
+            <table class="trouble-table">
+                <thead>
+                    <tr><th>Symptom</th><th>Common Causes</th><th>First Check</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="trouble-sym">Idle</td>
+                        <td>Admin shutdown, repeated connection failures, hold timer expired</td>
+                        <td><span class="inline-code">show ip bgp neighbors</span> for "reason for reset"</td>
+                    </tr>
+                    <tr>
+                        <td class="trouble-sym">Active</td>
+                        <td>TCP unreachable, wrong remote IP, port 179 blocked, wrong remote-as</td>
+                        <td>Ping neighbor IP, check ACLs, verify remote-as config matches</td>
+                    </tr>
+                    <tr>
+                        <td class="trouble-sym">OpenSent</td>
+                        <td>Peer rejecting OPEN (version mismatch, wrong ASN, hold time conflict)</td>
+                        <td>Check syslog for NOTIFICATION message with error code</td>
+                    </tr>
+                    <tr>
+                        <td class="trouble-sym">Established (flapping)</td>
+                        <td>Hold timer expiry (CPU overload, link instability), interface bouncing, BFD</td>
+                        <td>Check hold timer negotiations, interface error counters</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">BGP Table Troubleshooting</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Diagnosing Missing Prefixes</div>
+                <pre><span class="cm">! Check if prefix exists anywhere in BGP table</span>
+<span class="prompt">R1#</span> show ip bgp <span class="hl">192.168.50.0/24</span>
+<span class="err">% Network not in table</span>
+
+<span class="cm">! Prefix is missing entirely. Possible causes:
+! - Peer is not advertising it (check peer's advertised-routes)
+! - Inbound filter is blocking it
+! - Peer doesn't have the prefix either
+
+! Check what the peer is actually sending</span>
+<span class="prompt">R1#</span> show ip bgp neighbors <span class="hl">10.0.0.2</span> received-routes | include <span class="hl">192.168.50</span>
+<span class="cm">! If nothing appears, the peer isn't sending it
+! If it appears here but not in bgp table, an inbound filter dropped it</span>
+
+<span class="cm">! Check active inbound filters</span>
+<span class="prompt">R1#</span> show ip bgp neighbors <span class="hl">10.0.0.2</span> | include filter|prefix|route-map
+  Route map for incoming advertisements is <span class="hl">ISP-INBOUND</span>
+
+<span class="cm">! Inspect what the route-map does to this prefix</span>
+<span class="prompt">R1#</span> show route-map ISP-INBOUND</pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Prefix in Table but Not in Routing Table</div>
+                <pre><span class="prompt">R1#</span> show ip bgp <span class="hl">192.168.50.0/24</span>
+BGP routing table entry for 192.168.50.0/24
+Paths: (1 available, no best path)
+  Not advertised to any peer
+  <span class="hl">65002</span>
+    <span class="err">10.1.1.1</span> (inaccessible) from 10.0.0.2 (2.2.2.2)
+      Origin IGP, metric 0, localpref 100, valid, internal
+
+<span class="cm">! "(inaccessible)" means next-hop 10.1.1.1 is not in the routing table
+! For iBGP routes, the eBGP next-hop must be reachable via IGP
+! Fix: use next-hop-self on border router, or redistribute next-hop into IGP</span>
+
+<span class="prompt">R1#</span> show ip route <span class="hl">10.1.1.1</span>
+<span class="err">% Subnet not in table</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Policy and Path Selection Troubleshooting</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Why a specific path was not selected</div>
+                <pre"><span class="cm">! See all paths and which was selected</span>
+<span class="prompt">R1#</span> show ip bgp <span class="hl">8.8.8.0/24</span>
+BGP routing table entry for 8.8.8.0/24
+Paths: (2 available, best #1)
+
+  <span class="hl">64500 15169</span>
+    203.0.113.1 from 203.0.113.1 (203.0.113.1)
+      Origin IGP, metric 0, localpref <span class="hl">200</span>, valid, external, <span class="out">best</span>
+
+  <span class="hl">64501 3356 15169</span>
+    198.51.100.1 from 198.51.100.1 (198.51.100.1)
+      Origin IGP, metric 0, localpref <span class="hl">100</span>, valid, external
+      <span class="cm">! Not selected: lower local preference</span>
+
+<span class="cm">! Verify outbound advertisement to a peer</span>
+<span class="prompt">R1#</span> show ip bgp neighbors <span class="hl">10.0.0.2</span> advertised-routes | include 10.100
+<span class="cm">! If prefix expected but not shown, check outbound route-map/prefix-list
+! Common: the route is filtered because it's an iBGP route (split-horizon)</span>
+
+<span class="cm">! Trace why route is not being sent</span>
+<span class="prompt">R1#</span> debug ip bgp <span class="hl">10.0.0.2</span> updates out
+<span class="cm">! Caution: debug can be CPU-intensive -- use neighbor-specific form
+! Always set a debug timer or terminal monitor off when done</span>
+<span class="prompt">R1#</span> undebug all</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">BGP Notification Codes</h2>
+            <p class="content-text">When BGP tears down a session, it sends a NOTIFICATION message containing an error code and subcode that precisely identifies the cause. These codes appear in syslog with the message "BGP-3-NOTIFICATION."</p>
+
+            <table class="trouble-table">
+                <thead>
+                    <tr><th>Error Code</th><th>Name</th><th>Common Subcodes</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="trouble-sym">1</td><td>Message Header Error</td><td>Bad message length, bad message type</td></tr>
+                    <tr><td class="trouble-sym">2</td><td>OPEN Message Error</td><td>Unsupported version number (bad BGP version), bad peer AS, bad BGP identifier</td></tr>
+                    <tr><td class="trouble-sym">3</td><td>UPDATE Message Error</td><td>Malformed attribute, invalid next-hop attribute, invalid network field</td></tr>
+                    <tr><td class="trouble-sym">4</td><td>Hold Timer Expired</td><td>No subcode -- peer did not send keepalives within hold time</td></tr>
+                    <tr><td class="trouble-sym">5</td><td>FSM Error</td><td>Unexpected message in BGP FSM state</td></tr>
+                    <tr><td class="trouble-sym">6</td><td>Cease</td><td>Max prefixes exceeded (subcode 1), admin shutdown (subcode 2), connection reset (subcode 3)</td></tr>
+                </tbody>
+            </table>
+
+            <div class="code-block">
+                <div class="code-block-header">Syslog -- Interpreting BGP Notification Messages</div>
+                <pre><span class="cm">! Session torn down -- AS mismatch</span>
+<span class="err">%BGP-3-NOTIFICATION: sent to neighbor 10.0.0.2 2/2 (open error/bad peer AS) 2 bytes</span>
+<span class="cm">! Error 2/2: OPEN error, bad peer AS -- check remote-as configuration
+
+! Session torn down -- max prefix limit reached</span>
+<span class="err">%BGP-3-NOTIFICATION: received from neighbor 10.0.0.2 6/1 (cease/max # of prefixes reached)</span>
+<span class="cm">! Error 6/1: peer has a maximum-prefix limit and we exceeded it
+
+! Hold timer expired</span>
+<span class="err">%BGP-5-ADJCHANGE: neighbor 10.0.0.2 Down BGP Notification sent, error: Hold time expired</span>
+<span class="cm">! Peer did not send KEEPALIVE within hold period
+! Check CPU on peer, check link quality, consider increasing hold timer</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Maximum Prefix Configuration</h2>
+            <p class="content-text">Maximum prefix limits protect a router from receiving an unexpectedly large BGP table from a peer -- either due to misconfiguration or a route leak. When the limit is exceeded, BGP can log a warning, reduce the session, or tear it down.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Maximum Prefix Protection</div>
+                <pre">router bgp <span class="num">65001</span>
+ address-family ipv4 unicast
+  <span class="cm">! Warn at 90%, tear down session at 1000 prefixes</span>
+  neighbor <span class="hl">10.0.0.2</span> maximum-prefix <span class="num">1000 90</span>
+
+  <span class="cm">! Warning only -- never tear down, just log</span>
+  neighbor <span class="hl">10.0.0.3</span> maximum-prefix <span class="num">500 80</span> warning-only
+
+  <span class="cm">! After teardown due to max-prefix, automatically restart
+  ! after 5 minutes instead of requiring manual clear</span>
+  neighbor <span class="hl">10.0.0.2</span> maximum-prefix <span class="num">1000 90</span> restart <span class="num">5</span></pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Troubleshooting Scenario</h3>
+            <p>You receive a trouble ticket: "Traffic to 203.0.113.0/24 is routing through the backup ISP instead of the primary ISP." Work through the diagnosis:</p>
+            <ol>
+                <li>What is the first show command you run, and what output would confirm the primary ISP session is up?</li>
+                <li>The primary ISP session is Established with 800 prefixes received, but 203.0.113.0/24 is routing via the backup. What command shows you both paths for that specific prefix and which was selected?</li>
+                <li>You see both paths in the BGP table. Path via primary ISP shows local-pref 100; path via backup ISP shows local-pref 150. What caused this and what is the fix?</li>
+                <li>After fixing the local preference, you apply <span class="inline-code">clear ip bgp soft</span> but the traffic still goes the wrong way. What else might be causing this, and what command verifies your new route-map is actually being applied?</li>
+            </ol>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Work layer by layer: session state first, then table presence, then path selection and policy</li>
+                <li>Active state means TCP cannot complete -- check reachability, ACLs, and remote-as configuration</li>
+                <li>A valid BGP route with inaccessible next-hop will not be installed in the routing table</li>
+                <li>Use <span class="inline-code">received-routes</span> to see what a peer sends before filtering, and <span class="inline-code">advertised-routes</span> to see what you send after filtering</li>
+                <li>BGP NOTIFICATION error codes precisely identify session teardown causes -- check syslog first</li>
+                <li>Error 2/2 = wrong remote-as; Error 4 = hold timer expired; Error 6/1 = max-prefix exceeded</li>
+                <li>Use <span class="inline-code">debug ip bgp [neighbor] updates</span> sparingly and always undebug when done</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="bb-bgp-07.html" class="nav-btn">&lt; BGP Security</a>
+            <a href="bb-bgp-09.html" class="nav-btn primary">Next: BGP in the Enterprise &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'bb-bgp-08';
+            var scrollThreshold = 0.8;
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= scrollThreshold) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.web) progress.web = {};
+                progress.web[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('web', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.web && progress.web[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

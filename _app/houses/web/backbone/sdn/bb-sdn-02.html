@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDN-02: SDN Controllers | The Backbone</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #10101a; --bg-terminal: #0d1117;
+            --accent: #06b6d4; --accent-dim: rgba(6,182,212,0.12);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid rgba(6,182,212,0.2); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 15px; }
+        .bb-module-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .bb-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .bb-back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .bb-back-link:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 35px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 5px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .output { color: var(--green); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 18px 0; display: flex; gap: 14px; align-items: flex-start; }
+        .callout-info { background: rgba(6,182,212,0.07); border: 1px solid rgba(6,182,212,0.2); }
+        .callout-warn { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.2); }
+        .callout-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; border-radius: 3px; }
+        .callout-body { flex: 1; }
+        .callout-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 5px; }
+        .callout-info .callout-title { color: var(--accent); }
+        .callout-warn .callout-title { color: var(--yellow); }
+        .callout p { font-size: 0.87rem; color: var(--text-secondary); line-height: 1.55; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
+        .comparison-table th { background: var(--accent-dim); color: var(--accent); padding: 10px 14px; text-align: left; font-weight: 600; border-bottom: 1px solid rgba(6,182,212,0.2); }
+        .comparison-table td { padding: 10px 14px; color: var(--text-secondary); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .comparison-table tr:last-child td { border-bottom: none; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--green); }
+        .takeaways { background: linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.03)); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+        .nav-btn.primary:hover { background: #22d3ee; }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="bb-header">
+        <div class="bb-header-left">
+            <span class="bb-module-badge">SDN-02</span>
+            <h1>SDN Controllers</h1>
+        </div>
+        <a href="index.html" class="bb-back-link">&lt; SDN Course</a>
+    </header>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Compare ONOS, OpenDaylight, Ryu, and Floodlight architectures and target use cases</li>
+                <li>Understand controller clustering models and consensus mechanisms</li>
+                <li>Deploy a Ryu controller and install a simple forwarding application</li>
+                <li>Explain how controllers discover network topology via LLDP</li>
+                <li>Evaluate controller selection criteria for enterprise vs. carrier vs. research deployments</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">What Is an SDN Controller?</h2>
+            <p class="content-text">An SDN controller is a software platform -- often called a Network Operating System (NOS) -- that implements the control plane for a domain of network devices. It maintains a real-time model of the network topology, responds to events (link up/down, new flow, host detected), and programs forwarding devices via the southbound API.</p>
+            <p class="content-text">Controllers expose a northbound API that allows network applications to consume and manipulate the network model. A load-balancing application, for example, queries the controller for topology and flow statistics, then installs optimized path rules. The controller abstracts the physical hardware completely.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">ONOS: Open Network Operating System</h2>
+            <p class="content-text">ONOS is developed by the Open Networking Foundation (ONF) and is purpose-built for carrier-grade deployments. It is written in Java, uses Apache Karaf OSGi as its application container, and the Hazelcast distributed data store for cluster state. ONOS targets service providers operating large-scale optical and packet networks.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Distributed Core</strong>
+                    <span>ONOS uses consistent hashing to partition device ownership across cluster nodes. Each device has a master controller node and one or more backup nodes.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Intent Framework</strong>
+                    <span>Applications express high-level intents (connect host A to host B with bandwidth X) rather than flow rules. The intent compiler translates to flow objectives.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Multi-Layer Support</strong>
+                    <span>ONOS supports packet, optical, and wireless layers through its extensible device driver framework. Used in production at AT&T, Comcast, SK Telecom.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>gRPC / P4Runtime</strong>
+                    <span>Modern ONOS deployments use P4Runtime as the southbound API with programmable ASIC pipelines, moving beyond OpenFlow's fixed match fields.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">ONOS CLI -- Basic Operations</div>
+                <pre><span class="comment"># Launch ONOS CLI</span>
+$ ssh -p 8101 karaf@localhost
+Password: karaf
+
+<span class="comment"># View connected devices</span>
+onos&gt; devices
+id=of:0000000000000001, available=true, role=MASTER, type=SWITCH
+id=of:0000000000000002, available=true, role=MASTER, type=SWITCH
+
+<span class="comment"># View hosts</span>
+onos&gt; hosts
+id=AA:BB:CC:DD:EE:01/None, mac=AA:BB:CC:DD:EE:01, ip=10.0.0.1
+
+<span class="comment"># View installed flow rules</span>
+onos&gt; flows
+deviceId=of:0000000000000001, flowCount=14
+  ADDED, bytes=0, packets=0, priority=40000, table=0
+    selector=[ETH_TYPE:arp], treatment=[OUTPUT:CONTROLLER]
+
+<span class="comment"># Install a simple forwarding app</span>
+onos&gt; app activate org.onosproject.fwd</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">OpenDaylight (ODL)</h2>
+            <p class="content-text">OpenDaylight is an open-source controller hosted by the Linux Foundation and backed by major vendors including Cisco, Ericsson, and Huawei. Its model-driven approach uses YANG data models for all northbound and southbound interfaces, making it highly extensible but also significantly more complex than alternatives.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">ODL RESTCONF API -- Query Topology</div>
+                <pre><span class="comment"># ODL exposes a REST API at port 8181</span>
+$ curl -u admin:admin \
+  http://localhost:8181/restconf/operational/network-topology:network-topology/
+
+<span class="comment"># Response (truncated)</span>
+{
+  "network-topology": {
+    "topology": [{
+      "topology-id": "flow:1",
+      "node": [
+        { "node-id": "openflow:1",
+          "termination-point": [{"tp-id":"openflow:1:1"}] }
+      ],
+      "link": [
+        { "link-id": "openflow:1:1",
+          "source": {"source-node":"openflow:1","source-tp":"openflow:1:1"},
+          "destination": {"dest-node":"openflow:2","dest-tp":"openflow:2:2"} }
+      ]
+    }]
+  }
+}</pre>
+            </div>
+
+            <p class="content-text">ODL uses a modular architecture called MD-SAL (Model-Driven Service Abstraction Layer). Each function -- topology discovery, flow management, statistics collection -- is an OSGi bundle. This makes ODL highly extensible but requires significant expertise to operate in production.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Ryu: The Pythonic Controller</h2>
+            <p class="content-text">Ryu is a lightweight Python-based controller built by NTT Labs. Its architecture is event-driven: you write Python applications that subscribe to OpenFlow events (packet-in, switch-features, flow-removed) and respond to them. It is the standard choice for research, prototyping, and network programmability courses.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">ryu_l2_switch.py -- Simple Learning Switch</div>
+                <pre><span class="keyword">from</span> ryu.base <span class="keyword">import</span> app_manager
+<span class="keyword">from</span> ryu.controller <span class="keyword">import</span> ofp_event
+<span class="keyword">from</span> ryu.controller.handler <span class="keyword">import</span> CONFIG_DISPATCHER, MAIN_DISPATCHER, set_ev_cls
+<span class="keyword">from</span> ryu.ofproto <span class="keyword">import</span> ofproto_v1_3
+<span class="keyword">from</span> ryu.lib.packet <span class="keyword">import</span> packet, ethernet
+
+<span class="keyword">class</span> <span class="string">L2Switch</span>(app_manager.RyuApp):
+    OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
+
+    <span class="keyword">def</span> <span class="string">__init__</span>(self, *args, **kwargs):
+        super(L2Switch, self).__init__(*args, **kwargs)
+        self.mac_to_port = {}  <span class="comment"># {dpid: {mac: port}}</span>
+
+    @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
+    <span class="keyword">def</span> <span class="string">switch_features_handler</span>(self, ev):
+        <span class="comment"># Install table-miss flow: send unknown packets to controller</span>
+        datapath = ev.msg.datapath
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+        match = parser.OFPMatch()
+        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+                                          ofproto.OFPCML_NO_BUFFER)]
+        self.add_flow(datapath, 0, match, actions)
+
+    <span class="keyword">def</span> <span class="string">add_flow</span>(self, datapath, priority, match, actions):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
+        mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+                                match=match, instructions=inst)
+        datapath.send_msg(mod)
+
+    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
+    <span class="keyword">def</span> <span class="string">packet_in_handler</span>(self, ev):
+        msg = ev.msg
+        datapath = msg.datapath
+        dpid = datapath.id
+        pkt = packet.Packet(msg.data)
+        eth = pkt.get_protocols(ethernet.ethernet)[0]
+        dst = eth.dst
+        src = eth.src
+        in_port = msg.match[<span class="string">'in_port'</span>]
+
+        <span class="comment"># Learn src MAC -> in_port mapping</span>
+        self.mac_to_port.setdefault(dpid, {})
+        self.mac_to_port[dpid][src] = in_port
+
+        <span class="comment"># Lookup dst -- flood if unknown</span>
+        out_port = self.mac_to_port[dpid].get(dst,
+                       datapath.ofproto.OFPP_FLOOD)
+
+        actions = [datapath.ofproto_parser.OFPActionOutput(out_port)]
+
+        <span class="comment"># Install flow rule if dst is known</span>
+        <span class="keyword">if</span> out_port != datapath.ofproto.OFPP_FLOOD:
+            match = datapath.ofproto_parser.OFPMatch(
+                in_port=in_port, eth_dst=dst, eth_src=src)
+            self.add_flow(datapath, 1, match, actions)
+
+        <span class="comment"># Send the current packet</span>
+        out = datapath.ofproto_parser.OFPPacketOut(
+            datapath=datapath, buffer_id=msg.buffer_id,
+            in_port=in_port, actions=actions, data=msg.data)
+        datapath.send_msg(out)</pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Terminal -- Run Ryu + Mininet</div>
+                <pre><span class="comment"># Start Ryu controller with the learning switch app</span>
+$ ryu-manager ryu_l2_switch.py
+
+<span class="comment"># In another terminal, start Mininet connected to Ryu</span>
+$ sudo mn --controller=remote,ip=127.0.0.1,port=6653 \
+          --switch=ovsk,protocols=OpenFlow13 \
+          --topo=tree,depth=2,fanout=3
+
+<span class="comment"># Test connectivity</span>
+mininet&gt; pingall
+*** Results: 0% dropped (12/12 received)</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Controller Clustering and Consensus</h2>
+            <p class="content-text">Production SDN deployments require controller high availability. All major controllers support clustering, but their approaches differ. Understanding the consensus mechanism matters because it affects failover time and write latency.</p>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr><th>Controller</th><th>Clustering Mechanism</th><th>Consistency Model</th><th>Typical Cluster Size</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>ONOS</td><td>Hazelcast (AP) + Atomix (CP)</td><td>Eventually consistent for topology, strong for intent</td><td>3, 5, or 7 nodes</td></tr>
+                    <tr><td>OpenDaylight</td><td>Akka Cluster + Raft</td><td>Strong consistency via Raft consensus</td><td>3 nodes (odd required)</td></tr>
+                    <tr><td>Ryu</td><td>No native clustering</td><td>Single-node only</td><td>1 (external HA via standby)</td></tr>
+                    <tr><td>Floodlight</td><td>Not production HA</td><td>Single-node</td><td>1</td></tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-warn">
+                <img class="callout-icon" src="../../../../assets/images/icons/icon-alert.webp" alt="warn">
+                <div class="callout-body">
+                    <div class="callout-title">Device Mastership in ONOS</div>
+                    <p>ONOS assigns each OpenFlow device a master controller node. Only the master sends flow-mods to a device; standby nodes receive topology updates only. If the master fails, ONOS elects a new master within seconds using its distributed leadership election. OpenFlow switches must be configured with all cluster node IPs as controller candidates.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Topology Discovery via LLDP</h2>
+            <p class="content-text">SDN controllers discover network topology by injecting LLDP (Link Layer Discovery Protocol) probes through OpenFlow switches. The controller instructs each switch to send an LLDP frame out of every port. When a neighboring switch receives the LLDP frame, it generates a Packet-In to its controller, revealing the link between the two devices.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">LLDP-Based Link Discovery Flow</div>
+                <pre><span class="comment"># 1. Controller sends Packet-Out with LLDP probe to Switch-A port 1</span>
+Controller --[Packet-Out]--> Switch-A (port 1)
+
+<span class="comment"># 2. Switch-A sends LLDP frame out port 1 towards Switch-B</span>
+Switch-A:port1 ----[LLDP]----> Switch-B:port2
+
+<span class="comment"># 3. Switch-B has no flow for LLDP, sends Packet-In to controller</span>
+Switch-B --[Packet-In: LLDP from Switch-A:port1 arrived on port2]--> Controller
+
+<span class="comment"># 4. Controller records: Switch-A:port1 ---- Switch-B:port2</span>
+Topology DB: link { src=of:A:1, dst=of:B:2, bidirectional=false }
+
+<span class="comment"># Controller repeats for all ports on all devices</span>
+<span class="comment"># Result: complete topology graph built without device CLI access</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Controller Selection Guide</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr><th>Use Case</th><th>Recommended Controller</th><th>Reason</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Carrier / Service Provider</td><td>ONOS</td><td>Built for scale, multi-layer support, production deployments at AT&T</td></tr>
+                    <tr><td>Enterprise SDN / NFV</td><td>OpenDaylight</td><td>Broad vendor ecosystem, YANG-modeled APIs, OPNFV integration</td></tr>
+                    <tr><td>Research / Prototyping</td><td>Ryu</td><td>Python, easy to modify, integrates well with Mininet</td></tr>
+                    <tr><td>Education / Labs</td><td>Ryu or Floodlight</td><td>Low setup overhead, REST API accessible without deep Java knowledge</td></tr>
+                    <tr><td>Cloud Data Center</td><td>Custom / OVN</td><td>Hyperscalers use OVN (Open Virtual Network) layered over OVS</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>ONOS targets carrier-grade deployments with distributed mastership and intent-based APIs</li>
+                <li>OpenDaylight uses YANG/MD-SAL throughout; vendor-backed, enterprise-focused</li>
+                <li>Ryu is Python-based, event-driven, and ideal for learning and research</li>
+                <li>Controllers discover topology by injecting LLDP probes through switches and listening for Packet-In events</li>
+                <li>Clustering requires an odd number of nodes for quorum; ONOS uses Atomix/Raft for strongly consistent operations</li>
+                <li>Device mastership ensures only one controller sends flow-mods to a given switch at a time</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="bb-sdn-01.html" class="nav-btn">&lt; SDN Fundamentals</a>
+            <a href="bb-sdn-03.html" class="nav-btn primary">Next: OpenFlow Protocol &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'bb-sdn-02';
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= 0.8) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.backbone) progress.backbone = {};
+                progress.backbone[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('backbone', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.backbone && progress.backbone[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGP-10: BGP at Scale | The Backbone | Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #06b6d4; --accent-dim: rgba(6,182,212,0.12); --accent-border: rgba(6,182,212,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 14px; }
+        .bb-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .bb-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .bb-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .bb-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .bb-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .bb-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .bb-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); } .prompt { color: var(--green); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); }
+        .callout--warn h4 { color: var(--yellow); }
+        .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .callout ul { list-style: none; }
+        .callout ul li { padding-left: 16px; position: relative; margin-bottom: 4px; }
+        .callout ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--green); }
+        .scale-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.86rem; }
+        .scale-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .scale-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .scale-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .scale-val { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .completion-banner {
+            background: linear-gradient(135deg, rgba(6,182,212,0.15), rgba(6,182,212,0.05));
+            border: 1px solid rgba(6,182,212,0.3);
+            border-radius: 12px; padding: 24px; margin: 28px 0; text-align: center;
+        }
+        .completion-banner h3 { color: var(--accent); font-size: 1.1rem; margin-bottom: 8px; }
+        .completion-banner p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+        .try-it { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+        .try-it ol { padding-left: 18px; }
+        .try-it li { margin-bottom: 5px; }
+        .takeaways { background: linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.04)); border: 1px solid rgba(74,222,128,0.25); border-radius: 8px; padding: 20px; margin: 28px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 0.95rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.88rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 32px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+        .nav-btn.primary:hover { background: #0891b2; }
+        @media (max-width:700px) { .content-panel { padding: 20px 16px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="bb-header">
+        <div class="bb-header-left">
+            <span class="bb-badge">BGP-10</span>
+            <h1>BGP at Scale</h1>
+        </div>
+        <a href="index.html" class="bb-back">&lt; BGP Course</a>
+    </header>
+    <nav class="bb-breadcrumb" aria-label="Breadcrumb">
+        <a href="/app/dashboard.html">Dashboard</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="../../index.html">Web House</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="../index.html">The Backbone</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="index.html">BGP</a><span class="bb-breadcrumb-sep">/</span>
+        <span>BGP at Scale</span>
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Explain the iBGP full-mesh scaling problem and why it breaks at large scale</li>
+                <li>Configure BGP route reflectors and describe their loop prevention mechanism</li>
+                <li>Design a hierarchical route reflector topology for a large AS</li>
+                <li>Explain BGP confederations as an alternative to route reflectors</li>
+                <li>Describe the current state of the global internet routing table and its growth implications</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">The iBGP Full-Mesh Problem</h2>
+            <p class="content-text">Recall from Module 01: iBGP speakers do not re-advertise routes learned from other iBGP peers. This split-horizon rule prevents loops but requires all iBGP speakers within an AS to form a full mesh. The number of sessions in a full mesh grows as n*(n-1)/2.</p>
+
+            <table class="scale-table">
+                <thead>
+                    <tr><th>iBGP Routers (n)</th><th>Sessions Required</th><th>Operational Reality</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>5</td><td class="scale-val">10</td><td>Manageable</td></tr>
+                    <tr><td>10</td><td class="scale-val">45</td><td>Still manageable, but growing</td></tr>
+                    <tr><td>20</td><td class="scale-val">190</td><td>Significant config burden</td></tr>
+                    <tr><td>50</td><td class="scale-val">1,225</td><td>Not practical</td></tr>
+                    <tr><td>100</td><td class="scale-val">4,950</td><td>Impossible to maintain</td></tr>
+                </tbody>
+            </table>
+
+            <p class="content-text">For service providers and large enterprises, a full iBGP mesh does not scale. Two solutions exist: <strong style="color:var(--accent)">Route Reflectors</strong> (RFC 4456) and <strong style="color:var(--accent)">Confederations</strong> (RFC 5065). Route reflectors are far more widely deployed.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">BGP Route Reflectors</h2>
+            <p class="content-text">A route reflector (RR) is an iBGP router that is permitted to re-advertise iBGP-learned routes to other iBGP peers. This breaks the full-mesh requirement: instead of every router peering with every other router, all routers peer with one or more route reflectors, and the RR distributes routes to all clients.</p>
+            <p class="content-text">Routers in the AS are either route reflector clients or non-clients. The RR applies these advertisement rules:</p>
+
+            <div class="callout callout--info">
+                <h4>Route Reflector Advertisement Rules</h4>
+                <ul>
+                    <li>Routes from a client: re-advertise to all clients AND all non-clients (full propagation)</li>
+                    <li>Routes from a non-client: re-advertise to all clients ONLY (non-clients still need full mesh among themselves)</li>
+                    <li>Routes from eBGP: re-advertise to all clients AND all non-clients</li>
+                </ul>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Route Reflector Configuration</div>
+                <pre><span class="cm">! On the Route Reflector (RR1)</span>
+router bgp <span class="num">65001</span>
+ bgp router-id <span class="num">10.255.0.1</span>
+
+ <span class="cm">! Peer with clients -- no full mesh required between clients</span>
+ neighbor <span class="num">10.255.0.10</span> remote-as <span class="num">65001</span>
+ neighbor <span class="num">10.255.0.10</span> update-source Loopback0
+ neighbor <span class="num">10.255.0.11</span> remote-as <span class="num">65001</span>
+ neighbor <span class="num">10.255.0.11</span> update-source Loopback0
+ neighbor <span class="num">10.255.0.12</span> remote-as <span class="num">65001</span>
+ neighbor <span class="num">10.255.0.12</span> update-source Loopback0
+
+ address-family ipv4 unicast
+  <span class="cm">! Designate these neighbors as RR clients</span>
+  neighbor <span class="num">10.255.0.10</span> activate
+  neighbor <span class="num">10.255.0.10</span> route-reflector-client
+  neighbor <span class="num">10.255.0.11</span> activate
+  neighbor <span class="num">10.255.0.11</span> route-reflector-client
+  neighbor <span class="num">10.255.0.12</span> activate
+  neighbor <span class="num">10.255.0.12</span> route-reflector-client
+
+<span class="cm">! On a client router (no special config needed on clients)</span>
+router bgp <span class="num">65001</span>
+ bgp router-id <span class="num">10.255.0.10</span>
+ <span class="cm">! Only peer with the RR -- no full mesh to other clients</span>
+ neighbor <span class="num">10.255.0.1</span> remote-as <span class="num">65001</span>
+ neighbor <span class="num">10.255.0.1</span> update-source Loopback0
+ address-family ipv4 unicast
+  neighbor <span class="num">10.255.0.1</span> activate</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Route Reflector Loop Prevention</h2>
+            <p class="content-text">Without the iBGP split-horizon rule, loop prevention must be handled differently. Route reflectors use two attributes added to reflected routes:</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Route Reflector Loop Prevention Attributes</div>
+                <pre><span class="prompt">R5#</span> show ip bgp 8.8.8.0/24
+BGP routing table entry for 8.8.8.0/24
+Paths: (1 available, best #1)
+  Advertised to update-groups: 1
+  <span class="hl">15169</span>
+    10.0.0.1 from 10.255.0.1 (10.255.0.1)
+      Origin IGP, metric 0, localpref 100, valid, internal, best
+      Originator: <span class="hl">10.255.0.3</span>    <span class="cm">-- Router ID of the originating client</span>
+      Cluster list: <span class="hl">10.255.0.1</span>  <span class="cm">-- List of RR Cluster IDs the route has passed through</span></pre>
+            </div>
+
+            <p class="content-text">ORIGINATOR_ID contains the Router ID of the router that first sent the route into the RR cluster. If a router receives a route with its own RID in ORIGINATOR_ID, it discards it. CLUSTER_LIST accumulates the cluster IDs of each RR the route has traversed -- if a router sees its own cluster ID, it discards the route. Together, these prevent routing loops in hierarchical RR designs.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Hierarchical Route Reflector Design</h2>
+            <p class="content-text">Large service providers use hierarchical RR topologies with multiple levels. Top-level RRs form a full mesh among themselves (or a small cluster), and lower-level RRs serve as clients of the top-level RRs while acting as RRs for their own client routers.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Redundant Route Reflector Design (production pattern)</div>
+                <pre><span class="cm">! Best practice: Always deploy 2+ RRs per cluster for redundancy
+! Configure both RRs with the same cluster-id so clients see them
+! as part of the same cluster (prevents duplicate routes)</span>
+
+router bgp <span class="num">65001</span>
+ bgp cluster-id <span class="num">1.1.1.0</span>   <span class="cm">! Both RR1 and RR2 use same cluster ID</span>
+ <span class="cm">! RR1 peers with RR2 as a non-client (full mesh between RRs)</span>
+ neighbor <span class="num">10.255.0.2</span> remote-as <span class="num">65001</span>
+ neighbor <span class="num">10.255.0.2</span> description RR2-peer
+
+ <span class="cm">! Clients: all edge routers</span>
+ neighbor <span class="num">10.255.0.10</span> remote-as <span class="num">65001</span>
+ address-family ipv4 unicast
+  neighbor <span class="num">10.255.0.2</span> activate
+  neighbor <span class="num">10.255.0.10</span> activate
+  neighbor <span class="num">10.255.0.10</span> route-reflector-client</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">BGP Confederations</h2>
+            <p class="content-text">Confederations (RFC 5065) are an alternative to route reflectors that divide a large AS into multiple sub-ASes (member ASes). Routers within a member AS form a full iBGP mesh internally. Between member ASes, eBGP-like sessions are established, but the confederation AS number is hidden from the outside world.</p>
+            <p class="content-text">Confederations are rarely deployed in modern networks -- route reflectors are simpler to configure, easier to troubleshoot, and sufficient for most use cases. You are more likely to encounter them in service provider networks that pre-date widespread RR deployment.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- BGP Confederation Configuration (overview)</div>
+                <pre><span class="cm">! Confederation AS: 65100 (the public-facing AS)
+! Member sub-ASes: 65101 and 65102
+
+! On a router in sub-AS 65101:</span>
+router bgp <span class="num">65101</span>
+ bgp router-id <span class="num">1.1.1.1</span>
+ bgp confederation identifier <span class="num">65100</span>  <span class="cm">! Public AS</span>
+ bgp confederation peers <span class="num">65102</span>        <span class="cm">! Other member sub-ASes</span>
+ <span class="cm">! Peer with router in sub-AS 65102 (eBGP-like, but confederation-aware)</span>
+ neighbor <span class="num">10.0.0.2</span> remote-as <span class="num">65102</span>
+ <span class="cm">! iBGP within sub-AS</span>
+ neighbor <span class="num">10.255.0.2</span> remote-as <span class="num">65101</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">The Internet Routing Table</h2>
+            <p class="content-text">The global BGP routing table is maintained in the DFZ (Default-Free Zone) -- the set of routers that carry the complete internet routing table and do not rely on a default route. Monitoring the DFZ table is essential for capacity planning and security awareness.</p>
+
+            <table class="scale-table">
+                <thead>
+                    <tr><th>Metric</th><th>Approximate Value (2026)</th><th>Growth Rate</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>IPv4 prefixes</td><td class="scale-val">~920,000</td><td>~50,000/year</td></tr>
+                    <tr><td>IPv6 prefixes</td><td class="scale-val">~190,000</td><td>~25,000/year</td></tr>
+                    <tr><td>Total ASNs active</td><td class="scale-val">~80,000</td><td>~5,000/year</td></tr>
+                    <tr><td>Memory for full table (per family)</td><td class="scale-val">2-4 GB</td><td>Growing</td></tr>
+                    <tr><td>TCAM entries needed (hardware)</td><td class="scale-val">1M+ entries</td><td>Critical for linecard selection</td></tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout--warn">
+                <h4>BGP Table Overflow Risk</h4>
+                <p>In August 2014, the internet routing table exceeded 512,000 prefixes. Many routers with TCAM sized for 512K entries silently dropped routes, causing widespread internet outages. Platform selection must account for table growth -- the table roughly doubles every 8-10 years. Always choose hardware with significant headroom above current requirements.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Internet Routing Table Statistics</div>
+                <pre><span class="prompt">R1#</span> show ip bgp summary | include prefixes
+BGP table version is 4842317, main routing table version 4842317
+<span class="hl">921456</span> network entries using <span class="hl">276437840</span> bytes of memory
+1842912 path entries using <span class="hl">221149440</span> bytes of memory
+
+<span class="prompt">R1#</span> show ip bgp | count ^*>
+<span class="out">921456</span>
+
+<span class="cm">! Monitor TCAM utilization on platforms with hardware forwarding</span>
+<span class="prompt">R1#</span> show platform resources
+IP FIB routes:    921456 / 1048576 (87%)  <span class="hl">-- WARNING: approaching limit</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">BGP Route Aggregation</h2>
+            <p class="content-text">Route aggregation (summarization) reduces the number of prefixes advertised to the internet, improving DFZ scalability. An AS that owns 10.0.0.0/16 and has sub-prefixes 10.0.1.0/24 through 10.0.10.0/24 should advertise only the /16 aggregate to the internet, suppressing the more-specific prefixes.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- BGP Aggregate Address with Suppression</div>
+                <pre">router bgp <span class="num">65001</span>
+ address-family ipv4 unicast
+  <span class="cm">! Advertise the aggregate and suppress all more-specific routes
+  ! summary-only: do not advertise contributing component prefixes</span>
+  aggregate-address <span class="num">10.0.0.0 255.255.0.0</span> summary-only
+
+  <span class="cm">! Without summary-only: advertise aggregate AND more-specifics
+  ! as-set: include all AS numbers from contributing routes in AS_SET</span>
+  aggregate-address <span class="num">10.0.0.0 255.255.0.0</span> as-set
+
+<span class="cm">! Verify aggregation in BGP table</span>
+<span class="prompt">R1#</span> show ip bgp <span class="hl">10.0.0.0/16</span>
+BGP routing table entry for 10.0.0.0/16
+  <span class="hl">Aggregated by router ID 1.1.1.1</span>
+  Suppressed: 10.0.1.0/24, 10.0.2.0/24 ...</pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Scaling Design Challenge</h3>
+            <p>AS 65500 is a regional service provider with 80 edge routers all participating in iBGP. They accept a full BGP table from three tier-1 transit providers.</p>
+            <ol>
+                <li>How many iBGP sessions are required for a full mesh among the 80 edge routers? Why is this operationally untenable?</li>
+                <li>Design a route reflector topology using 2 pairs of redundant RRs. How many total iBGP sessions are needed with your design? Show the calculation.</li>
+                <li>Configure RR-1 (router-id 10.255.0.1) as a route reflector with cluster-id 1.1.1.0, peering with RR-2 as a non-client and 40 edge routers as clients.</li>
+                <li>When a client edge router receives a route via the RR, what two additional attributes does it see that are not present in a normal iBGP route? What is each one used for?</li>
+                <li>The provider's hardware has 1M TCAM entries. The current internet table is 920,000 prefixes. What is the risk and what recommendation would you make?</li>
+            </ol>
+        </div>
+
+        <div class="completion-banner">
+            <h3>BGP Course Complete</h3>
+            <p>You have completed all 10 modules of the Border Gateway Protocol course. From session establishment through route selection, filtering, communities, security, and scaling to internet size -- you now have the foundation to operate BGP in production environments at the CCNP and above level. The next steps are hands-on lab practice and exploring MPLS/Service Provider integration with BGP.</p>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>iBGP full mesh sessions grow as n*(n-1)/2 -- impractical beyond ~20 routers without route reflectors</li>
+                <li>Route reflectors break the full mesh requirement: clients peer only with RRs; RR propagates routes to all clients</li>
+                <li>ORIGINATOR_ID and CLUSTER_LIST prevent routing loops in RR topologies</li>
+                <li>Always deploy at least two RRs per cluster with the same cluster-id for redundancy</li>
+                <li>Confederations divide a large AS into sub-ASes -- functionally similar to RRs but rarely deployed in modern networks</li>
+                <li>The global BGP table is ~920K IPv4 + 190K IPv6 prefixes (2026) -- hardware TCAM sizing is a critical design constraint</li>
+                <li>Use aggregate-address summary-only to reduce DFZ contribution; every network should advertise aggregates, not component prefixes</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="bb-bgp-09.html" class="nav-btn">&lt; BGP in the Enterprise</a>
+            <a href="index.html" class="nav-btn primary">Course Index &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'bb-bgp-10';
+            var scrollThreshold = 0.8;
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= scrollThreshold) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.web) progress.web = {};
+                progress.web[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('web', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.web && progress.web[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

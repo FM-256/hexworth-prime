@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Security Architecture Design | Network Security Architecture | Hexworth Prime</title>
+
+  <!-- Access control: must be sorted (enrolled) to view backbone content -->
+  <script src="../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+
+  <!-- Module progress tracking -->
+  <script src="../../../../components/ModuleProgress.js"></script>
+
+  <style>
+    /* ── Reset & base ────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bb-primary:   #22d3ee;
+      --bb-secondary: #06b6d4;
+      --bb-accent:    #06b6d4;
+      --bb-bg:        #090910;
+      --bb-surface:   #0f0f1a;
+      --bb-card:      #13131f;
+      --bb-border:    #1e1e30;
+      --bb-text:      #e2e8f0;
+      --bb-muted:     #94a3b8;
+      --bb-danger:    #ef4444;
+      --bb-warn:      #f59e0b;
+      --bb-success:   #10b981;
+    }
+
+    body {
+      background: var(--bb-bg);
+      color: var(--bb-text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    /* ── Breadcrumb ──────────────────────────────────────────────────── */
+    .bb-breadcrumb {
+      background: var(--bb-surface);
+      border-bottom: 1px solid var(--bb-border);
+      padding: 12px 32px;
+      font-size: 13px;
+      color: var(--bb-muted);
+    }
+    .bb-breadcrumb a { color: var(--bb-primary); text-decoration: none; }
+    .bb-breadcrumb a:hover { text-decoration: underline; }
+    .bb-breadcrumb span { margin: 0 6px; }
+
+    /* ── Hero header ─────────────────────────────────────────────────── */
+    .bb-module-hero {
+      background: linear-gradient(135deg, #0a0a18 0%, #0d1520 50%, #0a1010 100%);
+      border-bottom: 1px solid var(--bb-border);
+      padding: 52px 32px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .bb-module-hero::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .bb-module-hero .module-tag {
+      display: inline-block;
+      background: rgba(6,182,212,0.12);
+      border: 1px solid rgba(6,182,212,0.3);
+      color: var(--bb-primary);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+    .bb-module-hero h1 {
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+    .bb-module-hero h1 span { color: var(--bb-primary); }
+    .bb-module-hero p {
+      color: var(--bb-muted);
+      font-size: 1rem;
+      max-width: 700px;
+    }
+    .bb-module-meta {
+      display: flex;
+      gap: 24px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .bb-module-meta .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--bb-muted);
+    }
+    .meta-dot {
+      width: 8px; height: 8px;
+      background: var(--bb-primary);
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* ── Progress bar ────────────────────────────────────────────────── */
+    .bb-progress-bar-wrap {
+      background: var(--bb-surface);
+      border-bottom: 1px solid var(--bb-border);
+      padding: 10px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .bb-progress-bar-label { font-size: 12px; color: var(--bb-muted); white-space: nowrap; }
+    .bb-progress-bar-track {
+      flex: 1;
+      height: 4px;
+      background: var(--bb-border);
+      border-radius: 2px;
+    }
+    .bb-progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--bb-secondary), var(--bb-primary));
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .bb-progress-pct { font-size: 12px; color: var(--bb-primary); font-weight: 700; min-width: 36px; }
+
+    /* ── Main layout ─────────────────────────────────────────────────── */
+    .bb-module-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 0;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* ── Sidebar TOC ─────────────────────────────────────────────────── */
+    .bb-toc {
+      background: var(--bb-surface);
+      border-right: 1px solid var(--bb-border);
+      padding: 28px 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .bb-toc h3 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--bb-muted);
+      margin-bottom: 16px;
+    }
+    .bb-toc ol { list-style: none; counter-reset: toc-cnt; }
+    .bb-toc ol li {
+      counter-increment: toc-cnt;
+      margin-bottom: 6px;
+    }
+    .bb-toc ol li::before {
+      content: counter(toc-cnt) '.';
+      color: var(--bb-primary);
+      font-size: 11px;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .bb-toc ol li a {
+      color: var(--bb-muted);
+      text-decoration: none;
+      font-size: 13px;
+      line-height: 1.4;
+      transition: color 0.2s;
+    }
+    .bb-toc ol li a:hover { color: var(--bb-primary); }
+
+    /* ── Content area ────────────────────────────────────────────────── */
+    .bb-content {
+      padding: 44px 48px;
+      max-width: 900px;
+    }
+
+    /* ── Section headings ────────────────────────────────────────────── */
+    .bb-content h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--bb-primary);
+      margin: 48px 0 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--bb-border);
+    }
+    .bb-content h2:first-child { margin-top: 0; }
+    .bb-content h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 28px 0 12px;
+    }
+    .bb-content p { color: var(--bb-muted); margin-bottom: 14px; }
+    .bb-content strong { color: var(--bb-text); }
+    .bb-content ul, .bb-content ol {
+      color: var(--bb-muted);
+      padding-left: 22px;
+      margin-bottom: 16px;
+    }
+    .bb-content li { margin-bottom: 6px; }
+
+    /* ── Callouts ────────────────────────────────────────────────────── */
+    .callout-info, .callout-warn, .callout-danger, .callout-success {
+      border-left: 4px solid;
+      padding: 14px 18px;
+      border-radius: 0 6px 6px 0;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    .callout-info    { border-color: var(--bb-primary);  background: rgba(6,182,212,0.07); color: #a0d8e4; }
+    .callout-warn    { border-color: var(--bb-warn);     background: rgba(245,158,11,0.07); color: #f0d090; }
+    .callout-danger  { border-color: var(--bb-danger);   background: rgba(239,68,68,0.07);  color: #f0a0a0; }
+    .callout-success { border-color: var(--bb-success);  background: rgba(16,185,129,0.07); color: #90d8b8; }
+    .callout-info strong, .callout-warn strong,
+    .callout-danger strong, .callout-success strong { color: inherit; }
+
+    /* ── Code blocks ─────────────────────────────────────────────────── */
+    .code-block {
+      background: #080810;
+      border: 1px solid var(--bb-border);
+      border-radius: 8px;
+      padding: 20px 22px;
+      font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      overflow-x: auto;
+      margin: 18px 0;
+      white-space: pre;
+    }
+    .code-block .comment  { color: #4b6080; }
+    .code-block .keyword  { color: #c792ea; }
+    .code-block .string   { color: #c3e88d; }
+    .code-block .number   { color: #f78c6c; }
+    .code-block .output   { color: var(--bb-primary); }
+    .code-block .label    { color: #ffcb6b; }
+
+    /* ── Diagram box ─────────────────────────────────────────────────── */
+    .diagram-box {
+      background: #080810;
+      border: 1px solid var(--bb-border);
+      border-radius: 8px;
+      padding: 24px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+    .diagram-box .d-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--bb-primary);
+      margin-bottom: 16px;
+    }
+    .diagram-box pre {
+      font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--bb-text);
+      white-space: pre;
+    }
+
+    /* ── Feature grid ────────────────────────────────────────────────── */
+    .bb-feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 20px 0;
+    }
+    .bb-feature-card {
+      background: var(--bb-card);
+      border: 1px solid var(--bb-border);
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .bb-feature-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--bb-primary);
+      margin-bottom: 8px;
+    }
+    .bb-feature-card p {
+      font-size: 13px;
+      color: var(--bb-muted);
+      margin: 0;
+    }
+
+    /* ── Comparison table ────────────────────────────────────────────── */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    .comparison-table th {
+      background: rgba(6,182,212,0.12);
+      color: var(--bb-primary);
+      font-weight: 700;
+      padding: 10px 14px;
+      text-align: left;
+      border: 1px solid var(--bb-border);
+    }
+    .comparison-table td {
+      padding: 9px 14px;
+      border: 1px solid var(--bb-border);
+      color: var(--bb-muted);
+      vertical-align: top;
+    }
+    .comparison-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .comparison-table tr:hover td { background: rgba(6,182,212,0.04); }
+
+    /* ── Step list ───────────────────────────────────────────────────── */
+    .bb-step-list { list-style: none; padding: 0; margin: 16px 0; }
+    .bb-step-list li {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .bb-step-num {
+      background: rgba(6,182,212,0.15);
+      border: 1px solid rgba(6,182,212,0.3);
+      color: var(--bb-primary);
+      font-size: 12px;
+      font-weight: 800;
+      min-width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+    .bb-step-list li .step-body { color: var(--bb-muted); font-size: 14px; }
+    .bb-step-list li .step-body strong { color: var(--bb-text); }
+
+    /* ── Maturity band ───────────────────────────────────────────────── */
+    .maturity-band {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--bb-border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    .maturity-level {
+      padding: 14px 12px;
+      background: var(--bb-card);
+      border-right: 1px solid var(--bb-border);
+    }
+    .maturity-level:last-child { border-right: none; }
+    .maturity-level .ml-num {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--bb-primary);
+      margin-bottom: 4px;
+    }
+    .maturity-level .ml-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .maturity-level .ml-desc { font-size: 12px; color: var(--bb-muted); }
+
+    /* ── Checklist ───────────────────────────────────────────────────── */
+    .bb-checklist { list-style: none; padding: 0; margin: 12px 0; }
+    .bb-checklist li {
+      padding: 6px 0;
+      padding-left: 24px;
+      position: relative;
+      color: var(--bb-muted);
+      font-size: 14px;
+    }
+    .bb-checklist li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--bb-border);
+      border-radius: 3px;
+      background: transparent;
+    }
+
+    /* ── Completion banner ───────────────────────────────────────────── */
+    .bb-completion-banner {
+      background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(6,182,212,0.08));
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 10px;
+      padding: 28px 32px;
+      margin: 48px 0 32px;
+      text-align: center;
+    }
+    .bb-completion-banner h3 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--bb-success);
+      margin-bottom: 10px;
+    }
+    .bb-completion-banner p {
+      color: var(--bb-muted);
+      font-size: 15px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* ── Navigation footer ───────────────────────────────────────────── */
+    .bb-module-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 28px 0 12px;
+      border-top: 1px solid var(--bb-border);
+      margin-top: 40px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .nav-btn {
+      display: inline-block;
+      padding: 10px 22px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid var(--bb-border);
+      color: var(--bb-muted);
+      background: var(--bb-card);
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      border-color: var(--bb-primary);
+      color: var(--bb-primary);
+    }
+    .nav-btn.primary {
+      background: var(--bb-secondary);
+      border-color: var(--bb-secondary);
+      color: #000;
+    }
+    .nav-btn.primary:hover {
+      background: var(--bb-primary);
+      border-color: var(--bb-primary);
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .bb-module-layout { grid-template-columns: 1fr; }
+      .bb-toc { display: none; }
+      .bb-content { padding: 28px 20px; }
+      .bb-feature-grid { grid-template-columns: 1fr; }
+      .maturity-band { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      .maturity-band { grid-template-columns: 1fr; }
+      .bb-module-hero { padding: 32px 20px 28px; }
+      .bb-breadcrumb { padding: 10px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Breadcrumb ─────────────────────────────────────────────────── -->
+  <nav class="bb-breadcrumb">
+    <a href="../../../../dashboard.html">Dashboard</a>
+    <span>&rsaquo;</span>
+    <a href="../../index.html">Web</a>
+    <span>&rsaquo;</span>
+    <a href="../index.html">The Backbone</a>
+    <span>&rsaquo;</span>
+    <a href="index.html">Network Security Architecture</a>
+    <span>&rsaquo;</span>
+    Security Architecture Design
+  </nav>
+
+  <!-- ── Hero ──────────────────────────────────────────────────────── -->
+  <header class="bb-module-hero">
+    <div class="module-tag">Module 10 of 10 &mdash; Network Security Architecture</div>
+    <h1>Security <span>Architecture Design</span></h1>
+    <p>
+      Threat modeling, compliance framework mapping, reference architectures, and the structured
+      design review process used by enterprise security architects to build defensible networks.
+    </p>
+    <div class="bb-module-meta">
+      <div class="meta-item"><span class="meta-dot"></span>Module ID: bb-ns-10</div>
+      <div class="meta-item"><span class="meta-dot"></span>Level: Advanced</div>
+      <div class="meta-item"><span class="meta-dot"></span>CISSP Domain 3 &bull; CCNP Security &bull; NIST CSF</div>
+    </div>
+  </header>
+
+  <!-- ── Read-progress bar ─────────────────────────────────────────── -->
+  <div class="bb-progress-bar-wrap">
+    <span class="bb-progress-bar-label">Reading progress</span>
+    <div class="bb-progress-bar-track">
+      <div class="bb-progress-bar-fill" id="readProgress"></div>
+    </div>
+    <span class="bb-progress-pct" id="readPct">0%</span>
+  </div>
+
+  <!-- ── Body layout ────────────────────────────────────────────────── -->
+  <div class="bb-module-layout">
+
+    <!-- Sidebar TOC -->
+    <aside class="bb-toc">
+      <h3>Contents</h3>
+      <ol>
+        <li><a href="#threat-modeling">Threat Modeling</a></li>
+        <li><a href="#stride">STRIDE &amp; PASTA</a></li>
+        <li><a href="#attack-trees">Attack Trees</a></li>
+        <li><a href="#dread">Risk Scoring: DREAD &amp; CVSS</a></li>
+        <li><a href="#compliance">Compliance Frameworks</a></li>
+        <li><a href="#nist-csf">NIST CSF Mapping</a></li>
+        <li><a href="#pci-dss">PCI-DSS Architecture</a></li>
+        <li><a href="#hipaa">HIPAA Network Controls</a></li>
+        <li><a href="#reference-arch">Reference Architectures</a></li>
+        <li><a href="#design-review">Architecture Design Review</a></li>
+        <li><a href="#security-patterns">Security Design Patterns</a></li>
+        <li><a href="#arch-maturity">Architecture Maturity Model</a></li>
+        <li><a href="#cert-alignment">Certification Alignment</a></li>
+      </ol>
+    </aside>
+
+    <!-- Main content -->
+    <main class="bb-content">
+
+      <!-- 1. Threat Modeling ─────────────────────────────────────── -->
+      <h2 id="threat-modeling">1. What Is Threat Modeling?</h2>
+      <p>
+        Threat modeling is a structured, repeatable process for identifying security requirements,
+        pinpointing threats and vulnerabilities, and prioritizing remediation before a system is
+        built or changed. It answers four fundamental questions:
+      </p>
+      <div class="bb-feature-grid">
+        <div class="bb-feature-card">
+          <h4>What are we building?</h4>
+          <p>Scope the system: data flows, trust boundaries, components, and actors using a Data Flow Diagram (DFD).</p>
+        </div>
+        <div class="bb-feature-card">
+          <h4>What can go wrong?</h4>
+          <p>Enumerate threats systematically using a threat taxonomy (STRIDE, PASTA, LINDDUN, or VAST).</p>
+        </div>
+        <div class="bb-feature-card">
+          <h4>What are we going to do about it?</h4>
+          <p>Map each threat to a countermeasure: mitigate, eliminate, transfer, or accept the risk.</p>
+        </div>
+        <div class="bb-feature-card">
+          <h4>Did we do a good enough job?</h4>
+          <p>Validate coverage via review, red-team testing, or threat model refresh cycles.</p>
+        </div>
+      </div>
+
+      <div class="callout-info">
+        <strong>Architecture First:</strong> Threat modeling is most effective when applied to architectural designs, not code. A DFD created from a proposed network diagram catches flaws orders of magnitude cheaper than a post-deployment penetration test.
+      </div>
+
+      <h3>Data Flow Diagram (DFD) Elements</h3>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>DFD Element</th>
+            <th>Meaning</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Rectangle</td>
+            <td>External Entity</td>
+            <td>Actor outside system control</td>
+            <td>End user, partner API, payment gateway</td>
+          </tr>
+          <tr>
+            <td>Circle</td>
+            <td>Process</td>
+            <td>Function that transforms data</td>
+            <td>Authentication service, log aggregator</td>
+          </tr>
+          <tr>
+            <td>Open box</td>
+            <td>Data Store</td>
+            <td>Persistent data repository</td>
+            <td>SQL database, S3 bucket, LDAP directory</td>
+          </tr>
+          <tr>
+            <td>Arrow</td>
+            <td>Data Flow</td>
+            <td>Data in motion between elements</td>
+            <td>HTTPS request, syslog stream, DB query</td>
+          </tr>
+          <tr>
+            <td>Dashed line</td>
+            <td>Trust Boundary</td>
+            <td>Privilege or network zone change</td>
+            <td>Internet/DMZ edge, user/kernel boundary</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 2. STRIDE & PASTA ──────────────────────────────────────── -->
+      <h2 id="stride">2. STRIDE Methodology</h2>
+      <p>
+        Developed by Microsoft, STRIDE is a mnemonic for six threat categories. Each category
+        maps to a violated security property, making countermeasure selection systematic.
+      </p>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Threat</th>
+            <th>Violates</th>
+            <th>Example</th>
+            <th>Primary Countermeasure</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>S</strong>poofing</td>
+            <td>Authentication</td>
+            <td>ARP spoofing, BGP hijack, phishing</td>
+            <td>Strong authentication, MFP, RPKI</td>
+          </tr>
+          <tr>
+            <td><strong>T</strong>ampering</td>
+            <td>Integrity</td>
+            <td>Man-in-the-middle, SQL injection</td>
+            <td>TLS, HMAC, input validation, code signing</td>
+          </tr>
+          <tr>
+            <td><strong>R</strong>epudiation</td>
+            <td>Non-repudiation</td>
+            <td>Log deletion, action deniability</td>
+            <td>Immutable audit logs, digital signatures</td>
+          </tr>
+          <tr>
+            <td><strong>I</strong>nformation Disclosure</td>
+            <td>Confidentiality</td>
+            <td>Traffic sniffing, debug endpoints, S3 misconfiguration</td>
+            <td>Encryption at rest/transit, least privilege</td>
+          </tr>
+          <tr>
+            <td><strong>D</strong>enial of Service</td>
+            <td>Availability</td>
+            <td>SYN flood, Slowloris, ransom DDoS</td>
+            <td>Rate limiting, scrubbing, redundancy</td>
+          </tr>
+          <tr>
+            <td><strong>E</strong>levation of Privilege</td>
+            <td>Authorization</td>
+            <td>Container escape, SUID exploit, misconfigured IAM</td>
+            <td>Least privilege, mandatory access control</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>PASTA: Process for Attack Simulation and Threat Analysis</h3>
+      <p>
+        PASTA is a risk-centric, seven-stage methodology that aligns technical threat analysis
+        with business objectives. It produces a prioritized threat list calibrated to actual
+        business risk rather than raw technical severity.
+      </p>
+      <div class="diagram-box">
+        <div class="d-title">PASTA Seven Stages</div>
+        <pre>
+Stage I   ── Define Objectives
+           Map business objectives, compliance requirements, risk appetite
+           Output: Threat model scope document
+
+Stage II  ── Define Technical Scope
+           System components, APIs, data assets, third-party integrations
+           Output: Technical architecture diagram
+
+Stage III ── Application Decomposition
+           DFD construction, trust boundaries, entry/exit points
+           Output: Level-0 and Level-1 DFDs
+
+Stage IV  ── Threat Analysis
+           Threat intelligence correlation, OSINT, CVE review
+           Output: Threat catalog aligned to components
+
+Stage V   ── Vulnerability Analysis
+           SAST, DAST, infrastructure scanning, misconfig review
+           Output: Vulnerability inventory mapped to threat catalog
+
+Stage VI  ── Attack Modeling (Attack Trees)
+           Model attacker paths using attack trees / kill chain
+           Output: Attack scenarios with probability estimates
+
+Stage VII ── Risk/Impact Analysis
+           Quantify impact, prioritize countermeasures by ROI
+           Output: Residual risk register + remediation roadmap
+</pre>
+      </div>
+
+      <!-- 3. Attack Trees ─────────────────────────────────────────── -->
+      <h2 id="attack-trees">3. Attack Trees</h2>
+      <p>
+        Attack trees, introduced by Bruce Schneier, model threats hierarchically: the root node
+        is the attacker goal; child nodes are sub-goals or methods; leaf nodes are atomic attack
+        steps. AND-nodes require all children to succeed; OR-nodes need only one.
+      </p>
+      <div class="diagram-box">
+        <div class="d-title">Attack Tree: Exfiltrate Customer PII from Web Application</div>
+        <pre>
+[GOAL] Exfiltrate Customer PII
+       |
+       +─[OR]─ Exploit Web Application
+       |        |
+       |        +─[OR]─ SQL Injection (leaf, AND: discover endpoint, inject)
+       |        |
+       |        +─[OR]─ Authentication Bypass
+       |                 |
+       |                 +─[AND]─ Brute-force credentials
+       |                 |
+       |                 +─[AND]─ Session fixation / token theft
+       |
+       +─[OR]─ Compromise Internal Access
+       |        |
+       |        +─[AND]─ Phish employee with VPN creds
+       |        |
+       |        +─[AND]─ Pivot to DB server from compromised workstation
+       |
+       +─[OR]─ Cloud Misconfiguration
+                |
+                +─[OR]─ Public S3 bucket with PII
+                |
+                +─[OR]─ Over-permissive IAM role assumed by Lambda
+</pre>
+      </div>
+
+      <p>
+        Each leaf node receives three attributes: <strong>Probability</strong> (likelihood of
+        success if attempted), <strong>Cost</strong> (attacker resources required), and
+        <strong>Detectability</strong> (how likely defenders notice). This scoring feeds into
+        risk prioritization.
+      </p>
+
+      <!-- 4. Risk Scoring ─────────────────────────────────────────── -->
+      <h2 id="dread">4. Risk Scoring: DREAD and CVSS</h2>
+      <h3>DREAD</h3>
+      <p>
+        Microsoft's qualitative scoring model assigns 1-10 to five dimensions. Total / 5 gives
+        an average risk score. DREAD is fast but subjective; use it for internal triage when
+        CVSS environmental data is unavailable.
+      </p>
+      <table class="comparison-table">
+        <thead>
+          <tr><th>Dimension</th><th>Meaning</th><th>High (10)</th><th>Low (1)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Damage</td><td>Business impact if exploited</td><td>Full data breach</td><td>Minor UI bug</td></tr>
+          <tr><td>Reproducibility</td><td>How reliably attack works</td><td>Always succeeds</td><td>Rare timing issue</td></tr>
+          <tr><td>Exploitability</td><td>Attacker skill required</td><td>Script kiddie</td><td>Nation-state only</td></tr>
+          <tr><td>Affected Users</td><td>Scope of impact</td><td>All users</td><td>Single internal user</td></tr>
+          <tr><td>Discoverability</td><td>Ease of finding vulnerability</td><td>Publicly documented</td><td>Requires source access</td></tr>
+        </tbody>
+      </table>
+
+      <h3>CVSS v3.1 Environmental Score for Network Architects</h3>
+      <p>
+        CVSS base scores published in the NVD reflect the vulnerability in isolation. The
+        <strong>environmental score</strong> is what matters for your organization. Adjust
+        these three metric groups to reflect your actual exposure:
+      </p>
+      <div class="code-block"><span class="comment"># CVSS v3.1 Environmental Score calculation factors</span>
+
+<span class="label">Modified Attack Vector (MAV):</span>
+  <span class="keyword">Network</span>   → exploitable remotely over the internet
+  <span class="keyword">Adjacent</span>  → requires local network access (e.g., same VLAN)
+  <span class="keyword">Local</span>     → requires authenticated shell
+  <span class="keyword">Physical</span>  → requires physical access to device
+
+<span class="label">Confidentiality/Integrity/Availability Requirements (CR/IR/AR):</span>
+  <span class="keyword">High</span>   → data is PHI, PCI, classified; or system is life-safety
+  <span class="keyword">Medium</span> → standard business data, operational system
+  <span class="keyword">Low</span>    → public-facing data, easily recoverable system
+
+<span class="label">Scope (S):</span>
+  <span class="keyword">Unchanged</span> → exploit limited to vulnerable component
+  <span class="keyword">Changed</span>   → exploit can affect components beyond vulnerable system
+                  (e.g., container escape affecting host kernel)
+
+<span class="comment"># Example: CVE-2021-44228 (Log4Shell) — base CVSS 10.0
+# Environmental score for air-gapped OT network:
+#   MAV: Local (no internet access) → score drops to ~4.2
+#   CR: High (SCADA safety system) → impact weighting stays high
+# Environmental score for internet-facing Java app:
+#   MAV: Network → score remains critical
+#   CR/IR: High → prioritize immediate patch</span></div>
+
+      <!-- 5. Compliance Frameworks ────────────────────────────────── -->
+      <h2 id="compliance">5. Compliance Framework Overview</h2>
+      <p>
+        Compliance frameworks define minimum security controls for specific industries or
+        government contexts. A mature security architecture satisfies multiple frameworks
+        simultaneously through control harmonization rather than maintaining separate programs.
+      </p>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Framework</th>
+            <th>Scope</th>
+            <th>Mandate</th>
+            <th>Network-Relevant Sections</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>NIST CSF 2.0</strong></td>
+            <td>All sectors (voluntary baseline)</td>
+            <td>US Executive Order 14028</td>
+            <td>PR.AC, PR.DS, DE.CM, RS.CO</td>
+          </tr>
+          <tr>
+            <td><strong>PCI-DSS v4.0</strong></td>
+            <td>Payment card processing</td>
+            <td>Contractual (card brands)</td>
+            <td>Req 1 (firewall), Req 2 (defaults), Req 10 (logging)</td>
+          </tr>
+          <tr>
+            <td><strong>HIPAA Security Rule</strong></td>
+            <td>US healthcare PHI</td>
+            <td>Federal law (45 CFR Part 164)</td>
+            <td>164.312(a)(1) access, 164.312(e)(1) transmission</td>
+          </tr>
+          <tr>
+            <td><strong>ISO/IEC 27001:2022</strong></td>
+            <td>Any organization (international)</td>
+            <td>Contractual / voluntary</td>
+            <td>Annex A 8.20-8.22 (network), A 8.15 (logging)</td>
+          </tr>
+          <tr>
+            <td><strong>CMMC 2.0</strong></td>
+            <td>US DoD contractors</td>
+            <td>Federal contract requirement</td>
+            <td>SC (System/Comms), AC (Access Control), AU (Audit)</td>
+          </tr>
+          <tr>
+            <td><strong>SOC 2 Type II</strong></td>
+            <td>SaaS/cloud service providers</td>
+            <td>Customer contractual</td>
+            <td>CC6 (logical access), CC7 (change mgmt), A1 (availability)</td>
+          </tr>
+          <tr>
+            <td><strong>NERC CIP</strong></td>
+            <td>Bulk electric system</td>
+            <td>Federal (FERC-enforced)</td>
+            <td>CIP-005 (ESP), CIP-007 (ports/services), CIP-010 (baselines)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout-warn">
+        <strong>Compliance is not security.</strong> A system can satisfy every checkbox in PCI-DSS and still be breached. Compliance defines a floor; threat modeling, continuous monitoring, and architecture reviews define the actual security posture above that floor.
+      </div>
+
+      <!-- 6. NIST CSF ──────────────────────────────────────────────── -->
+      <h2 id="nist-csf">6. NIST CSF 2.0 Network Architecture Mapping</h2>
+      <p>
+        NIST CSF 2.0 adds a sixth function (Govern) to the original five. The table below
+        maps common network security controls to their CSF function and category.
+      </p>
+      <div class="diagram-box">
+        <div class="d-title">NIST CSF 2.0 — Six Functions</div>
+        <pre>
+  +───────────+───────────+───────────+───────────+───────────+───────────+
+  |  GOVERN   | IDENTIFY  |  PROTECT  |  DETECT   |  RESPOND  |  RECOVER  |
+  |  GV.OC    |  ID.AM    |  PR.AC    |  DE.AE    |  RS.CO    |  RC.RP    |
+  |  GV.RM    |  ID.RA    |  PR.AT    |  DE.CM    |  RS.AN    |  RC.CO    |
+  |  GV.RR    |  ID.IM    |  PR.DS    |  DE.IM    |  RS.MI    |           |
+  |           |           |  PR.IR    |           |  RS.RP    |           |
+  |           |           |  PR.PS    |           |           |           |
+  +───────────+───────────+───────────+───────────+───────────+───────────+
+</pre>
+      </div>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Network Control</th>
+            <th>CSF Function</th>
+            <th>Category Code</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Network topology documentation</td><td>IDENTIFY</td><td>ID.AM-03</td></tr>
+          <tr><td>Asset inventory (IP/MAC/port)</td><td>IDENTIFY</td><td>ID.AM-01, ID.AM-02</td></tr>
+          <tr><td>Firewall / segmentation</td><td>PROTECT</td><td>PR.IR-01 (network integrity)</td></tr>
+          <tr><td>Remote access with MFA</td><td>PROTECT</td><td>PR.AC-03</td></tr>
+          <tr><td>Encryption in transit (TLS 1.2+)</td><td>PROTECT</td><td>PR.DS-02</td></tr>
+          <tr><td>Patch management (OS, firmware)</td><td>PROTECT</td><td>PR.PS-02</td></tr>
+          <tr><td>NetFlow / SIEM correlation</td><td>DETECT</td><td>DE.CM-01</td></tr>
+          <tr><td>Anomaly / DGA detection</td><td>DETECT</td><td>DE.AE-02</td></tr>
+          <tr><td>Incident response plan</td><td>RESPOND</td><td>RS.RP-01</td></tr>
+          <tr><td>Network backup and DR</td><td>RECOVER</td><td>RC.RP-01</td></tr>
+        </tbody>
+      </table>
+
+      <!-- 7. PCI-DSS ──────────────────────────────────────────────── -->
+      <h2 id="pci-dss">7. PCI-DSS v4.0 Network Architecture</h2>
+      <p>
+        PCI-DSS Requirement 1 mandates network controls that restrict all inbound and outbound
+        traffic to the Cardholder Data Environment (CDE) to only that which is necessary.
+      </p>
+      <div class="diagram-box">
+        <div class="d-title">PCI-DSS Segmentation Architecture — CDE Isolation</div>
+        <pre>
+  Internet
+     |
+  [Perimeter FW]  ←── Req 1.3: inbound from internet only to DMZ
+     |
+  +-----------+     +------------------+     +-------------------+
+  |    DMZ    |     |  Corporate LAN   |     |       CDE         |
+  |  (Web FW) | ──► | (User workstns)  |     |  PAN data in CDE  |
+  |  servers  |     |  ERP, email...   |     |  DB, app server   |
+  +-----------+     +------------------+     +-------------------+
+       |                    |                        |
+  [App FW] ←── Req 1.3.2: no direct route between    |
+       |         untrusted zones and CDE              |
+       |                                              |
+       +──────────────── [CDE FW] ───────────────────+
+                           |
+                    Req 1.2.1: default-deny
+                    Req 1.3.3: antispoofing
+                    Req 1.4: no split-tunnel
+</pre>
+      </div>
+
+      <h3>Key PCI-DSS v4.0 Network Requirements</h3>
+      <div class="code-block"><span class="comment"># Requirement 1.2.1 — All inbound/outbound traffic rules documented and justified
+# Requirement 1.3.1 — Inbound traffic to CDE restricted to necessary traffic only
+# Requirement 1.3.2 — Outbound traffic from CDE restricted to necessary traffic only
+# Requirement 1.4.1 — NSCs (firewalls) between trusted and untrusted networks
+# Requirement 1.4.2 — Inbound internet traffic routed through DMZ; no direct to CDE</span>
+
+<span class="comment"># Requirement 2: Secure Configurations</span>
+<span class="comment"># 2.2.1 — System components configured and managed per a hardening standard</span>
+<span class="comment"># 2.2.4 — Only necessary services, protocols, daemons enabled</span>
+<span class="comment"># 2.2.7 — All non-console admin access encrypted (SSH, not Telnet)</span>
+
+<span class="comment"># Requirement 10: Log and Monitor</span>
+<span class="comment"># 10.2.1 — Audit logs capture: user access, admin actions, log clearance,</span>
+<span class="comment">#           invalid access attempts, AAA use, initialization of audit logs,</span>
+<span class="comment">#           creation/deletion of system-level objects</span>
+<span class="comment"># 10.3.3 — Audit logs write-protected / append-only via central SIEM</span>
+<span class="comment"># 10.5.1 — Retain audit logs for at least 12 months; 3 months immediately available</span></div>
+
+      <div class="callout-info">
+        <strong>Scope Reduction Strategy:</strong> The most cost-effective PCI-DSS approach is minimizing CDE scope. Every system that stores, processes, or transmits PANs is in scope. Use tokenization at the edge (e.g., Stripe Elements) so your application never sees raw card data -- reducing your CDE to near-zero.
+      </div>
+
+      <!-- 8. HIPAA ─────────────────────────────────────────────────── -->
+      <h2 id="hipaa">8. HIPAA Network Security Controls</h2>
+      <p>
+        The HIPAA Security Rule (45 CFR Part 164) defines three categories of safeguards:
+        administrative, physical, and technical. Network architects are primarily responsible
+        for technical safeguards in 164.312.
+      </p>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>CFR Section</th>
+            <th>Safeguard</th>
+            <th>Required/Addressable</th>
+            <th>Network Implementation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>164.312(a)(1)</td>
+            <td>Access Control</td>
+            <td>Required</td>
+            <td>NAC, VLAN segmentation, role-based firewall rules for PHI systems</td>
+          </tr>
+          <tr>
+            <td>164.312(b)</td>
+            <td>Audit Controls</td>
+            <td>Required</td>
+            <td>NetFlow/SIEM capturing all access to PHI data stores</td>
+          </tr>
+          <tr>
+            <td>164.312(c)(1)</td>
+            <td>Integrity (PHI)</td>
+            <td>Required</td>
+            <td>TLS with cert pinning; SFTP/FTPS for PHI transfers; checksums</td>
+          </tr>
+          <tr>
+            <td>164.312(d)</td>
+            <td>Authentication</td>
+            <td>Required</td>
+            <td>MFA for all remote access; 802.1X for wired/wireless PHI VLAN</td>
+          </tr>
+          <tr>
+            <td>164.312(e)(1)</td>
+            <td>Transmission Security</td>
+            <td>Required</td>
+            <td>TLS 1.2+ for all ePHI in transit; VPN for site-to-site links</td>
+          </tr>
+          <tr>
+            <td>164.312(e)(2)(i)</td>
+            <td>Integrity Controls</td>
+            <td>Addressable</td>
+            <td>DNSSEC to prevent DNS-based ePHI redirect attacks</td>
+          </tr>
+          <tr>
+            <td>164.312(e)(2)(ii)</td>
+            <td>Encryption in Transit</td>
+            <td>Addressable</td>
+            <td>TLS enforced; document rationale if any ePHI flow is unencrypted</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout-warn">
+        <strong>Business Associate Agreements (BAA):</strong> Any cloud provider, CDN, or network service that will carry ePHI must sign a BAA. AWS, Azure, GCP, and Cloudflare all offer BAAs. Using a service without a BAA is a HIPAA violation regardless of technical controls.
+      </div>
+
+      <!-- 9. Reference Architectures ──────────────────────────────── -->
+      <h2 id="reference-arch">9. Enterprise Security Reference Architectures</h2>
+      <h3>Layered Enterprise Architecture</h3>
+      <div class="diagram-box">
+        <div class="d-title">Enterprise Security Reference Architecture — Three-Tier with OT Separation</div>
+        <pre>
+  ┌────────────────────────────────────────────────────────────────────┐
+  │  UNTRUSTED ZONE (Internet / Partners)                              │
+  │  Traffic: HTTP/S, BGP, SMTP, DNS queries                          │
+  └────────────────────────────────────────────────────────────────────┘
+       │ NGFW-1: Perimeter (App-ID, IPS, SSL inspection, Geo-block)
+  ┌────────────────────────────────────────────────────────────────────┐
+  │  DMZ ZONE (Trust Level 1)                                         │
+  │  Web servers, reverse proxies, WAF, MTA, DNS resolvers            │
+  │  App traffic only; no direct DB access; all sessions logged       │
+  └────────────────────────────────────────────────────────────────────┘
+       │ NGFW-2: Internal edge (strict app + user-based policy)
+  ┌──────────────────────────┐   ┌────────────────────────────────────┐
+  │  CORPORATE ZONE (Level 2)│   │  SERVER ZONE (Level 3)             │
+  │  End-user workstations   │   │  App servers, file servers, AD DC  │
+  │  VoIP, printers, IoT     │   │  Segmented by server function      │
+  │  Split into user VLANs   │   │  East-west micro-seg (NSX / FW)   │
+  └──────────────────────────┘   └────────────────────────────────────┘
+       │                                   │
+       │ NGFW-3: OT/CDE isolation         │ NGFW-4: Data tier
+  ┌──────────────────────────┐   ┌────────────────────────────────────┐
+  │  OT / ICS ZONE (Level 5) │   │  DATABASE ZONE (Level 4)           │
+  │  SCADA, PLCs, HMIs        │   │  SQL/NoSQL clusters, data lakes    │
+  │  Purdue model internal    │   │  No direct internet; TDE enabled   │
+  │  Unidirectional gateways  │   │  DB activity monitoring (DAM)      │
+  └──────────────────────────┘   └────────────────────────────────────┘
+       │
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  MANAGEMENT ZONE (Out-of-Band)                                   │
+  │  IPMI/iDRAC, console servers, jump hosts, SIEM, NMS, Vault      │
+  │  Accessible only from management VLANs; MFA required            │
+  └──────────────────────────────────────────────────────────────────┘
+</pre>
+      </div>
+
+      <h3>SASE / SSE Reference Architecture</h3>
+      <p>
+        Secure Access Service Edge (SASE) converges SD-WAN with cloud-delivered security
+        (SWG, CASB, FWaaS, ZTNA). It is appropriate for organizations with a primarily
+        cloud-hosted workload and a distributed, mobile workforce.
+      </p>
+      <div class="bb-feature-grid">
+        <div class="bb-feature-card">
+          <h4>SD-WAN Underlay</h4>
+          <p>MPLS, broadband, LTE underlay for branch connectivity with dynamic path selection based on application SLAs.</p>
+        </div>
+        <div class="bb-feature-card">
+          <h4>Secure Web Gateway (SWG)</h4>
+          <p>Inline SSL inspection, URL filtering, malware scanning, and data loss prevention for all outbound web traffic.</p>
+        </div>
+        <div class="bb-feature-card">
+          <h4>CASB</h4>
+          <p>Visibility and control over sanctioned and unsanctioned SaaS. Inline mode for real-time data control; API mode for historical discovery.</p>
+        </div>
+        <div class="bb-feature-card">
+          <h4>ZTNA</h4>
+          <p>Application-level access broker replacing VPN. Grants per-session access to specific apps based on device posture + identity, not network.</p>
+        </div>
+        <div class="bb-feature-card">
+          <h4>FWaaS</h4>
+          <p>Cloud-delivered stateful firewall for L3-L7 enforcement at the SASE PoP, eliminating backhauling branch traffic through data center.</p>
+        </div>
+        <div class="bb-feature-card">
+          <h4>Digital Experience Monitoring</h4>
+          <p>End-to-end latency measurement from endpoint through SASE PoP to application. Enables SLA-based routing decisions.</p>
+        </div>
+      </div>
+
+      <h3>Cloud-Native Security Architecture (AWS)</h3>
+      <div class="code-block"><span class="comment"># AWS Well-Architected Security Reference Architecture</span>
+<span class="comment"># ─────────────────────────────────────────────────────</span>
+<span class="label">Account Structure (AWS Organizations):</span>
+  Management Account   → SCP enforcement, billing
+  Security Account     → Security Hub, GuardDuty master, CloudTrail central
+  Logging Account      → S3 log archive (CloudTrail, VPC Flow Logs, Config)
+  Shared Services      → Transit Gateway, Route 53 Resolver, Direct Connect
+  Production Accounts  → Workloads (one per BU or application)
+  Dev/Staging          → Sandboxed, no production data, no prod cross-account
+
+<span class="label">Network Controls per VPC:</span>
+  Security Groups      → Stateful L4; allow-only model; no 0.0.0.0/0 ingress
+  NACLs                → Stateless; deny specific sources at subnet boundary
+  VPC Endpoints        → Private connectivity to S3/DynamoDB/SSM (no NAT GW)
+  AWS Network FW       → Suricata-based stateful IPS per VPC
+  WAFv2                → L7 filtering on ALB/CloudFront; OWASP ruleset + rate limits
+  Route 53 Resolver FW → Block malicious domains at DNS resolution
+  Shield Advanced      → DDoS protection with cost protection and DRT access
+
+<span class="label">Detective Controls:</span>
+  GuardDuty            → ML-based threat detection (EC2, S3, EKS, Lambda)
+  Security Hub         → CSPM + finding aggregation across accounts
+  AWS Config Rules     → Continuous compliance: no public S3, MFA on root, etc.
+  CloudTrail           → API audit log (management + data events) → Logging Account
+  VPC Flow Logs        → L3/L4 traffic records → S3 + Athena queries</div>
+
+      <!-- 10. Design Review ──────────────────────────────────────── -->
+      <h2 id="design-review">10. Security Architecture Design Review Process</h2>
+      <p>
+        A security architecture design review (SADR) is a structured evaluation of a proposed
+        or existing system architecture against security requirements, threat models, and
+        compliance obligations. It produces an authoritative record of accepted risks.
+      </p>
+      <ul class="bb-step-list">
+        <li>
+          <div class="bb-step-num">1</div>
+          <div class="step-body">
+            <strong>Intake and Scoping.</strong> Define review boundary (new system, major change, or periodic review). Collect architecture diagrams, data classification, trust boundaries, compliance requirements, and business owner contacts. Set review depth: Level 1 (checklist), Level 2 (threat model), Level 3 (adversarial red team input).
+          </div>
+        </li>
+        <li>
+          <div class="bb-step-num">2</div>
+          <div class="step-body">
+            <strong>Architecture Analysis.</strong> Review DFDs for missing trust boundaries. Enumerate all data flows crossing zones and verify each is encrypted. Confirm authentication and authorization at every interface. Identify single points of failure. Flag non-standard protocols or unapproved third-party components.
+          </div>
+        </li>
+        <li>
+          <div class="bb-step-num">3</div>
+          <div class="step-body">
+            <strong>Threat Modeling Session.</strong> Facilitate a STRIDE walk-through of the DFD with developers, architects, and product owners. Document each identified threat with DREAD or CVSS score. Distinguish threats to be mitigated vs. accepted. Produce a threat register with owner and due date for each mitigation.
+          </div>
+        </li>
+        <li>
+          <div class="bb-step-num">4</div>
+          <div class="step-body">
+            <strong>Control Mapping.</strong> Map proposed security controls to identified threats and compliance requirements. Verify no control gaps exist. Identify compensating controls where primary controls are unavailable. Document control inheritance from shared services (e.g., WAF from cloud provider).
+          </div>
+        </li>
+        <li>
+          <div class="bb-step-num">5</div>
+          <div class="step-body">
+            <strong>Finding Documentation.</strong> Classify findings by severity: Critical (deploy blocker), High (must fix before production), Medium (fix within 90 days), Low (next release cycle), Informational (advisory). Assign each to an owner with a remediation date.
+          </div>
+        </li>
+        <li>
+          <div class="bb-step-num">6</div>
+          <div class="step-body">
+            <strong>Formal Sign-off.</strong> CISO or delegated security architect signs the Architecture Review Record (ARR). The ARR records accepted risks with business owner acknowledgment. Systems without an approved ARR must not proceed to production in regulated environments.
+          </div>
+        </li>
+        <li>
+          <div class="bb-step-num">7</div>
+          <div class="step-body">
+            <strong>Review Lifecycle.</strong> Schedule mandatory re-review triggers: significant feature changes, infrastructure migration, third-party component changes, new compliance scope, or 12-month periodic review. Link ARR to the change management system.
+          </div>
+        </li>
+      </ul>
+
+      <h3>Security Architecture Review Checklist</h3>
+      <div class="bb-feature-grid">
+        <div class="bb-feature-card">
+          <h4>Network Segmentation</h4>
+          <ul style="font-size:13px; color:var(--bb-muted); padding-left:16px;">
+            <li>Trust zones defined and documented</li>
+            <li>All inter-zone traffic through NGFW</li>
+            <li>Default-deny between all zones</li>
+            <li>No flat /8 or /16 networks in production</li>
+            <li>Management plane on separate OOB VLAN</li>
+          </ul>
+        </div>
+        <div class="bb-feature-card">
+          <h4>Identity and Access</h4>
+          <ul style="font-size:13px; color:var(--bb-muted); padding-left:16px;">
+            <li>MFA enforced for all remote access</li>
+            <li>No shared service accounts</li>
+            <li>PAM solution for privileged access</li>
+            <li>Just-in-time access for admin functions</li>
+            <li>RBAC with least-privilege documented</li>
+          </ul>
+        </div>
+        <div class="bb-feature-card">
+          <h4>Encryption</h4>
+          <ul style="font-size:13px; color:var(--bb-muted); padding-left:16px;">
+            <li>TLS 1.2+ on all external interfaces</li>
+            <li>TLS 1.2+ on internal sensitive flows</li>
+            <li>Certificate rotation process defined</li>
+            <li>Encryption at rest for sensitive data stores</li>
+            <li>Key management (HSM or KMS) documented</li>
+          </ul>
+        </div>
+        <div class="bb-feature-card">
+          <h4>Observability</h4>
+          <ul style="font-size:13px; color:var(--bb-muted); padding-left:16px;">
+            <li>All inter-zone flows logged (NetFlow/IPFIX)</li>
+            <li>SIEM ingesting auth, DNS, proxy, EDR logs</li>
+            <li>Log retention meets compliance requirement</li>
+            <li>Logs tamper-protected / write-only for apps</li>
+            <li>Alert coverage for top-10 MITRE ATT&amp;CK TTPs</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 11. Security Design Patterns ───────────────────────────── -->
+      <h2 id="security-patterns">11. Security Design Patterns</h2>
+      <p>
+        Security design patterns are reusable architectural solutions to recurring security
+        problems. Apply them as building blocks during architecture design to avoid
+        common structural vulnerabilities.
+      </p>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Pattern</th>
+            <th>Problem Solved</th>
+            <th>Implementation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Choke Point</strong></td>
+            <td>Traffic must traverse a single inspection point regardless of path</td>
+            <td>Single FW cluster for all inter-zone traffic; no bypass routes; NGFW with full visibility</td>
+          </tr>
+          <tr>
+            <td><strong>Defense in Depth</strong></td>
+            <td>No single control failure results in full compromise</td>
+            <td>Layered controls: perimeter FW + host FW + WAF + EDR + SIEM detection</td>
+          </tr>
+          <tr>
+            <td><strong>Least Privilege</strong></td>
+            <td>Compromise of one component cannot pivot to entire system</td>
+            <td>Micro-segmentation; workload identity (SPIFFE/SPIRE); deny-by-default firewall</td>
+          </tr>
+          <tr>
+            <td><strong>Fail Secure</strong></td>
+            <td>Control failure must not result in open access</td>
+            <td>Firewall fail-closed; AAA server unreachable = deny; NAC auth timeout = block VLAN</td>
+          </tr>
+          <tr>
+            <td><strong>Separation of Duties</strong></td>
+            <td>No single actor can complete a sensitive transaction</td>
+            <td>Change approval + firewall rule deployment are separate roles; dual-control for key ceremony</td>
+          </tr>
+          <tr>
+            <td><strong>Complete Mediation</strong></td>
+            <td>Every access request is checked, not cached from a prior authorization</td>
+            <td>ZTNA per-session auth; RBAC at the API level on every call, not just login</td>
+          </tr>
+          <tr>
+            <td><strong>Open Design</strong></td>
+            <td>Security must not depend on obscurity of the design</td>
+            <td>Document all firewall rules; assume attacker knows your architecture; rely on key secrecy only</td>
+          </tr>
+          <tr>
+            <td><strong>Economy of Mechanism</strong></td>
+            <td>Simpler designs have smaller attack surfaces</td>
+            <td>Remove unnecessary protocols; consolidate vendors; eliminate duplicate network paths</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Anti-Patterns to Avoid</h3>
+      <div class="callout-danger">
+        <strong>Security Anti-Patterns:</strong> Flat networks where east-west traffic is unrestricted. All-or-nothing VPN access granting full LAN access. Admin interfaces reachable from the internet. Relying on obscure ports instead of authentication. Single sign-on without MFA. Shared break-glass credentials stored in plaintext.
+      </div>
+
+      <!-- 12. Architecture Maturity Model ────────────────────────── -->
+      <h2 id="arch-maturity">12. Network Security Architecture Maturity Model</h2>
+      <p>
+        Use this five-level maturity model to benchmark current state and define a
+        multi-year security architecture roadmap.
+      </p>
+      <div class="maturity-band">
+        <div class="maturity-level">
+          <div class="ml-num">LEVEL 1</div>
+          <div class="ml-name">Initial</div>
+          <div class="ml-desc">Ad-hoc controls. No documented architecture. Flat networks. Perimeter-only defense. No SIEM.</div>
+        </div>
+        <div class="maturity-level">
+          <div class="ml-num">LEVEL 2</div>
+          <div class="ml-name">Managed</div>
+          <div class="ml-desc">Basic segmentation (DMZ). Firewall rules documented. Central logging. Patch management in place. Compliance audit passed.</div>
+        </div>
+        <div class="maturity-level">
+          <div class="ml-num">LEVEL 3</div>
+          <div class="ml-name">Defined</div>
+          <div class="ml-desc">Formal threat modeling. NGFW with App-ID. NAC/802.1X deployed. SIEM with correlation rules. IR playbooks. SADR process.</div>
+        </div>
+        <div class="maturity-level">
+          <div class="ml-num">LEVEL 4</div>
+          <div class="ml-name">Quantitative</div>
+          <div class="ml-desc">Metrics-driven. MTTR measured. CVSS environmental scoring applied. Red team exercises quarterly. Security control effectiveness tracked.</div>
+        </div>
+      </div>
+      <div class="maturity-band">
+        <div class="maturity-level" style="grid-column: 1 / -1; border-right: none; background: rgba(6,182,212,0.06);">
+          <div class="ml-num">LEVEL 5</div>
+          <div class="ml-name">Optimizing</div>
+          <div class="ml-desc">Zero trust implemented end-to-end. BAS (breach and attack simulation) continuous testing. Threat intelligence feeds drive real-time control adjustments. Architecture evolves in response to threat landscape changes. Executive risk dashboard tied to technical KRIs.</div>
+        </div>
+      </div>
+
+      <h3>Roadmap: Level 2 to Level 4 in 24 Months</h3>
+      <div class="code-block"><span class="comment"># Security Architecture Maturity Roadmap (Sample)</span>
+
+<span class="label">Q1 (Months 1-3): Foundation</span>
+  <span class="keyword">Deploy</span> network inventory tooling (Nmap/Rumble/Axonius)
+  <span class="keyword">Document</span> all firewall rules — remove any "any/any" policies
+  <span class="keyword">Enable</span> VPC Flow Logs / NetFlow on all perimeter devices
+  <span class="keyword">Stand up</span> central SIEM (Splunk / Microsoft Sentinel / Elastic)
+
+<span class="label">Q2 (Months 4-6): Segmentation</span>
+  <span class="keyword">Implement</span> VLAN segmentation by function (servers, users, OT, VOIP)
+  <span class="keyword">Deploy</span> NGFW with App-ID between all zones
+  <span class="keyword">Enforce</span> 802.1X on all wired access switches
+  <span class="keyword">Eliminate</span> Telnet, FTP, SNMPv1/v2c on all network devices
+
+<span class="label">Q3 (Months 7-9): Identity</span>
+  <span class="keyword">Deploy</span> PAM solution (CyberArk / BeyondTrust / Teleport)
+  <span class="keyword">Enforce</span> MFA on all VPN, SSH, and admin console access
+  <span class="keyword">Implement</span> TACACS+ with per-command authorization for network devices
+  <span class="keyword">Conduct</span> first formal threat model on highest-risk system
+
+<span class="label">Q4 (Months 10-12): Detection</span>
+  <span class="keyword">Build</span> SIEM correlation rules: brute force, lateral movement, beaconing
+  <span class="keyword">Integrate</span> EDR telemetry into SIEM
+  <span class="keyword">Create</span> IR playbooks for top 5 incident types
+  <span class="keyword">Run</span> tabletop exercise against ransomware scenario
+
+<span class="label">Year 2: Optimization</span>
+  <span class="keyword">Pilot</span> ZTNA for remote access (replace legacy VPN)
+  <span class="keyword">Deploy</span> microsegmentation for crown-jewel workloads
+  <span class="keyword">Stand up</span> formal SADR process with security sign-off gate
+  <span class="keyword">Conduct</span> annual red team exercise; track MTTR improvement</div>
+
+      <!-- 13. Cert Alignment ──────────────────────────────────────── -->
+      <h2 id="cert-alignment">13. Certification Alignment</h2>
+      <div class="callout-success">
+        <strong>Exam Mapping:</strong> This module directly supports CISSP Domain 3 (Security Architecture and Engineering), CCNP Security SCOR (security design and architecture section), and CompTIA Security+ Domain 3 (Implementation). The threat modeling content maps to CEH, CPSA, and OSCP methodology sections.
+      </div>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>CISSP</th>
+            <th>CCNP Security SCOR</th>
+            <th>CompTIA Sec+</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Threat Modeling (STRIDE/PASTA)</td><td>Domain 3</td><td>1.1 Security Concepts</td><td>3.2 Host/App Security</td></tr>
+          <tr><td>Attack Trees / Risk Scoring</td><td>Domain 3 / 9</td><td>1.1 Risk Analysis</td><td>5.4 Risk Management</td></tr>
+          <tr><td>NIST CSF Mapping</td><td>Domain 1</td><td>1.4 Compliance</td><td>5.1 Policies</td></tr>
+          <tr><td>PCI-DSS Architecture</td><td>Domain 1</td><td>1.4 Regulatory</td><td>5.1 Regulations</td></tr>
+          <tr><td>Reference Architectures</td><td>Domain 3</td><td>3.1 Network Design</td><td>3.1 Enterprise Security</td></tr>
+          <tr><td>Security Design Patterns</td><td>Domain 3</td><td>1.2 Security Models</td><td>2.1 Architecture</td></tr>
+          <tr><td>Architecture Maturity</td><td>Domain 1</td><td>1.3 Program Mgmt</td><td>5.4 Risk Management</td></tr>
+        </tbody>
+      </table>
+
+      <!-- Completion Banner ────────────────────────────────────────── -->
+      <div class="bb-completion-banner">
+        <h3>Network Security Architecture Complete</h3>
+        <p>
+          You have finished all ten modules of Network Security Architecture.
+          Defense in Depth, NGFW, NAC, VPN, Zero Trust, DDoS Mitigation, DNS Security,
+          Network Monitoring, Wireless Security, and Security Architecture Design --
+          a full CCNP Security-aligned curriculum. Return to the course hub to claim your completion.
+        </p>
+      </div>
+
+      <!-- Navigation ──────────────────────────────────────────────── -->
+      <div class="bb-module-nav">
+        <a href="bb-ns-09.html" class="nav-btn">&lt; Previous: Wireless Security</a>
+        <a href="index.html" class="nav-btn primary">Back to Course Hub &gt;</a>
+      </div>
+
+    </main>
+  </div><!-- /.bb-module-layout -->
+
+  <script>
+    /**
+     * Module ID for progress tracking.
+     * Stored in hexworth_progress.backbone['bb-ns-10']
+     */
+    var MODULE_ID = 'bb-ns-10';
+    var progressSaved = false;
+
+    /**
+     * Save completion to localStorage and notify ModuleProgress service.
+     * Called once when the user scrolls past the 80% threshold.
+     */
+    function saveProgress() {
+      if (progressSaved) return;
+      progressSaved = true;
+
+      var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+      if (!progress.backbone) progress.backbone = {};
+      progress.backbone[MODULE_ID] = {
+        completed: true,
+        completedAt: new Date().toISOString(),
+        lastAccess: Date.now()
+      };
+      localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+      ModuleProgress.complete('backbone', MODULE_ID);
+    }
+
+    /**
+     * Scroll handler: updates the reading-progress bar and triggers
+     * completion at 80% scroll depth.
+     */
+    function handleScroll() {
+      var scrollTop    = window.scrollY || document.documentElement.scrollTop;
+      var docHeight    = document.documentElement.scrollHeight - window.innerHeight;
+      var pct          = docHeight > 0 ? Math.min(100, Math.round((scrollTop / docHeight) * 100)) : 0;
+
+      document.getElementById('readProgress').style.width = pct + '%';
+      document.getElementById('readPct').textContent = pct + '%';
+
+      if (pct >= 80) saveProgress();
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    /* Restore progress bar state if module was previously completed */
+    (function restoreState() {
+      var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+      if (progress.backbone && progress.backbone[MODULE_ID] && progress.backbone[MODULE_ID].completed) {
+        document.getElementById('readProgress').style.width = '100%';
+        document.getElementById('readPct').textContent = '100%';
+        progressSaved = true;
+      }
+    })();
+  </script>
+
+  <!-- FluxCapacitor: must be the last script in body -->
+  <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

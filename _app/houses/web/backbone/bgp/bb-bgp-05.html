@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGP-05: Route Filtering | The Backbone | Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #06b6d4; --accent-dim: rgba(6,182,212,0.12); --accent-border: rgba(6,182,212,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 14px; }
+        .bb-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .bb-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .bb-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .bb-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .bb-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .bb-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .bb-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); } .prompt { color: var(--green); } .kw { color: #ff7b72; }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); }
+        .callout--warn h4 { color: var(--yellow); }
+        .callout--danger h4 { color: var(--red); }
+        .callout p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--green); }
+        .comparison-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .comparison-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .comparison-card strong { color: var(--accent); display: block; margin-bottom: 6px; font-size: 0.88rem; }
+        .comparison-card span { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+        .try-it { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+        .try-it ol { padding-left: 18px; }
+        .try-it li { margin-bottom: 5px; }
+        .takeaways { background: linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.04)); border: 1px solid rgba(74,222,128,0.25); border-radius: 8px; padding: 20px; margin: 28px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 0.95rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.88rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 32px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+        .nav-btn.primary:hover { background: #0891b2; }
+        @media (max-width:700px) { .content-panel { padding: 20px 16px 40px; } .comparison-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="bb-header">
+        <div class="bb-header-left">
+            <span class="bb-badge">BGP-05</span>
+            <h1>Route Filtering</h1>
+        </div>
+        <a href="index.html" class="bb-back">&lt; BGP Course</a>
+    </header>
+    <nav class="bb-breadcrumb" aria-label="Breadcrumb">
+        <a href="/app/dashboard.html">Dashboard</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="../../index.html">Web House</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="../index.html">The Backbone</a><span class="bb-breadcrumb-sep">/</span>
+        <a href="index.html">BGP</a><span class="bb-breadcrumb-sep">/</span>
+        <span>Route Filtering</span>
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Build prefix lists to filter BGP routes by network and prefix length range</li>
+                <li>Construct route maps for multi-condition filtering with attribute manipulation</li>
+                <li>Write AS path access lists using regular expressions to match BGP paths</li>
+                <li>Apply filters correctly as inbound or outbound policy on specific neighbors</li>
+                <li>Verify filter effectiveness using show commands and debug</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Filtering Tool Comparison</h2>
+            <p class="content-text">BGP provides three primary filtering mechanisms. Each has different capabilities and appropriate use cases. Route maps are the most powerful -- they can both filter and modify attributes in a single policy.</p>
+
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <strong>Prefix List</strong>
+                    <span>Matches on network address and prefix length. Fast, simple, preferred for pure prefix-based filtering. Supports ge/le range operators.</span>
+                </div>
+                <div class="comparison-card">
+                    <strong>AS Path ACL</strong>
+                    <span>Matches on the AS_PATH attribute using regular expressions. Use when you need to filter based on the ASes a route traversed, not the prefix itself.</span>
+                </div>
+                <div class="comparison-card">
+                    <strong>Route Map</strong>
+                    <span>Multi-condition policy with permit/deny and attribute setting. Can match prefix, AS path, community, MED, and more -- and modify attributes on permit.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">IP Prefix Lists</h2>
+            <p class="content-text">Prefix lists are the recommended tool for filtering BGP routes based on IP prefix and length. They process faster than access lists and provide clearer syntax. The sequence number controls evaluation order -- lower numbers are evaluated first.</p>
+            <p class="content-text">Prefix lists match two things: the network address AND the prefix length. The <span class="inline-code">ge</span> (greater than or equal) and <span class="inline-code">le</span> (less than or equal) operators define a length range.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Prefix List Syntax and Examples</div>
+                <pre><span class="cm">! Exact match: only 10.0.0.0/8 with length exactly /8</span>
+ip prefix-list EXACT-MATCH seq 10 permit <span class="num">10.0.0.0/8</span>
+
+<span class="cm">! Match 10.0.0.0/8 and all more-specific prefixes (/9 through /32)</span>
+ip prefix-list ALL-MORE-SPECIFIC seq 10 permit <span class="num">10.0.0.0/8</span> le <span class="num">32</span>
+
+<span class="cm">! Match any prefix between /24 and /28 (common: accept host routes up to /28)</span>
+ip prefix-list MEDIUM-BLOCKS seq 10 permit <span class="num">0.0.0.0/0</span> ge <span class="num">24</span> le <span class="num">28</span>
+
+<span class="cm">! Deny default route (0.0.0.0/0) -- block a received default</span>
+ip prefix-list NO-DEFAULT seq 5 deny <span class="num">0.0.0.0/0</span>
+ip prefix-list NO-DEFAULT seq 10 permit <span class="num">0.0.0.0/0</span> le <span class="num">32</span>
+
+<span class="cm">! Apply to neighbor inbound</span>
+router bgp <span class="num">65001</span>
+ address-family ipv4 unicast
+  neighbor <span class="num">10.0.0.2</span> prefix-list NO-DEFAULT in</pre>
+            </div>
+
+            <div class="callout callout--warn">
+                <h4>Implicit Deny</h4>
+                <p>Like access lists, prefix lists have an implicit deny-all at the end. If you create a prefix list with only deny statements, the last implicit deny will drop everything not matched. Always add a catch-all permit if you want to allow anything not explicitly denied.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">AS Path Access Lists</h2>
+            <p class="content-text">AS path access lists use Cisco-flavor regular expressions to match the AS_PATH attribute. They are applied with <span class="inline-code">ip as-path access-list</span> and referenced from route maps or directly as <span class="inline-code">filter-list</span> on neighbors.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">AS Path Regex Reference and Examples</div>
+                <pre><span class="cm">! Regex special characters in AS path context:
+! ^   = beginning of AS path (the originating AS)
+! $   = end of AS path (the peer's AS, closest to us)
+! _   = delimiter: space, start, end, or comma (AS path boundary)
+! .   = match any single character
+! *   = zero or more of preceding
+! +   = one or more of preceding
+! ?   = zero or one of preceding (escape with Ctrl+V in IOS CLI)
+! []  = character class
+
+! Match routes originated in AS 64500 (and only 64500)</span>
+ip as-path access-list <span class="num">1</span> permit <span class="hl">^64500$</span>
+
+<span class="cm">! Match routes that passed through AS 64500 anywhere in path</span>
+ip as-path access-list <span class="num">2</span> permit <span class="hl">_64500_</span>
+
+<span class="cm">! Match locally originated routes (empty AS path)</span>
+ip as-path access-list <span class="num">3</span> permit <span class="hl">^$</span>
+
+<span class="cm">! Match routes that have traversed exactly 2 AS hops</span>
+ip as-path access-list <span class="num">4</span> permit <span class="hl">^[0-9]+ [0-9]+$</span>
+
+<span class="cm">! Deny routes from private AS range (64512-65534)</span>
+ip as-path access-list <span class="num">10</span> deny <span class="hl">_6(4[5-9][0-9][0-9]|5[0-4][0-9][0-9]|5[0-3][0-9])_</span>
+ip as-path access-list <span class="num">10</span> permit <span class="hl">.*</span>
+
+<span class="cm">! Apply as filter-list on neighbor</span>
+router bgp <span class="num">65001</span>
+ address-family ipv4 unicast
+  neighbor <span class="num">10.0.0.2</span> filter-list <span class="num">1</span> in</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Route Maps for BGP Filtering</h2>
+            <p class="content-text">Route maps are the most flexible BGP filtering tool. They consist of numbered entries with permit or deny actions. Within a permit entry, match conditions are ANDed (all must match). Unmatched routes fall through to the next entry. Entries with no match conditions match everything.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Route Map with Multiple Match Conditions</div>
+                <pre><span class="cm">! Define match objects</span>
+ip prefix-list ALLOW-BLOCKS seq 10 permit <span class="num">192.168.0.0/16</span> le <span class="num">24</span>
+ip prefix-list ALLOW-BLOCKS seq 20 permit <span class="num">10.0.0.0/8</span> le <span class="num">24</span>
+ip as-path access-list <span class="num">5</span> permit <span class="hl">^64500$</span>
+
+<span class="cm">! Route map: accept matching routes with modified local-pref
+!            deny everything else</span>
+route-map ISP-A-INBOUND permit <span class="num">10</span>
+ match ip address prefix-list ALLOW-BLOCKS
+ match as-path <span class="num">5</span>
+ set local-preference <span class="num">200</span>
+ set community <span class="num">65001:100</span>
+<span class="cm">! Implicit deny at end of route-map</span>
+
+<span class="cm">! Apply inbound to neighbor</span>
+router bgp <span class="num">65001</span>
+ address-family ipv4 unicast
+  neighbor <span class="num">203.0.113.1</span> route-map ISP-A-INBOUND in</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Outbound Filtering: What You Advertise</h2>
+            <p class="content-text">Outbound filtering controls what prefixes you send to a peer. This is critical for two reasons: security (do not leak internal routes) and BGP hygiene (do not become an accidental transit AS). Every multihomed enterprise should apply strict outbound filters to ISP peers.</p>
+
+            <div class="callout callout--danger">
+                <h4>BGP Route Leak Prevention</h4>
+                <p>A BGP route leak occurs when a network advertises prefixes it learned from one provider to another provider, accidentally becoming a transit AS and disrupting internet routing. In 2019, a misconfigured Cloudflare customer's router leaked 70,000 prefixes to Verizon, causing major internet disruptions. Outbound prefix list filtering prevents this.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Outbound filter preventing route leaks</div>
+                <pre"><span class="cm">! Only allow our own prefixes outbound -- nothing from other ASes</span>
+ip prefix-list OUR-PREFIXES seq 10 permit <span class="num">203.0.113.0/24</span>
+ip prefix-list OUR-PREFIXES seq 20 permit <span class="num">10.100.0.0/16</span>
+<span class="cm">! Implicit deny: blocks all other prefixes including transit routes</span>
+
+router bgp <span class="num">65001</span>
+ address-family ipv4 unicast
+  neighbor <span class="num">203.0.113.1</span> prefix-list OUR-PREFIXES out
+  neighbor <span class="num">198.51.100.1</span> prefix-list OUR-PREFIXES out</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Verifying Filters</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Filter Verification Commands</div>
+                <pre><span class="cm">! Test a prefix list against a specific prefix</span>
+<span class="prompt">R1#</span> show ip prefix-list detail NO-DEFAULT
+ip prefix-list NO-DEFAULT:
+   count: 2, range entries: 1, sequences: 5 - 10
+   seq 5 deny 0.0.0.0/0 (hit count: 3, refcount: 1)
+   seq 10 permit 0.0.0.0/0 le 32 (hit count: 142, refcount: 1)
+
+<span class="cm">! Show what was received from a peer (requires soft-reconfig inbound)</span>
+<span class="prompt">R1#</span> show ip bgp neighbors <span class="num">10.0.0.2</span> received-routes
+
+<span class="cm">! Show what is being sent to a peer</span>
+<span class="prompt">R1#</span> show ip bgp neighbors <span class="num">10.0.0.2</span> advertised-routes
+
+<span class="cm">! Test an AS path regex before applying</span>
+<span class="prompt">R1#</span> show ip bgp regexp <span class="hl">^64500$</span></pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Filtering Lab</h3>
+            <p>AS 65200 is a transit provider. Configure the following policies:</p>
+            <ol>
+                <li>Write a prefix list that accepts only prefixes between /8 and /24, blocking both default routes and host routes (/25 through /32).</li>
+                <li>Write an AS path ACL that matches any route that passed through AS 64500 anywhere in its path (not just originated there).</li>
+                <li>Write an AS path ACL that matches routes originated by directly connected peers only (AS path length of exactly 1).</li>
+                <li>Build a route map that: permits routes matching the prefix list from question 1 AND the AS path from question 2, setting local preference to 150 -- and denies all others.</li>
+                <li>Write the outbound filter that prevents AS 65200 from leaking transit routes (routes not originating in 65200) to its upstream providers.</li>
+            </ol>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Prefix lists filter on network + prefix length; use ge/le for length ranges; implicit deny at end</li>
+                <li>AS path access lists use regex: <span class="inline-code">^$</span> matches locally originated, <span class="inline-code">_ASN_</span> matches paths through an AS</li>
+                <li>Route maps are the most powerful tool -- they can both filter and set attributes in permit clauses</li>
+                <li>Inbound filters control what you accept; outbound filters control what you advertise to peers</li>
+                <li>Every multihomed network must apply strict outbound filters to ISPs to prevent route leaks</li>
+                <li>Use <span class="inline-code">show ip bgp regexp [regex]</span> to test AS path patterns before applying them</li>
+                <li>Apply <span class="inline-code">clear ip bgp soft</span> after adding or modifying filters to activate them without resetting sessions</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="bb-bgp-04.html" class="nav-btn">&lt; BGP Configuration</a>
+            <a href="bb-bgp-06.html" class="nav-btn primary">Next: BGP Communities &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'bb-bgp-05';
+            var scrollThreshold = 0.8;
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= scrollThreshold) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.web) progress.web = {};
+                progress.web[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('web', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.web && progress.web[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
