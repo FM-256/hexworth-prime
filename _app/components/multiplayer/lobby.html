@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Lobby | Hexworth Prime</title>
+    <style>
+        /* ── Reset & Base ──────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        a { color: #06b6d4; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ── Lobby Container ───────────────────────────────────────────── */
+        .lobby-container {
+            width: 90%;
+            max-width: 520px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 2rem;
+            position: relative;
+        }
+        .lobby-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .lobby-header h1 {
+            font-size: 1.5rem;
+            color: #e6edf3;
+            margin-bottom: 0.25rem;
+        }
+        .lobby-header p {
+            color: #8b949e;
+            font-size: 0.875rem;
+        }
+
+        /* ── Tab Navigation ────────────────────────────────────────────── */
+        .lobby-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #30363d;
+        }
+        .lobby-tab {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: none;
+            border: none;
+            color: #8b949e;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .lobby-tab:hover { color: #c9d1d9; }
+        .lobby-tab.active {
+            color: #06b6d4;
+            border-bottom-color: #06b6d4;
+        }
+
+        /* ── Panels ────────────────────────────────────────────────────── */
+        .lobby-panel { display: none; }
+        .lobby-panel.active { display: block; }
+
+        /* ── Form Elements ─────────────────────────────────────────────── */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: #8b949e;
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.65rem 0.85rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #e6edf3;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            border-color: #06b6d4;
+        }
+        .form-group select option {
+            background: #0d1117;
+            color: #e6edf3;
+        }
+        .room-code-input {
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem !important;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+        }
+
+        /* ── Buttons ───────────────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary {
+            background: #06b6d4;
+            color: #0d1117;
+        }
+        .btn-primary:hover { background: #22d3ee; }
+        .btn-primary:disabled {
+            background: #30363d;
+            color: #8b949e;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+        }
+        .btn-secondary:hover { background: #30363d; }
+        .btn-danger {
+            background: #da3633;
+            color: #fff;
+        }
+        .btn-danger:hover { background: #f85149; }
+
+        /* ── Waiting Screen ────────────────────────────────────────────── */
+        .waiting-screen {
+            display: none;
+            text-align: center;
+            padding: 2rem 0;
+        }
+        .waiting-screen.active { display: block; }
+
+        .room-code-display {
+            font-family: 'Courier New', monospace;
+            font-size: 2.5rem;
+            letter-spacing: 0.3em;
+            color: #06b6d4;
+            margin: 1rem 0;
+            user-select: all;
+        }
+        .copy-btn {
+            background: none;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover { color: #06b6d4; border-color: #06b6d4; }
+
+        .waiting-dots {
+            font-size: 1.5rem;
+            color: #06b6d4;
+            margin: 1.5rem 0;
+        }
+        .waiting-dots span {
+            animation: dotPulse 1.4s ease-in-out infinite;
+            display: inline-block;
+        }
+        .waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse {
+            0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* ── Player Cards ──────────────────────────────────────────────── */
+        .player-slots {
+            display: flex;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .player-slot {
+            flex: 1;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+        .player-slot.occupied { border-color: #30363d; }
+        .player-slot.ready { border-color: #06b6d4; }
+        .player-slot.empty {
+            border-style: dashed;
+            opacity: 0.5;
+        }
+        .player-label {
+            font-size: 0.75rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .player-name {
+            font-size: 1rem;
+            color: #e6edf3;
+            font-weight: 600;
+        }
+        .player-status {
+            font-size: 0.75rem;
+            margin-top: 0.35rem;
+        }
+        .status-ready { color: #06b6d4; }
+        .status-waiting { color: #8b949e; }
+
+        /* ── Error / Status Messages ───────────────────────────────────── */
+        .lobby-message {
+            padding: 0.65rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .lobby-message.active { display: block; }
+        .lobby-message.error {
+            background: rgba(218, 54, 51, 0.15);
+            border: 1px solid #da3633;
+            color: #f85149;
+        }
+        .lobby-message.info {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid #06b6d4;
+            color: #06b6d4;
+        }
+
+        /* ── Back Link ─────────────────────────────────────────────────── */
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 1.25rem;
+            font-size: 0.85rem;
+            color: #8b949e;
+        }
+        .back-link:hover { color: #06b6d4; }
+
+        /* ── Responsive ────────────────────────────────────────────────── */
+        @media (max-width: 480px) {
+            .lobby-container { padding: 1.25rem; }
+            .player-slots { flex-direction: column; }
+            .room-code-display { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="lobby-container" id="lobbyContainer">
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <div class="lobby-header">
+        <h1>2-Player Lobby</h1>
+        <p>Create or join a game room</p>
+    </div>
+
+    <!-- ── Message Area ────────────────────────────────────────────── -->
+    <div class="lobby-message" id="lobbyMessage"></div>
+
+    <!-- ── Main Lobby (Create/Join tabs) ───────────────────────────── -->
+    <div id="lobbyMain">
+        <div class="lobby-tabs">
+            <button class="lobby-tab active" data-tab="create">Create Room</button>
+            <button class="lobby-tab" data-tab="join">Join Room</button>
+        </div>
+
+        <!-- Create Room Panel -->
+        <div class="lobby-panel active" id="panel-create">
+            <div class="form-group">
+                <label>Game</label>
+                <select id="gameSelect">
+                    <option value="">-- Select a game --</option>
+                    <option value="threatswarm">Threat Swarm</option>
+                    <option value="cryptopong">Crypto Pong</option>
+                    <option value="packetinvaders">Packet Invaders</option>
+                    <option value="buildbreaker">Build Breaker</option>
+                    <option value="cloudhop">Cloud Hop</option>
+                    <option value="threatrunner">Threat Runner</option>
+                    <option value="pipesnake">Pipe Snake</option>
+                    <option value="shellsprint">Shell Sprint</option>
+                    <option value="bitdash">Bit Dash</option>
+                    <option value="dnsrace">DNS Resolver Race</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Display Name</label>
+                <input type="text" id="createName" placeholder="Your callsign" maxlength="24">
+            </div>
+            <div class="form-group">
+                <label>Mode</label>
+                <select id="modeSelect">
+                    <option value="realtime">Real-time (split screen)</option>
+                    <option value="turnBased">Turn-based</option>
+                    <option value="ghost">Ghost Race</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="btnCreate" disabled>Create Room</button>
+        </div>
+
+        <!-- Join Room Panel -->
+        <div class="lobby-panel" id="panel-join">
+            <div class="form-group">
+                <label>Room Code</label>
+                <input type="text" id="roomCodeInput" class="room-code-input"
+                       placeholder="A3X9K2" maxlength="6" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="form-group">
+                <label>Display Name</label>
+                <input type="text" id="joinName" placeholder="Your callsign" maxlength="24">
+            </div>
+            <button class="btn btn-primary" id="btnJoin" disabled>Join Room</button>
+        </div>
+    </div>
+
+    <!-- ── Waiting Screen (after create/join) ─────────────────────── -->
+    <div class="waiting-screen" id="waitingScreen">
+        <p id="waitingLabel" style="color: #8b949e; font-size: 0.9rem;">Waiting for opponent</p>
+
+        <div class="room-code-display" id="displayCode">------</div>
+        <button class="copy-btn" id="btnCopy">Copy Code</button>
+
+        <div class="waiting-dots" id="waitingDots">
+            <span>.</span><span>.</span><span>.</span>
+        </div>
+
+        <div class="player-slots" id="playerSlots">
+            <div class="player-slot empty" id="slot0">
+                <div class="player-label">Player 1</div>
+                <div class="player-name" id="slot0Name">---</div>
+                <div class="player-status status-waiting" id="slot0Status">empty</div>
+            </div>
+            <div class="player-slot empty" id="slot1">
+                <div class="player-label">Player 2</div>
+                <div class="player-name" id="slot1Name">---</div>
+                <div class="player-status status-waiting" id="slot1Status">empty</div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" id="btnReady" style="display:none;">Ready Up</button>
+        <button class="btn btn-danger" id="btnLeave" style="margin-top:0.75rem;">Leave Room</button>
+    </div>
+
+    <a class="back-link" href="/dashboard.html">Back to Dashboard</a>
+</div>
+
+<!-- ── Firebase SDK ────────────────────────────────────────────────── -->
+<script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+<script src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+<script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/__/firebase/init.js"></script>
+
+<!-- ── Multiplayer Scripts ─────────────────────────────────────────── -->
+<script src="/components/FirebaseAuth.js"></script>
+<script src="/components/multiplayer/MultiplayerManager.js"></script>
+
+<script>
+(function () {
+    'use strict';
+
+    // ── DOM refs ──────────────────────────────────────────────────────
+    const lobbyMain     = document.getElementById('lobbyMain');
+    const waitingScreen = document.getElementById('waitingScreen');
+    const lobbyMessage  = document.getElementById('lobbyMessage');
+
+    // Create panel
+    const gameSelect = document.getElementById('gameSelect');
+    const createName = document.getElementById('createName');
+    const modeSelect = document.getElementById('modeSelect');
+    const btnCreate  = document.getElementById('btnCreate');
+
+    // Join panel
+    const roomCodeInput = document.getElementById('roomCodeInput');
+    const joinName      = document.getElementById('joinName');
+    const btnJoin       = document.getElementById('btnJoin');
+
+    // Waiting panel
+    const displayCode   = document.getElementById('displayCode');
+    const btnCopy       = document.getElementById('btnCopy');
+    const waitingDots   = document.getElementById('waitingDots');
+    const waitingLabel  = document.getElementById('waitingLabel');
+    const btnReady      = document.getElementById('btnReady');
+    const btnLeave      = document.getElementById('btnLeave');
+    const slot0         = document.getElementById('slot0');
+    const slot1         = document.getElementById('slot1');
+    const slot0Name     = document.getElementById('slot0Name');
+    const slot1Name     = document.getElementById('slot1Name');
+    const slot0Status   = document.getElementById('slot0Status');
+    const slot1Status   = document.getElementById('slot1Status');
+
+    // ── Tab Switching ─────────────────────────────────────────────────
+    document.querySelectorAll('.lobby-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.lobby-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.lobby-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+            hideMessage();
+        });
+    });
+
+    // ── Enable/Disable Buttons ────────────────────────────────────────
+    gameSelect.addEventListener('change', () => {
+        btnCreate.disabled = !gameSelect.value;
+    });
+    roomCodeInput.addEventListener('input', () => {
+        roomCodeInput.value = roomCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        btnJoin.disabled = roomCodeInput.value.length !== 6;
+    });
+
+    // ── Create Room ───────────────────────────────────────────────────
+    btnCreate.addEventListener('click', async () => {
+        btnCreate.disabled = true;
+        hideMessage();
+
+        try {
+            const result = await MultiplayerManager.createRoom(gameSelect.value, {
+                displayName: createName.value.trim() || 'Player 1',
+                mode: modeSelect.value
+            });
+            showWaiting(result.code);
+            MultiplayerManager.cleanupStaleRooms();
+        } catch (e) {
+            showMessage(e.message, 'error');
+            btnCreate.disabled = false;
+        }
+    });
+
+    // ── Join Room ─────────────────────────────────────────────────────
+    btnJoin.addEventListener('click', async () => {
+        btnJoin.disabled = true;
+        hideMessage();
+
+        try {
+            await MultiplayerManager.joinRoom(roomCodeInput.value.trim(), {
+                displayName: joinName.value.trim() || 'Player 2'
+            });
+            showWaiting(roomCodeInput.value.trim().toUpperCase());
+        } catch (e) {
+            showMessage(e.message, 'error');
+            btnJoin.disabled = false;
+        }
+    });
+
+    // ── Copy Code ─────────────────────────────────────────────────────
+    btnCopy.addEventListener('click', () => {
+        const code = displayCode.textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            btnCopy.textContent = 'Copied!';
+            setTimeout(() => { btnCopy.textContent = 'Copy Code'; }, 1500);
+        });
+    });
+
+    // ── Ready Button ──────────────────────────────────────────────────
+    let isReady = false;
+    btnReady.addEventListener('click', async () => {
+        isReady = !isReady;
+        btnReady.textContent = isReady ? 'Cancel Ready' : 'Ready Up';
+        btnReady.classList.toggle('btn-primary', !isReady);
+        btnReady.classList.toggle('btn-secondary', isReady);
+        await MultiplayerManager.setReady(isReady);
+    });
+
+    // ── Leave Room ────────────────────────────────────────────────────
+    btnLeave.addEventListener('click', async () => {
+        await MultiplayerManager.leaveRoom();
+        showLobby();
+    });
+
+    // ── Room Events ───────────────────────────────────────────────────
+    MultiplayerManager.onRoomEvent(({ event, data }) => {
+        switch (event) {
+            case 'playerJoined':
+                updatePlayerSlots(data.players);
+                btnReady.style.display = 'inline-flex';
+                waitingLabel.textContent = 'Opponent connected!';
+                waitingDots.style.display = 'none';
+                break;
+
+            case 'playerLeft':
+                updatePlayerSlots(data.players);
+                btnReady.style.display = 'none';
+                waitingLabel.textContent = 'Waiting for opponent';
+                waitingDots.style.display = 'block';
+                break;
+
+            case 'readyUpdate':
+                updateReadyState(data.players);
+                break;
+
+            case 'statusChange':
+                if (data.status === 'playing') {
+                    launchGame();
+                }
+                break;
+
+            case 'roomClosed':
+                showMessage('Room was closed.', 'info');
+                showLobby();
+                break;
+        }
+    });
+
+    // ── UI Helpers ────────────────────────────────────────────────────
+
+    function showWaiting(code) {
+        lobbyMain.style.display = 'none';
+        waitingScreen.classList.add('active');
+        displayCode.textContent = code;
+        isReady = false;
+        btnReady.textContent = 'Ready Up';
+        btnReady.classList.add('btn-primary');
+        btnReady.classList.remove('btn-secondary');
+
+        const room = MultiplayerManager.getRoom();
+        if (room && room.playerIndex === 1) {
+            // Joiner — both players present
+            btnReady.style.display = 'inline-flex';
+            waitingDots.style.display = 'none';
+            waitingLabel.textContent = 'Connected!';
+        }
+    }
+
+    function showLobby() {
+        lobbyMain.style.display = 'block';
+        waitingScreen.classList.remove('active');
+        btnCreate.disabled = !gameSelect.value;
+        btnJoin.disabled = roomCodeInput.value.length !== 6;
+        waitingDots.style.display = 'block';
+        waitingLabel.textContent = 'Waiting for opponent';
+        btnReady.style.display = 'none';
+    }
+
+    function updatePlayerSlots(players) {
+        // Slot 0
+        if (players[0]) {
+            slot0.classList.remove('empty');
+            slot0.classList.add('occupied');
+            slot0Name.textContent = players[0].displayName;
+            slot0Status.textContent = players[0].ready ? 'READY' : 'waiting';
+            slot0Status.className = 'player-status ' + (players[0].ready ? 'status-ready' : 'status-waiting');
+        } else {
+            slot0.className = 'player-slot empty';
+            slot0Name.textContent = '---';
+            slot0Status.textContent = 'empty';
+            slot0Status.className = 'player-status status-waiting';
+        }
+
+        // Slot 1
+        if (players[1]) {
+            slot1.classList.remove('empty');
+            slot1.classList.add('occupied');
+            slot1Name.textContent = players[1].displayName;
+            slot1Status.textContent = players[1].ready ? 'READY' : 'waiting';
+            slot1Status.className = 'player-status ' + (players[1].ready ? 'status-ready' : 'status-waiting');
+        } else {
+            slot1.className = 'player-slot empty';
+            slot1Name.textContent = '---';
+            slot1Status.textContent = 'empty';
+            slot1Status.className = 'player-status status-waiting';
+        }
+    }
+
+    function updateReadyState(players) {
+        players.forEach((p, i) => {
+            const slot = document.getElementById('slot' + i);
+            const status = document.getElementById('slot' + i + 'Status');
+            if (p.ready) {
+                slot.classList.add('ready');
+                status.textContent = 'READY';
+                status.className = 'player-status status-ready';
+            } else {
+                slot.classList.remove('ready');
+                status.textContent = 'waiting';
+                status.className = 'player-status status-waiting';
+            }
+        });
+    }
+
+    function launchGame() {
+        const room = MultiplayerManager.getRoom();
+        if (!room) return;
+
+        // Redirect to split-screen with room context
+        const params = new URLSearchParams({
+            roomId: room.id,
+            gameId: room.gameId,
+            code: room.code,
+            player: room.playerIndex
+        });
+        window.location.href = '/components/multiplayer/split-screen.html?' + params.toString();
+    }
+
+    function showMessage(text, type) {
+        lobbyMessage.textContent = text;
+        lobbyMessage.className = 'lobby-message active ' + type;
+    }
+
+    function hideMessage() {
+        lobbyMessage.className = 'lobby-message';
+    }
+
+    // ── Auto-fill name from profile ───────────────────────────────────
+    function prefillName() {
+        try {
+            const callsign = localStorage.getItem('hexworth_callsign') || '';
+            if (callsign) {
+                createName.value = callsign;
+                joinName.value = callsign;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    prefillName();
+
+})();
+</script>
+
+</body>
+</html>

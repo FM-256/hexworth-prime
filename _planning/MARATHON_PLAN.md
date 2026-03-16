@@ -203,21 +203,21 @@
 ## Wave 16: Messaging System (serial chain)
 *Sprints: F-23 → F-23A/B/C/D/E/F — largest feature build*
 
-- [ ] **F-23** — Epic: design decisions (moderation policy, privacy, instructor visibility)
-- [ ] **F-23A** — Firestore data model & security rules (← F-23)
-- [ ] **F-23B** — Cloud Functions: send, purge, rate-limit (← F-23A)
-- [ ] **F-23C** — Client service: MessagingManager.js (← F-23B)
-- [ ] **F-23D** — Inbox & conversation UI (← F-23C)
-- [ ] **F-23E** — Dashboard integration: badge, preview panel (← F-23D)
-- [ ] **F-23F** — Moderation, reporting & handler controls (← F-23A)
+- [x] **F-23** — Epic: design decisions (moderation policy, privacy, instructor visibility)
+- [x] **F-23A** — Firestore data model & security rules (← F-23)
+- [x] **F-23B** — Cloud Functions: send, purge, rate-limit (← F-23A)
+- [x] **F-23C** — Client service: MessagingManager.js (← F-23B)
+- [x] **F-23D** — Inbox & conversation UI (← F-23C)
+- [x] **F-23E** — Dashboard integration: badge, preview panel (← F-23D)
+- [x] **F-23F** — Moderation, reporting & handler controls (← F-23A)
 
 ---
 ## Wave 17: Social & Multiplayer (3 parallel agents)
 *Sprints: F-21, F-25, F-26*
 
-- [ ] **F-21** — Public user profiles (view by UID, privacy controls, Firestore public doc)
-- [ ] **F-25** — 2-player mode for arcade games (split-screen, turn-based, ghost mode)
-- [ ] **F-26** — Hive multiplayer exploration (co-op, competitive, asymmetric Red Queen)
+- [x] **F-21** — Public user profiles (view by UID, privacy controls, Firestore public doc)
+- [x] **F-25** — 2-player mode for arcade games (split-screen, turn-based, ghost mode)
+- [x] **F-26** — Hive multiplayer exploration (co-op, competitive, asymmetric Red Queen)
 
 ---
 ## Wave 18: Content & Branding (4 parallel agents)

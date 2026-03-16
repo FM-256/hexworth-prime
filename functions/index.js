@@ -2047,3 +2047,232 @@ exports.adminGetStats = onCall(cfOptions, async (request) => {
         flagAttemptsToday
     };
 });
+
+// ─── F-23: Messaging System ─────────────────────────────────────
+
+const MESSAGING_RATE_LIMIT = 10; // max messages per minute
+const MESSAGING_RATE_WINDOW = 60 * 1000; // 60 seconds in ms
+const MAX_MESSAGE_LENGTH = 500;
+const MESSAGE_RETENTION_DAYS = 90;
+
+/**
+ * sendMessage — Callable: send a message to another user.
+ * Validates sender/recipient are in the same class, enforces rate limit,
+ * creates message doc and updates conversation doc.
+ */
+exports.sendMessage = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { toUid, text, classId } = request.data || {};
+    const fromUid = request.auth.uid;
+
+    // ── Input validation ──
+    if (!toUid || typeof toUid !== 'string') {
+        throw new HttpsError('invalid-argument', 'Invalid recipient.');
+    }
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        throw new HttpsError('invalid-argument', 'Message cannot be empty.');
+    }
+    if (text.length > MAX_MESSAGE_LENGTH) {
+        throw new HttpsError('invalid-argument', `Message exceeds ${MAX_MESSAGE_LENGTH} character limit.`);
+    }
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Class context required.');
+    }
+    if (fromUid === toUid) {
+        throw new HttpsError('invalid-argument', 'Cannot message yourself.');
+    }
+
+    // ── Check sender is not blocked ──
+    const blockSnap = await db.collection('messaging_blocks')
+        .where('blockedUid', '==', fromUid)
+        .where('classId', '==', classId)
+        .limit(1)
+        .get();
+    if (!blockSnap.empty) {
+        throw new HttpsError('permission-denied', 'You are blocked from messaging in this class.');
+    }
+
+    // ── Verify class exists and both users are members ──
+    const classDoc = await db.doc(`classes/${classId}`).get();
+    if (!classDoc.exists) {
+        throw new HttpsError('not-found', 'Class not found.');
+    }
+
+    const classData = classDoc.data();
+    const handlerId = classData.handlerId;
+
+    // Check membership: both users must be members OR the handler
+    const [fromMember, toMember] = await Promise.all([
+        fromUid === handlerId ? Promise.resolve({ exists: true }) :
+            db.doc(`classes/${classId}/members/${fromUid}`).get(),
+        toUid === handlerId ? Promise.resolve({ exists: true }) :
+            db.doc(`classes/${classId}/members/${toUid}`).get()
+    ]);
+
+    if (!fromMember.exists) {
+        throw new HttpsError('permission-denied', 'You are not a member of this class.');
+    }
+    if (!toMember.exists) {
+        throw new HttpsError('permission-denied', 'Recipient is not in this class.');
+    }
+
+    // ── Rate limiting: 10 messages per minute ──
+    const oneMinuteAgo = new Date(Date.now() - MESSAGING_RATE_WINDOW);
+    const recentMessages = await db.collection('messages')
+        .where('from', '==', fromUid)
+        .where('timestamp', '>=', oneMinuteAgo)
+        .count()
+        .get();
+
+    if (recentMessages.data().count >= MESSAGING_RATE_LIMIT) {
+        throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Max 10 messages per minute.');
+    }
+
+    // ── Build conversation ID (deterministic) ──
+    const sortedUids = [fromUid, toUid].sort();
+    const conversationId = `${sortedUids[0]}_${sortedUids[1]}_${classId}`;
+    const trimmedText = text.trim();
+
+    // ── Create message document ──
+    const messageRef = await db.collection('messages').add({
+        from: fromUid,
+        to: toUid,
+        text: trimmedText,
+        timestamp: FieldValue.serverTimestamp(),
+        read: false,
+        classId: classId,
+        deleted: false,
+        reportedBy: [],
+        conversationId: conversationId
+    });
+
+    // ── Update or create conversation document ──
+    const preview = trimmedText.length > 80 ? trimmedText.substring(0, 80) + '...' : trimmedText;
+    await db.doc(`conversations/${conversationId}`).set({
+        participants: sortedUids,
+        lastMessage: preview,
+        lastTimestamp: FieldValue.serverTimestamp(),
+        classId: classId
+    }, { merge: true });
+
+    return { success: true, messageId: messageRef.id, conversationId };
+});
+
+/**
+ * reportMessage — Callable: report a message.
+ * Adds reporter UID to reportedBy array. Flags if 3+ reports.
+ */
+exports.reportMessage = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { messageId } = request.data || {};
+    const reporterUid = request.auth.uid;
+
+    if (!messageId || typeof messageId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Invalid message ID.');
+    }
+
+    const messageRef = db.doc(`messages/${messageId}`);
+    const messageDoc = await messageRef.get();
+
+    if (!messageDoc.exists) {
+        throw new HttpsError('not-found', 'Message not found.');
+    }
+
+    const messageData = messageDoc.data();
+
+    // Only participants can report
+    if (messageData.from !== reporterUid && messageData.to !== reporterUid) {
+        throw new HttpsError('permission-denied', 'You can only report messages in your conversations.');
+    }
+
+    // Cannot report own messages
+    if (messageData.from === reporterUid) {
+        throw new HttpsError('invalid-argument', 'Cannot report your own message.');
+    }
+
+    // Check if already reported by this user
+    if (messageData.reportedBy && messageData.reportedBy.includes(reporterUid)) {
+        return { success: true, alreadyReported: true };
+    }
+
+    // Add reporter to array
+    await messageRef.update({
+        reportedBy: FieldValue.arrayUnion(reporterUid)
+    });
+
+    // Check if threshold reached (3+ reports = flagged)
+    const reportCount = (messageData.reportedBy ? messageData.reportedBy.length : 0) + 1;
+    const flagged = reportCount >= 3;
+
+    return { success: true, reportCount, flagged };
+});
+
+/**
+ * purgeOldMessages — Scheduled: runs daily at 02:00 UTC.
+ * Deletes messages older than 90 days and soft-deleted messages.
+ * Cleans up empty conversations.
+ */
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+
+exports.purgeOldMessages = onSchedule({
+    schedule: 'every day 02:00',
+    timeZone: 'UTC',
+    region: 'us-central1'
+}, async (event) => {
+    const cutoffDate = new Date(Date.now() - (MESSAGE_RETENTION_DAYS * 24 * 60 * 60 * 1000));
+    const batch = db.batch();
+    let deleteCount = 0;
+    const affectedConversations = new Set();
+
+    // Delete messages older than retention period
+    const oldMessages = await db.collection('messages')
+        .where('timestamp', '<', cutoffDate)
+        .limit(500)
+        .get();
+
+    oldMessages.forEach((doc) => {
+        batch.delete(doc.ref);
+        deleteCount++;
+        if (doc.data().conversationId) {
+            affectedConversations.add(doc.data().conversationId);
+        }
+    });
+
+    // Delete soft-deleted messages immediately
+    const deletedMessages = await db.collection('messages')
+        .where('deleted', '==', true)
+        .limit(500)
+        .get();
+
+    deletedMessages.forEach((doc) => {
+        batch.delete(doc.ref);
+        deleteCount++;
+        if (doc.data().conversationId) {
+            affectedConversations.add(doc.data().conversationId);
+        }
+    });
+
+    if (deleteCount > 0) {
+        await batch.commit();
+    }
+
+    // Clean up conversations that have no remaining messages
+    for (const convId of affectedConversations) {
+        const remaining = await db.collection('messages')
+            .where('conversationId', '==', convId)
+            .limit(1)
+            .get();
+
+        if (remaining.empty) {
+            await db.doc(`conversations/${convId}`).delete();
+        }
+    }
+
+    console.log(`[purgeOldMessages] Deleted ${deleteCount} messages, checked ${affectedConversations.size} conversations`);
+});

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2-Player Mode | Hexworth Prime</title>
+    <style>
+        /* ── Reset & Base ──────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+
+        /* ── Layout ────────────────────────────────────────────────────── */
+        .split-layout {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+        }
+
+        /* ── Scoreboard Header ─────────────────────────────────────────── */
+        .scoreboard {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 0.5rem 1rem;
+            height: 56px;
+            z-index: 100;
+        }
+        .score-player {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+        .score-player:last-child {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+        .score-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .p1-color { background: #06b6d4; }
+        .p2-color { background: #f97316; }
+        .score-name {
+            font-size: 0.85rem;
+            color: #8b949e;
+        }
+        .score-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: #e6edf3;
+        }
+        .score-center {
+            text-align: center;
+            flex-shrink: 0;
+            padding: 0 1rem;
+        }
+        .score-timer {
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: #06b6d4;
+        }
+        .score-status {
+            font-size: 0.7rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .score-room-code {
+            font-size: 0.65rem;
+            color: #484f58;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* ── Game Panels (side by side) ────────────────────────────────── */
+        .game-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            background: #30363d;
+            height: 100%;
+            overflow: hidden;
+        }
+        .game-panel {
+            background: #0d1117;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.35rem 0.75rem;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+        .panel-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .panel-p1 .panel-label { color: #06b6d4; }
+        .panel-p2 .panel-label { color: #f97316; }
+        .panel-badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 3px;
+            background: #21262d;
+            color: #8b949e;
+        }
+        .panel-badge.you {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+        }
+
+        .game-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .game-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* ── Spectator Banner ──────────────────────────────────────────── */
+        .spectator-banner {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            background: rgba(249, 115, 22, 0.15);
+            border-bottom: 1px solid #f97316;
+            padding: 0.35rem 1rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #f97316;
+            z-index: 50;
+        }
+        .spectator-banner.active { display: block; }
+
+        /* ── Overlay (game end, pause, etc.) ───────────────────────────── */
+        .game-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(13, 17, 23, 0.9);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .game-overlay.active {
+            display: flex;
+        }
+        .overlay-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #e6edf3;
+        }
+        .overlay-subtitle {
+            font-size: 0.95rem;
+            color: #8b949e;
+        }
+        .overlay-btn {
+            padding: 0.6rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .overlay-btn-primary {
+            background: #06b6d4;
+            color: #0d1117;
+        }
+        .overlay-btn-primary:hover { background: #22d3ee; }
+        .overlay-btn-secondary {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+        }
+        .overlay-btn-secondary:hover { background: #30363d; }
+
+        /* ── Connection Status Dot ─────────────────────────────────────── */
+        .conn-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .conn-dot.connected { background: #3fb950; }
+        .conn-dot.disconnected { background: #da3633; }
+
+        /* ── Mobile: Stack Vertically ──────────────────────────────────── */
+        @media (max-width: 768px) {
+            .game-panels {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr;
+            }
+            .scoreboard { padding: 0.35rem 0.5rem; height: 48px; }
+            .score-value { font-size: 1rem; }
+        }
+
+        /* ── Compact mode for narrow screens ───────────────────────────── */
+        @media (max-width: 480px) {
+            .panel-header { padding: 0.2rem 0.5rem; }
+            .score-name { font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="split-layout">
+
+    <!-- ── Scoreboard ──────────────────────────────────────────────── -->
+    <div class="scoreboard">
+        <div class="score-player">
+            <span class="score-indicator p1-color"></span>
+            <div>
+                <div class="score-name" id="p1Name">Player 1</div>
+                <div class="score-value" id="p1Score">0</div>
+            </div>
+        </div>
+        <div class="score-center">
+            <div class="score-timer" id="gameTimer">00:00</div>
+            <div class="score-status" id="gameStatus">WAITING</div>
+            <div class="score-room-code" id="roomCodeDisplay"></div>
+        </div>
+        <div class="score-player">
+            <span class="score-indicator p2-color"></span>
+            <div>
+                <div class="score-name" id="p2Name">Player 2</div>
+                <div class="score-value" id="p2Score">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Spectator Banner ────────────────────────────────────────── -->
+    <div class="spectator-banner" id="spectatorBanner">
+        SPECTATOR MODE -- Watching live
+    </div>
+
+    <!-- ── Game Panels ─────────────────────────────────────────────── -->
+    <div class="game-panels">
+        <div class="game-panel panel-p1" id="panelP1">
+            <div class="panel-header">
+                <span class="panel-label">Player 1</span>
+                <span class="panel-badge" id="badgeP1">OPP</span>
+                <span class="conn-dot disconnected" id="connP1"></span>
+            </div>
+            <div class="game-container" id="gameContainerP1">
+                <!-- Game content rendered here (iframe or direct DOM) -->
+            </div>
+        </div>
+        <div class="game-panel panel-p2" id="panelP2">
+            <div class="panel-header">
+                <span class="panel-label">Player 2</span>
+                <span class="panel-badge" id="badgeP2">OPP</span>
+                <span class="conn-dot disconnected" id="connP2"></span>
+            </div>
+            <div class="game-container" id="gameContainerP2">
+                <!-- Game content rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Game Over Overlay ───────────────────────────────────────── -->
+    <div class="game-overlay" id="gameOverlay">
+        <div class="overlay-title" id="overlayTitle">Game Over</div>
+        <div class="overlay-subtitle" id="overlaySubtitle">Final scores displayed above</div>
+        <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+            <button class="overlay-btn overlay-btn-primary" id="btnRematch">Rematch</button>
+            <button class="overlay-btn overlay-btn-secondary" id="btnBackLobby">Back to Lobby</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Firebase SDK ────────────────────────────────────────────────── -->
+<script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+<script src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+<script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/__/firebase/init.js"></script>
+
+<!-- ── Components ──────────────────────────────────────────────────── -->
+<script src="/components/FirebaseAuth.js"></script>
+<script src="/components/multiplayer/MultiplayerManager.js"></script>
+
+<script>
+(function () {
+    'use strict';
+
+    // ── Parse URL params ──────────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const roomId    = params.get('roomId');
+    const gameId    = params.get('gameId');
+    const roomCode  = params.get('code');
+    const playerIdx = parseInt(params.get('player'), 10) || 0;
+    const spectator = params.get('spectator') === '1';
+
+    // ── DOM refs ──────────────────────────────────────────────────────
+    const p1Name        = document.getElementById('p1Name');
+    const p2Name        = document.getElementById('p2Name');
+    const p1Score       = document.getElementById('p1Score');
+    const p2Score       = document.getElementById('p2Score');
+    const gameTimer     = document.getElementById('gameTimer');
+    const gameStatus    = document.getElementById('gameStatus');
+    const roomCodeEl    = document.getElementById('roomCodeDisplay');
+    const connP1        = document.getElementById('connP1');
+    const connP2        = document.getElementById('connP2');
+    const badgeP1       = document.getElementById('badgeP1');
+    const badgeP2       = document.getElementById('badgeP2');
+    const gameOverlay   = document.getElementById('gameOverlay');
+    const overlayTitle  = document.getElementById('overlayTitle');
+    const overlaySubtitle = document.getElementById('overlaySubtitle');
+    const btnRematch    = document.getElementById('btnRematch');
+    const btnBackLobby  = document.getElementById('btnBackLobby');
+    const spectatorBanner = document.getElementById('spectatorBanner');
+    const containerP1   = document.getElementById('gameContainerP1');
+    const containerP2   = document.getElementById('gameContainerP2');
+
+    // ── Init Display ──────────────────────────────────────────────────
+    roomCodeEl.textContent = roomCode || '';
+    if (spectator) {
+        spectatorBanner.classList.add('active');
+    }
+
+    // Mark which panel is "you"
+    if (!spectator) {
+        const myBadge = playerIdx === 0 ? badgeP1 : badgeP2;
+        myBadge.textContent = 'YOU';
+        myBadge.classList.add('you');
+    }
+
+    // ── Game Timer ────────────────────────────────────────────────────
+    let timerStart = 0;
+    let timerInterval = null;
+
+    function startTimer() {
+        timerStart = Date.now();
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+            const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const s = String(elapsed % 60).padStart(2, '0');
+            gameTimer.textContent = m + ':' + s;
+        }, 250);
+    }
+
+    function stopTimer() {
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    }
+
+    // ── Room Events ───────────────────────────────────────────────────
+    MultiplayerManager.onRoomEvent(({ event, data }) => {
+        switch (event) {
+            case 'statusChange':
+                gameStatus.textContent = (data.status || '').toUpperCase();
+                if (data.status === 'playing') {
+                    startTimer();
+                    connP1.classList.add('connected');
+                    connP1.classList.remove('disconnected');
+                    connP2.classList.add('connected');
+                    connP2.classList.remove('disconnected');
+                }
+                if (data.status === 'finished') {
+                    stopTimer();
+                }
+                break;
+
+            case 'gameStart':
+                if (data.players) {
+                    p1Name.textContent = data.players[0]?.displayName || 'Player 1';
+                    p2Name.textContent = data.players[1]?.displayName || 'Player 2';
+                }
+                break;
+
+            case 'gameEnd':
+                stopTimer();
+                showGameOver(data.gameState);
+                break;
+
+            case 'playerLeft':
+                stopTimer();
+                showGameOver(null, 'Opponent disconnected');
+                break;
+
+            case 'roomClosed':
+                stopTimer();
+                showGameOver(null, 'Room closed');
+                break;
+        }
+    });
+
+    // ── Opponent State Updates ─────────────────────────────────────────
+    MultiplayerManager.onGameState((state) => {
+        if (!state) return;
+
+        // Update opponent score
+        if (typeof state.score !== 'undefined') {
+            const el = playerIdx === 0 ? p2Score : p1Score;
+            el.textContent = state.score;
+        }
+
+        // Render opponent's game state in their panel
+        const opponentContainer = playerIdx === 0 ? containerP2 : containerP1;
+        if (state.renderHTML) {
+            opponentContainer.innerHTML = state.renderHTML;
+        }
+    });
+
+    // ── Game Over ─────────────────────────────────────────────────────
+
+    function showGameOver(gameState, message) {
+        gameOverlay.classList.add('active');
+
+        if (message) {
+            overlayTitle.textContent = 'Game Over';
+            overlaySubtitle.textContent = message;
+        } else if (gameState) {
+            const s1 = parseInt(p1Score.textContent, 10) || 0;
+            const s2 = parseInt(p2Score.textContent, 10) || 0;
+            if (s1 === s2) {
+                overlayTitle.textContent = 'Draw!';
+            } else {
+                const winnerName = s1 > s2 ? p1Name.textContent : p2Name.textContent;
+                overlayTitle.textContent = winnerName + ' Wins!';
+            }
+            overlaySubtitle.textContent = s1 + ' - ' + s2;
+        }
+    }
+
+    btnRematch.addEventListener('click', () => {
+        gameOverlay.classList.remove('active');
+        p1Score.textContent = '0';
+        p2Score.textContent = '0';
+        gameTimer.textContent = '00:00';
+        gameStatus.textContent = 'READY';
+        // Signal rematch via shared state
+        MultiplayerManager.sendSharedState({ rematch: true, timestamp: Date.now() });
+    });
+
+    btnBackLobby.addEventListener('click', () => {
+        MultiplayerManager.leaveRoom();
+        window.location.href = '/components/multiplayer/lobby.html';
+    });
+
+    // ── Cleanup on unload ─────────────────────────────────────────────
+    window.addEventListener('beforeunload', () => {
+        MultiplayerManager.leaveRoom();
+    });
+
+    /**
+     * Public API for games to report their score.
+     * Games embedded in the containers call this to sync scores.
+     */
+    window.SplitScreen = {
+        reportScore: function (score) {
+            const el = playerIdx === 0 ? p1Score : p2Score;
+            el.textContent = score;
+            MultiplayerManager.sendGameState({ score: score, timestamp: Date.now() });
+        },
+
+        reportGameEnd: function (finalScore) {
+            window.SplitScreen.reportScore(finalScore);
+            MultiplayerManager.setStatus(MultiplayerManager.STATUS.FINISHED);
+        },
+
+        getPlayerIndex: function () { return playerIdx; },
+        getGameId: function () { return gameId; },
+        getRoomCode: function () { return roomCode; },
+        isSpectator: function () { return spectator; },
+
+        /**
+         * Send arbitrary state to opponent's panel for rendering.
+         * @param {string} html - HTML string to render in opponent's view
+         * @param {object} [extra] - Additional state data
+         */
+        sendRender: function (html, extra) {
+            MultiplayerManager.sendGameState({
+                renderHTML: html,
+                score: parseInt((playerIdx === 0 ? p1Score : p2Score).textContent, 10) || 0,
+                ...(extra || {}),
+                timestamp: Date.now()
+            });
+        }
+    };
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <title>Hive Red Queen | Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-beehive.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0d1117;
+            font-family: 'Courier New', monospace;
+            color: #c9d1d9;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .header {
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(248,113,113,0.2);
+            background: rgba(13,17,23,0.97);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-icon { width: 28px; height: 28px; }
+        .header-icon img { width: 100%; height: 100%; }
+        .header h1 { font-size: 1.1rem; color: #f87171; letter-spacing: 1px; }
+        .header-right { display: flex; align-items: center; gap: 14px; }
+        .timer {
+            font-size: 1.1rem;
+            color: #f87171;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .role-badge {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+        .role-badge.queen {
+            background: rgba(248,113,113,0.2);
+            color: #f87171;
+            border: 1px solid rgba(248,113,113,0.3);
+        }
+        .role-badge.challenger {
+            background: rgba(6,182,212,0.15);
+            color: #06b6d4;
+            border: 1px solid rgba(6,182,212,0.25);
+        }
+        .btn-sm {
+            padding: 6px 14px;
+            border: 1px solid rgba(248,113,113,0.3);
+            background: rgba(248,113,113,0.08);
+            color: #f87171;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .btn-sm:hover { background: rgba(248,113,113,0.15); }
+
+        /* ── Main Layout ── */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* ── Workspace ── */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(248,113,113,0.08);
+            background: #161b22;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .status-group { display: flex; gap: 20px; }
+        .status-item { text-align: center; }
+        .status-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .status-value.red { color: #f87171; }
+        .status-value.cyan { color: #06b6d4; }
+        .status-value.green { color: #4ade80; }
+        .status-label {
+            font-size: 0.6rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Red Queen Controls (only visible to queen) ── */
+        .queen-controls {
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(248,113,113,0.1);
+            background: rgba(248,113,113,0.03);
+            display: none;
+        }
+        .queen-controls.visible { display: block; }
+        .queen-controls-title {
+            font-size: 0.7rem;
+            color: #f87171;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .trap-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .trap-btn {
+            padding: 8px 14px;
+            background: rgba(248,113,113,0.08);
+            border: 1px solid rgba(248,113,113,0.2);
+            border-radius: 6px;
+            color: #f87171;
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .trap-btn:hover {
+            background: rgba(248,113,113,0.15);
+            border-color: rgba(248,113,113,0.4);
+        }
+        .trap-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .trap-btn .trap-cooldown {
+            font-size: 0.6rem;
+            color: #8b949e;
+            display: block;
+        }
+
+        /* ── Terminal ── */
+        .terminal-area {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .terminal-label {
+            padding: 8px 20px;
+            font-size: 0.7rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(248,113,113,0.06);
+            background: rgba(22,27,34,0.5);
+        }
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 20px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            background: #010409;
+            color: #4ade80;
+        }
+        .terminal-output .line { margin-bottom: 2px; }
+        .terminal-output .line-system { color: #8b949e; font-style: italic; }
+        .terminal-output .line-queen { color: #f87171; font-weight: 700; }
+        .terminal-output .line-trap { color: #fbbf24; }
+        .terminal-output .line-solve { color: #4ade80; font-weight: 700; }
+        .terminal-output .line-danger {
+            color: #f87171;
+            background: rgba(248,113,113,0.06);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .terminal-input-row {
+            display: flex;
+            border-top: 1px solid rgba(248,113,113,0.1);
+            background: #010409;
+        }
+        .terminal-prompt {
+            padding: 10px 8px 10px 20px;
+            color: #f87171;
+            font-size: 0.8rem;
+        }
+        .terminal-prompt.challenger { color: #06b6d4; }
+        .terminal-input {
+            flex: 1;
+            padding: 10px 8px;
+            background: transparent;
+            border: none;
+            color: #4ade80;
+            font-family: inherit;
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        /* ── Right Panel: Players + Event Log ── */
+        .right-panel {
+            border-left: 1px solid rgba(248,113,113,0.1);
+            background: #0d1117;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-section-title {
+            padding: 12px 14px;
+            font-size: 0.7rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(248,113,113,0.08);
+        }
+
+        /* Challenger Cards */
+        .challenger-list {
+            padding: 8px;
+            overflow-y: auto;
+            max-height: 40%;
+        }
+        .challenger-card {
+            padding: 10px;
+            background: #161b22;
+            border: 1px solid rgba(6,182,212,0.08);
+            border-radius: 8px;
+            margin-bottom: 6px;
+        }
+        .challenger-card.eliminated {
+            opacity: 0.4;
+            border-color: rgba(248,113,113,0.15);
+        }
+        .challenger-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .challenger-name {
+            font-size: 0.8rem;
+            color: #e6edf3;
+        }
+        .challenger-status {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .challenger-status.alive { color: #4ade80; }
+        .challenger-status.eliminated { color: #f87171; }
+        .challenger-progress-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(6,182,212,0.08);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .challenger-progress-fill {
+            height: 100%;
+            background: #06b6d4;
+            border-radius: 2px;
+            transition: width 0.5s;
+        }
+        .challenger-score {
+            font-size: 0.7rem;
+            color: #8b949e;
+            margin-top: 4px;
+        }
+
+        /* Event Log */
+        .event-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px;
+            border-top: 1px solid rgba(248,113,113,0.08);
+        }
+        .event {
+            padding: 6px 0;
+            font-size: 0.75rem;
+            border-bottom: 1px solid rgba(248,113,113,0.04);
+        }
+        .event-time {
+            color: #6e7681;
+            margin-right: 6px;
+        }
+        .event-text { color: #c9d1d9; }
+        .event-text.trap { color: #f87171; }
+        .event-text.solve { color: #4ade80; }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            .right-panel {
+                border-left: none;
+                border-top: 1px solid rgba(248,113,113,0.1);
+                max-height: 250px;
+            }
+            .trap-grid { overflow-x: auto; flex-wrap: nowrap; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-icon">
+                <img src="/assets/images/icons/icon-crown.webp" alt="">
+            </div>
+            <h1>HIVE // RED QUEEN</h1>
+        </div>
+        <div class="header-right">
+            <span id="role-badge" class="role-badge challenger">Challenger</span>
+            <span id="timer" class="timer">--:--</span>
+            <button id="btn-leave" class="btn-sm">Leave</button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Workspace -->
+        <div class="workspace">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="status-group">
+                    <div class="status-item">
+                        <div id="challengers-alive" class="status-value cyan">0</div>
+                        <div class="status-label">Alive</div>
+                    </div>
+                    <div class="status-item">
+                        <div id="challengers-eliminated" class="status-value red">0</div>
+                        <div class="status-label">Eliminated</div>
+                    </div>
+                    <div class="status-item">
+                        <div id="traps-deployed" class="status-value red">0</div>
+                        <div class="status-label">Traps Set</div>
+                    </div>
+                    <div class="status-item">
+                        <div id="challenges-solved" class="status-value green">0</div>
+                        <div class="status-label">Solved</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queen Controls -->
+            <div id="queen-controls" class="queen-controls">
+                <div class="queen-controls-title">Red Queen Arsenal</div>
+                <div class="trap-grid">
+                    <button class="trap-btn" data-trap="firewall" data-cooldown="30">
+                        Firewall Block
+                        <span class="trap-cooldown">30s cooldown</span>
+                    </button>
+                    <button class="trap-btn" data-trap="obfuscate" data-cooldown="45">
+                        Obfuscate Output
+                        <span class="trap-cooldown">45s cooldown</span>
+                    </button>
+                    <button class="trap-btn" data-trap="decoy" data-cooldown="60">
+                        Deploy Decoy
+                        <span class="trap-cooldown">60s cooldown</span>
+                    </button>
+                    <button class="trap-btn" data-trap="lockout" data-cooldown="90">
+                        Temp Lockout
+                        <span class="trap-cooldown">90s cooldown</span>
+                    </button>
+                    <button class="trap-btn" data-trap="scramble" data-cooldown="120">
+                        Scramble Hints
+                        <span class="trap-cooldown">120s cooldown</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Terminal -->
+            <div class="terminal-area">
+                <div class="terminal-label" id="terminal-label">Terminal</div>
+                <div id="terminal-output" class="terminal-output">
+                    <div class="line line-system">Red Queen session initializing...</div>
+                </div>
+                <div class="terminal-input-row">
+                    <span id="terminal-prompt" class="terminal-prompt challenger">$</span>
+                    <input type="text" id="terminal-input" class="terminal-input"
+                           placeholder="Enter commands..." autocomplete="off">
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <div class="panel-section-title">Challengers</div>
+            <div id="challenger-list" class="challenger-list"></div>
+            <div class="panel-section-title">Event Log</div>
+            <div id="event-log" class="event-log"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../FirebaseAuth.js"></script>
+    <script src="HiveManager.js"></script>
+    <script>
+    (async function() {
+        'use strict';
+
+        const hiveId = new URLSearchParams(window.location.search).get('hive');
+        if (!hiveId) { window.location.href = 'hive-lobby.html'; return; }
+
+        await FirebaseAuth.init();
+        await FirebaseAuth.waitForAuth();
+        if (!FirebaseAuth.isSignedIn()) { window.location.href = 'hive-lobby.html'; return; }
+
+        await HiveManager.init();
+        if (!HiveManager.isInHive()) {
+            try { await HiveManager.joinHive(hiveId); }
+            catch (e) { alert('Could not join: ' + e.message); window.location.href = 'hive-lobby.html'; return; }
+        }
+
+        const myUid = FirebaseAuth.getUser().uid;
+        let isQueen = false;
+        let trapCooldowns = {};
+        let trapCount = 0;
+        let solveCount = 0;
+        let aliveCount = 0;
+        let eliminatedCount = 0;
+
+        // Determine role
+        const hiveData = await HiveManager.getHiveData();
+        if (hiveData && hiveData.creatorUid === myUid) {
+            isQueen = true;
+        }
+
+        // Check participant role
+        const participants = await HiveManager.getParticipants();
+        const me = participants.find(p => p.uid === myUid);
+        if (me && me.role === 'redqueen') isQueen = true;
+
+        // Configure UI based on role
+        const roleBadge = document.getElementById('role-badge');
+        const queenControls = document.getElementById('queen-controls');
+        const termPrompt = document.getElementById('terminal-prompt');
+        const termLabel = document.getElementById('terminal-label');
+
+        if (isQueen) {
+            roleBadge.className = 'role-badge queen';
+            roleBadge.textContent = 'Red Queen';
+            queenControls.classList.add('visible');
+            termPrompt.className = 'terminal-prompt';
+            termPrompt.textContent = 'queen>';
+            termLabel.textContent = 'Red Queen Command Center';
+        } else {
+            termLabel.textContent = 'Challenger Workspace';
+        }
+
+        // ── Timer ──
+        let startTime = hiveData && hiveData.startedAt ? hiveData.startedAt.toMillis() : Date.now();
+        let timeLimit = (hiveData && hiveData.timeLimit) ? hiveData.timeLimit * 60 : 0;
+
+        const timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const display = timeLimit > 0 ? Math.max(0, timeLimit - elapsed) : elapsed;
+            const m = Math.floor(display / 60);
+            const s = display % 60;
+            document.getElementById('timer').textContent =
+                String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+        }, 1000);
+
+        // ── Challenger List ──
+        function renderChallengers(participants) {
+            const listEl = document.getElementById('challenger-list');
+            const challengers = participants.filter(p => p.role !== 'redqueen');
+            aliveCount = challengers.filter(p => !p.eliminated).length;
+            eliminatedCount = challengers.filter(p => p.eliminated).length;
+
+            document.getElementById('challengers-alive').textContent = aliveCount;
+            document.getElementById('challengers-eliminated').textContent = eliminatedCount;
+
+            listEl.innerHTML = challengers.map(p => {
+                const statusClass = p.eliminated ? 'eliminated' : 'alive';
+                const statusText = p.eliminated ? 'Eliminated' : 'Active';
+                // Only show percentage, not details (competitive privacy)
+                const pct = Math.min(100, (p.score || 0));
+
+                return '<div class="challenger-card' + (p.eliminated ? ' eliminated' : '') + '">' +
+                    '<div class="challenger-header">' +
+                        '<span class="challenger-name">' + escapeHtml(p.displayName || 'Agent') +
+                            (p.uid === myUid ? ' (you)' : '') + '</span>' +
+                        '<span class="challenger-status ' + statusClass + '">' + statusText + '</span>' +
+                    '</div>' +
+                    '<div class="challenger-progress-track">' +
+                        '<div class="challenger-progress-fill" style="width:' + pct + '%"></div>' +
+                    '</div>' +
+                    '<div class="challenger-score">' + (p.score || 0) + ' pts</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        HiveManager.onParticipantsChange(renderChallengers);
+        renderChallengers(participants);
+
+        // ── Trap Controls (Queen only) ──
+        if (isQueen) {
+            document.querySelectorAll('.trap-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const trap = btn.dataset.trap;
+                    const cooldown = parseInt(btn.dataset.cooldown) * 1000;
+
+                    if (trapCooldowns[trap]) return;
+
+                    btn.disabled = true;
+                    trapCooldowns[trap] = true;
+                    trapCount++;
+                    document.getElementById('traps-deployed').textContent = trapCount;
+
+                    await HiveManager.broadcastAction({
+                        type: 'trap',
+                        data: { trap: trap, deployedBy: 'Red Queen' }
+                    });
+
+                    addTermLine('[TRAP DEPLOYED] ' + formatTrapName(trap), 'line-queen');
+                    addEvent(formatTrapName(trap) + ' deployed', 'trap');
+
+                    // Cooldown timer
+                    let remaining = cooldown / 1000;
+                    const cdEl = btn.querySelector('.trap-cooldown');
+                    const cdInterval = setInterval(() => {
+                        remaining--;
+                        cdEl.textContent = remaining + 's';
+                        if (remaining <= 0) {
+                            clearInterval(cdInterval);
+                            btn.disabled = false;
+                            trapCooldowns[trap] = false;
+                            cdEl.textContent = (cooldown / 1000) + 's cooldown';
+                        }
+                    }, 1000);
+                });
+            });
+        }
+
+        // ── Actions ──
+        const termOutput = document.getElementById('terminal-output');
+        function addTermLine(text, cls) {
+            const div = document.createElement('div');
+            div.className = 'line ' + (cls || '');
+            div.textContent = text;
+            termOutput.appendChild(div);
+            termOutput.scrollTop = termOutput.scrollHeight;
+        }
+
+        const eventLog = document.getElementById('event-log');
+        function addEvent(text, type) {
+            const now = new Date();
+            const time = String(now.getHours()).padStart(2, '0') + ':' +
+                         String(now.getMinutes()).padStart(2, '0') + ':' +
+                         String(now.getSeconds()).padStart(2, '0');
+            const div = document.createElement('div');
+            div.className = 'event';
+            div.innerHTML = '<span class="event-time">' + time + '</span>' +
+                            '<span class="event-text ' + (type || '') + '">' + escapeHtml(text) + '</span>';
+            eventLog.insertBefore(div, eventLog.firstChild);
+        }
+
+        HiveManager.onAction(action => {
+            if (action.type === 'trap') {
+                if (!isQueen) {
+                    addTermLine('WARNING: Red Queen deployed ' + formatTrapName(action.data.trap) + '!', 'line-danger');
+                }
+                addEvent(formatTrapName(action.data.trap) + ' deployed by Red Queen', 'trap');
+            } else if (action.type === 'solve') {
+                solveCount++;
+                document.getElementById('challenges-solved').textContent = solveCount;
+                addTermLine(action.displayName + ' solved a challenge!', 'line-solve');
+                addEvent(action.displayName + ' solved: ' + (action.data.challengeName || '???'), 'solve');
+            } else if (action.type === 'queen_message') {
+                addTermLine('[RED QUEEN] ' + action.data.message, 'line-queen');
+                addEvent('Red Queen: ' + action.data.message, '');
+            } else if (action.type === 'challenger_progress') {
+                if (isQueen) {
+                    addTermLine('[INTEL] ' + action.displayName + ': ' + action.data.text, 'line-system');
+                }
+            }
+        });
+
+        // Terminal input
+        document.getElementById('terminal-input').addEventListener('keydown', async (e) => {
+            if (e.key !== 'Enter') return;
+            const cmd = e.target.value.trim();
+            if (!cmd) return;
+            e.target.value = '';
+
+            if (isQueen) {
+                // Queen can broadcast messages
+                addTermLine('queen> ' + cmd, 'line-queen');
+                await HiveManager.broadcastAction({
+                    type: 'queen_message',
+                    data: { message: cmd }
+                });
+            } else {
+                // Challenger commands are local
+                addTermLine('$ ' + cmd, '');
+            }
+        });
+
+        // Init messages
+        if (isQueen) {
+            addTermLine('You are the Red Queen. Your challengers await.', 'line-queen');
+            addTermLine('Use the arsenal above to deploy traps and obstacles.', 'line-system');
+            addTermLine('Type messages to taunt challengers in real-time.', 'line-system');
+        } else {
+            addTermLine('You are a Challenger. Solve challenges while surviving the Red Queen.', 'line-system');
+            addTermLine('Score is based on time survived and challenges completed.', 'line-system');
+            addTermLine('Watch out for traps!', 'line-system');
+        }
+        addEvent('Session started', '');
+
+        // ── Leave ──
+        document.getElementById('btn-leave').addEventListener('click', async () => {
+            clearInterval(timerInterval);
+            await HiveManager.leaveHive();
+            window.location.href = 'hive-lobby.html';
+        });
+
+        // ── Utilities ──
+        function formatTrapName(trap) {
+            const names = {
+                'firewall': 'Firewall Block',
+                'obfuscate': 'Output Obfuscation',
+                'decoy': 'Decoy Flag',
+                'lockout': 'Temporary Lockout',
+                'scramble': 'Hint Scrambler'
+            };
+            return names[trap] || trap;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+    })();
+    </script>
+</body>
+</html>
