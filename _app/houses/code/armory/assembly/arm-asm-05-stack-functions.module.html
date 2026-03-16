@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASM-05: The Stack & Functions | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117;
+            --accent: #dc2626; --accent-dim: rgba(220, 38, 38, 0.15);
+            --green: #4EC9B0; --text-primary: #e0e0e0; --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 35px 60px; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; color: var(--text-primary); }
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .builtin { color: #79c0ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .output { color: var(--green); }
+        .code-block .prompt { color: var(--green); }
+        .try-it { background: rgba(78, 201, 176, 0.08); border: 1px solid rgba(78, 201, 176, 0.25); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
+        .try-it ol, .try-it ul { color: var(--text-secondary); font-size: 0.9rem; padding-left: 20px; }
+        .try-it li { margin-bottom: 4px; }
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #b91c1c; }
+        .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--green); }
+        .stack-diagram { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.8; }
+        .stack-diagram .addr { color: var(--accent); }
+        .stack-diagram .content { color: var(--green); }
+        .stack-diagram .label { color: #79c0ff; }
+        .info-box { background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.25); border-radius: 8px; padding: 14px 18px; margin: 16px 0; }
+        .info-box strong { color: var(--accent); }
+        .info-box p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">ASM-05</span>
+            <h1>The Stack &amp; Functions</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Assembly Track</a>
+    </header>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Explain the call stack: how push/pop/call/ret work at the machine level</li>
+                <li>Describe the System V AMD64 calling convention</li>
+                <li>Write a function with a proper prologue and epilogue</li>
+                <li>Access local variables and function arguments via rbp-relative addressing</li>
+                <li>Understand why stack layout is the foundation of buffer overflow exploitation</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">The Stack: How It Works</h2>
+            <p class="content-text">The stack is a contiguous region of memory that grows <strong style="color:var(--accent)">downward</strong> in x86-64 (toward lower addresses). RSP always points to the current top. PUSH decrements RSP by 8 then writes the value; POP reads the value then increments RSP by 8.</p>
+            <div class="code-block">
+                <div class="code-block-header">push / pop mechanics</div>
+                <pre><span class="comment">; Before: RSP = 0x7fffffffe000</span>
+
+<span class="keyword">push</span> <span class="builtin">rax</span>    <span class="comment">; RSP -= 8; [RSP] = rax</span>
+             <span class="comment">; RSP is now 0x7fffffffDFF8</span>
+
+<span class="keyword">push</span> <span class="builtin">rbx</span>    <span class="comment">; RSP -= 8; [RSP] = rbx</span>
+             <span class="comment">; RSP is now 0x7fffffffDFF0</span>
+
+<span class="keyword">pop</span>  <span class="builtin">rcx</span>    <span class="comment">; rcx = [RSP]; RSP += 8</span>
+             <span class="comment">; rcx = old rbx, RSP is now 0x7fffffffDFF8</span>
+
+<span class="comment">; push imm64 -- push an immediate value</span>
+<span class="keyword">push</span> <span class="number">0</span>      <span class="comment">; reserve 8 bytes (for local variable slot)</span>
+
+<span class="comment">; The stack is 16-byte aligned at function calls per the ABI</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">CALL and RET</h2>
+            <p class="content-text"><span class="inline-code">call</span> pushes the return address (address of the next instruction after the call) onto the stack, then jumps to the target. <span class="inline-code">ret</span> pops the return address from the stack and jumps to it. This is the entire mechanism of function calls at the machine level.</p>
+            <div class="code-block">
+                <div class="code-block-header">call / ret mechanics</div>
+                <pre><span class="comment">; call target  is equivalent to:</span>
+<span class="comment">;   push  RIP_of_next_instruction</span>
+<span class="comment">;   jmp   target</span>
+
+<span class="comment">; ret  is equivalent to:</span>
+<span class="comment">;   pop   RIP</span>
+<span class="comment">;   (execution continues at popped address)</span>
+
+<span class="function">caller:</span>
+    <span class="keyword">call</span>  <span class="function">my_func</span>       <span class="comment">; push return addr, jump to my_func</span>
+    <span class="comment">; execution returns here after ret</span>
+
+<span class="function">my_func:</span>
+    <span class="comment">; function body</span>
+    <span class="keyword">mov</span>   <span class="builtin">rax</span>, <span class="number">42</span>
+    <span class="keyword">ret</span>                  <span class="comment">; pop return addr, jump back to caller</span></pre>
+            </div>
+
+            <div class="info-box">
+                <strong>The saved return address is the target of buffer overflow attacks.</strong>
+                <p>If an attacker can write past the end of a stack buffer, they can overwrite the saved return address that <span class="inline-code">ret</span> will pop. Controlling that value means controlling where execution goes next. This is the core of stack-based buffer overflow exploitation -- covered in Module 10.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Stack Frame Layout</h2>
+            <p class="content-text">Each function establishes a <strong style="color:var(--accent)">stack frame</strong> using the prologue. The prologue saves the caller's RBP, sets RBP to the current RSP (creating a stable frame base), then allocates space for local variables. The epilogue reverses this.</p>
+            <div class="stack-diagram">
+<span class="comment">; Stack frame layout after prologue (grows downward)</span>
+<span class="addr">High address (stack bottom)</span>
+  ...
+  <span class="content">[rbp + 16]</span>  <span class="label">&lt;-- 2nd argument (if &gt;6 args, else not here)</span>
+  <span class="content">[rbp +  8]</span>  <span class="label">&lt;-- saved return address (pushed by call)</span>
+  <span class="content">[rbp +  0]</span>  <span class="label">&lt;-- saved rbp (pushed by prologue)  &lt;-- RBP points here</span>
+  <span class="content">[rbp -  8]</span>  <span class="label">&lt;-- local variable 1</span>
+  <span class="content">[rbp - 16]</span>  <span class="label">&lt;-- local variable 2</span>
+  <span class="content">[rbp - 24]</span>  <span class="label">&lt;-- local variable 3</span>
+  ...          <span class="label">&lt;-- RSP points somewhere here</span>
+<span class="addr">Low address (stack top)</span>
+            </div>
+            <div class="code-block">
+                <div class="code-block-header">standard prologue / epilogue</div>
+                <pre><span class="function">my_function:</span>
+    <span class="comment">; Prologue -- save caller's frame, set up new frame</span>
+    <span class="keyword">push</span>  <span class="builtin">rbp</span>              <span class="comment">; save caller's base pointer</span>
+    <span class="keyword">mov</span>   <span class="builtin">rbp</span>, <span class="builtin">rsp</span>         <span class="comment">; rbp = current top of stack</span>
+    <span class="keyword">sub</span>   <span class="builtin">rsp</span>, <span class="number">32</span>          <span class="comment">; allocate 32 bytes for locals</span>
+    <span class="comment">; (always align RSP to 16 bytes before any call)</span>
+
+    <span class="comment">; Access local variables relative to RBP</span>
+    <span class="keyword">mov</span>   <span class="keyword">dword</span> [<span class="builtin">rbp</span>-<span class="number">4</span>], <span class="number">0</span>  <span class="comment">; int a = 0;</span>
+    <span class="keyword">mov</span>   <span class="keyword">dword</span> [<span class="builtin">rbp</span>-<span class="number">8</span>], <span class="number">1</span>  <span class="comment">; int b = 1;</span>
+
+    <span class="comment">; Epilogue -- restore caller's frame</span>
+    <span class="keyword">mov</span>   <span class="builtin">rsp</span>, <span class="builtin">rbp</span>         <span class="comment">; restore stack pointer (frees locals)</span>
+    <span class="keyword">pop</span>   <span class="builtin">rbp</span>              <span class="comment">; restore caller's base pointer</span>
+    <span class="keyword">ret</span>                    <span class="comment">; return to caller</span>
+
+<span class="comment">; Shorthand: ENTER and LEAVE instructions</span>
+<span class="comment">; leave  =  mov rsp, rbp  /  pop rbp</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">System V AMD64 Calling Convention</h2>
+            <p class="content-text">On Linux x86-64, function arguments and return values follow the System V AMD64 ABI. This convention defines which registers carry which arguments, which registers a function must preserve (callee-saved), and which it can freely clobber (caller-saved).</p>
+            <div class="code-block">
+                <div class="code-block-header">system v amd64 abi -- argument passing</div>
+                <pre><span class="comment">; Integer / pointer arguments (in order):</span>
+<span class="comment">;   1st arg  -> rdi</span>
+<span class="comment">;   2nd arg  -> rsi</span>
+<span class="comment">;   3rd arg  -> rdx</span>
+<span class="comment">;   4th arg  -> rcx</span>
+<span class="comment">;   5th arg  -> r8</span>
+<span class="comment">;   6th arg  -> r9</span>
+<span class="comment">;   7th+     -> pushed on stack (right to left)</span>
+
+<span class="comment">; Return value: rax (and rdx for 128-bit returns)</span>
+
+<span class="comment">; Callee-saved (must be preserved): rbx, rbp, r12-r15</span>
+<span class="comment">; Caller-saved (may be clobbered): rax, rcx, rdx, rsi, rdi, r8-r11</span>
+
+<span class="comment">; Example: calling int add(int a, int b) with a=3, b=5</span>
+    <span class="keyword">mov</span>  <span class="builtin">edi</span>, <span class="number">3</span>       <span class="comment">; first arg (32-bit, zero-extends)</span>
+    <span class="keyword">mov</span>  <span class="builtin">esi</span>, <span class="number">5</span>       <span class="comment">; second arg</span>
+    <span class="keyword">call</span> <span class="function">add</span>
+    <span class="comment">; rax = 8 (return value)</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Complete Example: add and multiply Functions</h2>
+            <div class="code-block">
+                <div class="code-block-header">functions.asm -- defines and calls two functions</div>
+                <pre><span class="comment">; functions.asm</span>
+<span class="comment">; Demonstrates proper function calling convention</span>
+<span class="function">global</span> _start
+
+<span class="function">section</span> .text
+
+<span class="comment">; add_nums(a, b): rdi=a, rsi=b, returns rdi+rsi in rax</span>
+<span class="function">add_nums:</span>
+    <span class="keyword">push</span>  <span class="builtin">rbp</span>
+    <span class="keyword">mov</span>   <span class="builtin">rbp</span>, <span class="builtin">rsp</span>
+    <span class="keyword">mov</span>   <span class="builtin">rax</span>, <span class="builtin">rdi</span>       <span class="comment">; rax = a</span>
+    <span class="keyword">add</span>   <span class="builtin">rax</span>, <span class="builtin">rsi</span>       <span class="comment">; rax = a + b</span>
+    <span class="keyword">pop</span>   <span class="builtin">rbp</span>
+    <span class="keyword">ret</span>
+
+<span class="comment">; multiply(a, b): rdi=a, rsi=b, returns a*b in rax</span>
+<span class="function">multiply:</span>
+    <span class="keyword">push</span>  <span class="builtin">rbp</span>
+    <span class="keyword">mov</span>   <span class="builtin">rbp</span>, <span class="builtin">rsp</span>
+    <span class="keyword">imul</span>  <span class="builtin">rdi</span>, <span class="builtin">rsi</span>       <span class="comment">; rdi = a * b</span>
+    <span class="keyword">mov</span>   <span class="builtin">rax</span>, <span class="builtin">rdi</span>       <span class="comment">; return value in rax</span>
+    <span class="keyword">pop</span>   <span class="builtin">rbp</span>
+    <span class="keyword">ret</span>
+
+<span class="function">_start:</span>
+    <span class="comment">; result = (3 + 5) * 2</span>
+    <span class="keyword">mov</span>   <span class="builtin">rdi</span>, <span class="number">3</span>          <span class="comment">; a = 3</span>
+    <span class="keyword">mov</span>   <span class="builtin">rsi</span>, <span class="number">5</span>          <span class="comment">; b = 5</span>
+    <span class="keyword">call</span>  <span class="function">add_nums</span>        <span class="comment">; rax = 8</span>
+
+    <span class="keyword">mov</span>   <span class="builtin">rdi</span>, <span class="builtin">rax</span>        <span class="comment">; a = 8 (result of addition)</span>
+    <span class="keyword">mov</span>   <span class="builtin">rsi</span>, <span class="number">2</span>          <span class="comment">; b = 2</span>
+    <span class="keyword">call</span>  <span class="function">multiply</span>        <span class="comment">; rax = 16</span>
+
+    <span class="comment">; exit with rax as exit code (16)</span>
+    <span class="keyword">mov</span>   <span class="builtin">rdi</span>, <span class="builtin">rax</span>
+    <span class="keyword">mov</span>   <span class="builtin">rax</span>, <span class="number">60</span>
+    <span class="keyword">syscall</span>
+<span class="comment">; ./functions; echo $?  should print 16</span></pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Try It Yourself</h3>
+            <p>Assemble and test functions.asm:</p>
+            <ol>
+                <li>Assemble, link, run: <span class="inline-code">./functions; echo $?</span> -- expect 16</li>
+                <li>Open in GDB. Set breakpoints at add_nums and multiply</li>
+                <li>At each breakpoint, examine the stack: <span class="inline-code">(gdb) x/8gx $rsp</span></li>
+                <li>Identify: the return address pushed by call, the saved rbp, and the caller's frame</li>
+                <li>Step through ret and watch RIP jump back to _start</li>
+            </ol>
+        </div>
+
+        <div class="try-it">
+            <h3>Write a Recursive Function</h3>
+            <p>Write a NASM function <span class="inline-code">factorial</span> that computes n! recursively. Start with n=5 (result = 120). Remember:</p>
+            <ol>
+                <li>Save any callee-saved registers you use (rbx is a good choice for n)</li>
+                <li>Base case: if rdi == 1, return 1</li>
+                <li>Recursive case: save rdi, call factorial(rdi-1), multiply result by saved rdi</li>
+                <li>Exit with the result mod 256 as the exit code</li>
+            </ol>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>The stack grows downward; PUSH decrements RSP, POP increments it</li>
+                <li>CALL pushes the return address; RET pops it and jumps there</li>
+                <li>The saved return address is the target of stack buffer overflow attacks</li>
+                <li>System V AMD64 ABI: rdi, rsi, rdx, rcx, r8, r9 for first six integer arguments</li>
+                <li>Return value goes in rax; caller-saved registers can be clobbered by callees</li>
+                <li>Standard prologue: push rbp / mov rbp, rsp / sub rsp, N</li>
+                <li>Standard epilogue: mov rsp, rbp (or leave) / pop rbp / ret</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="arm-asm-04-control-flow.module.html" class="nav-btn">&lt; Control Flow</a>
+            <a href="arm-asm-06-memory.module.html" class="nav-btn primary">Next: Memory &amp; Addressing &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'arm-asm-05-stack-functions';
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= 0.8) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.code) progress.code = {};
+                progress.code[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('code', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.code && progress.code[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

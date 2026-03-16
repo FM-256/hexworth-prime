@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GO-06: Concurrency | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117;
+            --accent: #06b6d4; --accent-dim: rgba(6, 182, 212, 0.15);
+            --green: #4EC9B0; --red: #e74c3c; --yellow: #f39c12;
+            --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.1);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 35px 60px; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; color: var(--text-primary); }
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .builtin { color: #79c0ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .output { color: var(--green); }
+        .code-block .prompt { color: var(--green); }
+        .warn-box { background: rgba(231,76,60,0.06); border: 1px solid rgba(231,76,60,0.25); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .warn-box strong { color: #e74c3c; display: block; margin-bottom: 6px; font-size: 0.9rem; }
+        .warn-box p { color: var(--text-secondary); font-size: 0.875rem; margin: 0; }
+        .info-box { background: rgba(6,182,212,0.06); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .info-box strong { color: var(--accent); display: block; margin-bottom: 6px; font-size: 0.9rem; }
+        .info-box p { color: var(--text-secondary); font-size: 0.875rem; margin: 0; }
+        .try-it { background: rgba(78, 201, 176, 0.08); border: 1px solid rgba(78, 201, 176, 0.25); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
+        .try-it ol { color: var(--text-secondary); font-size: 0.9rem; padding-left: 20px; }
+        .try-it li { margin-bottom: 4px; }
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0891b2; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--green); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">GO-06</span>
+            <h1>Concurrency</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Go Track</a>
+    </header>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Launch goroutines and understand their relationship to OS threads</li>
+                <li>Communicate between goroutines safely using channels</li>
+                <li>Use WaitGroup to synchronize a pool of goroutines</li>
+                <li>Limit concurrency with buffered channels as semaphores</li>
+                <li>Cancel goroutines cleanly with context.Context</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Goroutines</h2>
+            <p class="content-text">A goroutine is a lightweight thread managed by the Go runtime. Creating 10,000 goroutines uses roughly 80MB of memory; the equivalent OS threads would require gigabytes. This is why Go can handle hundreds of concurrent network connections in a single binary.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">goroutines.go</div>
+                <pre><span class="keyword">package</span> main
+
+<span class="keyword">import</span> (
+    <span class="string">"fmt"</span>
+    <span class="string">"sync"</span>
+)
+
+<span class="keyword">func</span> <span class="function">probe</span>(host <span class="builtin">string</span>, port <span class="builtin">int</span>, wg *sync.WaitGroup) {
+    <span class="keyword">defer</span> wg.<span class="function">Done</span>() <span class="comment">// signal WaitGroup when this goroutine exits</span>
+    <span class="comment">// In a real scanner, you would attempt a TCP dial here</span>
+    fmt.<span class="function">Printf</span>(<span class="string">"probing %s:%d\n"</span>, host, port)
+}
+
+<span class="keyword">func</span> <span class="function">main</span>() {
+    ports := []<span class="builtin">int</span>{<span class="number">22</span>, <span class="number">80</span>, <span class="number">443</span>, <span class="number">8080</span>, <span class="number">8443</span>}
+    host  := <span class="string">"192.168.1.1"</span>
+
+    <span class="keyword">var</span> wg sync.WaitGroup
+
+    <span class="keyword">for</span> _, port := <span class="keyword">range</span> ports {
+        wg.<span class="function">Add</span>(<span class="number">1</span>)
+        <span class="comment">// go keyword launches a goroutine -- non-blocking</span>
+        <span class="keyword">go</span> <span class="function">probe</span>(host, port, &amp;wg)
+    }
+
+    wg.<span class="function">Wait</span>() <span class="comment">// block until all goroutines call Done()</span>
+    fmt.<span class="function">Println</span>(<span class="string">"all probes complete"</span>)
+}</pre>
+            </div>
+
+            <div class="warn-box">
+                <strong>Race conditions are silent killers</strong>
+                <p>Run your programs with <span style="color:#a5d6ff;font-family:monospace">go run -race main.go</span> during development. The built-in race detector catches concurrent writes to shared memory that would otherwise cause intermittent, hard-to-reproduce bugs in production.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Channels</h2>
+            <p class="content-text">Channels are typed conduits for passing data between goroutines. Go's philosophy: "Do not communicate by sharing memory; share memory by communicating." Channels let you send results from worker goroutines back to a collector without locks.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">channels.go</div>
+                <pre><span class="keyword">package</span> main
+
+<span class="keyword">import</span> (
+    <span class="string">"fmt"</span>
+    <span class="string">"net"</span>
+    <span class="string">"time"</span>
+)
+
+<span class="keyword">type</span> ScanResult <span class="keyword">struct</span> {
+    Port  <span class="builtin">int</span>
+    Open  <span class="builtin">bool</span>
+}
+
+<span class="comment">// scanPort tries a TCP connection and sends result to channel</span>
+<span class="keyword">func</span> <span class="function">scanPort</span>(host <span class="builtin">string</span>, port <span class="builtin">int</span>, results <span class="keyword">chan</span>&lt;- ScanResult) {
+    addr := fmt.<span class="function">Sprintf</span>(<span class="string">"%s:%d"</span>, host, port)
+    conn, err := net.<span class="function">DialTimeout</span>(<span class="string">"tcp"</span>, addr, <span class="number">2</span>*time.Second)
+    <span class="keyword">if</span> err != <span class="keyword">nil</span> {
+        results &lt;- ScanResult{Port: port, Open: <span class="keyword">false</span>}
+        <span class="keyword">return</span>
+    }
+    conn.<span class="function">Close</span>()
+    results &lt;- ScanResult{Port: port, Open: <span class="keyword">true</span>}
+}
+
+<span class="keyword">func</span> <span class="function">main</span>() {
+    ports := []<span class="builtin">int</span>{<span class="number">22</span>, <span class="number">80</span>, <span class="number">443</span>, <span class="number">8080</span>}
+    host  := <span class="string">"scanme.nmap.org"</span>
+
+    <span class="comment">// Buffered channel holds all results without blocking senders</span>
+    results := <span class="builtin">make</span>(<span class="keyword">chan</span> ScanResult, <span class="builtin">len</span>(ports))
+
+    <span class="keyword">for</span> _, port := <span class="keyword">range</span> ports {
+        <span class="keyword">go</span> <span class="function">scanPort</span>(host, port, results)
+    }
+
+    <span class="comment">// Collect exactly len(ports) results</span>
+    <span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="builtin">len</span>(ports); i++ {
+        r := &lt;-results
+        <span class="keyword">if</span> r.Open {
+            fmt.<span class="function">Printf</span>(<span class="string">"port %d: OPEN\n"</span>, r.Port)
+        }
+    }
+}</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Semaphore Pattern -- Limiting Concurrency</h2>
+            <p class="content-text">Launching one goroutine per port works for a small range, but scanning 65,535 ports simultaneously would exhaust file descriptors. A buffered channel used as a semaphore limits concurrent goroutines to a safe maximum.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">semaphore.go</div>
+                <pre><span class="keyword">package</span> main
+
+<span class="keyword">import</span> (
+    <span class="string">"fmt"</span>
+    <span class="string">"sync"</span>
+)
+
+<span class="keyword">func</span> <span class="function">concurrentScan</span>(host <span class="builtin">string</span>, ports []<span class="builtin">int</span>, maxConcurrent <span class="builtin">int</span>) {
+    <span class="comment">// sem acts as a semaphore: send to acquire, receive to release</span>
+    sem := <span class="builtin">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>{}, maxConcurrent)
+    <span class="keyword">var</span> wg sync.WaitGroup
+
+    <span class="keyword">for</span> _, port := <span class="keyword">range</span> ports {
+        wg.<span class="function">Add</span>(<span class="number">1</span>)
+        <span class="keyword">go</span> <span class="keyword">func</span>(p <span class="builtin">int</span>) {
+            <span class="keyword">defer</span> wg.<span class="function">Done</span>()
+            sem &lt;- <span class="keyword">struct</span>{}{}  <span class="comment">// acquire slot</span>
+            <span class="keyword">defer</span> <span class="keyword">func</span>() { &lt;-sem }() <span class="comment">// release slot when done</span>
+
+            <span class="comment">// actual scan work here</span>
+            fmt.<span class="function">Printf</span>(<span class="string">"scanning %s:%d\n"</span>, host, p)
+        }(port)
+    }
+
+    wg.<span class="function">Wait</span>()
+}
+
+<span class="keyword">func</span> <span class="function">main</span>() {
+    ports := <span class="builtin">make</span>([]<span class="builtin">int</span>, <span class="number">100</span>)
+    <span class="keyword">for</span> i := <span class="keyword">range</span> ports { ports[i] = i + <span class="number">1</span> }
+
+    <span class="comment">// Scan 100 ports but only 10 concurrent connections</span>
+    <span class="function">concurrentScan</span>(<span class="string">"10.0.0.1"</span>, ports, <span class="number">10</span>)
+}</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">select and context.Context</h2>
+            <p class="content-text"><span class="inline-code">select</span> lets a goroutine wait on multiple channel operations simultaneously -- whichever is ready first executes. Combined with <span class="inline-code">context.Context</span>, this is the idiomatic way to implement timeouts and cancellation.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">context.go</div>
+                <pre><span class="keyword">package</span> main
+
+<span class="keyword">import</span> (
+    <span class="string">"context"</span>
+    <span class="string">"fmt"</span>
+    <span class="string">"time"</span>
+)
+
+<span class="comment">// longScan simulates a slow operation, respects cancellation</span>
+<span class="keyword">func</span> <span class="function">longScan</span>(ctx context.Context, host <span class="builtin">string</span>) <span class="builtin">error</span> {
+    done := <span class="builtin">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>{})
+
+    <span class="keyword">go</span> <span class="keyword">func</span>() {
+        <span class="comment">// Simulate 5-second scan</span>
+        time.<span class="function">Sleep</span>(<span class="number">5</span> * time.Second)
+        <span class="builtin">close</span>(done)
+    }()
+
+    <span class="keyword">select</span> {
+    <span class="keyword">case</span> &lt;-done:
+        fmt.<span class="function">Printf</span>(<span class="string">"scan of %s complete\n"</span>, host)
+        <span class="keyword">return</span> <span class="keyword">nil</span>
+    <span class="keyword">case</span> &lt;-ctx.<span class="function">Done</span>():
+        <span class="comment">// context cancelled or timed out</span>
+        <span class="keyword">return</span> ctx.<span class="function">Err</span>()
+    }
+}
+
+<span class="keyword">func</span> <span class="function">main</span>() {
+    <span class="comment">// Cancel the scan after 2 seconds</span>
+    ctx, cancel := context.<span class="function">WithTimeout</span>(context.<span class="function">Background</span>(), <span class="number">2</span>*time.Second)
+    <span class="keyword">defer</span> <span class="function">cancel</span>() <span class="comment">// always call cancel to release resources</span>
+
+    err := <span class="function">longScan</span>(ctx, <span class="string">"10.0.0.1"</span>)
+    <span class="keyword">if</span> err != <span class="keyword">nil</span> {
+        fmt.<span class="function">Printf</span>(<span class="string">"scan aborted: %v\n"</span>, err)
+    }
+}
+
+<span class="output">// scan aborted: context deadline exceeded</span></pre>
+            </div>
+
+            <div class="info-box">
+                <strong>Always call cancel()</strong>
+                <p>Every context created with WithTimeout, WithDeadline, or WithCancel must have its cancel function called -- even if the context expires naturally. Uncalled cancels leak the goroutine that monitors the deadline timer. Use defer cancel() immediately after creating the context.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">sync.Mutex for Shared State</h2>
+            <p class="content-text">When goroutines must share mutable state (like a results map), protect it with a mutex. The pattern is always: lock, modify, unlock -- with unlock deferred to prevent leaks on early returns.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">mutex.go</div>
+                <pre><span class="keyword">package</span> main
+
+<span class="keyword">import</span> (
+    <span class="string">"fmt"</span>
+    <span class="string">"sync"</span>
+)
+
+<span class="keyword">type</span> ScanDB <span class="keyword">struct</span> {
+    mu      sync.RWMutex
+    results <span class="keyword">map</span>[<span class="builtin">string</span>][]<span class="builtin">int</span>
+}
+
+<span class="keyword">func</span> (db *ScanDB) <span class="function">AddResult</span>(host <span class="builtin">string</span>, port <span class="builtin">int</span>) {
+    db.mu.<span class="function">Lock</span>()
+    <span class="keyword">defer</span> db.mu.<span class="function">Unlock</span>()
+    db.results[host] = <span class="builtin">append</span>(db.results[host], port)
+}
+
+<span class="keyword">func</span> (db *ScanDB) <span class="function">GetPorts</span>(host <span class="builtin">string</span>) []<span class="builtin">int</span> {
+    db.mu.<span class="function">RLock</span>() <span class="comment">// read lock allows concurrent readers</span>
+    <span class="keyword">defer</span> db.mu.<span class="function">RUnlock</span>()
+    return db.results[host]
+}
+
+<span class="keyword">func</span> <span class="function">main</span>() {
+    db := &amp;ScanDB{results: <span class="builtin">make</span>(<span class="keyword">map</span>[<span class="builtin">string</span>][]<span class="builtin">int</span>)}
+    <span class="keyword">var</span> wg sync.WaitGroup
+
+    hosts := []<span class="builtin">string</span>{<span class="string">"10.0.0.1"</span>, <span class="string">"10.0.0.2"</span>, <span class="string">"10.0.0.1"</span>}
+    ports := []<span class="builtin">int</span>{<span class="number">22</span>, <span class="number">443</span>, <span class="number">80</span>}
+
+    <span class="keyword">for</span> i := <span class="keyword">range</span> hosts {
+        wg.<span class="function">Add</span>(<span class="number">1</span>)
+        <span class="keyword">go</span> <span class="keyword">func</span>(h <span class="builtin">string</span>, p <span class="builtin">int</span>) {
+            <span class="keyword">defer</span> wg.<span class="function">Done</span>()
+            db.<span class="function">AddResult</span>(h, p)
+        }(hosts[i], ports[i])
+    }
+
+    wg.<span class="function">Wait</span>()
+    fmt.<span class="function">Printf</span>(<span class="string">"10.0.0.1 ports: %v\n"</span>, db.<span class="function">GetPorts</span>(<span class="string">"10.0.0.1"</span>))
+}</pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Try It Yourself</h3>
+            <p>Build a concurrent subnet scanner skeleton:</p>
+            <ol>
+                <li>Generate a slice of IPs from 192.168.1.1 to 192.168.1.20</li>
+                <li>Use a semaphore (buffered channel with cap 5) to limit to 5 concurrent pings</li>
+                <li>Use <span class="inline-code">context.WithTimeout</span> to abort the entire scan after 10 seconds</li>
+                <li>Collect results into a <span class="inline-code">sync.Mutex</span>-protected map and print a summary when complete</li>
+            </ol>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Goroutines are cheap -- thousands are normal; use them freely for I/O-bound work</li>
+                <li>Channels are the preferred communication mechanism between goroutines -- avoid shared memory</li>
+                <li>Use <span class="inline-code">sync.WaitGroup</span> to wait for a group of goroutines to finish</li>
+                <li>Buffered channels as semaphores limit concurrency -- critical for responsible scanning tools</li>
+                <li><span class="inline-code">context.Context</span> propagates cancellation and timeouts through your call stack -- always defer cancel()</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="arm-go-05-interfaces.module.html" class="nav-btn">&lt; Interfaces &amp; Composition</a>
+            <a href="arm-go-07-errors-testing.module.html" class="nav-btn primary">Next: Error Handling &amp; Testing &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'arm-go-06-concurrency';
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= 0.8) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.code) progress.code = {};
+                progress.code[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('code', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.code && progress.code[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

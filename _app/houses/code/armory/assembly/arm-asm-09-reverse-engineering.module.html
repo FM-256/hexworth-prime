@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASM-09: Reverse Engineering | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-terminal: #0d1117;
+            --accent: #dc2626; --accent-dim: rgba(220, 38, 38, 0.15);
+            --green: #4EC9B0; --text-primary: #e0e0e0; --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 35px 60px; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; color: var(--text-primary); }
+        .code-block .comment { color: #6a737d; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .builtin { color: #79c0ff; }
+        .code-block .number { color: #79c0ff; }
+        .code-block .output { color: var(--green); }
+        .code-block .prompt { color: var(--green); }
+        .try-it { background: rgba(78, 201, 176, 0.08); border: 1px solid rgba(78, 201, 176, 0.25); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
+        .try-it ol, .try-it ul { color: var(--text-secondary); font-size: 0.9rem; padding-left: 20px; }
+        .try-it li { margin-bottom: 4px; }
+        .takeaways { background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(78, 201, 176, 0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #b91c1c; }
+        .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--green); }
+        .info-box { background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.25); border-radius: 8px; padding: 14px 18px; margin: 16px 0; }
+        .info-box strong { color: var(--accent); }
+        .info-box p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="module-badge">ASM-09</span>
+            <h1>Reverse Engineering</h1>
+        </div>
+        <a href="index.html" class="back-link">&lt; Assembly Track</a>
+    </header>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Translate disassembly back into C-level logic: identify if/else, loops, and function calls</li>
+                <li>Recognize compiler idioms: strength reduction, tail calls, computed jumps</li>
+                <li>Navigate Ghidra for static analysis: function graph, decompiler, cross-references</li>
+                <li>Use radare2 for quick command-line binary analysis</li>
+                <li>Apply an RE methodology to a CTF-style crackme binary</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">The Reverse Engineering Mindset</h2>
+            <p class="content-text">Reverse engineering is pattern recognition at scale. Compilers transform source code into machine code through predictable transformations. Once you know the patterns, a wall of disassembly resolves into recognizable structures: functions, loops, conditionals, and data transformations.</p>
+            <p class="content-text">The RE workflow for an unknown binary is: static analysis first (strings, imports, section layout, disassembly), then dynamic analysis (strace, GDB) to observe runtime behavior, then iterative analysis where each pass increases understanding. Never assume -- confirm everything in the debugger.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Recognizing Common Compiler Patterns</h2>
+            <div class="code-block">
+                <div class="code-block-header">pattern: function prologue (gcc -O0)</div>
+                <pre><span class="comment">; Every function compiled without optimization starts like this:</span>
+<span class="output">push   rbp</span>
+<span class="output">mov    rbp, rsp</span>
+<span class="output">sub    rsp, 0x30</span>        <span class="comment">; allocate 48 bytes for locals</span>
+
+<span class="comment">; And ends like this (epilogue):</span>
+<span class="output">leave</span>                   <span class="comment">; = mov rsp, rbp / pop rbp</span>
+<span class="output">ret</span></pre>
+            </div>
+            <div class="code-block">
+                <div class="code-block-header">pattern: null check (common after malloc, fopen, etc.)</div>
+                <pre><span class="comment">; C:  if (ptr == NULL) { return -1; }</span>
+<span class="output">test   rax, rax</span>         <span class="comment">; rax = return value from call</span>
+<span class="output">jz     error_handler</span>    <span class="comment">; jump if zero (NULL)</span></pre>
+            </div>
+            <div class="code-block">
+                <div class="code-block-header">pattern: for loop (gcc -O2 output)</div>
+                <pre><span class="comment">; C:  for (int i = 0; i &lt; n; i++) { sum += arr[i]; }</span>
+<span class="comment">; Optimized: counting loop with index in register</span>
+<span class="output">xor    eax, eax</span>         <span class="comment">; sum = 0</span>
+<span class="output">xor    ecx, ecx</span>         <span class="comment">; i = 0</span>
+<span class="output">test   rdi, rdi</span>         <span class="comment">; if n == 0, skip</span>
+<span class="output">jz     .done</span>
+<span class="output">.loop:</span>
+<span class="output">add    eax, [rsi+rcx*4]</span> <span class="comment">; sum += arr[i] (rcx*4 because int = 4 bytes)</span>
+<span class="output">inc    ecx</span>
+<span class="output">cmp    ecx, edi</span>         <span class="comment">; compare i to n</span>
+<span class="output">jl     .loop</span>
+<span class="output">.done:</span>
+<span class="output">ret</span></pre>
+            </div>
+            <div class="code-block">
+                <div class="code-block-header">pattern: switch statement (jump table)</div>
+                <pre><span class="comment">; C:  switch(n) { case 0: ...; case 1: ...; case 2: ...; }</span>
+<span class="comment">; Compiled to a computed jump table when cases are dense</span>
+<span class="output">cmp    eax, 2</span>           <span class="comment">; bounds check: if case > max, go to default</span>
+<span class="output">ja     .default</span>
+<span class="output">jmp    [rip+rax*8+0x200]</span> <span class="comment">; index into table of jump targets</span>
+<span class="comment">; The 0x200 offset points to an array of 8-byte addresses</span>
+<span class="comment">; This is the classic jump table / computed goto pattern</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Compiler Optimizations to Know</h2>
+            <div class="code-block">
+                <div class="code-block-header">compiler optimization idioms</div>
+                <pre><span class="comment">; Strength reduction: multiply by constant -> shift+add</span>
+<span class="comment">; C:  n * 10  becomes:</span>
+<span class="output">lea    rax, [rcx+rcx*4]</span>  <span class="comment">; rax = n * 5  (n + n*4)</span>
+<span class="output">add    rax, rax</span>           <span class="comment">; rax = n * 10</span>
+
+<span class="comment">; Division by constant: multiply by reciprocal</span>
+<span class="comment">; C:  n / 7  becomes (magic number trick):</span>
+<span class="output">mov    ecx, 0x92492493</span>   <span class="comment">; magic reciprocal constant</span>
+<span class="output">imul   rcx</span>               <span class="comment">; rdx:rax = n * magic</span>
+<span class="output">mov    rax, rdx</span>
+<span class="output">sar    rax, 2</span>
+<span class="comment">; This is div-by-7 but without the slow div instruction</span>
+
+<span class="comment">; Tail call optimization: replace call/ret with jmp</span>
+<span class="comment">; C:  return other_func(x);  becomes:</span>
+<span class="output">jmp    other_func</span>         <span class="comment">; no call/ret pair needed</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Ghidra: Static Analysis Workflow</h2>
+            <p class="content-text">Ghidra (developed by the NSA, released as open-source in 2019) is a full-featured reverse engineering suite. It combines a disassembler, decompiler, cross-reference engine, and scripting API.</p>
+            <div class="code-block">
+                <div class="code-block-header">ghidra workflow for a crackme</div>
+                <pre><span class="comment">1. File > Import File -- load the binary</span>
+<span class="comment">2. Accept auto-analysis -- Ghidra identifies functions and data</span>
+<span class="comment">3. Symbol Tree (left panel) -- find "main" or entry function</span>
+<span class="comment">4. Decompiler window (right panel) -- pseudocode of selected function</span>
+<span class="comment">5. Right-click a string in .data/.rodata -- "References to" finds where it is used</span>
+<span class="comment">6. Cross-references (XREF): find all callers of a function</span>
+<span class="comment">7. Rename variables and functions as you understand them</span>
+<span class="comment">8. Search > Search Program Text -- find specific strings or constants</span>
+<span class="comment">9. Window > Function Graph -- visual CFG (control flow graph)</span></pre>
+            </div>
+            <p class="content-text">The decompiler output is a best guess -- it can be wrong about types, especially for pointer arithmetic and function pointer tables. Always verify decompiler output against the actual disassembly.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">radare2: Command-Line Binary Analysis</h2>
+            <p class="content-text">radare2 (r2) is a command-line framework for reverse engineering. It is faster to use than Ghidra for quick investigations and is available on systems where installing a GUI tool is impractical.</p>
+            <div class="code-block">
+                <div class="code-block-header">radare2 essential commands</div>
+                <pre><span class="prompt">$</span> r2 ./binary                  <span class="comment"># open binary</span>
+<span class="prompt">$</span> r2 -d ./binary               <span class="comment"># open in debug mode</span>
+
+<span class="comment"># After opening:</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">aaa</span>              <span class="comment"># auto-analyze all (functions, strings, xrefs)</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">afl</span>              <span class="comment"># list all identified functions</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">s main</span>           <span class="comment"># seek to main function</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">pdf</span>              <span class="comment"># print disassembly of current function</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">pdd</span>              <span class="comment"># print decompiled C-like output (r2dec plugin)</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">iz</span>               <span class="comment"># list strings in binary</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">axt 0x402000</span>     <span class="comment"># cross-references TO address 0x402000</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">VV</span>               <span class="comment"># visual control flow graph mode</span>
+<span class="output">[0x00401000]&gt;</span> <span class="keyword">q</span>                <span class="comment"># quit</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">CTF Crackme Methodology</h2>
+            <p class="content-text">A crackme is a binary that accepts a "password" and either succeeds or fails. The goal is to find the correct input without having the source code. The standard methodology:</p>
+            <div class="code-block">
+                <div class="code-block-header">crackme analysis checklist</div>
+                <pre><span class="comment">; Step 1: Reconnaissance</span>
+<span class="prompt">$</span> file ./crackme                <span class="comment"># architecture, stripped?</span>
+<span class="prompt">$</span> strings ./crackme             <span class="comment"># any obvious success/failure strings?</span>
+<span class="prompt">$</span> ltrace ./crackme              <span class="comment"># does it call strcmp or strncmp?</span>
+
+<span class="comment">; Step 2: Static Analysis</span>
+<span class="comment">; - Open in Ghidra / r2</span>
+<span class="comment">; - Find the string "wrong" or "incorrect" -- xref back to the check function</span>
+<span class="comment">; - Identify the comparison: cmp + conditional jump before the fail message</span>
+<span class="comment">; - Determine what value is being compared to your input</span>
+
+<span class="comment">; Step 3: Dynamic Analysis</span>
+<span class="comment">; - Set breakpoint at the comparison instruction</span>
+<span class="comment">; - Run with dummy input</span>
+<span class="comment">; - Inspect what the binary is comparing -- often the expected value is in a register</span>
+
+<span class="comment">; Common patterns in crackmes:</span>
+<span class="comment">; - Direct strcmp(input, hardcoded_key)  -- just read the string</span>
+<span class="comment">; - XOR transform: input[i] ^ key[i] must equal target[i]</span>
+<span class="comment">; - Checksum: all bytes of input must sum to a specific value</span>
+<span class="comment">; - Serial algorithm: input passes through a hash function, result checked</span></pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Build and Crack Your Own Crackme</h3>
+            <p>Write a simple crackme in C, compile it, then reverse it:</p>
+            <ol>
+                <li>Create <span class="inline-code">crackme.c</span> that compares argv[1] to a hardcoded string using strcmp</li>
+                <li>Compile stripped: <span class="inline-code">gcc -O1 -s -o crackme crackme.c</span></li>
+                <li>Now reverse it: use <span class="inline-code">strings ./crackme</span> -- is the password visible?</li>
+                <li>Try: <span class="inline-code">objdump -d -M intel ./crackme</span> -- find the call to strcmp</li>
+                <li>Use <span class="inline-code">ltrace ./crackme wrongpass 2>&amp;1</span> -- ltrace shows the strcmp arguments!</li>
+                <li>Verify you found the password by running it correctly</li>
+            </ol>
+        </div>
+
+        <div class="try-it">
+            <h3>Identify Patterns in Real Binaries</h3>
+            <p>Apply the pattern recognition skills to system utilities:</p>
+            <ol>
+                <li>Disassemble <span class="inline-code">/usr/bin/id</span> with objdump and find the main function</li>
+                <li>Identify at least one if/else pattern (cmp + conditional jump)</li>
+                <li>Find any loop patterns (back-edge jumps)</li>
+                <li>Use <span class="inline-code">strings /usr/bin/id</span> -- can you match strings to the code that uses them?</li>
+            </ol>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>RE is pattern recognition: learn the compiler idioms for if/else, loops, switch, and function calls</li>
+                <li>test rax, rax / jz is a null/zero check; jmp [rip+rax*8+offset] is a jump table</li>
+                <li>Compilers replace mul/div with shift+add (strength reduction) and magic number multiplication</li>
+                <li>Ghidra workflow: import, auto-analyze, find entry/main, use XREF to trace string references</li>
+                <li>r2 for command-line: aaa (analyze), afl (list functions), pdf (disassemble), iz (strings)</li>
+                <li>ltrace shows strcmp arguments -- often reveals crackme passwords without any disassembly</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="arm-asm-08-debugging.module.html" class="nav-btn">&lt; Debugging &amp; Tools</a>
+            <a href="arm-asm-10-exploits.module.html" class="nav-btn primary">Next: Exploit Development &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'arm-asm-09-reverse-engineering';
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= 0.8) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.code) progress.code = {};
+                progress.code[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('code', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.code && progress.code[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
