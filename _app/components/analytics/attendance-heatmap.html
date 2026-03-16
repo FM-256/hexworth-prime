@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Heatmap | Handler Dashboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        /* ── Header ── */
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .page-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4ade80;
+        }
+        .page-header .subtitle {
+            font-size: 0.85rem;
+            color: #8b949e;
+            margin-top: 2px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .controls select, .controls button {
+            background: #161b22;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .controls select:hover, .controls button:hover {
+            border-color: #4ade80;
+        }
+        .controls button.refresh {
+            background: #4ade80;
+            color: #0d1117;
+            border-color: #4ade80;
+            font-weight: 600;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 1rem;
+            color: #4ade80;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        /* ── Heatmap ── */
+        .heatmap-scroll {
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+        .heatmap-grid {
+            display: inline-grid;
+            grid-template-rows: 18px repeat(7, 14px);
+            gap: 3px;
+            direction: ltr;
+        }
+        .heatmap-cell {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: outline 0.15s;
+        }
+        .heatmap-cell:hover {
+            outline: 2px solid #e6edf3;
+            outline-offset: 1px;
+        }
+        .heatmap-cell.future {
+            opacity: 0.15;
+            cursor: default;
+        }
+        .heatmap-label {
+            font-size: 10px;
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+        }
+        .heatmap-month {
+            font-size: 10px;
+            color: #8b949e;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        /* Color scale: #0d1117 (0) -> #0e4429 -> #006d32 -> #26a641 -> #4ade80 */
+        .hc-0 { background: #161b22; }
+        .hc-1 { background: #0e4429; }
+        .hc-2 { background: #006d32; }
+        .hc-3 { background: #26a641; }
+        .hc-4 { background: #4ade80; }
+
+        /* ── Legend ── */
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 12px;
+            font-size: 10px;
+            color: #8b949e;
+        }
+        .legend-cell {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        /* ── Stats Row ── */
+        .stats-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 16px 20px;
+            flex: 1;
+            min-width: 160px;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4ade80;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #8b949e;
+            margin-top: 2px;
+        }
+
+        /* ── Detail Panel ── */
+        .detail-panel {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            display: none;
+        }
+        .detail-panel.visible { display: block; }
+        .detail-panel h3 {
+            font-size: 0.9rem;
+            color: #4ade80;
+            margin-bottom: 8px;
+        }
+        .detail-panel .detail-info {
+            font-size: 0.85rem;
+            color: #e6edf3;
+            line-height: 1.6;
+        }
+
+        /* ── Day-of-week x Hour Grid ── */
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: 50px repeat(24, 1fr);
+            gap: 2px;
+            font-size: 9px;
+        }
+        .pattern-label {
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 6px;
+        }
+        .pattern-cell {
+            aspect-ratio: 1;
+            border-radius: 2px;
+            min-width: 12px;
+        }
+
+        /* ── Loading ── */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            color: #8b949e;
+        }
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #30363d;
+            border-top-color: #4ade80;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state {
+            text-align: center;
+            color: #8b949e;
+            padding: 40px 20px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Attendance List ── */
+        .attendance-list {
+            list-style: none;
+        }
+        .attendance-list li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid #21262d;
+            font-size: 0.85rem;
+        }
+        .attendance-list li:last-child { border-bottom: none; }
+        .att-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .att-present { background: #4ade80; }
+        .att-absent { background: #f87171; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header">
+        <div>
+            <h1>Attendance Heatmap</h1>
+            <div class="subtitle">Login patterns and attendance tracking</div>
+        </div>
+        <div class="controls">
+            <select id="classSelect">
+                <option value="">-- Select Class --</option>
+            </select>
+            <select id="studentSelect">
+                <option value="__class__">Class Overview (Aggregated)</option>
+            </select>
+            <button class="refresh" id="refreshBtn">Refresh</button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow">
+        <div class="stat-card">
+            <div class="stat-value" id="statStreak">--</div>
+            <div class="stat-label">Current Streak (days)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statLongest">--</div>
+            <div class="stat-label">Longest Streak</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statActive">--</div>
+            <div class="stat-label">Active Days (90d)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statRate">--</div>
+            <div class="stat-label">Today's Attendance</div>
+        </div>
+    </div>
+
+    <!-- 52-Week Heatmap -->
+    <div class="card">
+        <h2>52-Week Activity</h2>
+        <div class="heatmap-scroll" id="heatmapContainer">
+            <div class="empty-state">Select a class or student to view attendance</div>
+        </div>
+        <div class="heatmap-legend">
+            <span>Less</span>
+            <div class="legend-cell hc-0"></div>
+            <div class="legend-cell hc-1"></div>
+            <div class="legend-cell hc-2"></div>
+            <div class="legend-cell hc-3"></div>
+            <div class="legend-cell hc-4"></div>
+            <span>More</span>
+        </div>
+        <div class="detail-panel" id="detailPanel">
+            <h3 id="detailDate"></h3>
+            <div class="detail-info" id="detailInfo"></div>
+        </div>
+    </div>
+
+    <!-- Day x Hour Pattern -->
+    <div class="card">
+        <h2>Login Patterns (Day of Week x Hour)</h2>
+        <div id="patternContainer">
+            <div class="empty-state">No data</div>
+        </div>
+    </div>
+
+    <!-- Today's Attendance -->
+    <div class="card">
+        <h2>Today's Attendance</h2>
+        <div id="todayContainer">
+            <div class="empty-state">No data</div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <!-- Dependencies -->
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/FirestoreManager.js"></script>
+    <script src="/components/ClassManager.js"></script>
+    <script src="/components/analytics/AttendanceTracker.js"></script>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        let currentClassId = null;
+        let currentStudentUid = '__class__';
+        let classMemberUids = [];
+
+        // ── Init ──
+        async function init() {
+            try {
+                await AttendanceTracker.init();
+                await loadClasses();
+
+                document.getElementById('classSelect').addEventListener('change', onClassChange);
+                document.getElementById('studentSelect').addEventListener('change', onStudentChange);
+                document.getElementById('refreshBtn').addEventListener('click', refresh);
+            } catch (e) {
+                console.error('[AttendanceHeatmap] Init failed:', e);
+            }
+        }
+
+        async function loadClasses() {
+            if (typeof ClassManager === 'undefined') return;
+            await ClassManager.init();
+            const classes = await ClassManager.listMyClasses();
+            const sel = document.getElementById('classSelect');
+            classes.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name || c.code || c.id;
+                sel.appendChild(opt);
+            });
+        }
+
+        async function loadStudents(classId) {
+            const sel = document.getElementById('studentSelect');
+            // Clear existing (keep first option)
+            while (sel.options.length > 1) sel.remove(1);
+            classMemberUids = [];
+
+            if (!classId) return;
+
+            try {
+                const { collection, getDocs, doc, getDoc } = window.firebaseFirestore || firebase.firestore;
+                const db = firebase.firestore();
+                const snap = await db.collection('classes').doc(classId).collection('members').get();
+
+                for (const d of snap.docs) {
+                    const uid = d.id;
+                    classMemberUids.push(uid);
+                    let name = uid.slice(0, 8);
+                    try {
+                        const userDoc = await db.collection('users').doc(uid).get();
+                        if (userDoc.exists) {
+                            const data = userDoc.data();
+                            name = data.callsign || data.displayName || name;
+                        }
+                    } catch (e) { /* fallback */ }
+
+                    const opt = document.createElement('option');
+                    opt.value = uid;
+                    opt.textContent = name;
+                    sel.appendChild(opt);
+                }
+            } catch (e) {
+                console.error('[AttendanceHeatmap] Failed to load students:', e);
+            }
+        }
+
+        function onClassChange(e) {
+            currentClassId = e.target.value;
+            currentStudentUid = '__class__';
+            document.getElementById('studentSelect').value = '__class__';
+            if (currentClassId) {
+                loadStudents(currentClassId).then(() => refresh());
+            }
+        }
+
+        function onStudentChange(e) {
+            currentStudentUid = e.target.value;
+            refresh();
+        }
+
+        async function refresh() {
+            if (!currentClassId) return;
+
+            try {
+                if (currentStudentUid === '__class__') {
+                    await refreshClassView();
+                } else {
+                    await refreshStudentView(currentStudentUid);
+                }
+                await refreshTodayAttendance();
+            } catch (e) {
+                console.error('[AttendanceHeatmap] Refresh failed:', e);
+            }
+        }
+
+        // ── Class Aggregated View ──
+        async function refreshClassView() {
+            // Aggregate heatmaps for all members
+            const allDayMaps = {};
+
+            await Promise.all(classMemberUids.slice(0, 30).map(async uid => {
+                try {
+                    const heatmap = await AttendanceTracker.getYearlyHeatmap(uid);
+                    Object.entries(heatmap.dayMap).forEach(([date, count]) => {
+                        allDayMaps[date] = (allDayMaps[date] || 0) + count;
+                    });
+                } catch (e) { /* skip */ }
+            }));
+
+            renderHeatmap(allDayMaps);
+
+            // Stats
+            const today = new Date().toISOString().slice(0, 10);
+            document.getElementById('statStreak').textContent = '--';
+            document.getElementById('statLongest').textContent = '--';
+            document.getElementById('statActive').textContent = Object.keys(allDayMaps).length;
+
+            // Pattern grid (aggregated)
+            await refreshPatternAggregated();
+        }
+
+        // ── Student View ──
+        async function refreshStudentView(uid) {
+            const [heatmap, streaks, pattern] = await Promise.all([
+                AttendanceTracker.getYearlyHeatmap(uid),
+                AttendanceTracker.getStreaks(uid),
+                AttendanceTracker.getAttendancePattern(uid, '90d')
+            ]);
+
+            renderHeatmap(heatmap.dayMap);
+
+            document.getElementById('statStreak').textContent = streaks.current;
+            document.getElementById('statLongest').textContent = streaks.longest;
+            document.getElementById('statActive').textContent = streaks.totalDays || 0;
+
+            renderPattern(pattern);
+        }
+
+        // ── Heatmap Render ──
+        function renderHeatmap(dayMap) {
+            const container = document.getElementById('heatmapContainer');
+            const maxCount = Math.max(...Object.values(dayMap), 1);
+
+            // Build 53 weeks (Sun-Sat columns)
+            const now = new Date();
+            const start = new Date(now);
+            start.setDate(start.getDate() - 363 - start.getDay());
+
+            let html = '<div class="heatmap-grid" style="grid-template-columns: 30px repeat(53, 14px);">';
+
+            // Month headers
+            html += '<div></div>'; // corner
+            let lastMonth = -1;
+            for (let w = 0; w < 53; w++) {
+                const d = new Date(start);
+                d.setDate(d.getDate() + w * 7);
+                const month = d.getMonth();
+                if (month !== lastMonth) {
+                    html += `<div class="heatmap-month">${MONTHS[month]}</div>`;
+                    lastMonth = month;
+                } else {
+                    html += '<div></div>';
+                }
+            }
+
+            // Day rows
+            for (let d = 0; d < 7; d++) {
+                html += `<div class="heatmap-label">${d % 2 === 1 ? DAYS[d] : ''}</div>`;
+                for (let w = 0; w < 53; w++) {
+                    const date = new Date(start);
+                    date.setDate(date.getDate() + w * 7 + d);
+                    const key = date.toISOString().slice(0, 10);
+                    const count = dayMap[key] || 0;
+                    const future = date > now;
+                    const level = future ? 0 : _colorLevel(count, maxCount);
+
+                    html += `<div class="heatmap-cell hc-${level}${future ? ' future' : ''}" data-date="${key}" data-count="${count}" title="${key}: ${count} login${count !== 1 ? 's' : ''}"></div>`;
+                }
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+
+            // Click handler for detail panel
+            container.querySelectorAll('.heatmap-cell:not(.future)').forEach(cell => {
+                cell.addEventListener('click', () => showDetail(cell.dataset.date, parseInt(cell.dataset.count)));
+            });
+        }
+
+        function _colorLevel(count, max) {
+            if (count === 0) return 0;
+            const pct = count / max;
+            if (pct <= 0.25) return 1;
+            if (pct <= 0.5) return 2;
+            if (pct <= 0.75) return 3;
+            return 4;
+        }
+
+        function showDetail(date, count) {
+            const panel = document.getElementById('detailPanel');
+            const dateObj = new Date(date + 'T12:00:00');
+            document.getElementById('detailDate').textContent =
+                DAYS[dateObj.getDay()] + ', ' + MONTHS[dateObj.getMonth()] + ' ' + dateObj.getDate() + ', ' + dateObj.getFullYear();
+            document.getElementById('detailInfo').textContent = count + ' login' + (count !== 1 ? 's' : '') + ' recorded';
+            panel.classList.add('visible');
+        }
+
+        // ── Pattern Grid (Day x Hour) ──
+        function renderPattern(pattern) {
+            const container = document.getElementById('patternContainer');
+            const maxVal = Math.max(...pattern.grid.flat(), 1);
+
+            let html = '<div class="pattern-grid">';
+            // Hour headers
+            html += '<div></div>';
+            for (let h = 0; h < 24; h++) {
+                html += `<div class="heatmap-label" style="justify-content:center;font-size:8px">${h % 3 === 0 ? h : ''}</div>`;
+            }
+
+            for (let d = 0; d < 7; d++) {
+                html += `<div class="pattern-label">${DAYS[d]}</div>`;
+                for (let h = 0; h < 24; h++) {
+                    const val = pattern.grid[d][h];
+                    const level = _colorLevel(val, maxVal);
+                    html += `<div class="pattern-cell hc-${level}" title="${DAYS[d]} ${h}:00 - ${val} logins"></div>`;
+                }
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function refreshPatternAggregated() {
+            // Build aggregated 7x24 grid
+            const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+
+            await Promise.all(classMemberUids.slice(0, 30).map(async uid => {
+                try {
+                    const pattern = await AttendanceTracker.getAttendancePattern(uid, '90d');
+                    for (let d = 0; d < 7; d++) {
+                        for (let h = 0; h < 24; h++) {
+                            grid[d][h] += pattern.grid[d][h];
+                        }
+                    }
+                } catch (e) { /* skip */ }
+            }));
+
+            renderPattern({ grid, days: DAYS, hours: [] });
+        }
+
+        // ── Today's Attendance ──
+        async function refreshTodayAttendance() {
+            const container = document.getElementById('todayContainer');
+            if (!currentClassId) return;
+
+            try {
+                const result = await AttendanceTracker.getClassAttendance(currentClassId);
+                document.getElementById('statRate').textContent = result.rate + '%';
+
+                if (result.total === 0) {
+                    container.innerHTML = '<div class="empty-state">No students in class</div>';
+                    return;
+                }
+
+                let html = '<ul class="attendance-list">';
+                result.present.forEach(s => {
+                    html += `<li><span class="att-indicator att-present"></span><span>${_esc(s.name)}</span></li>`;
+                });
+                result.absent.forEach(s => {
+                    html += `<li><span class="att-indicator att-absent"></span><span style="color:#8b949e">${_esc(s.name)} (absent)</span></li>`;
+                });
+                html += '</ul>';
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="empty-state">Failed to load attendance</div>';
+            }
+        }
+
+        function _esc(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ── Boot ──
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</body>
+</html>

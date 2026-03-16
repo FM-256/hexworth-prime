@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engagement Metrics | Handler Dashboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        /* ── Layout ── */
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .page-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #06b6d4;
+        }
+        .page-header .subtitle {
+            font-size: 0.85rem;
+            color: #8b949e;
+            margin-top: 2px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .controls select, .controls button {
+            background: #161b22;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .controls select:hover, .controls button:hover {
+            border-color: #06b6d4;
+        }
+        .controls button.refresh {
+            background: #06b6d4;
+            color: #0d1117;
+            border-color: #06b6d4;
+            font-weight: 600;
+        }
+
+        /* ── Grid ── */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 500px) {
+            .chart-grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .card h2 {
+            font-size: 1rem;
+            color: #06b6d4;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* ── SVG Charts ── */
+        .chart-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .chart-container svg {
+            width: 100%;
+            height: auto;
+        }
+
+        /* ── Gauge ── */
+        .gauge-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        .gauge-label {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #06b6d4;
+        }
+        .gauge-sub {
+            font-size: 0.8rem;
+            color: #8b949e;
+        }
+
+        /* ── Student Lists ── */
+        .student-list {
+            list-style: none;
+        }
+        .student-list li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #21262d;
+            font-size: 0.85rem;
+        }
+        .student-list li:last-child { border-bottom: none; }
+        .student-name {
+            color: #e6edf3;
+            font-weight: 500;
+        }
+        .student-score {
+            font-weight: 600;
+            min-width: 40px;
+            text-align: right;
+        }
+        .score-high { color: #4ade80; }
+        .score-mid { color: #fbbf24; }
+        .score-low { color: #f87171; }
+
+        .list-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 700px) {
+            .list-grid { grid-template-columns: 1fr; }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #8b949e;
+            padding: 40px 20px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Loading ── */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            color: #8b949e;
+        }
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #30363d;
+            border-top-color: #06b6d4;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Breakdown bar ── */
+        .breakdown {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .breakdown-item {
+            flex: 1;
+            min-width: 80px;
+            text-align: center;
+        }
+        .breakdown-item .bl {
+            font-size: 0.7rem;
+            color: #8b949e;
+            margin-bottom: 4px;
+        }
+        .breakdown-item .bv {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page-header">
+        <div>
+            <h1>Engagement Metrics</h1>
+            <div class="subtitle">Student activity and engagement analytics</div>
+        </div>
+        <div class="controls">
+            <select id="classSelect">
+                <option value="">-- Select Class --</option>
+            </select>
+            <select id="rangeSelect">
+                <option value="7d">Last 7 Days</option>
+                <option value="14d">Last 14 Days</option>
+                <option value="30d" selected>Last 30 Days</option>
+                <option value="90d">Last 90 Days</option>
+            </select>
+            <button class="refresh" id="refreshBtn">Refresh</button>
+        </div>
+    </div>
+
+    <!-- Gauge + Breakdown -->
+    <div class="chart-grid">
+        <div class="card">
+            <h2>Class Engagement Score</h2>
+            <div id="gaugeContainer" class="gauge-wrap">
+                <div class="empty-state">Select a class to view engagement</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Login Frequency (Last 30 Days)</h2>
+            <div id="loginChartContainer" class="chart-container">
+                <div class="empty-state">No data</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Session Duration (Avg Minutes)</h2>
+            <div id="durationChartContainer" class="chart-container">
+                <div class="empty-state">No data</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Weekly Engagement Trends</h2>
+            <div id="trendsChartContainer" class="chart-container">
+                <div class="empty-state">No data</div>
+            </div>
+        </div>
+
+        <div class="card full-width">
+            <h2>Student Rankings</h2>
+            <div id="studentListContainer">
+                <div class="empty-state">No data</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <!-- Dependencies -->
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/FirestoreManager.js"></script>
+    <script src="/components/ClassManager.js"></script>
+    <script src="/components/analytics/EngagementMetrics.js"></script>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const ACCENT = '#06b6d4';
+        const GREEN = '#4ade80';
+        const YELLOW = '#fbbf24';
+        const RED = '#f87171';
+        const GRID_COLOR = '#21262d';
+        const TEXT_COLOR = '#8b949e';
+
+        let currentClassId = null;
+        let currentRange = '30d';
+
+        // ── Init ──
+        async function init() {
+            try {
+                await EngagementMetrics.init();
+                await loadClasses();
+
+                document.getElementById('classSelect').addEventListener('change', onClassChange);
+                document.getElementById('rangeSelect').addEventListener('change', onRangeChange);
+                document.getElementById('refreshBtn').addEventListener('click', refresh);
+            } catch (e) {
+                console.error('[EngagementCharts] Init failed:', e);
+            }
+        }
+
+        async function loadClasses() {
+            if (typeof ClassManager === 'undefined') return;
+            await ClassManager.init();
+            const classes = await ClassManager.listMyClasses();
+            const sel = document.getElementById('classSelect');
+            classes.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name || c.code || c.id;
+                sel.appendChild(opt);
+            });
+        }
+
+        function onClassChange(e) {
+            currentClassId = e.target.value;
+            if (currentClassId) refresh();
+        }
+
+        function onRangeChange(e) {
+            currentRange = e.target.value;
+            if (currentClassId) refresh();
+        }
+
+        async function refresh() {
+            if (!currentClassId) return;
+            showLoading();
+
+            try {
+                const [classData, trends] = await Promise.all([
+                    EngagementMetrics.getClassEngagement(currentClassId),
+                    EngagementMetrics.getEngagementTrends(currentClassId, 12)
+                ]);
+
+                renderGauge(classData.classAverage, classData.totalStudents);
+                renderStudentLists(classData.topEngaged, classData.atRisk);
+
+                // Get login data for top student (or first)
+                if (classData.students.length > 0) {
+                    const topUid = classData.students[0].uid;
+                    const [loginData, durationData] = await Promise.all([
+                        EngagementMetrics.getLoginFrequency(topUid, currentRange),
+                        EngagementMetrics.getSessionDuration(topUid, currentRange)
+                    ]);
+                    renderLoginChart(loginData);
+                    renderDurationChart(durationData);
+                }
+
+                renderTrendsChart(trends);
+            } catch (e) {
+                console.error('[EngagementCharts] Refresh failed:', e);
+            }
+        }
+
+        function showLoading() {
+            ['gaugeContainer', 'loginChartContainer', 'durationChartContainer', 'trendsChartContainer', 'studentListContainer'].forEach(id => {
+                document.getElementById(id).innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
+            });
+        }
+
+        // ── Gauge (SVG arc) ──
+        function renderGauge(score, totalStudents) {
+            const container = document.getElementById('gaugeContainer');
+            const color = score >= 70 ? GREEN : score >= 40 ? YELLOW : RED;
+            const pct = score / 100;
+            const radius = 80;
+            const circumference = Math.PI * radius;
+            const dashOffset = circumference * (1 - pct);
+
+            container.innerHTML = `
+                <svg viewBox="0 0 200 120" width="240" height="144">
+                    <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="${GRID_COLOR}" stroke-width="12" stroke-linecap="round"/>
+                    <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"
+                          stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+                          style="transition: stroke-dashoffset 0.8s ease"/>
+                    <text x="100" y="90" text-anchor="middle" fill="${color}" font-size="32" font-weight="700">${score}</text>
+                    <text x="100" y="108" text-anchor="middle" fill="${TEXT_COLOR}" font-size="10">out of 100</text>
+                </svg>
+                <div class="gauge-sub">${totalStudents} student${totalStudents !== 1 ? 's' : ''} in class</div>
+            `;
+        }
+
+        // ── Login Frequency Line Chart ──
+        function renderLoginChart(data) {
+            const container = document.getElementById('loginChartContainer');
+            if (!data || data.data.length === 0) {
+                container.innerHTML = '<div class="empty-state">No login data available</div>';
+                return;
+            }
+
+            const W = 600, H = 200, PAD = { t: 20, r: 20, b: 40, l: 40 };
+            const plotW = W - PAD.l - PAD.r;
+            const plotH = H - PAD.t - PAD.b;
+            const maxVal = Math.max(...data.data, 1);
+            const step = plotW / (data.data.length - 1 || 1);
+
+            let path = '';
+            let dots = '';
+            const points = data.data.map((v, i) => {
+                const x = PAD.l + i * step;
+                const y = PAD.t + plotH - (v / maxVal) * plotH;
+                return { x, y, v, label: data.labels[i] };
+            });
+
+            points.forEach((p, i) => {
+                path += (i === 0 ? 'M' : 'L') + p.x + ',' + p.y;
+                dots += `<circle cx="${p.x}" cy="${p.y}" r="3" fill="${ACCENT}"><title>${p.label}: ${p.v} logins</title></circle>`;
+            });
+
+            // X-axis labels (show every 5th)
+            let xLabels = '';
+            points.forEach((p, i) => {
+                if (i % 5 === 0 || i === points.length - 1) {
+                    xLabels += `<text x="${p.x}" y="${H - 5}" text-anchor="middle" fill="${TEXT_COLOR}" font-size="9">${p.label.slice(5)}</text>`;
+                }
+            });
+
+            // Y-axis labels
+            let yLabels = '';
+            for (let i = 0; i <= 4; i++) {
+                const y = PAD.t + plotH - (i / 4) * plotH;
+                const val = Math.round((i / 4) * maxVal);
+                yLabels += `<text x="${PAD.l - 8}" y="${y + 3}" text-anchor="end" fill="${TEXT_COLOR}" font-size="9">${val}</text>`;
+                yLabels += `<line x1="${PAD.l}" y1="${y}" x2="${W - PAD.r}" y2="${y}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`;
+            }
+
+            container.innerHTML = `
+                <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+                    ${yLabels}
+                    <path d="${path}" fill="none" stroke="${ACCENT}" stroke-width="2"/>
+                    ${dots}
+                    ${xLabels}
+                </svg>
+            `;
+        }
+
+        // ── Session Duration Bar Chart ──
+        function renderDurationChart(data) {
+            const container = document.getElementById('durationChartContainer');
+            if (!data || data.sessions.length === 0) {
+                container.innerHTML = '<div class="empty-state">No session data available</div>';
+                return;
+            }
+
+            // Aggregate by day
+            const dayMap = {};
+            data.sessions.forEach(s => {
+                dayMap[s.date] = (dayMap[s.date] || 0) + s.minutes;
+            });
+
+            const days = Object.keys(dayMap).sort();
+            const vals = days.map(d => dayMap[d]);
+            const maxVal = Math.max(...vals, 1);
+
+            const W = 600, H = 200, PAD = { t: 20, r: 20, b: 40, l: 40 };
+            const plotW = W - PAD.l - PAD.r;
+            const plotH = H - PAD.t - PAD.b;
+            const barW = Math.min(16, plotW / days.length - 2);
+
+            let bars = '';
+            let xLabels = '';
+
+            days.forEach((day, i) => {
+                const x = PAD.l + (i + 0.5) * (plotW / days.length);
+                const barH = (vals[i] / maxVal) * plotH;
+                const y = PAD.t + plotH - barH;
+                bars += `<rect x="${x - barW / 2}" y="${y}" width="${barW}" height="${barH}" fill="${ACCENT}" rx="2" opacity="0.85"><title>${day}: ${vals[i].toFixed(1)} min</title></rect>`;
+                if (i % 5 === 0 || i === days.length - 1) {
+                    xLabels += `<text x="${x}" y="${H - 5}" text-anchor="middle" fill="${TEXT_COLOR}" font-size="9">${day.slice(5)}</text>`;
+                }
+            });
+
+            // Y-axis
+            let yLabels = '';
+            for (let i = 0; i <= 4; i++) {
+                const y = PAD.t + plotH - (i / 4) * plotH;
+                const val = Math.round((i / 4) * maxVal);
+                yLabels += `<text x="${PAD.l - 8}" y="${y + 3}" text-anchor="end" fill="${TEXT_COLOR}" font-size="9">${val}</text>`;
+                yLabels += `<line x1="${PAD.l}" y1="${y}" x2="${W - PAD.r}" y2="${y}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`;
+            }
+
+            // Average line
+            const avg = data.average;
+            const avgY = PAD.t + plotH - (avg / maxVal) * plotH;
+            const avgLine = `<line x1="${PAD.l}" y1="${avgY}" x2="${W - PAD.r}" y2="${avgY}" stroke="${YELLOW}" stroke-width="1" stroke-dasharray="4,4"/>
+                <text x="${W - PAD.r + 4}" y="${avgY + 3}" fill="${YELLOW}" font-size="9">avg ${avg}m</text>`;
+
+            container.innerHTML = `
+                <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+                    ${yLabels}
+                    ${bars}
+                    ${avgLine}
+                    ${xLabels}
+                </svg>
+            `;
+        }
+
+        // ── Weekly Trends Multi-line Chart ──
+        function renderTrendsChart(trends) {
+            const container = document.getElementById('trendsChartContainer');
+            if (!trends || trends.weeks.length === 0) {
+                container.innerHTML = '<div class="empty-state">No trend data available</div>';
+                return;
+            }
+
+            const W = 600, H = 220, PAD = { t: 30, r: 60, b: 50, l: 45 };
+            const plotW = W - PAD.l - PAD.r;
+            const plotH = H - PAD.t - PAD.b;
+            const n = trends.weeks.length;
+            const step = plotW / (n - 1 || 1);
+
+            const maxAvg = Math.max(...trends.averages, 1);
+
+            // Participation line (0-100%)
+            let partPath = '';
+            let avgPath = '';
+            let dots = '';
+
+            trends.weeks.forEach((w, i) => {
+                const x = PAD.l + i * step;
+                // Participation (green)
+                const py = PAD.t + plotH - (trends.participation[i] / 100) * plotH;
+                partPath += (i === 0 ? 'M' : 'L') + x + ',' + py;
+                dots += `<circle cx="${x}" cy="${py}" r="3" fill="${GREEN}"><title>${w}: ${trends.participation[i]}% participation</title></circle>`;
+
+                // Avg duration (cyan)
+                const ay = PAD.t + plotH - (trends.averages[i] / maxAvg) * plotH;
+                avgPath += (i === 0 ? 'M' : 'L') + x + ',' + ay;
+                dots += `<circle cx="${x}" cy="${ay}" r="3" fill="${ACCENT}"><title>${w}: ${trends.averages[i]} min avg</title></circle>`;
+            });
+
+            // X-axis labels
+            let xLabels = '';
+            trends.weeks.forEach((w, i) => {
+                if (i % 2 === 0 || i === n - 1) {
+                    const x = PAD.l + i * step;
+                    xLabels += `<text x="${x}" y="${H - 8}" text-anchor="middle" fill="${TEXT_COLOR}" font-size="8" transform="rotate(-20 ${x} ${H - 8})">${w}</text>`;
+                }
+            });
+
+            // Legend
+            const legend = `
+                <rect x="${W - 55}" y="${PAD.t}" width="8" height="8" fill="${GREEN}" rx="2"/>
+                <text x="${W - 44}" y="${PAD.t + 8}" fill="${TEXT_COLOR}" font-size="8">Participation</text>
+                <rect x="${W - 55}" y="${PAD.t + 16}" width="8" height="8" fill="${ACCENT}" rx="2"/>
+                <text x="${W - 44}" y="${PAD.t + 24}" fill="${TEXT_COLOR}" font-size="8">Avg Duration</text>
+            `;
+
+            container.innerHTML = `
+                <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+                    <path d="${partPath}" fill="none" stroke="${GREEN}" stroke-width="2"/>
+                    <path d="${avgPath}" fill="none" stroke="${ACCENT}" stroke-width="2"/>
+                    ${dots}
+                    ${xLabels}
+                    ${legend}
+                </svg>
+            `;
+        }
+
+        // ── Student Lists ──
+        function renderStudentLists(topEngaged, atRisk) {
+            const container = document.getElementById('studentListContainer');
+
+            if ((!topEngaged || topEngaged.length === 0) && (!atRisk || atRisk.length === 0)) {
+                container.innerHTML = '<div class="empty-state">No student data available</div>';
+                return;
+            }
+
+            function scoreClass(s) {
+                return s >= 70 ? 'score-high' : s >= 40 ? 'score-mid' : 'score-low';
+            }
+
+            function renderList(title, students, emptyMsg) {
+                if (!students || students.length === 0) {
+                    return `<div><h3 style="color:${TEXT_COLOR};font-size:0.9rem;margin-bottom:8px">${title}</h3><div class="empty-state">${emptyMsg}</div></div>`;
+                }
+                const items = students.map(s =>
+                    `<li><span class="student-name">${_esc(s.name)}</span><span class="student-score ${scoreClass(s.score)}">${s.score}</span></li>`
+                ).join('');
+                return `<div><h3 style="color:${TEXT_COLOR};font-size:0.9rem;margin-bottom:8px">${title}</h3><ul class="student-list">${items}</ul></div>`;
+            }
+
+            container.innerHTML = `
+                <div class="list-grid">
+                    ${renderList('Top Engaged', topEngaged, 'No data')}
+                    ${renderList('At Risk (Score < 30)', atRisk, 'No at-risk students -- looking good')}
+                </div>
+            `;
+        }
+
+        function _esc(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ── Boot ──
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</body>
+</html>

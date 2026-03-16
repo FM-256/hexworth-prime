@@ -232,15 +232,15 @@
 ## Wave 19: Tooling & Analytics (4 parallel agents)
 *Sprints: HD-8/9/10, NXS-1, SC-5, AR-5, DA-20, RS-2, ES-14*
 
-- [ ] **HD-8** — Engagement metrics: login frequency, session duration (← HD-7 done)
-- [ ] **HD-9** — Attendance/login tracking: pattern heatmaps (← HD-8)
-- [ ] **HD-10** — Student satisfaction pulse surveys (← HD-7 done)
-- [ ] **NXS-1** — Nexus hexcontent spoke adapter (bc1 content shuttle)
-- [ ] **SC-5** — Scraper content classifier & auto-tagger
-- [ ] **AR-5** — IDP drafting: Series B-H (140 boxes) — partial, continue
-- [ ] **DA-20** — Tennessee Security Labs extraction (Canvas .imscc → Prime modules)
-- [ ] **RS-2** — Repo Scout: GitHub API scraper (← RS-1 done)
-- [ ] **ES-14** — SEM-001 heading hierarchy fixes (overlaps QC-13, resolve remainder)
+- [x] **HD-8** — Engagement metrics: login frequency, session duration (← HD-7 done)
+- [x] **HD-9** — Attendance/login tracking: pattern heatmaps (← HD-8)
+- [x] **HD-10** — Student satisfaction pulse surveys (← HD-7 done)
+- [x] **NXS-1** — Nexus hexcontent spoke adapter (bc1 content shuttle)
+- [x] **SC-5** — Scraper content classifier & auto-tagger
+- [x] **AR-5** — IDP drafting: Series B-H (140 boxes) — partial, continue
+- [x] **DA-20** — Tennessee Security Labs extraction (Canvas .imscc → Prime modules)
+- [x] **RS-2** — Repo Scout: GitHub API scraper (← RS-1 done)
+- [x] **ES-14** — SEM-001 heading hierarchy fixes (overlaps QC-13, resolve remainder)
 
 ---
 ## Wave 20: Sprint Backlog Audit (1 agent)
