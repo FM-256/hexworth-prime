@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QoS-03: Congestion Avoidance | The Backbone | Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117; --accent: #06b6d4; --accent-dim: rgba(6,182,212,0.12); --accent-border: rgba(6,182,212,0.25); --green: #4ade80; --yellow: #fbbf24; --red: #f87171; --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 14px; }
+        .bb-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .bb-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .bb-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .bb-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .bb-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .bb-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .bb-breadcrumb a:hover { opacity: 0.8; }
+        .bb-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); } .prompt { color: var(--green); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .callout ul { list-style: none; }
+        .callout ul li { padding-left: 16px; position: relative; margin-bottom: 4px; }
+        .callout ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .state-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .state-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .state-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .state-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .state-highlight { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--green); }
+        .try-it { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+        .try-it ol { padding-left: 18px; }
+        .try-it li { margin-bottom: 5px; }
+        .takeaways { background: linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.04)); border: 1px solid rgba(74,222,128,0.25); border-radius: 8px; padding: 20px; margin: 28px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 0.95rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.88rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 32px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+        .nav-btn.primary:hover { background: #0891b2; }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="bb-header">
+        <div class="bb-header-left">
+            <span class="bb-badge">QoS-03</span>
+            <h1>Congestion Avoidance</h1>
+        </div>
+        <a href="index.html" class="bb-back">&lt; QoS Course</a>
+    </header>
+
+    <nav class="bb-breadcrumb" aria-label="Breadcrumb">
+        <a href="/app/dashboard.html">Dashboard</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="../../index.html">Web House</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="../index.html">The Backbone</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="index.html">QoS</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <span>Congestion Avoidance</span>
+    </nav>
+
+    <div class="content-panel">
+
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Explain TCP global synchronization and why tail drop causes it</li>
+                <li>Describe how RED and WRED use probabilistic early drop to prevent queue collapse</li>
+                <li>Configure WRED with DSCP-based thresholds in an MQC policy-map</li>
+                <li>Explain ECN and how it signals congestion without dropping packets</li>
+                <li>Identify which traffic types should and should not have WRED applied</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">The Tail Drop Problem</h2>
+            <p class="content-text">Tail drop is what happens when a queue fills completely: every arriving packet is dropped until the queue drains. For TCP traffic, each drop triggers a sender to halve its congestion window. The problem is synchronization -- when a queue fills due to multiple TCP flows, all flows detect loss simultaneously and reduce their rates simultaneously. The queue drains rapidly, then all flows ramp up simultaneously, refill the queue, and the cycle repeats. This oscillation is called TCP global synchronization and it dramatically reduces link utilization.</p>
+
+            <div class="callout callout--danger">
+                <h4>TCP Global Synchronization</h4>
+                <p>In a scenario with 10 TCP flows all experiencing tail drop simultaneously: all 10 enter slow start, utilization drops to near zero, all 10 ramp up together, the queue fills again, and all 10 drop again. A link configured with tail drop can oscillate between near-zero and 100% utilization rather than settling at a stable high rate. WRED solves this by staggering drops across flows.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Random Early Detection (RED)</h2>
+            <p class="content-text">RED monitors the average queue depth and begins randomly dropping (or marking) packets before the queue fills completely. This sends congestion signals to individual TCP senders early, causing them to reduce rates gradually and staggered -- preventing the cliff-edge synchronization of tail drop. Key RED parameters:</p>
+
+            <table class="state-table">
+                <thead>
+                    <tr><th>Parameter</th><th>Description</th><th>Typical Value</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="state-highlight">Minimum threshold</td><td>Average queue depth below which no drops occur. Traffic flows freely.</td><td>20-40% of max queue</td></tr>
+                    <tr><td class="state-highlight">Maximum threshold</td><td>Average queue depth above which all packets are dropped (tail drop kicks in).</td><td>60-80% of max queue</td></tr>
+                    <tr><td class="state-highlight">Mark probability</td><td>Maximum drop probability at the maximum threshold. Between min and max, probability rises linearly.</td><td>1/10 to 1/40</td></tr>
+                    <tr><td class="state-highlight">Average queue depth</td><td>Exponentially weighted moving average -- smooths over bursts. Controlled by the exponential weighting constant.</td><td>Calculated automatically</td></tr>
+                </tbody>
+            </table>
+
+            <p class="content-text">Between the minimum and maximum thresholds, the drop probability increases linearly from 0% to the configured mark probability. This gives multiple TCP flows independent, probabilistic drop signals rather than dropping everyone simultaneously.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">WRED -- Weighted Random Early Detection</h2>
+            <p class="content-text">WRED extends RED by applying different drop thresholds and probabilities based on traffic class (DSCP or IP Precedence). Higher-priority traffic (lower DSCP drop precedence) gets higher minimum thresholds -- meaning they experience drops less aggressively. Lower-priority traffic gets lower thresholds and is dropped first when congestion builds, protecting high-priority classes.</p>
+
+            <div class="callout callout--info">
+                <h4>WRED and the AF Drop Precedence Encoding</h4>
+                <p>The AF DSCP values encode drop precedence directly. AF41 (drop precedence 1) should have the highest minimum threshold within class 4. AF42 (drop precedence 2) should have a medium threshold. AF43 (drop precedence 3) should have the lowest minimum threshold and highest drop rate. WRED naturally aligns with this encoding.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- WRED in MQC Policy-Map</div>
+                <pre><span class="cm">! Apply WRED to a data class queue -- do NOT apply to voice (EF)</span>
+policy-map WAN-CONGESTION-AVOIDANCE
+ class VOICE-BEARER
+  priority percent 10
+  <span class="cm">! No WRED on voice -- voice cannot tolerate random drops</span>
+
+ class VIDEO-CONF
+  bandwidth percent 30
+  <span class="hl">random-detect dscp-based</span>
+  <span class="cm">! WRED with DSCP-based thresholds for AF4x traffic</span>
+  random-detect dscp af41 <span class="num">30 50 10</span>
+  <span class="cm">!                        min max  mark-prob (1/10)</span>
+  random-detect dscp af42 <span class="num">25 45 10</span>
+  random-detect dscp af43 <span class="num">20 40 10</span>
+
+ class CRITICAL-DATA
+  bandwidth percent 25
+  random-detect dscp-based
+  random-detect dscp af31 <span class="num">28 48 10</span>
+  random-detect dscp af32 <span class="num">22 42 10</span>
+  random-detect dscp af33 <span class="num">16 36 10</span>
+
+ class class-default
+  fair-queue
+  random-detect</pre>
+            </div>
+
+            <div class="callout callout--warn">
+                <h4>Never Apply WRED to Voice Queues</h4>
+                <p>WRED randomly drops packets. Voice (EF, CS5) cannot tolerate random packet loss -- even 1-2% loss degrades call quality significantly. The LLQ priority queue is policed and tail-drops excess, but within the rate guarantee, voice packets must never be randomly dropped. Apply WRED only to data classes (AF and best-effort traffic).</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">ECN -- Explicit Congestion Notification</h2>
+            <p class="content-text">ECN is defined in RFC 3168 and uses the 2-bit ECN field in the IP header (repurposed from the original ToS byte's low-order bits). Rather than dropping a packet to signal congestion, an ECN-capable router sets the Congestion Experienced (CE) codepoint in the IP header of a packet it would otherwise have dropped (or probabilistically selected for drop via WRED). The receiving TCP endpoint communicates the CE marking back to the sender via the TCP ECE (ECN Echo) bit, and the sender reduces its rate as if a drop had occurred -- but without actually losing the packet.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>ECN Benefits</strong>
+                    <span>No packet loss for congestion signaling. Reduces retransmission overhead. Particularly valuable in high-speed data centers where retransmissions are expensive.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>ECN Requirements</strong>
+                    <span>Both endpoints must support ECN. The router must be configured to use ECN instead of dropping. Works with WRED -- ECN marks instead of dropping for ECN-capable flows.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>ECN Codepoints</strong>
+                    <span>00 = Non ECN-Capable Transport. 01 or 10 = ECN-Capable Transport. 11 = Congestion Experienced (CE). Routers only mark CE on flows advertising ECT capability.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>WRED + ECN</strong>
+                    <span>When both are configured, WRED marks ECN-capable packets with CE instead of dropping them. Non-ECN-capable packets are still dropped probabilistically.</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Cisco IOS -- Enable ECN with WRED</div>
+                <pre><span class="cm">! ECN integration with WRED in MQC</span>
+policy-map DATA-WITH-ECN
+ class BULK-DATA
+  bandwidth percent 20
+  random-detect dscp-based
+  random-detect dscp af11 <span class="num">24 40 10</span>
+  <span class="hl">random-detect ecn</span>
+  <span class="cm">! ECN-capable packets get marked instead of dropped
+  ! Non-ECN packets still dropped probabilistically via WRED</span>
+
+<span class="cm">! Verify ECN markings and drops</span>
+<span class="prompt">R1#</span> show policy-map interface Gi0/0 output class BULK-DATA
+  <span class="out">random-detect stats:</span>
+    drop pkts:   1240
+    <span class="hl">ecn marked pkts: 8830</span>
+    <span class="cm">! 8830 packets marked vs 1240 dropped -- ECN is working</span></pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Practice Scenario</h3>
+            <p>You are deploying WRED on a 100 Mbps WAN edge interface carrying mixed AF traffic. The BULK-DATA class carries AF11, AF12, and AF13 marked traffic from three different application tiers.</p>
+            <ol>
+                <li>The queue depth for BULK-DATA has 64 packet slots. Set appropriate minimum threshold, maximum threshold, and mark probability for AF11, AF12, and AF13 such that AF11 is protected the most.</li>
+                <li>A developer asks why some packets in the BULK-DATA class show drops even though the interface is not at 100% utilization. Explain the average queue calculation and why WRED may drop even when instantaneous utilization is low.</li>
+                <li>Your VoIP class is showing intermittent quality issues. You check and find WRED is enabled on the VOICE-BEARER class. What action do you take and why?</li>
+                <li>Describe a scenario where enabling ECN on a queue might not provide benefit even if the router supports it.</li>
+            </ol>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Tail drop causes TCP global synchronization -- all flows detect loss simultaneously and back off/ramp up together, oscillating utilization</li>
+                <li>RED introduces probabilistic early drops before the queue fills, staggering congestion signals across individual TCP flows</li>
+                <li>WRED extends RED with per-class thresholds -- high-drop-precedence traffic (AF43) is dropped earlier than low-drop-precedence (AF41)</li>
+                <li>WRED aligns naturally with AF DSCP encoding -- drop precedence bits in the DSCP value map directly to WRED thresholds</li>
+                <li>Never apply WRED to voice queues -- random drops destroy call quality; apply only to TCP data classes</li>
+                <li>ECN signals congestion by marking packets instead of dropping them -- requires ECN support at both endpoints</li>
+                <li>WRED + ECN together: ECN-capable packets get marked, non-ECN packets still get dropped probabilistically</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="bb-qos-02.html" class="nav-btn">&lt; Queuing Mechanisms</a>
+            <a href="bb-qos-04.html" class="nav-btn primary">Next: Traffic Shaping &amp; Policing &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'bb-qos-03';
+            var scrollThreshold = 0.8;
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= scrollThreshold) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.web) progress.web = {};
+                progress.web[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('web', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.web && progress.web[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

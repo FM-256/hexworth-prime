@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NF-07: Malware Traffic Analysis | The Backbone | Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #f59e0b; --accent-dim: rgba(245,158,11,0.1); --accent-border: rgba(245,158,11,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 14px; }
+        .bb-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .bb-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .bb-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .bb-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .bb-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .bb-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .bb-breadcrumb a:hover { opacity: 0.8; }
+        .bb-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); } .prompt { color: var(--green); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .callout ul { list-style: none; }
+        .callout ul li { padding-left: 16px; position: relative; margin-bottom: 4px; }
+        .callout ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .state-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .state-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .state-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .state-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .state-highlight { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--green); }
+        .try-it { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+        .try-it ol { padding-left: 18px; }
+        .try-it li { margin-bottom: 5px; }
+        .takeaways { background: linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.04)); border: 1px solid rgba(74,222,128,0.25); border-radius: 8px; padding: 20px; margin: 28px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 0.95rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.88rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 32px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+        .nav-btn.primary:hover { background: #d97706; }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="bb-header">
+        <div class="bb-header-left">
+            <span class="bb-badge">NF-07</span>
+            <h1>Malware Traffic Analysis</h1>
+        </div>
+        <a href="index.html" class="bb-back">&lt; Forensics Course</a>
+    </header>
+
+    <nav class="bb-breadcrumb" aria-label="Breadcrumb">
+        <a href="/app/dashboard.html">Dashboard</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="../../index.html">Web House</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="../index.html">The Backbone</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="index.html">Network Forensics</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <span>Malware Traffic Analysis</span>
+    </nav>
+
+    <div class="content-panel">
+
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Identify command-and-control (C2) traffic patterns across HTTP, HTTPS, DNS, and custom protocols</li>
+                <li>Detect beaconing behavior using inter-arrival time analysis and statistical methods</li>
+                <li>Recognize common exfiltration channels: DNS tunneling, HTTP POST floods, steganography</li>
+                <li>Analyze lateral movement traffic patterns including SMB, WMI, and pass-the-hash indicators</li>
+                <li>Apply framework-specific signatures for Cobalt Strike, Metasploit, and Empire C2 traffic</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">C2 Communication Fundamentals</h2>
+            <p class="content-text">Command-and-control infrastructure is the nervous system of an attacker's operation. Once an implant is installed, it must communicate with the operator to receive tasking and return results. The fundamental tension is between the attacker's need for reliable communication and the defender's ability to detect that communication.</p>
+            <p class="content-text">Modern C2 frameworks overwhelmingly favor blending into legitimate traffic: HTTPS over port 443, HTTP over port 80, DNS over port 53. The attacker's goal is for C2 traffic to be indistinguishable from normal user activity at the network boundary.</p>
+
+            <table class="state-table">
+                <thead>
+                    <tr><th>C2 Channel</th><th>Blending Strategy</th><th>Detection Approach</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="state-highlight">HTTP</td><td>Mimics browser traffic, uses legitimate-looking URIs, custom User-Agent</td><td>JA3 hash, URI patterns, beaconing interval, server certificate</td></tr>
+                    <tr><td class="state-highlight">HTTPS</td><td>Valid (or self-signed) TLS, SNI matches plausible domain</td><td>JA3/JA4, certificate issuer, domain registration age, byte ratio</td></tr>
+                    <tr><td class="state-highlight">DNS</td><td>Encodes data in subdomain labels, uses random-looking hostnames</td><td>Query length, label entropy, query frequency, NX domain rate</td></tr>
+                    <tr><td class="state-highlight">ICMP</td><td>Payload-stuffed echo requests, hidden in ping flood</td><td>ICMP payload size (normal ping = 32 or 56 bytes), payload entropy</td></tr>
+                    <tr><td class="state-highlight">Custom TCP/UDP</td><td>Unusual port, encrypted custom protocol</td><td>Port/process mismatch, traffic shape, lack of application-layer handshake</td></tr>
+                    <tr><td class="state-highlight">Social media / cloud</td><td>Posts/comments used as tasking (Twitter, Pastebin, GitHub)</td><td>TLS to unexpected cloud destinations, periodic scraping pattern</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Beaconing Detection</h2>
+            <p class="content-text">Beaconing is the periodic check-in behavior of implants polling their C2 for new commands. Even with jitter (random delay added to the beacon interval), statistical analysis of inter-arrival times reveals the underlying periodic pattern.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Extracting Connection Timestamps for Beaconing Analysis</div>
+                <pre><span class="cm"># Extract all HTTPS connections from one host to one destination</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "ip.src == 10.0.0.15 and ip.dst == 45.77.200.100 and tcp.dstport == 443" \
+    -T fields -e frame.time_epoch \
+    > timestamps.txt
+
+<span class="cm"># Calculate inter-arrival times in Python</span>
+<span class="prompt">$</span> python3 - &lt;&lt;'EOF'
+import sys
+
+times = [float(line.strip()) for line in open('timestamps.txt') if line.strip()]
+times.sort()
+intervals = [times[i+1] - times[i] for i in range(len(times)-1)]
+
+import statistics
+mean = statistics.mean(intervals)
+stdev = statistics.stdev(intervals)
+cv = stdev / mean  <span class="cm"># coefficient of variation -- low CV = highly periodic</span>
+
+print(f"Connections:  {len(times)}")
+print(f"Mean interval: {mean:.1f}s")
+print(f"Std deviation: {stdev:.1f}s")
+print(f"Coeff of variation: {cv:.3f}")
+print(f"Verdict: {'BEACON DETECTED' if cv < 0.15 else 'Not periodic'}")
+EOF
+
+<span class="out">Connections:   47</span>
+<span class="out">Mean interval: 60.3s</span>
+<span class="out">Std deviation: 4.8s</span>
+<span class="out">Coeff of variation: 0.080</span>
+<span class="hl">Verdict: BEACON DETECTED</span></pre>
+            </div>
+
+            <div class="callout callout--info">
+                <h4>Jitter and Its Limits</h4>
+                <p>Cobalt Strike's default sleep time is 60 seconds with 0% jitter. Operators who set jitter to 50% add randomness of +/- 30 seconds, producing a CV around 0.28. Even at 50% jitter, beaconing patterns remain detectable with enough samples -- typically 20+ connections is sufficient for statistical analysis. The real-world mean interval and jitter values are commonly found in threat intelligence reports for specific malware families.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Cobalt Strike HTTP C2 Traffic Signatures</div>
+                <pre><span class="cm"># Default Cobalt Strike HTTP malleable profile indicators</span>
+<span class="cm"># URI patterns -- default profile uses /submit.php, /updates, /load</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "http.request" \
+    -T fields -e ip.src -e ip.dst -e http.request.uri -e http.user_agent
+
+<span class="out">10.0.0.15  45.77.200.100  /submit.php  Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)</span>
+<span class="cm">                                       ^ IE8 on XP: never seen from legitimate modern traffic</span>
+
+<span class="cm"># Check response sizes -- Cobalt Strike responses are often fixed-size padded</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "http.response and ip.src == 45.77.200.100" \
+    -T fields -e http.content_length | sort | uniq -c | sort -rn | head
+
+<span class="out">  44  48      &lt;-- 44 responses exactly 48 bytes: padded C2 keep-alives</span>
+<span class="out">   3  2048    &lt;-- 3 responses 2048 bytes: task delivery</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Data Exfiltration Channels</h2>
+            <p class="content-text">Exfiltration is the transfer of stolen data out of the network. Attackers choose exfiltration channels based on what is permitted at the egress point. DNS exfiltration is popular because DNS is rarely inspected at the payload level and is almost universally permitted.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">DNS Exfiltration Detection in a pcap</div>
+                <pre><span class="cm"># Step 1: Extract all DNS queries and look for anomalously long subdomains</span>
+<span class="prompt">$</span> tshark -r capture.pcap -Y dns.qry.type==1 \
+    -T fields -e dns.qry.name | awk 'length > 50' | head -10
+
+<span class="out">aGVsbG93b3JsZA.secrets.attacker-domain.com</span>
+<span class="out">dGhpcyBpcyBleGZpbA.secrets.attacker-domain.com</span>
+<span class="out">dHJhdGlvbiBkYXRh.secrets.attacker-domain.com</span>
+
+<span class="cm"># Step 2: Decode base64 subdomains</span>
+<span class="prompt">$</span> echo "aGVsbG93b3JsZA" | base64 -d
+<span class="out">helloworld</span>
+
+<span class="cm"># Step 3: Measure exfiltration bandwidth via DNS</span>
+<span class="prompt">$</span> tshark -r capture.pcap -Y "dns.qry.name contains secrets.attacker-domain.com" \
+    -T fields -e dns.qry.name | awk '{sum += length($1)} END {print sum " bytes exfiltrated via DNS"}'
+<span class="out">187432 bytes exfiltrated via DNS</span>
+
+<span class="cm"># Step 4: Calculate entropy of subdomains -- high entropy = encoded/encrypted data</span>
+<span class="prompt">$</span> python3 -c "
+import math, sys
+data = 'aGVsbG93b3JsZA'
+freq = {}
+for c in data: freq[c] = freq.get(c, 0) + 1
+entropy = -sum((f/len(data)) * math.log2(f/len(data)) for f in freq.values())
+print(f'Entropy: {entropy:.2f} bits/char  (random base64 ~= 5.8)')
+"
+<span class="out">Entropy: 4.21 bits/char  (random base64 ~= 5.8)</span></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">HTTPS Exfiltration: Detecting Large Outbound Transfers</div>
+                <pre><span class="cm"># Identify top talkers by outbound bytes to external destinations</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "ip.src == 10.0.0.0/8 and not ip.dst == 10.0.0.0/8" \
+    -T fields -e ip.src -e ip.dst -e tcp.len \
+    | awk '{key=$1" -> "$2; sum[key]+=$3} END {for(k in sum) print sum[k], k}' \
+    | sort -rn | head -5
+
+<span class="hl">2147483648  10.0.0.15 -> 45.77.200.100</span>
+<span class="out">   8234901  10.0.0.22 -> 8.8.8.8</span>
+<span class="out">   1923441  10.0.0.10 -> 17.253.144.10</span>
+<span class="cm"># 10.0.0.15 transferred ~2GB to 45.77.200.100 -- extreme outlier</span>
+
+<span class="cm"># Examine the transfer's timing (HTTPS so no plaintext content)</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "ip.src == 10.0.0.15 and ip.dst == 45.77.200.100" \
+    -T fields -e frame.time_relative -e tcp.len | tail -5
+<span class="out">3122.441  0</span>
+<span class="out">3122.441  1448</span>
+<span class="out">3125.003  1448</span>
+<span class="out">3125.003  1448</span>
+<span class="out">3127.112  0  &lt;-- FIN, transfer complete over ~52 minutes</span></pre>
+            </div>
+
+            <table class="state-table">
+                <thead>
+                    <tr><th>Exfil Channel</th><th>Typical Volume</th><th>Speed</th><th>Detection Indicator</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="state-highlight">DNS (base64/hex)</td><td>Low (KB-MB)</td><td>Slow (~1KB/s)</td><td>High query rate, long labels, label entropy, NX domain spike</td></tr>
+                    <tr><td class="state-highlight">HTTPS POST flood</td><td>High (GB)</td><td>Fast (line rate)</td><td>Sustained large outbound flows, byte asymmetry, unusual destination</td></tr>
+                    <tr><td class="state-highlight">FTP/SFTP</td><td>High</td><td>Fast</td><td>Port 21/22 egress, large PUT/STOR commands, destination geo</td></tr>
+                    <tr><td class="state-highlight">Email attachment</td><td>Medium (MB)</td><td>Medium</td><td>Large SMTP attachments to external, unusual sender, after-hours timing</td></tr>
+                    <tr><td class="state-highlight">Cloud storage API</td><td>High</td><td>Fast</td><td>AWS S3/Azure Blob API calls from internal host, unexpected PUT volume</td></tr>
+                    <tr><td class="state-highlight">ICMP payload</td><td>Low</td><td>Very slow</td><td>ICMP payload size > 64 bytes, sustained ICMP flood, payload entropy</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Lateral Movement Traffic Patterns</h2>
+            <p class="content-text">After establishing a foothold, attackers move laterally to reach high-value targets. Network traffic generated by lateral movement has distinctive port and protocol signatures even when the attacker is using legitimate administrative tools.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Detecting SMB Lateral Movement and Pass-the-Hash</div>
+                <pre><span class="cm"># SMB lateral movement: look for rapid, sequential SMB connections from one host</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "tcp.dstport == 445 and ip.src == 10.0.0.15" \
+    -T fields -e frame.time_relative -e ip.dst | head -20
+
+<span class="out">1820.001  10.0.0.20</span>
+<span class="out">1820.012  10.0.0.21</span>
+<span class="out">1820.024  10.0.0.22</span>
+<span class="out">1820.031  10.0.0.23</span>
+<span class="out">1820.045  10.0.0.24</span>
+<span class="cm"># 5 SMB connections in 44ms to sequential IPs = automated SMB scan/propagation</span>
+
+<span class="cm"># NTLM pass-the-hash indicator: NTLM authentication on SMB</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "ntlmssp and ip.src == 10.0.0.15" \
+    -T fields -e ip.dst -e ntlmssp.auth.username -e ntlmssp.auth.domain
+
+<span class="out">10.0.0.20  Administrator  CORP</span>
+<span class="out">10.0.0.21  Administrator  CORP</span>
+<span class="cm"># Same admin account authenticating to multiple hosts in seconds = PtH or stolen creds</span>
+
+<span class="cm"># WMI lateral movement -- DCOM port 135 + ephemeral port</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "tcp.dstport == 135 and ip.src == 10.0.0.15" \
+    -T fields -e frame.time_relative -e ip.dst
+<span class="out">1850.113  10.0.0.20  &lt;-- WMI to same targets 30 seconds after SMB probe</span></pre>
+            </div>
+
+            <div class="callout callout--danger">
+                <h4>Living off the Land: When Legitimate Tools Look Malicious</h4>
+                <p>Attackers prefer native Windows tools (PsExec, WMI, PowerShell remoting, RDP) because they blend with legitimate IT traffic and avoid antivirus detection. The network signature is identical to legitimate admin activity. Context is everything: the same SMB connection from the IT admin workstation during business hours is normal; from a developer's laptop at 2 AM is a high-confidence indicator.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Framework-Specific Signatures</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">Cobalt Strike, Metasploit, and Empire Indicators</div>
+                <pre><span class="cm">## COBALT STRIKE</span>
+<span class="cm"># Default HTTPS C2: self-signed cert with specific X.509 fields</span>
+<span class="cm"># Subject: C=US, ST=Maryland, O=Cobalt Strike, OU=AdvancedPenTesting</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "tls.handshake.certificate" \
+    -T fields -e x509sat.uTF8String | grep -i "cobalt\|cobaltstrike"
+
+<span class="cm"># Default JA3 hash for Cobalt Strike HTTPS listener</span>
+<span class="hl">JA3: 72a589da586844d7f0818ce684948eea</span>
+
+<span class="cm">## METASPLOIT METERPRETER</span>
+<span class="cm"># Meterpreter over HTTPS: reverse_https handler</span>
+<span class="cm"># Distinctive: GET /AAAAAAA (random uppercase alpha URI, 7 chars)</span>
+<span class="cm"># Certificate: self-signed, subject CN=localhost</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "http.request.uri matches \"^/[A-Z]{7}\"" \
+    -T fields -e ip.src -e ip.dst -e http.request.uri
+<span class="out">10.0.0.15  192.168.1.100  /GTZRQWM</span>
+
+<span class="cm">## EMPIRE (PowerShell)</span>
+<span class="cm"># Staging URI: GET /index.jsp, /login/process.do (task-specific)</span>
+<span class="cm"># Cookie-based tasking: session cookie contains base64 task</span>
+<span class="prompt">$</span> tshark -r capture.pcap \
+    -Y "http.cookie" \
+    -T fields -e ip.src -e http.cookie | grep -E "session=[A-Za-z0-9+/]{40,}"
+<span class="out">10.0.0.15  session=SGVsbG8gZnJvbSBFbXBpcmUgQzI=  &lt;-- base64 tasking</span></pre>
+            </div>
+        </section>
+
+        <div class="try-it">
+            <h3>Practice Questions</h3>
+            <ol>
+                <li>You observe a host making HTTPS connections to 45.33.32.156:443 with inter-arrival times of: 58s, 62s, 59s, 61s, 57s, 63s, 60s. Calculate the mean, standard deviation, and coefficient of variation. Is this beaconing?</li>
+                <li>Your DNS logs show 5,000 queries per hour to <span class="inline-code">*.secure-updates.net</span> from a single workstation. Normal workstations generate 200-400 DNS queries/hour. The subdomain labels average 45 characters in length. What two metrics confirm DNS exfiltration and what tshark command would you run next?</li>
+                <li>Describe the network evidence that distinguishes a legitimate IT admin using PsExec to deploy a patch from an attacker using PsExec for lateral movement. What contextual factors would you examine?</li>
+            </ol>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>C2 channels favor blending with legitimate protocols -- HTTPS, DNS, and HTTP -- making contextual and statistical analysis essential</li>
+                <li>Beaconing is detectable even with jitter using coefficient of variation analysis across 20+ connection samples</li>
+                <li>DNS exfiltration leaves three measurable indicators: query rate, label length, and label entropy</li>
+                <li>Large outbound HTTPS transfers can be detected via byte asymmetry and outlier flow volume even without decrypting content</li>
+                <li>Framework signatures (JA3, default URIs, certificate fields) enable rapid identification of known C2 infrastructure</li>
+                <li>Lateral movement traffic looks like legitimate admin activity -- time, frequency, and source context distinguish the two</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="bb-nf-06.html" class="nav-btn">&lt; Network Timeline Reconstruction</a>
+            <a href="bb-nf-08.html" class="nav-btn primary">Next: Wireless Forensics &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'bb-nf-07';
+            var scrollThreshold = 0.8;
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (docHeight > 0 && (scrollTop / docHeight) >= scrollThreshold) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!progress.web) progress.web = {};
+                progress.web[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                ModuleProgress.complete('web', MODULE_ID);
+            }
+            (function loadProgress() {
+                var progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                var saved = progress.web && progress.web[MODULE_ID];
+                if (saved && saved.completed) completed = true;
+            })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

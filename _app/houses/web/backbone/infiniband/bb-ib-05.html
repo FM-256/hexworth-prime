@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IB-05: DPDK &amp; Kernel Bypass | The Backbone | Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117; --accent: #fbbf24; --accent-dim: rgba(251,191,36,0.10); --accent-border: rgba(251,191,36,0.25); --green: #4ade80; --yellow: #fbbf24; --red: #f87171; --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 14px; }
+        .bb-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .bb-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .bb-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .bb-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .bb-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .bb-breadcrumb a { color: var(--accent); text-decoration: none; } .bb-breadcrumb a:hover { opacity: 0.8; } .bb-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .kw { color: #ff7b72; } .str { color: #a5d6ff; } .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); } .prompt { color: var(--green); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .callout ul { list-style: none; } .callout ul li { padding-left: 16px; position: relative; margin-bottom: 4px; } .callout ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .state-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .state-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .state-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .state-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .state-highlight { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--green); }
+        .try-it { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+        .try-it ol { padding-left: 18px; } .try-it li { margin-bottom: 5px; }
+        .takeaways { background: linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.04)); border: 1px solid rgba(74,222,128,0.25); border-radius: 8px; padding: 20px; margin: 28px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 0.95rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.88rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 32px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+        .nav-btn.primary:hover { background: #f59e0b; }
+        .nav-btn.disabled { opacity: 0.35; pointer-events: none; }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="bb-header">
+        <div class="bb-header-left">
+            <span class="bb-badge">IB-05</span>
+            <h1>DPDK &amp; Kernel Bypass</h1>
+        </div>
+        <a href="index.html" class="bb-back">&lt; IB &amp; RDMA Course</a>
+    </header>
+
+    <nav class="bb-breadcrumb" aria-label="Breadcrumb">
+        <a href="/app/dashboard.html">Dashboard</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="../../index.html">Web House</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="../index.html">The Backbone</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <a href="index.html">InfiniBand &amp; RDMA</a>
+        <span class="bb-breadcrumb-sep">/</span>
+        <span>DPDK &amp; Kernel Bypass</span>
+    </nav>
+
+    <div class="content-panel">
+
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Explain why the Linux kernel network stack limits packet processing performance</li>
+                <li>Describe the DPDK poll-mode driver architecture and how it achieves line-rate processing</li>
+                <li>Configure hugepages and understand why DPDK requires them</li>
+                <li>Understand NUMA topology and why NUMA-aware NIC assignment matters for performance</li>
+                <li>Compare DPDK and RDMA as kernel-bypass mechanisms and when to use each</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Why the Kernel Stack is the Bottleneck</h2>
+            <p class="content-text">The Linux kernel network stack was designed for correctness and generality -- not for processing tens of millions of packets per second at minimal CPU cost. Several architectural choices impose overhead that becomes prohibitive at 100Gb/s and above:</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Interrupt-Driven I/O</strong>
+                    <span>Each packet arrival generates a hardware interrupt. At 100Mpps, interrupts dominate CPU time. NAPI batches interrupts but still involves kernel context switches.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Memory Copy Overhead</strong>
+                    <span>sk_buff (socket buffer) structures require data copies between DMA space, kernel buffers, and user space. Each copy is a cache miss at high throughput.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Lock Contention</strong>
+                    <span>Socket layer, TCP/IP, and driver locks serialize processing. Multi-core scaling is limited by spinlock contention even with SO_REUSEPORT and RSS.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Syscall Cost</strong>
+                    <span>send() and recv() require user-to-kernel transitions (syscalls). At millions of messages per second, syscall overhead becomes significant.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">DPDK: Data Plane Development Kit</h2>
+            <p class="content-text">DPDK (Data Plane Development Kit) is an open-source set of libraries and drivers that moves packet processing entirely into user space, bypassing the kernel network stack. A DPDK application runs a <strong style="color:var(--accent)">Poll Mode Driver (PMD)</strong> on dedicated CPU cores that continuously poll the NIC's receive queues in a tight loop -- no interrupts, no system calls, no context switches.</p>
+            <p class="content-text">The NIC is unbound from the kernel driver and bound to a user-space driver (vfio-pci or uio_pci_generic). The DPDK application then owns the NIC directly and communicates with it via shared memory ring buffers that the NIC and CPU both access.</p>
+
+            <div class="callout callout--info">
+                <h4>DPDK Performance Baseline</h4>
+                <p>A single core running a DPDK PMD can sustain approximately 14-25 million packets per second (Mpps) for 64-byte packets, depending on NIC and CPU generation. That is equivalent to about 12-20 Gb/s for minimum-size frames. At 100GbE line rate (148 Mpps), 6-10 cores are required. Linux kernel networking achieves roughly 1-2 Mpps per core for comparison.</p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Linux -- DPDK Setup: Hugepages and NIC Binding</div>
+                <pre><span class="cm"># Configure 2MB hugepages (minimum for DPDK)</span>
+<span class="prompt">$</span> echo <span class="num">1024</span> > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+<span class="prompt">$</span> mkdir -p /mnt/huge
+<span class="prompt">$</span> mount -t hugetlbfs nodev /mnt/huge
+
+<span class="cm"># Or use 1GB hugepages for large memory pools</span>
+<span class="prompt">$</span> echo <span class="num">4</span> > /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages
+
+<span class="cm"># Load vfio-pci driver (modern, IOMMU-based -- preferred over uio)</span>
+<span class="prompt">$</span> modprobe vfio-pci
+
+<span class="cm"># Identify NIC PCI address (e.g., 0000:01:00.0)</span>
+<span class="prompt">$</span> dpdk-devbind.py --status | grep <span class="hl">Ethernet</span>
+
+<span class="cm"># Unbind from kernel driver and bind to vfio-pci</span>
+<span class="prompt">$</span> dpdk-devbind.py --bind vfio-pci <span class="hl">0000:01:00.0</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Poll Mode Drivers and Memory Pools</h2>
+            <p class="content-text">A DPDK PMD application allocates a <strong style="color:var(--accent)">memory pool (mempool)</strong> of packet buffers (mbufs) from hugepages. The NIC's DMA engine writes incoming packets directly into these pre-allocated hugepage buffers. The PMD polling loop drains the RX ring, processes packets, and returns mbufs to the pool -- all in user space, with no kernel involvement.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">C -- DPDK Minimal PMD: Init and Receive Loop</div>
+                <pre><span class="cm">/* Initialize EAL (Environment Abstraction Layer) */</span>
+rte_eal_init(argc, argv);
+
+<span class="cm">/* Create mbuf pool from hugepages */</span>
+<span class="kw">struct</span> rte_mempool *mbuf_pool = rte_pktmbuf_pool_create(
+    <span class="str">"MBUF_POOL"</span>,
+    <span class="num">8192</span>,            <span class="cm">/* num elements */</span>
+    <span class="num">256</span>,             <span class="cm">/* cache size */</span>
+    <span class="num">0</span>,               <span class="cm">/* private data size */</span>
+    RTE_MBUF_DEFAULT_BUF_SIZE,
+    rte_socket_id()  <span class="cm">/* NUMA socket -- critical for performance */</span>
+);
+
+<span class="cm">/* Configure and start the port */</span>
+rte_eth_dev_configure(<span class="num">0</span>, <span class="num">1</span>, <span class="num">1</span>, &amp;port_conf);
+rte_eth_rx_queue_setup(<span class="num">0</span>, <span class="num">0</span>, <span class="num">128</span>, rte_eth_dev_socket_id(<span class="num">0</span>), NULL, mbuf_pool);
+rte_eth_tx_queue_setup(<span class="num">0</span>, <span class="num">0</span>, <span class="num">512</span>, rte_eth_dev_socket_id(<span class="num">0</span>), NULL);
+rte_eth_dev_start(<span class="num">0</span>);
+
+<span class="cm">/* Poll-mode receive loop on dedicated core */</span>
+<span class="kw">struct</span> rte_mbuf *pkts[<span class="num">32</span>];
+<span class="kw">while</span> (<span class="num">1</span>) {
+    <span class="kw">uint16_t</span> nb_rx = rte_eth_rx_burst(<span class="num">0</span>, <span class="num">0</span>, pkts, <span class="num">32</span>);
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; nb_rx; i++) {
+        process_packet(pkts[i]);
+        rte_pktmbuf_free(pkts[i]);
+    }
+}</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Hugepages and Why DPDK Requires Them</h2>
+            <p class="content-text">Standard Linux uses 4KB memory pages. At high packet rates, the CPU's Translation Lookaside Buffer (TLB) -- which caches virtual-to-physical address translations -- thrashes constantly because millions of packets per second touch many different 4KB pages. TLB misses trigger page table walks that add dozens of nanoseconds of latency per packet.</p>
+            <p class="content-text">DPDK requires <strong style="color:var(--accent)">hugepages</strong> (2MB or 1GB pages) for its memory pools. With 2MB pages, a 4GB packet buffer pool requires only 2048 TLB entries instead of 1 million. This dramatically reduces TLB pressure and keeps the entire packet buffer working set in TLB, eliminating page-walk latency at high packet rates.</p>
+
+            <div class="callout callout--warn">
+                <h4>Hugepages Must Be Allocated at Boot</h4>
+                <p>Linux cannot allocate hugepages from fragmented memory. Always allocate hugepages at system boot (via kernel command line <span class="inline-code">hugepagesz=1G hugepages=8</span> or early in the boot sequence) before the kernel's physical memory becomes fragmented. Attempting to allocate large hugepages on a running production system will frequently fail on systems that have been up for days.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">NUMA-Aware Networking</h2>
+            <p class="content-text">Modern servers have Non-Uniform Memory Access (NUMA) architecture: multiple CPU sockets each with their own local memory. Accessing memory attached to a remote NUMA socket incurs 30-100% higher latency than local access. For a packet processing application, this means the CPU processing packets, the NIC, and the memory pool must all be on the same NUMA node.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Linux -- Check NIC NUMA Locality</div>
+                <pre><span class="cm"># Find NUMA node of a NIC</span>
+<span class="prompt">$</span> cat /sys/bus/pci/devices/0000:01:00.0/numa_node
+<span class="out">0</span>   <span class="cm"># NIC is on NUMA node 0</span>
+
+<span class="cm"># Find CPUs on NUMA node 0</span>
+<span class="prompt">$</span> numactl --hardware
+available: 2 nodes (0-1)
+node 0 cpus: <span class="out">0 1 2 3 4 5 6 7 8 9 10 11</span>
+node 0 size: 128432 MB
+node 1 cpus: <span class="out">12 13 14 15 16 17 18 19 20 21 22 23</span>
+node 1 size: 128506 MB
+node distances:
+node   0   1
+  0:  10  21   <span class="cm"># local=10, remote=21 (2.1x penalty for remote)</span>
+  1:  21  10</pre>
+            </div>
+
+            <p class="content-text">In DPDK, the <span class="inline-code">rte_socket_id()</span> function returns the NUMA node of the current core. Always allocate mempools on the same socket as the NIC. The DPDK EAL <span class="inline-code">--lcores</span> parameter pins worker threads to specific CPU cores -- pin packet processing cores to the same NUMA node as the NIC.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">DPDK vs. RDMA: When to Use Each</h2>
+            <table class="state-table">
+                <thead><tr><th>Criterion</th><th>DPDK</th><th>RDMA (libibverbs)</th></tr></thead>
+                <tbody>
+                    <tr><td class="state-highlight">Primary Use Case</td><td>Custom packet processing: routing, firewalling, load balancing, telco VNFs</td><td>Application-to-application data movement: ML training, storage, MPI</td></tr>
+                    <tr><td class="state-highlight">Protocol Flexibility</td><td>Full packet access -- can implement any L2-L7 protocol</td><td>Fixed RDMA semantics -- cannot process arbitrary protocols</td></tr>
+                    <tr><td class="state-highlight">CPU Usage</td><td>High -- dedicated cores polling 100% of the time</td><td>Near-zero on data path -- HCA handles all transport</td></tr>
+                    <tr><td class="state-highlight">Latency</td><td>1-5 microseconds (depends on processing pipeline)</td><td>0.5-2 microseconds (HCA pipeline only)</td></tr>
+                    <tr><td class="state-highlight">NIC Requirement</td><td>Any DPDK-supported NIC (Intel i40e, mlx5, etc.)</td><td>RDMA-capable NIC only (NVIDIA ConnectX, Marvell FastLinQ)</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="try-it">
+            <h3>Practice Scenario</h3>
+            <p>You are provisioning a 100GbE packet processing node using DPDK for a telco NFV workload. The server has two NUMA nodes, 256 GB RAM, and two NVIDIA ConnectX-6 NICs (one per NUMA node).</p>
+            <ol>
+                <li>Write the kernel boot parameter string to allocate 4x 1GB hugepages on each NUMA node (8 total) and describe where to add this in a RHEL/Rocky system.</li>
+                <li>The NIC on NUMA node 0 is bound to vfio-pci. You allocate the mbuf pool using <span class="inline-code">rte_socket_id()</span> on a core pinned to NUMA node 1. What performance problem will this cause and why?</li>
+                <li>Your DPDK PMD achieves 12 Mpps on one core for 64-byte packets. You need 50 Mpps. Describe the scaling strategy: how many cores, how many RX queues, and what DPDK feature enables multi-core RX?</li>
+                <li>Compare the tradeoffs of using DPDK versus RDMA for implementing a distributed in-memory cache where clients read and write 128-byte values at 100M operations/second.</li>
+            </ol>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Linux kernel packet processing bottlenecks: interrupt overhead, memory copies, lock contention, and syscall cost</li>
+                <li>DPDK moves packet processing to user space -- Poll Mode Drivers eliminate interrupts and kernel context switches</li>
+                <li>Hugepages (2MB or 1GB) are required by DPDK to avoid TLB thrashing at high packet rates</li>
+                <li>NUMA awareness is critical -- mempool, NIC, and processing cores must be on the same NUMA socket</li>
+                <li>A single DPDK PMD core achieves 14-25 Mpps for 64-byte frames -- 10-15x better than kernel networking</li>
+                <li>DPDK is for custom packet processing (any protocol); RDMA is for application data transfer (fixed semantics)</li>
+                <li>Hugepages should be pre-allocated at boot -- runtime allocation fails on memory-fragmented production systems</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="bb-ib-04.html" class="nav-btn">&lt; RoCE &amp; RoCEv2</a>
+            <a href="bb-ib-06.html" class="nav-btn primary">Next: SR-IOV &amp; Hardware Offload &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+            var MODULE_ID = 'bb-ib-05';
+            var completed = false;
+            function checkScroll() {
+                if (completed) return;
+                var st = window.scrollY || document.documentElement.scrollTop;
+                var dh = document.documentElement.scrollHeight - window.innerHeight;
+                if (dh > 0 && (st / dh) >= 0.8) { completed = true; saveProgress(); }
+            }
+            function saveProgress() {
+                var p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!p.web) p.web = {};
+                p.web[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() };
+                localStorage.setItem('hexworth_progress', JSON.stringify(p));
+                ModuleProgress.complete('web', MODULE_ID);
+            }
+            (function() { var p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); if (p.web && p.web[MODULE_ID] && p.web[MODULE_ID].completed) completed = true; })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

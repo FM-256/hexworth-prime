@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAP-06: High Availability and Redundancy | The Backbone | Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117; --accent: #06b6d4; --accent-dim: rgba(6,182,212,0.12); --accent-border: rgba(6,182,212,0.25); --green: #4ade80; --yellow: #fbbf24; --red: #f87171; --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .bb-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .bb-header-left { display: flex; align-items: center; gap: 14px; }
+        .bb-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .bb-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .bb-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .bb-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .bb-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .bb-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .bb-breadcrumb a:hover { opacity: 0.8; }
+        .bb-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h3 { font-size: 0.8rem; font-weight: 700; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+        .objectives ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .objectives ul li { font-size: 0.9rem; color: var(--text-secondary); padding-left: 16px; position: relative; }
+        .objectives ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .bb-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 14px 0; }
+        .bb-table th { background: rgba(6,182,212,0.1); color: var(--accent); padding: 9px 12px; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid var(--accent-border); }
+        .bb-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .bb-table tr:last-child td { border-bottom: none; }
+        .bb-table td:first-child { color: var(--text-primary); font-weight: 500; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; margin: 14px 0; }
+        .code-block .comment { color: #555; }
+        .code-block .kw { color: var(--accent); }
+        .code-block .val { color: var(--green); }
+        .callout { background: rgba(251,191,36,0.07); border-left: 3px solid var(--yellow); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+        .callout.info { background: var(--accent-dim); border-left-color: var(--accent); }
+        .callout.warn { background: rgba(248,113,113,0.07); border-left-color: var(--red); }
+        .callout p { font-size: 0.9rem; color: var(--text-secondary); }
+        .callout strong { color: var(--text-primary); }
+        .callout-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; color: var(--yellow); }
+        .callout.info .callout-title { color: var(--accent); }
+        .callout.warn .callout-title { color: var(--red); }
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+        .compare-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+        .compare-card h4 { font-size: 0.82rem; font-weight: 700; margin-bottom: 10px; letter-spacing: 0.5px; text-transform: uppercase; }
+        .compare-card.primary h4 { color: var(--accent); }
+        .compare-card.secondary h4 { color: var(--green); }
+        .compare-card ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .compare-card ul li { font-size: 0.85rem; color: var(--text-secondary); padding-left: 14px; position: relative; }
+        .compare-card ul li::before { content: '-'; position: absolute; left: 0; color: #444; }
+        .practice-box { background: var(--bg-card); border: 1px solid var(--accent-border); border-radius: 10px; padding: 22px 24px; margin-top: 32px; }
+        .practice-box h3 { font-size: 0.8rem; font-weight: 700; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
+        .question { margin-bottom: 18px; }
+        .question p { font-size: 0.92rem; color: var(--text-primary); font-weight: 500; margin-bottom: 10px; }
+        .options { display: flex; flex-direction: column; gap: 7px; }
+        .option { display: flex; align-items: flex-start; gap: 10px; padding: 9px 14px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-size: 0.88rem; color: var(--text-secondary); transition: all 0.18s; }
+        .option:hover { border-color: var(--accent-border); background: var(--accent-dim); color: var(--text-primary); }
+        .option.correct { border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.08); color: var(--green); }
+        .option.incorrect { border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); color: var(--red); }
+        .option-key { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+        .nav-footer { display: flex; justify-content: space-between; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); gap: 12px; }
+        .nav-btn { padding: 10px 20px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; border: 1px solid var(--border); color: var(--text-secondary); text-decoration: none; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #0891b2; }
+        .timeline { display: flex; flex-direction: column; gap: 0; margin: 16px 0; position: relative; }
+        .timeline::before { content: ''; position: absolute; left: 15px; top: 0; bottom: 0; width: 2px; background: var(--accent-border); }
+        .timeline-item { display: flex; gap: 20px; padding: 0 0 20px 0; position: relative; }
+        .timeline-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg-dark); margin-top: 4px; flex-shrink: 0; z-index: 1; }
+        .timeline-content { flex: 1; }
+        .timeline-label { font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; }
+        .timeline-text { font-size: 0.88rem; color: var(--text-secondary); margin-top: 3px; }
+        .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0; }
+        .metric-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+        .metric-val { font-size: 1.4rem; font-weight: 800; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .metric-label { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<header class="bb-header">
+    <div class="bb-header-left">
+        <span class="bb-badge">CAP-06</span>
+        <h1>High Availability and Redundancy</h1>
+    </div>
+    <a href="index.html" class="bb-back">Back to Capstone</a>
+</header>
+
+<div class="bb-breadcrumb">
+    <a href="../../../../dashboard.html">Dashboard</a>
+    <span class="bb-breadcrumb-sep">/</span>
+    <a href="../../index.html">The Backbone</a>
+    <span class="bb-breadcrumb-sep">/</span>
+    <a href="index.html">Backbone Capstone</a>
+    <span class="bb-breadcrumb-sep">/</span>
+    High Availability and Redundancy
+</div>
+
+<div class="content-panel">
+
+    <div class="objectives">
+        <h3>Learning Objectives</h3>
+        <ul>
+            <li>Compare active/standby vs active/active redundancy models and their convergence tradeoffs</li>
+            <li>Configure NSF/SSO on Cisco IOS XE for hitless supervisor failover</li>
+            <li>Apply In-Service Software Upgrade (ISSU) procedures for hitless code upgrades</li>
+            <li>Implement IP FRR LFA and TI-LFA for sub-50ms protection switching</li>
+            <li>Design BFD-driven failover patterns for routing protocol sessions</li>
+        </ul>
+    </div>
+
+    <!-- Section 1: HA Availability Targets -->
+    <div class="section">
+        <h2 class="section-title">Availability Targets and Downtime Budget</h2>
+        <p style="color:var(--text-secondary);font-size:0.92rem;margin-bottom:14px;">Availability is expressed as a percentage of uptime over a year. Each "nine" reduces allowed downtime by roughly 10x. Network design must allocate the downtime budget across all planned maintenance and unplanned failure scenarios.</p>
+
+        <div class="metric-row">
+            <div class="metric-card">
+                <div class="metric-val">99%</div>
+                <div class="metric-label">3d 15h / year</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-val">99.9%</div>
+                <div class="metric-label">8.7h / year</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-val">99.99%</div>
+                <div class="metric-label">52m / year</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-val">99.999%</div>
+                <div class="metric-label">5.3m / year</div>
+            </div>
+        </div>
+
+        <div class="callout info">
+            <div class="callout-title">MTTR vs MTBF</div>
+            <p><strong>Availability = MTBF / (MTBF + MTTR)</strong>. To reach five nines, either drive MTBF very high (avoid failures) or MTTR very low (recover in seconds). HA architecture targets MTTR reduction via fast detection (BFD) and pre-computed alternate paths (IP FRR).</p>
+        </div>
+    </div>
+
+    <!-- Section 2: Active/Standby vs Active/Active -->
+    <div class="section">
+        <h2 class="section-title">Active/Standby vs Active/Active</h2>
+
+        <div class="compare-grid">
+            <div class="compare-card primary">
+                <h4>Active / Standby</h4>
+                <ul>
+                    <li>One node handles all traffic; standby is idle</li>
+                    <li>Simpler state synchronization</li>
+                    <li>Deterministic failover behavior</li>
+                    <li>Wastes 50% of capacity under normal operation</li>
+                    <li>Failover adds brief traffic interruption (seconds without NSF/SSO)</li>
+                    <li>Example: HSRP active/standby, dual supervisors with SSO</li>
+                </ul>
+            </div>
+            <div class="compare-card secondary">
+                <h4>Active / Active</h4>
+                <ul>
+                    <li>Both nodes forward traffic simultaneously</li>
+                    <li>Full capacity utilization</li>
+                    <li>Requires symmetric traffic management or ECMP</li>
+                    <li>Complex state sync — asymmetric flows can break stateful inspection</li>
+                    <li>Load balancing adds complexity for session-based protocols</li>
+                    <li>Example: ECMP routing, VSS/StackWise with dual active detection</li>
+                </ul>
+            </div>
+        </div>
+
+        <table class="bb-table" style="margin-top:4px;">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Recommended Model</th>
+                    <th>Rationale</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Core routing (OSPF/BGP)</td>
+                    <td>Active/Active with NSF/GR</td>
+                    <td>Both peers forward; NSF preserves forwarding during reconvergence</td>
+                </tr>
+                <tr>
+                    <td>Firewall cluster</td>
+                    <td>Active/Standby preferred</td>
+                    <td>Stateful session sync complexity is higher in A/A; asymmetric flow risk</td>
+                </tr>
+                <tr>
+                    <td>Distribution switches</td>
+                    <td>Active/Active (VSS/StackWise)</td>
+                    <td>Dual uplinks both active; no STP blocking; full bandwidth utilization</td>
+                </tr>
+                <tr>
+                    <td>DC spine layer</td>
+                    <td>Active/Active (ECMP)</td>
+                    <td>Equal-cost multipath across all spines; any failure reduces capacity, not connectivity</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 3: NSF/SSO -->
+    <div class="section">
+        <h2 class="section-title">NSF and SSO — Hitless Supervisor Failover</h2>
+        <p style="color:var(--text-secondary);font-size:0.92rem;margin-bottom:14px;">Cisco platforms with dual supervisors use <strong>SSO (Stateful Switchover)</strong> to synchronize configuration and protocol state to the standby, and <strong>NSF (Non-Stop Forwarding)</strong> to preserve the CEF/FIB during switchover so traffic continues forwarding while routing protocols reconverge.</p>
+
+        <table class="bb-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Function</th>
+                    <th>Protocols Supported</th>
+                    <th>Impact Without It</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>SSO</td>
+                    <td>Standby supervisor mirrors active; failover is subsecond</td>
+                    <td>Platform-level (all)</td>
+                    <td>Supervisor reload (minutes); all routing sessions reset</td>
+                </tr>
+                <tr>
+                    <td>NSF (Cisco Proprietary)</td>
+                    <td>Continues forwarding from stale FIB; helper routers suppress route withdrawal</td>
+                    <td>OSPF, EIGRP, BGP, IS-IS</td>
+                    <td>Neighbor resets; traffic blackholed until reconvergence</td>
+                </tr>
+                <tr>
+                    <td>Graceful Restart (RFC 5306/4724)</td>
+                    <td>Standards-based equivalent; restarting router signals GR capability</td>
+                    <td>OSPF (RFC 3623), BGP (RFC 4724), IS-IS (RFC 5306)</td>
+                    <td>Without GR, neighbors must be NSF-aware to help</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="code-block">
+<span class="comment">! IOS XE — Enable SSO + NSF for OSPF and BGP</span>
+
+<span class="kw">redundancy</span>
+ <span class="kw">mode</span> <span class="val">sso</span>              <span class="comment">! Enables Stateful Switchover (requires dual supervisors)</span>
+
+<span class="comment">! OSPF NSF — Cisco mode (OSPF NSF helper is on by default)</span>
+<span class="kw">router ospf</span> <span class="val">1</span>
+ <span class="kw">nsf</span>                   <span class="comment">! Enable NSF on this OSPF process</span>
+ <span class="kw">nsf enforce global</span>    <span class="comment">! Require all neighbors to be NSF-aware</span>
+
+<span class="comment">! OSPF Graceful Restart (IETF standard alternative)</span>
+<span class="kw">router ospf</span> <span class="val">1</span>
+ <span class="kw">graceful-restart</span>
+ <span class="kw">graceful-restart restart-interval</span> <span class="val">120</span>   <span class="comment">! Max time (seconds) to complete restart</span>
+
+<span class="comment">! BGP Graceful Restart</span>
+<span class="kw">router bgp</span> <span class="val">65000</span>
+ <span class="kw">bgp graceful-restart</span>
+ <span class="kw">bgp graceful-restart restart-time</span> <span class="val">120</span>
+ <span class="kw">bgp graceful-restart stalepath-time</span> <span class="val">360</span>   <span class="comment">! Time to retain stale routes from restarting peer</span>
+        </div>
+
+        <div class="callout">
+            <div class="callout-title">NSF Stale Route Risk</div>
+            <p>During NSF recovery, traffic continues forwarding on <strong>stale FIB entries</strong>. If the network topology changed during the switchover (e.g., a link went down), traffic will be blackholed until reconvergence completes. NSF is not a substitute for fast reroute — combine NSF with IP FRR for comprehensive protection.</p>
+        </div>
+    </div>
+
+    <!-- Section 4: ISSU -->
+    <div class="section">
+        <h2 class="section-title">In-Service Software Upgrade (ISSU)</h2>
+        <p style="color:var(--text-secondary);font-size:0.92rem;margin-bottom:14px;">ISSU allows a software upgrade with minimal or zero traffic interruption on platforms with dual supervisors. The standby loads the new image first, then a SSO switchover occurs, then the original active supervisor loads the new image.</p>
+
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="timeline-label">Step 1 — Load New Image on Standby</div>
+                    <div class="timeline-text">New IOS XE image is copied to standby supervisor. Standby boots into new version while active continues forwarding on old version.</div>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="timeline-label">Step 2 — Version Compatibility Check</div>
+                    <div class="timeline-text">System verifies ISSU compatibility between old and new versions. Major version jumps may not support ISSU — consult the compatibility matrix.</div>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="timeline-label">Step 3 — SSO Switchover</div>
+                    <div class="timeline-text">Standby (now running new image) becomes active. Forwarding continues via NSF. Original active supervisor becomes new standby.</div>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="timeline-label">Step 4 — New Standby Loads New Image</div>
+                    <div class="timeline-text">Original active supervisor reloads into new image as standby. System now running new version on both supervisors. Upgrade complete.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block">
+<span class="comment">! IOS XE ISSU — initiate upgrade sequence</span>
+
+<span class="comment">! Copy new image to bootflash</span>
+copy tftp://10.0.0.5/cat9k_iosxe.17.09.03.SPA.bin bootflash:
+
+<span class="comment">! Verify ISSU compatibility</span>
+<span class="kw">show issu state detail</span>
+
+<span class="comment">! Install on standby first (standby will reload with new image)</span>
+<span class="kw">request platform software package install</span> switch standby file bootflash:cat9k_iosxe.17.09.03.SPA.bin
+
+<span class="comment">! Initiate SSO switchover to complete ISSU</span>
+<span class="kw">redundancy force-switchover</span>
+
+<span class="comment">! After switchover — original active (now standby) installs new image automatically</span>
+<span class="comment">! Monitor progress</span>
+<span class="kw">show version</span>
+<span class="kw">show redundancy</span>
+        </div>
+    </div>
+
+    <!-- Section 5: IP FRR and TI-LFA -->
+    <div class="section">
+        <h2 class="section-title">IP Fast Reroute — LFA and TI-LFA</h2>
+        <p style="color:var(--text-secondary);font-size:0.92rem;margin-bottom:14px;">IP FRR pre-computes alternate next-hops so traffic can be re-routed locally in less than 50ms when a failure is detected — without waiting for routing protocol reconvergence.</p>
+
+        <table class="bb-table">
+            <thead>
+                <tr>
+                    <th>Mechanism</th>
+                    <th>Calculation</th>
+                    <th>Coverage</th>
+                    <th>Requirement</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>LFA (Loop-Free Alternate)</td>
+                    <td>SPF-derived neighbor that reaches destination without routing through protected link</td>
+                    <td>~50-80% topologies (ring, hub-spoke have poor coverage)</td>
+                    <td>OSPF/IS-IS; no MPLS required</td>
+                </tr>
+                <tr>
+                    <td>RLFA (Remote LFA)</td>
+                    <td>P-Q node found via targeted LDP; tunnel to extend LFA coverage</td>
+                    <td>~90-95% coverage</td>
+                    <td>MPLS LDP required</td>
+                </tr>
+                <tr>
+                    <td>TI-LFA (Topology-Independent LFA)</td>
+                    <td>SR-MPLS segment list computed via post-convergence SPF; 100% coverage guaranteed</td>
+                    <td>100% by definition</td>
+                    <td>SR-MPLS (Segment Routing)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="code-block">
+<span class="comment">! IOS XE — OSPF IP FRR with LFA per-prefix</span>
+<span class="kw">router ospf</span> <span class="val">1</span>
+ <span class="kw">fast-reroute per-prefix enable</span> prefix-priority high
+ <span class="kw">fast-reroute per-prefix tie-break</span> srlg required   <span class="comment">! Prefer SRLG-disjoint alternate</span>
+
+<span class="comment">! IS-IS — TI-LFA with Segment Routing (IOS XR syntax)</span>
+<span class="kw">router isis</span> CORE
+ <span class="kw">address-family ipv4 unicast</span>
+  <span class="kw">fast-reroute per-prefix</span>
+  <span class="kw">fast-reroute per-prefix ti-lfa</span>      <span class="comment">! Enable Topology-Independent LFA</span>
+  <span class="kw">fast-reroute per-prefix level</span> 2       <span class="comment">! L2 backbone protection</span>
+
+<span class="comment">! OSPF TI-LFA with SR (IOS XE)</span>
+<span class="kw">router ospf</span> <span class="val">1</span>
+ <span class="kw">segment-routing mpls</span>
+ <span class="kw">fast-reroute per-prefix enable</span> prefix-priority high
+ <span class="kw">fast-reroute per-prefix ti-lfa enable</span>
+
+<span class="comment">! Verify — check for installed backups in FIB</span>
+<span class="kw">show ip ospf fast-reroute</span>
+<span class="kw">show ip cef 10.1.1.0/24 detail</span>    <span class="comment">! Look for repair path in output</span>
+        </div>
+
+        <div class="callout info">
+            <div class="callout-title">BFD + IP FRR Integration</div>
+            <p>BFD provides the sub-second failure detection that triggers IP FRR protection switching. Without BFD, detection relies on interface down events (immediate) or routing protocol dead timers (seconds). <strong>Combine BFD for detection with TI-LFA for instant traffic rerouting</strong> — this is the standard design for carrier-grade availability.</p>
+        </div>
+    </div>
+
+    <!-- Section 6: BFD-Driven Failover -->
+    <div class="section">
+        <h2 class="section-title">BFD-Driven Failover Patterns</h2>
+        <p style="color:var(--text-secondary);font-size:0.92rem;margin-bottom:14px;">BFD (Bidirectional Forwarding Detection) decouples failure detection from the routing protocol's hello/dead timer cycle. A failing interface or intermediate path is detected in milliseconds.</p>
+
+        <div class="code-block">
+<span class="comment">! Design pattern: BFD protecting OSPF + BGP + static routes simultaneously</span>
+<span class="comment">! Interface-level BFD — 100ms detection on core P2P links</span>
+
+interface GigabitEthernet0/0
+ <span class="kw">bfd interval</span> <span class="val">100</span> min_rx <span class="val">100</span> multiplier <span class="val">3</span>   <span class="comment">! Detection time = 100ms * 3 = 300ms</span>
+ <span class="kw">ip ospf bfd</span>                                   <span class="comment">! OSPF uses BFD on this interface</span>
+
+<span class="comment">! OSPF global — enable BFD on all OSPF interfaces</span>
+<span class="kw">router ospf</span> <span class="val">1</span>
+ <span class="kw">bfd all-interfaces</span>
+
+<span class="comment">! BGP — BFD on eBGP session</span>
+<span class="kw">router bgp</span> <span class="val">65000</span>
+ <span class="kw">neighbor</span> <span class="val">192.0.2.1</span> fall-over bfd    <span class="comment">! Drop BGP session when BFD declares peer down</span>
+
+<span class="comment">! Static route — tracked via BFD (IOS XE Object Tracking)</span>
+<span class="kw">ip route</span> <span class="val">0.0.0.0 0.0.0.0</span> <span class="val">203.0.113.1</span> track <span class="val">10</span>
+
+<span class="kw">ip sla</span> <span class="val">1</span>
+ <span class="kw">icmp-echo</span> <span class="val">203.0.113.1</span> source-interface GigabitEthernet0/1
+  frequency <span class="val">5</span>
+<span class="kw">ip sla schedule</span> <span class="val">1</span> start-time now life forever
+
+<span class="kw">track</span> <span class="val">10</span> ip sla <span class="val">1</span> reachability   <span class="comment">! Static route withdrawn if SLA probe fails</span>
+        </div>
+
+        <div class="callout">
+            <div class="callout-title">BFD Echo vs Asynchronous Mode</div>
+            <p>In <strong>echo mode</strong>, the local router sends echo packets that loop back through the remote router's forwarding plane — testing the full path including the remote data plane. Detection times can reach 10-50ms. In <strong>asynchronous mode</strong>, both routers exchange control-plane BFD hellos. Echo mode is preferred when available but may be prohibited by provider edge routers.</p>
+        </div>
+    </div>
+
+    <!-- Practice Questions -->
+    <div class="practice-box">
+        <h3>Practice Questions</h3>
+
+        <div class="question">
+            <p>1. A Cisco IOS XE router has dual supervisors with SSO configured. A supervisor failover occurs. What happens to OSPF neighbor relationships if NSF is also enabled?</p>
+            <div class="options">
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">A</span> All OSPF neighbors reset and must re-establish from scratch</div>
+                <div class="option" onclick="checkAnswer(this, true)"><span class="option-key">B</span> OSPF neighbors are notified the router is restarting; helper routers suppress LSA withdrawals while forwarding continues from the stale FIB</div>
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">C</span> SSO alone prevents any OSPF disruption without requiring NSF</div>
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">D</span> OSPF enters stub mode for 60 seconds then reconverges normally</div>
+            </div>
+        </div>
+
+        <div class="question">
+            <p>2. A network has a ring topology where LFA provides only 40% FRR coverage. What is the preferred solution to achieve 100% coverage?</p>
+            <div class="options">
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">A</span> Increase BFD timer aggressiveness to 10ms</div>
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">B</span> Deploy RLFA with targeted LDP tunnels</div>
+                <div class="option" onclick="checkAnswer(this, true)"><span class="option-key">C</span> Deploy TI-LFA with Segment Routing MPLS</div>
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">D</span> Add additional physical links to improve LFA neighbor availability</div>
+            </div>
+        </div>
+
+        <div class="question">
+            <p>3. BFD is configured with `bfd interval 150 min_rx 150 multiplier 4`. What is the failure detection time?</p>
+            <div class="options">
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">A</span> 150ms</div>
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">B</span> 450ms</div>
+                <div class="option" onclick="checkAnswer(this, true)"><span class="option-key">C</span> 600ms</div>
+                <div class="option" onclick="checkAnswer(this, false)"><span class="option-key">D</span> 300ms</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-footer">
+        <a href="bb-cap-05.html" class="nav-btn">&lt; Cloud Integration</a>
+        <a href="bb-cap-07.html" class="nav-btn primary">Next: Documentation Standards &gt;</a>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+(function() {
+    var MODULE_ID = 'bb-cap-06';
+
+    window.checkAnswer = function(el, correct) {
+        var options = el.closest('.options').querySelectorAll('.option');
+        options.forEach(function(o) { o.onclick = null; o.style.cursor = 'default'; });
+        el.classList.add(correct ? 'correct' : 'incorrect');
+    };
+
+    var completed = false;
+    window.addEventListener('scroll', function() {
+        if (completed) return;
+        var scrolled = window.scrollY + window.innerHeight;
+        var total = document.body.scrollHeight;
+        if (scrolled / total >= 0.8) {
+            completed = true;
+            ModuleProgress.complete('web', MODULE_ID);
+        }
+    });
+})();
+</script>
+</body>
+</html>

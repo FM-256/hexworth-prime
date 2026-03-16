@@ -138,16 +138,16 @@
 ## Wave 12: The Backbone — Advanced Topics (5 parallel agents)
 *Sprints: AN-5, AN-7, AN-8, AN-9, AN-10, AN-12, AN-13, AN-14, AN-15, AN-16*
 
-- [ ] **AN-5** — InfiniBand, RDMA, high-performance networking
-- [ ] **AN-7** — Advanced SD-WAN and WAN optimization
-- [ ] **AN-8** — Advanced wireless (Wi-Fi 6/6E/7, mesh)
-- [ ] **AN-9** — Optical networking and physical layer
-- [ ] **AN-10** — Advanced IPv6 and internet protocols
-- [ ] **AN-12** — Network forensics and deep packet analysis
-- [ ] **AN-13** — Advanced QoS and traffic engineering
-- [ ] **AN-14** — IS-IS, EIGRP advanced, routing deep dive
-- [ ] **AN-15** — 5G, cellular, and carrier networking
-- [ ] **AN-16** — Network design and architecture capstone
+- [x] **AN-5** — InfiniBand, RDMA, high-performance networking
+- [x] **AN-7** — Advanced SD-WAN and WAN optimization
+- [x] **AN-8** — Advanced wireless (Wi-Fi 6/6E/7, mesh)
+- [x] **AN-9** — Optical networking and physical layer
+- [x] **AN-10** — Advanced IPv6 and internet protocols
+- [x] **AN-12** — Network forensics and deep packet analysis
+- [x] **AN-13** — Advanced QoS and traffic engineering
+- [x] **AN-14** — IS-IS, EIGRP advanced, routing deep dive
+- [x] **AN-15** — 5G, cellular, and carrier networking
+- [x] **AN-16** — Network design and architecture capstone
 
 ---
 ## Wave 13: Algorithm Chamber (5 parallel agents → serial chain)
