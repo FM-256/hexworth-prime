@@ -1,308 +1,336 @@
 # Hexworth Prime
 
-**An Interactive Learning Platform for IT & Cybersecurity**
+**Gamified Cybersecurity Education Platform**
+v6.0.0 "IRON CURTAIN" | 2,500+ pages | 16 languages | 22 CTF boxes
 
-🌐 **Live Demo:** [https://hexworth-prime.web.app](https://hexworth-prime.web.app)
+A browser-based training platform for IT and cybersecurity instruction. Students join houses, complete modules, hack CTF boxes, earn XP, and level up. Instructors manage classes, track progress, assign content, and export grades. Built for real classroom deployment -- no installs, no build step, no excuses.
 
----
-
-## Start Here
-
-**What it is:** A browser-based training platform for IT fundamentals, networking, and cybersecurity — with 500+ interactive labs, simulations, and quizzes.
-
-**Who it's for:**
-- **Students** learning CompTIA A+, Network+, Security+, or Windows Server administration
-- **Instructors** who need classroom management, progress tracking, and LMS-compatible exports
-- **Self-learners** exploring IT/security topics at their own pace
-
-**Two modes:**
-- **Offline (default)** — Download, open START.html, learn. No account needed. Progress saved locally.
-- **Online (classes)** — Sign in with Google, join a class via code, sync progress with your instructor.
+**Live:** [https://hexworth-prime.web.app](https://hexworth-prime.web.app)
 
 ---
 
 ## Quick Start
 
-1. **Extract** the ZIP file to any folder
-2. **Open** `START.html` in your browser
-3. **Choose** your path (Magic or Matrix)
-4. **Get sorted** into your house
-5. **Start learning!**
+1. **Extract** the ZIP to any folder
+2. **Open** `START.html` in Chrome, Edge, or Firefox
+3. **Take** the sorting quiz to join a house
+4. **Start learning**
 
-> **Note:** Hexworth Prime runs entirely in your browser - no installation or internet required after download.
+No internet required after download (offline mode). For class enrollment, sign in with Google and enter your instructor's HEX-XXXX code.
 
 ---
 
 ## Table of Contents
 
-- [Features](#features)
-- [The House System](#the-house-system)
+- [What Is Hexworth Prime](#what-is-hexworth-prime)
+- [The Houses](#the-houses)
+- [CTF System](#ctf-system)
+- [Code Armory](#code-armory)
+- [Sandboxes](#sandboxes)
+- [Signal -- Hardware Projects Hub](#signal----hardware-projects-hub)
+- [Instructor Features](#instructor-features)
+- [For Students](#for-students)
+- [Gamification](#gamification)
 - [Digital Life Ecosystem](#digital-life-ecosystem)
-- [Your Progress & Achievements](#your-progress--achievements)
-- [For Instructors](#for-instructors-handler-dashboard)
-- [For Students](#for-students-joining-a-class)
-- [Settings & Customization](#settings--customization)
-- [Updating to New Versions](#updating-to-new-versions)
-- [Data Backup & Restore](#data-backup--restore)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Accessibility](#accessibility)
+- [Tech Stack](#tech-stack)
+- [Roadmap](#roadmap)
+- [FAQ](#faq)
+- [Settings & Data](#settings--data)
 - [Troubleshooting](#troubleshooting)
 
 ---
 
-## Features
+## What Is Hexworth Prime
 
-### Classroom Management (Handler Dashboard)
-- **Class Creation** - Instructors create classes with auto-generated join codes (HEX-XXXX)
-- **Content Assignments** - Assign learning paths, courses, or individual modules with optional due dates and notes
-- **Student Roster** - Real-time roster with names, house, student ID, and join date
-- **Progress Tracking** - Per-student progress bars (color-coded: green/yellow/red) and per-assignment completion badges
-- **Student Detail View** - Click any student for a full assignment breakdown with scores and dates
-- **Class Reports** - Print-friendly summary with stats, at-risk student alerts, and assignment completion rates
-- **CSV Exports** - Roster, assignments, grades, and progress summary — Blackboard/Canvas compatible
+Hexworth Prime is a gamified education platform purpose-built for college-level IT and cybersecurity courses. Students are sorted into domain-specific houses, work through structured learning paths, compete in capture-the-flag challenges, and build practical skills across networking, security operations, cloud infrastructure, programming, and offensive security.
 
-### Learning Paths
-- **Structured Modules** - Presentations, interactive tools, and hands-on labs
-- **House-Specific Content** - Content tailored to your house's domain
-- **Progress Tracking** - See what you've completed and what's next
-- **Multiple Learning Styles** - Visual presentations, interactive applets, hands-on labs
+The platform runs entirely in the browser. Firebase Hosting serves static HTML/CSS/JS with zero build step. Firestore handles user data, class management, and progress sync. Cloud Functions enforce server-side validation. No frameworks, no bundlers, no node_modules.
 
-### Gamification
-- **House Leaderboards** - Compete with other house members
-- **Achievements System** - Unlock badges for milestones
-- **XP & Levels** - Earn experience points for completed modules
-- **Streak Tracking** - Build daily learning streaks
-
-### Digital Life
-- **Living Background** - Binary fireflies that react to your activity
-- **Cosmic Events** - Solar flares, meteor showers, eclipses
-- **Ecosystem Simulation** - Watch digital organisms evolve and interact
-- **Audio Atmosphere** - Optional ambient soundscape
+**Two modes of operation:**
+- **Offline (default)** -- Download, open START.html, learn. No account needed. Progress saved to localStorage.
+- **Online (classes)** -- Sign in with Google, join a class via handler code, sync progress with your instructor.
 
 ---
 
-## The House System
+## The Houses
 
-Upon first visit, you'll take a sorting quiz to determine your house. Each house specializes in a different IT/Cybersecurity domain:
+Students are sorted into houses based on interest and career goals. Each house is a domain with its own content, theme, and learning paths.
 
-| House | Domain | Color |
+| House | Domain | Focus |
 |-------|--------|-------|
-| **Web** | Web Development | Blue |
-| **Shield** | Network Security | Green |
-| **Cloud** | Cloud Computing | Orange |
-| **Forge** | System Administration | Red |
-| **Script** | Scripting & Automation | Yellow |
-| **Code** | Software Development | Purple |
-| **Key** | Cryptography | Pink |
-| **Eye** | Security Operations | Cyan |
-| **Dark Arts** | Malware Analysis* | Gray |
+| **Shield** | Defense & Compliance | GRC, policy, risk management |
+| **Dark Arts** | Offensive Security | Ethical hacking, exploit development (requires Five Gates CTF) |
+| **Eye** | Threat Intelligence | Forensics, OSINT, incident analysis |
+| **Cloud** | Cloud Infrastructure | AWS, Azure, cloud architecture |
+| **Forge** | System Administration | Windows, CompTIA A+, hardware |
+| **Web** | Networking | Protocols, HTTP, network fundamentals |
+| **Code** | Software Development | Programming, algorithms, DevOps |
+| **Key** | Cryptography | Encryption, PKI, cipher systems |
+| **Script** | Linux & Automation | Bash, Linux administration, scripting |
 
-*Dark Arts requires passing the Five Gates CTF challenge
+Additional tracks: **AI** (machine learning, prompt engineering), **Matrix** (prestige tier, cross-domain mastery), plus 15 certification-aligned tracks (CompTIA A+ Core 1/2, Network+, Security+, CySA+, CASP+, AWS CCP, AWS Developer, Azure Fundamentals, CCNA, Linux+, and more).
 
-### House Features
-- **House Leaderboard** - See how you rank among house members
-- **Activity Feed** - Watch house activity in real-time
-- **Motivational Alerts** - Get notified when you're close to passing someone
-- **House-Themed Content** - Learning materials focused on your domain
+---
+
+## CTF System
+
+### Arena -- Red Team Operations
+
+22 offensive security boxes with simulated terminal environments. Students exploit vulnerabilities, escalate privileges, extract flags, and score points.
+
+**What's inside:**
+- Simulated Linux/Windows terminals with realistic filesystem navigation
+- Multi-flag scenarios with tiered difficulty
+- Hint systems that trade points for guidance
+- Solo, co-op, and versus modes
+- God mode for instructors to demonstrate solutions
+
+**Box categories:** Linux privilege escalation, web application attacks, forensic analysis, network exploitation, Docker container breakouts, mobile security, cryptographic attacks, Active Directory compromise, and multi-stage red team operations.
+
+### Dispatch -- Blue Team Helpdesk
+
+Troubleshooting scenarios simulating a real IT helpdesk environment. Students sit at a virtual desk and triage incoming tickets.
+
+**Current scenarios:**
+- **HW-001** Dead Workstation -- hardware inspection and diagnosis
+- **OS-001** Boot Failure -- Windows Recovery Environment procedures
+- **PR-001** Printer Nightmare -- 5 printer failure scenarios
+- **NT1** Network Troubleshoot -- connectivity diagnosis
+- **AD-001** Lockout Storm -- Active Directory account lockout triage
+
+The desk environment includes interactive elements, an ammo-based launcher with tier unlocks, a stats panel, and unlockable achievements. The experience simulates what it actually feels like to work a helpdesk.
+
+### Why CTFs Matter
+
+Capture-the-flag challenges force students to apply knowledge under pressure against realistic scenarios. Reading about SQL injection is theory. Extracting a flag from a vulnerable database is practice. Arena develops offensive instincts. Dispatch develops diagnostic discipline. Both develop the judgment that separates operators from textbook readers.
+
+---
+
+## Code Armory
+
+16 programming languages. 160+ modules. Organized into 6 tracks.
+
+| Track | Languages |
+|-------|-----------|
+| **Systems & Low-Level** | C, C++, Rust, Assembly |
+| **Scripting & Automation** | Python, Bash, PowerShell, Lua/Perl/R |
+| **Web & Full-Stack** | JavaScript/TypeScript, PHP, Ruby |
+| **Enterprise & Mobile** | Java, C#/.NET, Swift/Kotlin |
+| **Data & Query** | SQL, Lua/Perl/R |
+
+Every language track includes security-relevant examples: Python covers port scanning and log parsing. C covers buffer overflows and compiler hardening. SQL covers injection defense and forensic queries. Assembly covers shellcode and reverse engineering. Ruby covers Metasploit module development. PowerShell covers Active Directory forensics and incident response.
+
+**Features:**
+- Per-language progress tracking
+- Cert alignment tags (CompTIA, OSCP, AWS, Azure, Oracle, CKA)
+- "Pick Your Weapon" recommendation quiz (10 questions)
+- Language comparison tool with side-by-side analysis
+- Difficulty ratings: beginner, intermediate, advanced
+- Per-language coding challenges (planned)
+
+---
+
+## Sandboxes
+
+### Phase 1: WASM In-Browser Execution (Planned)
+
+Real interpreters and compilers running via WebAssembly inside the student's browser. Not simulated -- actual code execution with real output and real errors.
+
+- **Python** -- Pyodide (CPython compiled to WASM)
+- **C/C++** -- Emscripten-based WASM compiler
+- **SQL** -- sql.js (SQLite compiled to WASM) with pre-loaded databases
+- **JavaScript** -- iframe-based execution with console capture
+
+Limitations: no sudo, no package managers, no networking.
+
+### Phase 2: Container Sandboxes (Future)
+
+Real Linux terminals with sudo access, real package managers, and networking tools. Full development environments per language. Requires dedicated server infrastructure.
+
+---
+
+## Signal -- Hardware Projects Hub
+
+32 hands-on hardware and security project guides across 7 sections.
+
+| Section | Guides | Topics |
+|---------|--------|--------|
+| Foundations | SG-01 to SG-05 | Hardware basics, component identification |
+| Network Recon | SG-06 to SG-10 | Network scanning, packet analysis |
+| Security Tools | SG-11 to SG-15 | Security hardware, hardening tools |
+| Privacy Builds | SG-16 to SG-20 | Privacy-focused hardware projects |
+| Firmware Ops | SG-21 to SG-25 | Firmware analysis, embedded systems |
+| Arcade Ops | SG-26 to SG-30 | Retro hardware, arcade projects |
+| Field Prep | SG-31 to SG-32 | Field readiness, USB drive builds |
+
+### Signal Toolkit Library
+
+20 deep-dive tool reference pages covering hardware and security tools. Platform filtering (Arduino, ESP32, Raspberry Pi), parts lists, cost estimates, prerequisite chains, and "Build Your Kit" cost summaries.
+
+---
+
+## Instructor Features
+
+### Handler Dashboard
+
+Full classroom management system with LMS-compatible exports.
+
+- **Class creation** with auto-generated HEX-XXXX join codes
+- **Student roster** with real-time progress bars (color-coded: green/yellow/red)
+- **Content assignments** -- assign learning paths, courses, or individual modules with due dates
+- **Student detail view** -- per-student assignment breakdown with scores and dates
+- **At-risk alerts** -- automatically flags students falling behind
+
+### Exports
+
+| Export | Format | Compatible With |
+|--------|--------|-----------------|
+| Roster | CSV | Blackboard, Canvas |
+| Assignments | CSV | Blackboard, Canvas |
+| Grades | CSV | Blackboard, Canvas |
+| Progress Summary | CSV | Blackboard, Canvas |
+| Class Report | Print-ready | PDF via browser |
+
+### Admin Console
+
+Platform-level management (5 tabs): user management, handler codes, account merging, account unlocking, and system health monitoring. Backed by Cloud Functions for server-side authority.
+
+---
+
+## For Students
+
+### Joining a Class
+1. **Sign in** with Google from the dashboard
+2. **Complete your profile** in Settings (first name, last name, student ID)
+3. **Click "Join Class"** in the dashboard
+4. **Enter the HEX-XXXX code** provided by your instructor
+5. Your class, assignments, and instructor info appear in the **My Classes** section
+
+Progress syncs automatically -- complete assigned content and your instructor sees it reflected in their dashboard.
+
+---
+
+## Gamification
+
+### XP & Levels
+- Module completion awards XP
+- Daily streaks earn bonus XP
+- Leaderboards rank students within their house
+
+### Achievements
+Unlock achievements for milestones: streaks, completions, time-of-day activity, Dark Arts gate progression, and system exploration. Three-layer architecture tracking student progress.
 
 ---
 
 ## Digital Life Ecosystem
 
-The background of Hexworth Prime isn't just decoration - it's a living ecosystem of digital organisms.
+The dashboard background is a living ecosystem of digital organisms.
 
-### Fireflies
-- **Binary Entities** - 1s and 0s with unique behaviors
-- **5 Evolution Tiers** - From seedlings to transcendent beings
-- **Rare Types** - Golden, Diamond, Glitch, Ancient variants
-- **Swarm Behavior** - Watch them form constellations
+- **Binary Fireflies** -- 1s and 0s with unique behaviors across 5 evolution tiers
+- **Rare variants** -- Golden, Diamond, Glitch, Ancient types
+- **Cosmic events** -- Solar flares, meteor showers, void storms, eclipses, nebula drifts
+- **Ecosystem entities** -- Planets, black holes, energy wells, predators
+- **Audio atmosphere** -- Optional ambient soundscape
 
-### Cosmic Entities
-- **Planets** - Gravity wells that attract fireflies
-- **Black Holes** - Dangerous but fascinating
-- **Energy Wells** - Power sources for the ecosystem
-- **Predators** - Shadow fireflies, void serpents, parasites
-
-### Cosmic Events
-- **Solar Flares** - Golden energy waves
-- **Meteor Showers** - Shooting stars that seed new life
-- **Void Storms** - Gravity distortions
-- **Eclipses** - Darkness that makes fireflies glow brighter
-- **Nebula Drifts** - Colorful gas clouds with special effects
-
-### Controls
-- Press **D** to open debug controls (for testing)
-- Press **1-5** to select player tools
-- Click the **sound icon** to enable audio
+Press **D** for debug controls. Press **1-5** for player tools.
 
 ---
 
-## Your Progress & Achievements
+## Accessibility
 
-### XP System
-- **Module Completion** - 75 XP per module
-- **Daily Streak** - 10 XP per streak day
-- **Level Formula** - Level = sqrt(XP / 100) + 1
+- **WCAG AA color contrast** -- All text meets 4.5:1 minimum contrast ratio across 100+ files
+- **ARIA labels and landmarks** -- Applied to core UI components
+- **Keyboard navigation** -- Core components support tab navigation and focus management
+- **Semantic HTML** -- Heading hierarchy audited across core components
 
-### Achievements
-Unlock achievements by reaching milestones:
-
-| Achievement | How to Unlock |
-|-------------|---------------|
-| First Steps | Visit the dashboard |
-| Sorted | Complete house sorting |
-| On Fire | Reach a 3-day streak |
-| Dedicated | Reach a 7-day streak |
-| Scholar | Complete your first module |
-| Quiz Whiz | Pass a quiz |
-| Night Owl | Study after midnight |
-| Early Bird | Study before 6 AM |
-| Sound Master | Enable Digital Life audio |
-| Gate Keeper | Pass the first Dark Arts gate |
-| Shadow Master | Complete all Dark Arts gates |
-
-### Viewing Your Progress
-- **Dashboard Stats** - Top of the dashboard shows your key metrics
-- **Achievements Modal** - Click "Achievements" in the footer
-- **House Leaderboard** - See your rank in the community section
+Full WCAG 2.1 AA audit with screen reader testing, prefers-reduced-motion support, and automated axe-core scanning is planned on the roadmap.
 
 ---
 
-## For Instructors (Handler Dashboard)
+## Tech Stack
 
-Hexworth Prime includes a full classroom management system for instructors.
+| Layer | Technology |
+|-------|-----------|
+| **Hosting** | Firebase Hosting (CDN, 99.95% SLA) |
+| **Database** | Cloud Firestore |
+| **Auth** | Firebase Authentication (Google sign-in) |
+| **Server Logic** | Firebase Cloud Functions (Node.js) |
+| **Frontend** | Raw HTML, CSS, JavaScript -- no framework, no build step |
+| **Icons** | 125 custom webp icons |
 
-### Getting Started
-1. **Sign in** with Google from the dashboard
-2. **Access** the Handler Dashboard from the dashboard footer
-3. **Create a class** — an auto-generated HEX-XXXX code is assigned
-4. **Share the code** with students so they can join
-5. **Assign content** from the content browser (learning paths, courses, or individual modules)
-
-### Monitoring Progress
-- **Roster** shows all enrolled students with color-coded progress bars
-- **Assignment cards** display "X/Y completed" badges
-- **Avg Completion** stat updates automatically from student data
-- **Click any student** to see their full assignment breakdown (status, score, date)
-
-### Reports & Exports
-| Export | Contents |
-|--------|----------|
-| **Roster CSV** | Last Name, First Name, Student ID, Email, House, Joined |
-| **Assignments CSV** | Title, Type, House, Difficulty, Due Date, Notes |
-| **Grades CSV** | Per-student per-assignment: Status, Score, Completed Date |
-| **Progress Summary CSV** | Per-student: Completed, Total, Completion % |
-| **Class Report** | Print-friendly summary with stats, at-risk alerts, completion tables |
-
-All CSV exports are compatible with Blackboard and Canvas gradebook import.
+No React. No Vue. No webpack. No node_modules. Every page is a self-contained HTML file. Works offline from a USB drive with zero toolchain requirements.
 
 ---
 
-## For Students (Joining a Class)
+## Roadmap
 
-1. **Sign in** with Google from the dashboard
-2. **Complete your profile** in Settings (first name, last name, student ID)
-3. **Click "Join Class"** in the dashboard footer
-4. **Enter the HEX-XXXX code** provided by your instructor
-5. Your class, assignments, and instructor info appear in the **My Classes** section
-
-Progress syncs automatically — complete assigned chapters and your instructor sees it reflected in their dashboard.
-
----
-
-## Settings & Customization
-
-Access settings by clicking **Settings** in the dashboard footer.
-
-### Appearance
-- **Digital Life Density** - Adjust the number of background fireflies
-- **Ambient Effects** - Toggle shooting stars and particles
-
-### Data Management
-- **Export Progress** - Download your data as a JSON file
-- **Import Progress** - Restore from a backup file
-- **Reset All Data** - Clear everything and start fresh
-
-### Other Options
-- **Retake Sorting** - Get re-sorted into a different house
-- **Check for Updates** - Manually check for new versions
+- **The Backbone** -- Advanced networking track (BGP, MPLS, SDN, 5G). 15 courses.
+- **The Cortex** -- AI/ML track (foundations through adversarial ML). 15 courses.
+- **Algorithm Chamber** -- CS fundamentals (data structures, complexity, dynamic programming). 12 courses.
+- **WASM Sandboxes** -- In-browser code execution for Python, C/C++, SQL, JavaScript
+- **Container Sandboxes** -- Full Linux terminals with sudo and package managers
+- **Messaging System** -- Student/instructor messaging with moderation
+- **Full WCAG 2.1 AA Audit** -- Screen reader testing, axe-core scanning
+- **Signal Visual Enhancements** -- SVG diagrams and annotated callouts across all 32 guides
+- **Career Launchpad** -- Job board aggregator, resume builder, interview prep
 
 ---
 
-## Updating to New Versions
+## FAQ
 
-Hexworth Prime will automatically check for updates and notify you when a new version is available.
+### 1. What is Hexworth Prime?
+A gamified cybersecurity education platform built for college-level IT instruction. Houses, modules, CTFs, XP, leaderboards. Runs in-browser, works offline.
 
-### Update Process
-1. **Notification Banner** - Appears at the top when update is available
-2. **View Details** - Click to see release notes
-3. **Backup Your Data** - Click "Export My Data" (recommended)
-4. **Download** - Click to download the new version ZIP
-5. **Extract** - Unzip to a new folder
-6. **Open** - Launch START.html in the new folder
-7. **Restore** - If prompted, click "Restore Progress"
+### 2. What are CTFs and what's the point?
+Simulated hacking and troubleshooting scenarios where students find hidden flags by exploiting vulnerabilities or solving problems. CTFs build pattern recognition, tool fluency, and pressure tolerance that separates capable operators from credential holders.
 
-### Automatic Protection
-When you download an update, Hexworth Prime automatically:
-1. **Creates a backup** of all your data
-2. **Stores it safely** in your browser
-3. **Offers to restore** when you open the new version
+### 3. What's the difference between Arena and Dispatch?
+Arena is red team -- attack simulated systems, exploit vulnerabilities, extract data. Dispatch is blue team -- troubleshoot incoming tickets at a virtual IT helpdesk. Arena trains attackers. Dispatch trains defenders. Both are essential.
+
+### 4. What programming languages are available?
+16 languages across 6 tracks: Python, JavaScript/TypeScript, C, Bash, SQL, PowerShell, Go, Java, C#/.NET, PHP, Ruby, C++, Rust, Assembly, Swift/Kotlin, and Lua/Perl/R. 160+ modules with security-relevant examples throughout.
+
+### 5. What do the sandboxes offer?
+Phase 1 (planned): WASM in-browser execution -- real interpreters running in WebAssembly with actual compilation and output. Phase 2 (future): containerized Linux terminals with sudo, package managers, and networking.
+
+### 6. What analytics does the instructor get?
+Class rosters with color-coded progress bars, per-student assignment breakdowns with scores and dates, at-risk student alerts, and CSV exports compatible with Blackboard and Canvas gradebook import.
+
+### 7. Is the platform accessible (ADA/WCAG)?
+Initial WCAG AA pass complete (color contrast, ARIA labels, keyboard navigation). Full WCAG 2.1 AA audit including screen reader testing is planned on the roadmap.
+
+### 8. What certifications does content align to?
+CompTIA (A+, Network+, Security+, CySA+, CASP+, Linux+, PenTest+, Data+), AWS (CCP, Developer), Azure (AZ-900), CCNA, GIAC GREM, and OSCP-adjacent skills.
+
+### 9. How does the platform protect data integrity?
+Hexworth Prime includes multi-layered integrity monitoring. Progress data is protected against unauthorized modification. Answer validation is handled server-side. Violations result in account restrictions that require instructor intervention.
+
+### 10. What's the tech stack?
+Firebase Hosting + Firestore + Cloud Functions. Raw HTML/CSS/JS frontend with no framework and no build step. Works offline from a USB drive.
+
+### 11. Is this open source?
+Hexworth Prime is a proprietary education platform. The codebase is not publicly licensed.
+
+### 12. Can I deploy Hexworth Prime at my institution?
+Hexworth Prime is available as a white-label solution for educational institutions. For licensing, partnership, and deployment inquiries, contact the development team.
 
 ---
 
-## Data Backup & Restore
+## Settings & Data
 
-Your progress is stored in your browser's localStorage. Here's how to keep it safe:
+### Data Backup
+1. Go to **Settings**
+2. Click **Export Progress** to download a JSON backup
+3. To restore: Click **Import Progress** and select your backup file
 
-### Manual Backup (Recommended)
-1. Go to **Settings** (footer link)
-2. Click **Export Progress**
-3. Save the downloaded JSON file somewhere safe
-4. To restore: Click **Import Progress** and select your backup file
-
-### Automatic Backup
-- Created automatically before each update download
-- Stored in browser localStorage
-- Offered for restore when opening a new version
-- Expires after 7 days
+Automatic backups are created before version updates and offered for restore when opening a new version.
 
 ### What Gets Backed Up
-- House assignment
-- Module completion progress
-- Achievement unlocks
-- Streak data
+- House assignment and module completion
+- Achievement unlocks and streak data
 - Dark Arts / Five Gates progress
 - All settings and preferences
-
-### Data Persistence Across Updates
-
-| Scenario | Data Persists? |
-|----------|----------------|
-| Replace files in same folder | Yes |
-| Extract to new folder (Chrome) | Usually yes |
-| Extract to new folder (Firefox) | Use manual backup |
-| Different browser | No - use manual backup |
-| Clear browser data | No - use manual backup |
-
-**Best Practice:** Always export your data before updating, especially for major version changes.
-
----
-
-## Keyboard Shortcuts
-
-### Dashboard
-| Key | Action |
-|-----|--------|
-| **Escape** | Close any open modal |
-
-### Digital Life (when visible)
-| Key | Action |
-|-----|--------|
-| **D** | Toggle debug controls |
-| **1** | Energy Blessing tool |
-| **2** | Gravity Brush tool |
-| **3** | Shield Bubble tool |
-| **4** | Spawn Beacon tool |
-| **5** | Evolution Catalyst tool |
 
 ---
 
@@ -311,118 +339,37 @@ Your progress is stored in your browser's localStorage. Here's how to keep it sa
 ### "My progress is gone after updating"
 1. Check if a restore banner appears at the top of the dashboard
 2. If yes, click "Restore Progress"
-3. If no, use Settings → Import Progress with your backup file
+3. If no, use Settings > Import Progress with your backup file
 
 ### "The page is blank or won't load"
 1. Make sure you're opening `START.html`, not another file
 2. Try a different browser (Chrome recommended)
-3. Check that JavaScript is enabled in your browser
-
-### "Digital Life fireflies aren't showing"
-1. Refresh the page
-2. Check if you have browser extensions blocking animations
-3. Try disabling hardware acceleration in browser settings
-
-### "Sound isn't working"
-1. Click the sound toggle button (bottom-right corner)
-2. Make sure your browser allows audio
-3. Check your system volume
-
-### "Updates aren't being detected"
-1. Click "Check for Updates" in the footer
-2. Ensure you have internet connectivity
-3. The update server may be temporarily unavailable
+3. Check that JavaScript is enabled
 
 ### "I want to start completely fresh"
 1. Go to Settings
 2. Click "Reset All Data"
 3. Confirm twice (this cannot be undone)
-4. You'll be redirected to retake the sorting quiz
 
 ---
 
-## Technical Information
+## Browser Support
 
-### Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        BROWSER (Client)                         │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │ Dashboard   │  │ Digital Life│  │ Learning Modules        │  │
-│  │ (Vue-like)  │  │ (Canvas)    │  │ (HTML/JS)               │  │
-│  └──────┬──────┘  └─────────────┘  └───────────┬─────────────┘  │
-│         │                                       │                │
-│         ▼                                       ▼                │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │              localStorage (Offline Mode)                    ││
-│  │  • Progress • Achievements • House • Settings • Streaks    ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                    (Optional - Classes Only)
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     FIREBASE (Google Cloud)                      │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │ Firebase    │  │ Firestore   │  │ Firebase Hosting        │  │
-│  │ Auth        │  │ Database    │  │ (CDN + 99.95% SLA)      │  │
-│  │ (Google)    │  │ (Classes)   │  │                         │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-
-Data Flow:
-  Solo Learner: Browser ←→ localStorage (100% offline)
-  Class Member: Browser ←→ localStorage + Firestore (synced)
-  Instructor:   Browser ←→ Firestore (class management)
-```
-
-### Browser Support
-- **Recommended:** Chrome, Edge (Chromium-based)
-- **Supported:** Firefox, Safari
-- **Not Supported:** Internet Explorer
-
-### Storage Used
-- **localStorage:** ~1-5 MB for user data
-- **No cookies** are used
-- **No external connections** required after download (except for update checks)
-
-### File Structure
-```
-Hexworth Prime/
-├── START.html          ← Open this file!
-├── README.md           ← You are here
-└── _app/               ← Application files (don't modify)
-    ├── index.html
-    ├── dashboard.html
-    ├── sorting.html
-    ├── digital-life/
-    ├── houses/
-    ├── components/
-    └── ...
-```
+| Browser | Status |
+|---------|--------|
+| Chrome / Edge (Chromium) | Recommended |
+| Firefox | Supported |
+| Safari | Supported |
+| Internet Explorer | Not supported |
 
 ---
 
-## Credits
+## About
 
-**Hexworth Prime** is an educational platform designed and developed for IT and Cybersecurity instruction.
+Hexworth Prime is an education platform designed and developed for IT and cybersecurity instruction at the college level. Every feature exists because a real class needed it.
 
-### Version
-See Settings → Version Info for current version details.
-
----
-
-## Support
-
-For issues, feature requests, or feedback:
-- Check the troubleshooting section above
-- Review the release notes for known issues
-- Contact your instructor (if using in a classroom setting)
+For licensing, white-label deployments, or partnership inquiries, contact the development team.
 
 ---
 
-*Happy Learning!*
+*v6.0.0 "IRON CURTAIN" -- 2026-03-16*
