@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DES-02: API Versioning Strategies | API Design & Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent: #79c0ff; --accent-dim: rgba(121,192,255,0.12); --accent-border: rgba(121,192,255,0.25);
+            --bg: #0d1117; --bg-card: #161b22; --bg-card2: #1c2128;
+            --text: #e6edf3; --text-muted: #8b949e; --text-dim: #6e7681;
+            --green: #3fb950; --green-dim: rgba(63,185,80,0.12); --green-border: rgba(63,185,80,0.3);
+            --red: #f85149; --yellow: #d29922; --yellow-dim: rgba(210,153,34,0.12); --yellow-border: rgba(210,153,34,0.3);
+            --border: rgba(255,255,255,0.08);
+        }
+        body { min-height: 100vh; background: var(--bg); font-family: 'Inter', system-ui, sans-serif; color: var(--text); line-height: 1.7; }
+        .capi-header { background: rgba(13,17,23,0.96); border-bottom: 1px solid var(--accent-border); padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+        .capi-header-left { display: flex; align-items: center; gap: 14px; }
+        .capi-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .capi-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .capi-back { color: var(--text-muted); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .capi-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .breadcrumb { max-width: 880px; margin: 0 auto; padding: 14px 24px 0; font-size: 0.78rem; color: var(--text-dim); }
+        .breadcrumb a { color: var(--accent); text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .capi-content { max-width: 880px; margin: 0 auto; padding: 10px 24px 60px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 20px 0 30px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 32px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        p { color: var(--text-muted); margin-bottom: 14px; font-size: 0.95rem; }
+        .code-block { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text); }
+        .code-block .comment { color: var(--text-dim); }
+        .code-block .keyword { color: var(--accent); }
+        .code-block .string { color: var(--green); }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-muted); font-size: 0.85rem; }
+        table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        th, td { padding: 10px 14px; text-align: left; border: 1px solid var(--border); }
+        th { background: var(--bg-card); color: var(--accent); font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        td { color: var(--text-muted); background: var(--bg-card2); }
+        td code { font-family: 'JetBrains Mono', monospace; color: var(--green); font-size: 0.82rem; }
+        .callout { background: var(--yellow-dim); border: 1px solid var(--yellow-border); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .callout strong { color: var(--yellow); }
+        .callout p { color: var(--text-muted); margin: 4px 0 0; }
+        .takeaways { background: linear-gradient(135deg, rgba(63,185,80,0.1), rgba(63,185,80,0.04)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { opacity: 0.9; }
+        @media (max-width: 700px) { .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="capi-header">
+        <div class="capi-header-left">
+            <span class="capi-badge">DES-02</span>
+            <h1>API Versioning Strategies</h1>
+        </div>
+        <a href="./" class="capi-back">&lt; Course Home</a>
+    </header>
+
+    <div class="breadcrumb">
+        <a href="../../index.html">House of the Cloud</a> &raquo;
+        <a href="../">API Security</a> &raquo;
+        <a href="./">API Design & Documentation</a> &raquo;
+        API Versioning Strategies
+    </div>
+
+    <div class="capi-content">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand why API versioning is necessary for long-lived services</li>
+                <li>Compare URI path, query parameter, and header-based versioning</li>
+                <li>Distinguish breaking changes from non-breaking changes</li>
+                <li>Design a deprecation strategy with sunset headers</li>
+                <li>Apply semantic versioning concepts to API lifecycle management</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Why Version APIs?</h2>
+            <p>APIs are contracts. When you change a response schema, rename a field, or remove an endpoint, you risk breaking every client that depends on the old behavior. Versioning gives you a mechanism to evolve the API while maintaining backward compatibility for existing consumers.</p>
+            <p>Without versioning, you face two bad options: freeze your API forever or break all existing clients with every change. Versioning provides a controlled migration path.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Breaking Changes</strong>
+                    <span>Removing a field, changing a type (string to int), renaming an endpoint, changing error format</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Non-Breaking Changes</strong>
+                    <span>Adding optional fields, adding new endpoints, adding new query params, extending enums</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Forward Compatibility</strong>
+                    <span>Designing so new additions do not require client changes -- "ignore unknown fields"</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Backward Compatibility</strong>
+                    <span>Old clients continue working with the new version without modification</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">URI Path Versioning</h2>
+            <p>The most common approach. The version number appears directly in the URL path. GitHub, Stripe, and Twilio all use this method.</p>
+
+            <div class="code-block">
+<span class="comment"># URI Path Versioning</span>
+GET <span class="string">/api/v1/users</span>        <span class="comment"># Version 1</span>
+GET <span class="string">/api/v2/users</span>        <span class="comment"># Version 2 - may have different schema</span>
+GET <span class="string">/api/v2/users/42</span>     <span class="comment"># Same resource, new contract</span>
+            </div>
+
+            <table>
+                <thead><tr><th>Pros</th><th>Cons</th></tr></thead>
+                <tbody>
+                    <tr><td>Immediately visible in the URL</td><td>URI pollution -- different URLs for the same resource</td></tr>
+                    <tr><td>Easy to route at load balancer / gateway</td><td>Breaks the REST principle that a URI identifies one resource</td></tr>
+                    <tr><td>Simple for clients to implement</td><td>Can lead to code duplication across versions on the server</td></tr>
+                    <tr><td>Cache-friendly (distinct URLs)</td><td>Hard to version individual endpoints independently</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Header-Based Versioning</h2>
+            <p>The version is specified in a custom HTTP header or through content negotiation with the Accept header. Microsoft and GitHub (newer APIs) use this approach.</p>
+
+            <div class="code-block">
+<span class="comment"># Custom Header</span>
+GET /api/users HTTP/1.1
+<span class="keyword">X-API-Version</span>: <span class="string">2</span>
+
+<span class="comment"># Accept Header (Content Negotiation)</span>
+GET /api/users HTTP/1.1
+<span class="keyword">Accept</span>: <span class="string">application/vnd.myapi.v2+json</span>
+
+<span class="comment"># Azure-style: api-version query param + header combo</span>
+GET /subscriptions?<span class="keyword">api-version</span>=<span class="string">2023-01-01</span> HTTP/1.1
+            </div>
+
+            <div class="callout">
+                <strong>Best Practice:</strong>
+                <p>If no version is specified, return the latest stable version -- but document this behavior clearly. Some teams return 400 when the version header is missing to enforce explicit versioning by clients.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Query Parameter Versioning</h2>
+            <p>The version is passed as a query parameter. Google Cloud APIs and Azure Resource Manager use date-based query parameter versioning.</p>
+
+            <div class="code-block">
+<span class="comment"># Query Parameter Versioning</span>
+GET /api/users?<span class="keyword">version</span>=<span class="string">2</span>
+GET /api/users?<span class="keyword">api-version</span>=<span class="string">2024-06-01</span>   <span class="comment"># date-based</span>
+            </div>
+
+            <p>Date-based versioning (like Azure's <code style="font-family:'JetBrains Mono',monospace;color:var(--green);">api-version=2024-06-01</code>) is especially useful because it communicates when the version was released, making deprecation timelines intuitive.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Comparison Matrix</h2>
+            <table>
+                <thead><tr><th>Strategy</th><th>Visibility</th><th>Cacheability</th><th>RESTfulness</th><th>Routing Ease</th><th>Used By</th></tr></thead>
+                <tbody>
+                    <tr><td>URI Path</td><td>High</td><td>High</td><td>Low</td><td>Easy</td><td>Stripe, Twilio</td></tr>
+                    <tr><td>Header</td><td>Low</td><td>Varies</td><td>High</td><td>Medium</td><td>GitHub (v3), Microsoft</td></tr>
+                    <tr><td>Query Param</td><td>Medium</td><td>Medium</td><td>Medium</td><td>Easy</td><td>Google, Azure</td></tr>
+                    <tr><td>Content Negotiation</td><td>Low</td><td>Low</td><td>Highest</td><td>Hard</td><td>GitHub (media types)</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Deprecation and Sunset Headers</h2>
+            <p>When retiring a version, communicate the timeline clearly. RFC 8594 defines the <code style="font-family:'JetBrains Mono',monospace;color:var(--green);">Sunset</code> header for this purpose.</p>
+
+            <div class="code-block">
+<span class="comment"># Response from a deprecated v1 endpoint</span>
+HTTP/1.1 <span class="string">200</span> OK
+<span class="keyword">Sunset</span>: Sat, 01 Mar 2025 00:00:00 GMT
+<span class="keyword">Deprecation</span>: true
+<span class="keyword">Link</span>: &lt;/api/v2/users&gt;; rel="successor-version"
+            </div>
+
+            <p>Best practices for deprecation: announce at least 6 months in advance, log usage of deprecated versions so you can contact affected consumers, and return deprecation warnings in response headers before the cutoff date.</p>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Version your API from day one -- retrofitting is painful</li>
+                <li>URI path versioning is the most widely adopted and easiest to implement</li>
+                <li>Header versioning is more RESTful but harder for clients and debugging</li>
+                <li>Date-based versioning communicates lifecycle information naturally</li>
+                <li>Always communicate deprecation timelines with Sunset headers (RFC 8594)</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="capi-des-01.html" class="nav-btn">&lt; Previous: RESTful Design</a>
+            <a href="capi-des-03.html" class="nav-btn primary">Next: Request/Response Design &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+    (function() {
+        let scrollDone = false;
+        window.addEventListener('scroll', function() {
+            if (scrollDone) return;
+            const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+            if (scrollable > 0 && (window.scrollY / scrollable) >= 0.8) {
+                scrollDone = true;
+                ModuleProgress.complete('cloud', 'capi-des-02');
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

@@ -190,14 +190,14 @@
 ## Wave 15: API Foundations (3 parallel agents → serial chain)
 *Sprints: API-2 through API-9 — dependency chain*
 
-- [ ] **API-2** — Authentication & Authorization (← API-1 done)
-- [ ] **API-3** — API Design & Documentation (← API-1 done)
-- [ ] **API-4** — Rate Limiting, Throttling & Caching (← API-2)
-- [ ] **API-5** — OWASP API Top 10 (← API-2)
-- [ ] **API-6** — Hands-On API Penetration Testing (← API-5)
-- [ ] **API-7** — Cloud APIs: AWS, Azure & GCP Patterns (← API-3)
-- [ ] **API-8** — Webhooks, WebSockets & Event-Driven (← API-1 done)
-- [ ] **API-9** — API Capstone: Build & Secure a Full API (← API-4, API-5, API-6)
+- [x] **API-2** — Authentication & Authorization (← API-1 done)
+- [x] **API-3** — API Design & Documentation (← API-1 done)
+- [x] **API-4** — Rate Limiting, Throttling & Caching (← API-2)
+- [x] **API-5** — OWASP API Top 10 (← API-2)
+- [x] **API-6** — Hands-On API Penetration Testing (← API-5)
+- [x] **API-7** — Cloud APIs: AWS, Azure & GCP Patterns (← API-3)
+- [x] **API-8** — Webhooks, WebSockets & Event-Driven (← API-1 done)
+- [x] **API-9** — API Capstone: Build & Secure a Full API (← API-4, API-5, API-6)
 
 ---
 ## Wave 16: Messaging System (serial chain)

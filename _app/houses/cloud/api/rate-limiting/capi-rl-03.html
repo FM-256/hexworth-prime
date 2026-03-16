@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RL-03: Implementing Rate Limits | House of the Cloud</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent: #79c0ff; --accent-dim: rgba(121,192,255,0.12); --accent-border: rgba(121,192,255,0.25);
+            --bg: #0d1117; --bg-card: #161b22; --bg-card2: #1c2128;
+            --text: #e6edf3; --text-muted: #8b949e; --text-dim: #6e7681;
+            --green: #3fb950; --green-dim: rgba(63,185,80,0.12);
+            --red: #f85149; --yellow: #d29922;
+        }
+        body { min-height: 100vh; background: var(--bg); font-family: 'Inter', system-ui, sans-serif; color: var(--text); line-height: 1.7; }
+        .capi-header { background: var(--bg-card); border-bottom: 1px solid var(--accent-border); padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+        .capi-header-left { display: flex; align-items: center; gap: 14px; }
+        .capi-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .capi-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .capi-back { color: var(--text-muted); text-decoration: none; padding: 6px 14px; border: 1px solid var(--accent-border); border-radius: 6px; font-size: 0.82rem; transition: all 0.2s; }
+        .capi-back:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+        .capi-content { max-width: 820px; margin: 0 auto; padding: 36px 28px 60px; }
+        .capi-breadcrumb { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 24px; font-family: 'JetBrains Mono', monospace; }
+        .capi-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .capi-breadcrumb a:hover { text-decoration: underline; }
+        .capi-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 32px; }
+        .capi-objectives h2 { color: var(--accent); font-size: 0.95rem; margin-bottom: 10px; }
+        .capi-objectives ul { list-style: none; }
+        .capi-objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .capi-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .capi-section { margin-bottom: 36px; }
+        .capi-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .capi-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .capi-text { color: var(--text-muted); margin-bottom: 14px; font-size: 0.95rem; }
+        .capi-feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+        .capi-feature-card { background: var(--bg-card); border: 1px solid var(--accent-border); border-radius: 8px; padding: 16px; }
+        .capi-feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .capi-feature-card span { color: var(--text-muted); font-size: 0.84rem; }
+        .capi-code-block { background: var(--bg-card); border: 1px solid var(--accent-border); border-radius: 8px; padding: 18px; margin: 16px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; }
+        .capi-code-block .capi-comment { color: var(--text-dim); }
+        .capi-code-block .capi-keyword { color: var(--accent); }
+        .capi-code-block .capi-string { color: var(--green); }
+        .capi-code-block .capi-number { color: var(--yellow); }
+        .capi-alert { padding: 16px 20px; border-radius: 8px; margin: 16px 0; font-size: 0.9rem; }
+        .capi-alert--warning { background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.3); color: var(--yellow); }
+        .capi-alert--danger { background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); color: var(--red); }
+        .capi-alert--info { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .capi-takeaways { background: var(--green-dim); border: 1px solid rgba(63,185,80,0.3); border-radius: 8px; padding: 20px; margin: 32px 0; }
+        .capi-takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .capi-takeaways ul { list-style: none; }
+        .capi-takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .capi-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .capi-nav-footer { display: flex; justify-content: space-between; padding: 18px 0; margin-top: 36px; border-top: 1px solid var(--accent-border); }
+        .capi-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--bg-card); border: 1px solid var(--accent-border); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .capi-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .capi-nav-btn.capi-primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+        .capi-nav-btn.capi-primary:hover { opacity: 0.9; }
+        .capi-comparison-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
+        .capi-comparison-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--accent-border); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+        .capi-comparison-table td { padding: 10px 14px; border: 1px solid var(--accent-border); color: var(--text-muted); }
+        .capi-comparison-table tr:nth-child(even) { background: var(--bg-card); }
+        @media (max-width: 700px) { .capi-feature-grid { grid-template-columns: 1fr; } .capi-content { padding: 24px 16px 48px; } }
+    </style>
+</head>
+<body>
+    <header class="capi-header">
+        <div class="capi-header-left">
+            <span class="capi-badge">RL-03</span>
+            <h1>Implementing Rate Limits</h1>
+        </div>
+        <a href="index.html" class="capi-back">&lt; Course Home</a>
+    </header>
+
+    <div class="capi-content">
+        <div class="capi-breadcrumb">
+            <a href="../../index.html">Cloud</a> / <a href="index.html">Rate Limiting</a> / RL-03
+        </div>
+
+        <div class="capi-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Implement rate limit headers following RFC 6585 and draft standards</li>
+                <li>Construct proper HTTP 429 responses with Retry-After</li>
+                <li>Design client-friendly rate limit communication</li>
+                <li>Handle rate limits in distributed systems</li>
+            </ul>
+        </div>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">The HTTP 429 Response</h2>
+            <p class="capi-text">HTTP status code 429 "Too Many Requests" was introduced in RFC 6585 specifically for rate limiting. When a client exceeds their limit, the server returns 429 with headers that tell the client exactly how to recover.</p>
+
+            <div class="capi-code-block">
+<span class="capi-comment">// HTTP 429 Response Example</span>
+HTTP/1.1 <span class="capi-number">429</span> Too Many Requests
+Content-Type: application/json
+Retry-After: <span class="capi-number">30</span>
+X-RateLimit-Limit: <span class="capi-number">100</span>
+X-RateLimit-Remaining: <span class="capi-number">0</span>
+X-RateLimit-Reset: <span class="capi-number">1679616000</span>
+
+{
+  <span class="capi-string">"error"</span>: <span class="capi-string">"rate_limit_exceeded"</span>,
+  <span class="capi-string">"message"</span>: <span class="capi-string">"Too many requests. Please retry after 30 seconds."</span>,
+  <span class="capi-string">"retry_after"</span>: <span class="capi-number">30</span>,
+  <span class="capi-string">"docs"</span>: <span class="capi-string">"https://api.example.com/docs/rate-limits"</span>
+}
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Rate Limit Headers</h2>
+            <p class="capi-text">Rate limit headers should be included on EVERY response, not just 429s. This allows clients to proactively manage their request rate before hitting the limit. The IETF draft standard (RateLimit Fields for HTTP) defines the modern approach:</p>
+
+            <table class="capi-comparison-table">
+                <thead>
+                    <tr>
+                        <th>Header</th>
+                        <th>Value</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>X-RateLimit-Limit</strong></td>
+                        <td>100</td>
+                        <td>Maximum requests allowed in the current window</td>
+                    </tr>
+                    <tr>
+                        <td><strong>X-RateLimit-Remaining</strong></td>
+                        <td>73</td>
+                        <td>Requests remaining in the current window</td>
+                    </tr>
+                    <tr>
+                        <td><strong>X-RateLimit-Reset</strong></td>
+                        <td>1679616000</td>
+                        <td>Unix timestamp when the window resets</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Retry-After</strong></td>
+                        <td>30</td>
+                        <td>Seconds to wait before retrying (on 429 only)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="capi-code-block">
+<span class="capi-comment">// Express middleware that adds rate limit headers to every response</span>
+<span class="capi-keyword">function</span> rateLimitHeaders(limiter) {
+  <span class="capi-keyword">return async</span> (req, res, next) => {
+    <span class="capi-keyword">const</span> clientId = req.headers[<span class="capi-string">'x-api-key'</span>] || req.ip;
+    <span class="capi-keyword">const</span> result = <span class="capi-keyword">await</span> limiter.check(clientId);
+
+    <span class="capi-comment">// Always include rate limit info</span>
+    res.set(<span class="capi-string">'X-RateLimit-Limit'</span>, result.limit);
+    res.set(<span class="capi-string">'X-RateLimit-Remaining'</span>, result.remaining);
+    res.set(<span class="capi-string">'X-RateLimit-Reset'</span>, result.resetAt);
+
+    <span class="capi-keyword">if</span> (!result.allowed) {
+      res.set(<span class="capi-string">'Retry-After'</span>, result.retryAfter);
+      <span class="capi-keyword">return</span> res.status(<span class="capi-number">429</span>).json({
+        error: <span class="capi-string">'rate_limit_exceeded'</span>,
+        retry_after: result.retryAfter
+      });
+    }
+
+    next();
+  };
+}
+            </div>
+
+            <div class="capi-alert capi-alert--info">
+                <strong>IETF Draft Standard:</strong> The newer draft "RateLimit Fields for HTTP" proposes simplified headers: <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>, and <code>RateLimit-Reset</code> (without the X- prefix). Both formats are widely used in production.
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Client Identification Strategies</h2>
+            <p class="capi-text">Choosing how to identify clients is critical. The wrong identifier leads to either overly broad limits (affecting many users) or limits that are trivially bypassed.</p>
+
+            <div class="capi-feature-grid">
+                <div class="capi-feature-card">
+                    <strong>IP Address</strong>
+                    <span>Simple but problematic. NAT and shared IPs (offices, universities) mean many users share one IP. Attackers easily rotate IPs via proxies or botnets.</span>
+                </div>
+                <div class="capi-feature-card">
+                    <strong>API Key</strong>
+                    <span>Most reliable for authenticated APIs. Ties limits to the registered application. Easy to revoke. Cannot be rotated without regenerating the key.</span>
+                </div>
+                <div class="capi-feature-card">
+                    <strong>User ID / JWT</strong>
+                    <span>Best for per-user limits on authenticated endpoints. Extracted from the auth token. Not available for unauthenticated endpoints like login.</span>
+                </div>
+                <div class="capi-feature-card">
+                    <strong>Composite Key</strong>
+                    <span>Combine identifiers: IP + API key, or User ID + endpoint. Provides fine-grained control. Example: limit scraping per-user AND per-IP simultaneously.</span>
+                </div>
+            </div>
+
+            <div class="capi-code-block">
+<span class="capi-comment">// Composite key strategy</span>
+<span class="capi-keyword">function</span> getClientKey(req) {
+  <span class="capi-keyword">const</span> ip = req.headers[<span class="capi-string">'x-forwarded-for'</span>]?.split(<span class="capi-string">','</span>)[<span class="capi-number">0</span>] || req.ip;
+  <span class="capi-keyword">const</span> apiKey = req.headers[<span class="capi-string">'x-api-key'</span>];
+  <span class="capi-keyword">const</span> userId = req.user?.id;
+  <span class="capi-keyword">const</span> endpoint = req.route.path;
+
+  <span class="capi-comment">// Authenticated: limit per user per endpoint</span>
+  <span class="capi-keyword">if</span> (userId) <span class="capi-keyword">return</span> <span class="capi-string">`user:${userId}:${endpoint}`</span>;
+
+  <span class="capi-comment">// API key: limit per application</span>
+  <span class="capi-keyword">if</span> (apiKey) <span class="capi-keyword">return</span> <span class="capi-string">`key:${apiKey}:${endpoint}`</span>;
+
+  <span class="capi-comment">// Fallback: limit per IP</span>
+  <span class="capi-keyword">return</span> <span class="capi-string">`ip:${ip}:${endpoint}`</span>;
+}
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Distributed Rate Limiting</h2>
+            <p class="capi-text">In production, your API runs on multiple servers behind a load balancer. Each server needs a shared view of rate limit counters. Two approaches dominate:</p>
+
+            <div class="capi-feature-grid">
+                <div class="capi-feature-card">
+                    <strong>Centralized Store (Redis)</strong>
+                    <span>All instances check a shared Redis cluster. Consistent and accurate. Adds network latency to every request (typically 1-2ms). The standard approach for most APIs.</span>
+                </div>
+                <div class="capi-feature-card">
+                    <strong>Local + Sync</strong>
+                    <span>Each instance maintains local counters and periodically syncs. Lower latency but allows brief over-limit bursts during sync gaps. Used for very high-throughput systems.</span>
+                </div>
+            </div>
+
+            <div class="capi-code-block">
+<span class="capi-comment">// Redis-based distributed rate limiter with Lua for atomicity</span>
+<span class="capi-keyword">const</span> RATE_LIMIT_SCRIPT = <span class="capi-string">`
+  local key = KEYS[1]
+  local limit = tonumber(ARGV[1])
+  local window = tonumber(ARGV[2])
+
+  local current = redis.call('INCR', key)
+  if current == 1 then
+    redis.call('EXPIRE', key, window)
+  end
+
+  if current > limit then
+    return {0, 0, redis.call('TTL', key)}
+  end
+
+  return {1, limit - current, redis.call('TTL', key)}
+`</span>;
+
+<span class="capi-keyword">async function</span> checkLimit(clientKey, limit, windowSec) {
+  <span class="capi-keyword">const</span> [allowed, remaining, ttl] = <span class="capi-keyword">await</span> redis.eval(
+    RATE_LIMIT_SCRIPT, <span class="capi-number">1</span>, clientKey, limit, windowSec
+  );
+  <span class="capi-keyword">return</span> { allowed: !!allowed, remaining, retryAfter: ttl };
+}
+            </div>
+
+            <div class="capi-alert capi-alert--warning">
+                <strong>Race Condition:</strong> Without atomic operations, two concurrent requests can both read count=99 (limit=100), both increment, and both pass -- resulting in count=101. Always use Lua scripts or Redis transactions (MULTI/EXEC) for atomic check-and-increment.
+            </div>
+        </section>
+
+        <div class="capi-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>HTTP 429 is the standard response code for rate limiting</li>
+                <li>Include X-RateLimit-* headers on every response, not just rejections</li>
+                <li>Retry-After tells clients exactly when to retry</li>
+                <li>API keys are the most reliable client identifier; IP-only limits are easily bypassed</li>
+                <li>Use Redis with Lua scripts for atomic distributed rate limiting</li>
+                <li>Always use composite keys (user + endpoint) for granular control</li>
+            </ul>
+        </div>
+
+        <nav class="capi-nav-footer">
+            <a href="capi-rl-02.html" class="capi-nav-btn">&lt; Previous: Algorithms</a>
+            <a href="capi-rl-04.html" class="capi-nav-btn capi-primary">Next: API Throttling Patterns &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+    (function() {
+        var completed = false;
+        function checkScroll() {
+            if (completed) return;
+            var scrolled = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight;
+            if (scrolled >= 0.8) { completed = true; ModuleProgress.complete('cloud', 'capi-rl-03'); }
+        }
+        window.addEventListener('scroll', checkScroll);
+        checkScroll();
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API-4: Rate Limiting, Throttling & Caching | House of the Cloud</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent: #79c0ff;
+            --accent-dim: rgba(121, 192, 255, 0.12);
+            --accent-border: rgba(121, 192, 255, 0.25);
+            --bg: #0d1117;
+            --bg-card: #161b22;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --text-dim: #6e7681;
+            --green: #3fb950;
+            --green-dim: rgba(63, 185, 80, 0.12);
+            --green-border: rgba(63, 185, 80, 0.3);
+        }
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            font-family: 'Inter', system-ui, sans-serif;
+            color: var(--text);
+        }
+        .capi-hub-header {
+            text-align: center;
+            padding: 48px 24px 36px;
+            background: linear-gradient(180deg, rgba(121,192,255,0.08) 0%, transparent 100%);
+            border-bottom: 1px solid var(--accent-border);
+        }
+        .capi-hub-header h1 {
+            font-size: 2.2rem;
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        .capi-hub-header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            max-width: 640px;
+            margin: 0 auto 20px;
+        }
+        .capi-hub-badge {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            background: var(--bg-card);
+            border: 1px solid var(--accent-border);
+            padding: 4px 14px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        .capi-hub-nav {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .capi-hub-nav a {
+            padding: 8px 18px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 6px;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .capi-hub-nav a:hover {
+            background: rgba(121,192,255,0.22);
+            border-color: rgba(121,192,255,0.45);
+        }
+        .capi-hub-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            max-width: 700px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+        .capi-hub-stat {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-border);
+            border-radius: 10px;
+            padding: 18px;
+            text-align: center;
+        }
+        .capi-hub-stat-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .capi-hub-stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .capi-hub-grid {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .capi-hub-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--accent-border);
+            border-radius: 10px;
+            padding: 18px 22px;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .capi-hub-card:hover {
+            border-color: var(--accent);
+            transform: translateX(4px);
+            background: rgba(121,192,255,0.05);
+        }
+        .capi-hub-card-num {
+            width: 38px;
+            height: 38px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+        .capi-hub-card-body { flex: 1; }
+        .capi-hub-card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 3px;
+        }
+        .capi-hub-card-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .capi-hub-card-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .capi-hub-card-status--available {
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+        }
+        .capi-hub-card-status--complete {
+            color: var(--green);
+            background: var(--green-dim);
+            border: 1px solid var(--green-border);
+        }
+        .capi-hub-footer {
+            text-align: center;
+            padding: 24px;
+            border-top: 1px solid var(--accent-border);
+            color: var(--text-dim);
+            font-size: 0.82rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="capi-hub-header">
+        <div class="capi-hub-badge">House of the Cloud // API Security Track</div>
+        <h1>API-4: Rate Limiting, Throttling & Caching</h1>
+        <p>Protect your APIs from abuse, optimize performance with caching strategies, and build resilient throttling patterns that scale.</p>
+        <div class="capi-hub-nav">
+            <a href="../cloud-api-002.presentation.html">&lt; API Track Home</a>
+            <a href="../../index.html">&lt; Cloud House</a>
+        </div>
+    </div>
+
+    <div class="capi-hub-stats">
+        <div class="capi-hub-stat">
+            <div class="capi-hub-stat-value" id="statProgress">0/10</div>
+            <div class="capi-hub-stat-label">Modules Complete</div>
+        </div>
+        <div class="capi-hub-stat">
+            <div class="capi-hub-stat-value">10</div>
+            <div class="capi-hub-stat-label">Total Modules</div>
+        </div>
+        <div class="capi-hub-stat">
+            <div class="capi-hub-stat-value">~5h</div>
+            <div class="capi-hub-stat-label">Estimated Time</div>
+        </div>
+        <div class="capi-hub-stat">
+            <div class="capi-hub-stat-value">Intermediate</div>
+            <div class="capi-hub-stat-label">Level</div>
+        </div>
+    </div>
+
+    <div class="capi-hub-grid" id="moduleGrid"></div>
+
+    <div class="capi-hub-footer">
+        API-4: Rate Limiting, Throttling & Caching is part of the API Security Track in the House of the Cloud.
+    </div>
+
+    <script>
+    (function() {
+        const COURSES = [
+            { id: 'capi-rl-01', num: '01', title: 'Why Rate Limiting Matters', desc: 'Abuse prevention, resource protection, and fair use policies', file: 'capi-rl-01.html' },
+            { id: 'capi-rl-02', num: '02', title: 'Rate Limiting Algorithms', desc: 'Fixed window, sliding window, token bucket, and leaky bucket', file: 'capi-rl-02.html' },
+            { id: 'capi-rl-03', num: '03', title: 'Implementing Rate Limits', desc: 'HTTP 429, X-RateLimit headers, and Retry-After patterns', file: 'capi-rl-03.html' },
+            { id: 'capi-rl-04', num: '04', title: 'API Throttling Patterns', desc: 'Adaptive throttling, backpressure, and circuit breakers', file: 'capi-rl-04.html' },
+            { id: 'capi-rl-05', num: '05', title: 'Caching Fundamentals', desc: 'Cache-Control, ETags, conditional requests, and CDN basics', file: 'capi-rl-05.html' },
+            { id: 'capi-rl-06', num: '06', title: 'Server-Side Caching', desc: 'Redis, Memcached, in-memory caching, and cache invalidation', file: 'capi-rl-06.html' },
+            { id: 'capi-rl-07', num: '07', title: 'API Response Caching Strategies', desc: 'TTL policies, stale-while-revalidate, and cache busting', file: 'capi-rl-07.html' },
+            { id: 'capi-rl-08', num: '08', title: 'DDoS Protection & API Abuse Prevention', desc: 'WAF integration, bot detection, and behavioral analysis', file: 'capi-rl-08.html' },
+            { id: 'capi-rl-09', num: '09', title: 'Cost-Based Rate Limiting', desc: 'Request weighting, tiered quotas, and billing integration', file: 'capi-rl-09.html' },
+            { id: 'capi-rl-10', num: '10', title: 'Rate Limiting Lab: Build a Resilient API Gateway', desc: 'Hands-on lab combining rate limiting, throttling, and caching', file: 'capi-rl-10.html' }
+        ];
+
+        const grid = document.getElementById('moduleGrid');
+        let completedCount = 0;
+        let progress = {};
+        try { progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); } catch(e) {}
+        const cloudProgress = progress.cloud || {};
+
+        COURSES.forEach(function(course) {
+            const isComplete = cloudProgress[course.id] && cloudProgress[course.id].completed;
+            if (isComplete) completedCount++;
+
+            const card = document.createElement('a');
+            card.href = course.file;
+            card.className = 'capi-hub-card';
+            card.innerHTML =
+                '<div class="capi-hub-card-num">' + course.num + '</div>' +
+                '<div class="capi-hub-card-body">' +
+                    '<div class="capi-hub-card-title">' + course.title + '</div>' +
+                    '<div class="capi-hub-card-desc">' + course.desc + '</div>' +
+                '</div>' +
+                '<span class="capi-hub-card-status ' + (isComplete ? 'capi-hub-card-status--complete' : 'capi-hub-card-status--available') + '">' +
+                    (isComplete ? 'Complete' : 'Available') +
+                '</span>';
+            grid.appendChild(card);
+        });
+
+        document.getElementById('statProgress').textContent = completedCount + '/10';
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RL-09: Cost-Based Rate Limiting | House of the Cloud</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --accent: #79c0ff; --accent-dim: rgba(121,192,255,0.12); --accent-border: rgba(121,192,255,0.25); --bg: #0d1117; --bg-card: #161b22; --text: #e6edf3; --text-muted: #8b949e; --text-dim: #6e7681; --green: #3fb950; --green-dim: rgba(63,185,80,0.12); --red: #f85149; --yellow: #d29922; }
+        body { min-height: 100vh; background: var(--bg); font-family: 'Inter', system-ui, sans-serif; color: var(--text); line-height: 1.7; }
+        .capi-header { background: var(--bg-card); border-bottom: 1px solid var(--accent-border); padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+        .capi-header-left { display: flex; align-items: center; gap: 14px; }
+        .capi-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .capi-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .capi-back { color: var(--text-muted); text-decoration: none; padding: 6px 14px; border: 1px solid var(--accent-border); border-radius: 6px; font-size: 0.82rem; transition: all 0.2s; }
+        .capi-back:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+        .capi-content { max-width: 820px; margin: 0 auto; padding: 36px 28px 60px; }
+        .capi-breadcrumb { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 24px; font-family: 'JetBrains Mono', monospace; }
+        .capi-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .capi-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 32px; }
+        .capi-objectives h2 { color: var(--accent); font-size: 0.95rem; margin-bottom: 10px; }
+        .capi-objectives ul { list-style: none; }
+        .capi-objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .capi-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .capi-section { margin-bottom: 36px; }
+        .capi-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .capi-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .capi-text { color: var(--text-muted); margin-bottom: 14px; font-size: 0.95rem; }
+        .capi-feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+        .capi-feature-card { background: var(--bg-card); border: 1px solid var(--accent-border); border-radius: 8px; padding: 16px; }
+        .capi-feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .capi-feature-card span { color: var(--text-muted); font-size: 0.84rem; }
+        .capi-code-block { background: var(--bg-card); border: 1px solid var(--accent-border); border-radius: 8px; padding: 18px; margin: 16px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; }
+        .capi-code-block .capi-comment { color: var(--text-dim); }
+        .capi-code-block .capi-keyword { color: var(--accent); }
+        .capi-code-block .capi-string { color: var(--green); }
+        .capi-code-block .capi-number { color: var(--yellow); }
+        .capi-alert { padding: 16px 20px; border-radius: 8px; margin: 16px 0; font-size: 0.9rem; }
+        .capi-alert--warning { background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.3); color: var(--yellow); }
+        .capi-alert--info { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .capi-takeaways { background: var(--green-dim); border: 1px solid rgba(63,185,80,0.3); border-radius: 8px; padding: 20px; margin: 32px 0; }
+        .capi-takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .capi-takeaways ul { list-style: none; }
+        .capi-takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .capi-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .capi-nav-footer { display: flex; justify-content: space-between; padding: 18px 0; margin-top: 36px; border-top: 1px solid var(--accent-border); }
+        .capi-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--bg-card); border: 1px solid var(--accent-border); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.88rem; transition: all 0.2s; }
+        .capi-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .capi-nav-btn.capi-primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+        .capi-comparison-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
+        .capi-comparison-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--accent-border); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+        .capi-comparison-table td { padding: 10px 14px; border: 1px solid var(--accent-border); color: var(--text-muted); }
+        .capi-comparison-table tr:nth-child(even) { background: var(--bg-card); }
+        @media (max-width: 700px) { .capi-feature-grid { grid-template-columns: 1fr; } .capi-content { padding: 24px 16px 48px; } }
+    </style>
+</head>
+<body>
+    <header class="capi-header">
+        <div class="capi-header-left">
+            <span class="capi-badge">RL-09</span>
+            <h1>Cost-Based Rate Limiting</h1>
+        </div>
+        <a href="index.html" class="capi-back">&lt; Course Home</a>
+    </header>
+
+    <div class="capi-content">
+        <div class="capi-breadcrumb">
+            <a href="../../index.html">Cloud</a> / <a href="index.html">Rate Limiting</a> / RL-09
+        </div>
+
+        <div class="capi-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Assign computational cost weights to different API operations</li>
+                <li>Design tiered quota systems for different user plans</li>
+                <li>Integrate rate limiting with billing and usage metering</li>
+                <li>Implement GraphQL query complexity analysis</li>
+            </ul>
+        </div>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Beyond Simple Request Counts</h2>
+            <p class="capi-text">Simple rate limiting treats all requests equally: 100 requests per minute, regardless of what each request does. But a request to <code>GET /api/health</code> costs almost nothing, while <code>POST /api/reports/generate</code> might consume 30 seconds of CPU and gigabytes of memory. Cost-based rate limiting assigns weights to requests based on their actual computational cost.</p>
+
+            <div class="capi-feature-grid">
+                <div class="capi-feature-card">
+                    <strong>Request Weighting</strong>
+                    <span>Assign cost points to each endpoint. A simple GET costs 1 point, a search costs 5, a report generation costs 50. Users get a point budget instead of a request count.</span>
+                </div>
+                <div class="capi-feature-card">
+                    <strong>Resource-Based Costing</strong>
+                    <span>Measure actual resource consumption: CPU time, database queries, response size, external API calls. The cost is calculated per-request based on what it actually consumed.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Request Weighting Implementation</h2>
+            <p class="capi-text">Define cost weights for each endpoint or operation type. Instead of counting requests, count cost points. A user with a budget of 1000 points per minute can make 1000 simple reads, 200 searches, or 20 report generations.</p>
+
+            <div class="capi-code-block">
+<span class="capi-comment">// Cost weight definitions</span>
+<span class="capi-keyword">const</span> ENDPOINT_COSTS = {
+  <span class="capi-string">'GET /api/health'</span>:          <span class="capi-number">0</span>,   <span class="capi-comment">// Free - health checks</span>
+  <span class="capi-string">'GET /api/products'</span>:        <span class="capi-number">1</span>,   <span class="capi-comment">// Simple read</span>
+  <span class="capi-string">'GET /api/products/:id'</span>:    <span class="capi-number">1</span>,   <span class="capi-comment">// Single resource</span>
+  <span class="capi-string">'POST /api/search'</span>:         <span class="capi-number">5</span>,   <span class="capi-comment">// Full-text search</span>
+  <span class="capi-string">'POST /api/orders'</span>:         <span class="capi-number">3</span>,   <span class="capi-comment">// Transaction</span>
+  <span class="capi-string">'GET /api/analytics'</span>:       <span class="capi-number">10</span>,  <span class="capi-comment">// Aggregation query</span>
+  <span class="capi-string">'POST /api/reports'</span>:        <span class="capi-number">50</span>,  <span class="capi-comment">// Heavy computation</span>
+  <span class="capi-string">'POST /api/export'</span>:         <span class="capi-number">100</span>, <span class="capi-comment">// Bulk data export</span>
+};
+
+<span class="capi-comment">// Cost-based rate limiter</span>
+<span class="capi-keyword">async function</span> costBasedLimit(req) {
+  <span class="capi-keyword">const</span> route = <span class="capi-string">`${req.method} ${req.route.path}`</span>;
+  <span class="capi-keyword">const</span> cost = ENDPOINT_COSTS[route] || <span class="capi-number">1</span>;
+  <span class="capi-keyword">const</span> clientId = req.user?.id || req.ip;
+  <span class="capi-keyword">const</span> budget = getUserBudget(req.user);
+
+  <span class="capi-keyword">const</span> key = <span class="capi-string">`costlimit:${clientId}`</span>;
+  <span class="capi-keyword">const</span> used = <span class="capi-keyword">await</span> redis.incrby(key, cost);
+
+  <span class="capi-keyword">if</span> (used === cost) {
+    <span class="capi-keyword">await</span> redis.expire(key, <span class="capi-number">60</span>); <span class="capi-comment">// 1 minute window</span>
+  }
+
+  <span class="capi-keyword">return</span> {
+    allowed: used <= budget,
+    cost: cost,
+    used: used,
+    budget: budget,
+    remaining: Math.max(<span class="capi-number">0</span>, budget - used)
+  };
+}
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Tiered Quota Systems</h2>
+            <p class="capi-text">Most commercial APIs offer tiered plans with different rate limits. Each tier gets a different budget, and the limits should reflect the actual cost of serving that tier.</p>
+
+            <table class="capi-comparison-table">
+                <thead>
+                    <tr><th>Tier</th><th>Points/min</th><th>Monthly Quota</th><th>Features</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>Free</strong></td><td>100</td><td>10,000 requests</td><td>Basic endpoints only, no exports</td></tr>
+                    <tr><td><strong>Starter</strong></td><td>500</td><td>100,000 requests</td><td>All endpoints, 10 exports/day</td></tr>
+                    <tr><td><strong>Professional</strong></td><td>2,000</td><td>1,000,000 requests</td><td>All endpoints, unlimited exports</td></tr>
+                    <tr><td><strong>Enterprise</strong></td><td>10,000</td><td>Custom</td><td>Custom limits, dedicated support</td></tr>
+                </tbody>
+            </table>
+
+            <div class="capi-code-block">
+<span class="capi-comment">// Tier configuration</span>
+<span class="capi-keyword">const</span> TIERS = {
+  free:         { pointsPerMin: <span class="capi-number">100</span>,   monthlyQuota: <span class="capi-number">10000</span>,    maxExports: <span class="capi-number">0</span> },
+  starter:      { pointsPerMin: <span class="capi-number">500</span>,   monthlyQuota: <span class="capi-number">100000</span>,   maxExports: <span class="capi-number">10</span> },
+  professional: { pointsPerMin: <span class="capi-number">2000</span>,  monthlyQuota: <span class="capi-number">1000000</span>,  maxExports: <span class="capi-number">-1</span> },
+  enterprise:   { pointsPerMin: <span class="capi-number">10000</span>, monthlyQuota: <span class="capi-number">Infinity</span>, maxExports: <span class="capi-number">-1</span> }
+};
+
+<span class="capi-keyword">function</span> getUserBudget(user) {
+  <span class="capi-keyword">const</span> tier = TIERS[user?.plan || <span class="capi-string">'free'</span>];
+  <span class="capi-keyword">return</span> tier.pointsPerMin;
+}
+            </div>
+
+            <div class="capi-alert capi-alert--info">
+                <strong>Overage Handling:</strong> Decide your overage policy upfront. Options: hard cutoff (429 until next period), soft limit with overage billing ($0.001 per extra request), or grace period (allow 10% overage before enforcing).
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">GraphQL Query Complexity</h2>
+            <p class="capi-text">GraphQL presents a unique rate limiting challenge: a single request can fetch deeply nested data across multiple resolvers. A query requesting 100 users, each with 50 posts, each with 20 comments equals 100,000 resolver calls in one request. Query complexity analysis assigns a cost before execution.</p>
+
+            <div class="capi-code-block">
+<span class="capi-comment">// GraphQL query complexity calculation</span>
+<span class="capi-comment">// query { users(first: 100) { posts(first: 50) { comments(first: 20) { text } } } }</span>
+<span class="capi-comment">// Complexity = 100 * 50 * 20 = 100,000</span>
+
+<span class="capi-keyword">const</span> complexityRules = {
+  Query: {
+    users: { cost: <span class="capi-number">1</span>, multiplier: <span class="capi-string">'first'</span> },    <span class="capi-comment">// cost * first argument</span>
+  },
+  User: {
+    posts: { cost: <span class="capi-number">1</span>, multiplier: <span class="capi-string">'first'</span> },
+  },
+  Post: {
+    comments: { cost: <span class="capi-number">1</span>, multiplier: <span class="capi-string">'first'</span> },
+  }
+};
+
+<span class="capi-comment">// Reject queries exceeding complexity budget</span>
+<span class="capi-keyword">const</span> MAX_COMPLEXITY = <span class="capi-number">10000</span>;
+
+<span class="capi-keyword">function</span> validateQuery(query) {
+  <span class="capi-keyword">const</span> complexity = calculateComplexity(query, complexityRules);
+  <span class="capi-keyword">if</span> (complexity > MAX_COMPLEXITY) {
+    <span class="capi-keyword">throw new</span> Error(
+      <span class="capi-string">`Query complexity ${complexity} exceeds max ${MAX_COMPLEXITY}`</span>
+    );
+  }
+  <span class="capi-keyword">return</span> complexity;
+}
+            </div>
+
+            <div class="capi-alert capi-alert--warning">
+                <strong>GraphQL Depth Limiting:</strong> In addition to complexity analysis, enforce a maximum query depth (typically 7-10 levels). This prevents pathological queries like <code>{ user { friends { friends { friends { ... } } } } }</code> that explode exponentially.
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Usage Metering and Billing Integration</h2>
+            <p class="capi-text">For commercial APIs, rate limiting feeds into the billing system. Every request must be metered accurately to generate correct invoices. This requires durable, append-only logging that can withstand system failures.</p>
+
+            <div class="capi-code-block">
+<span class="capi-comment">// Usage metering pipeline</span>
+<span class="capi-keyword">async function</span> meterUsage(req, cost) {
+  <span class="capi-keyword">const</span> event = {
+    apiKey: req.headers[<span class="capi-string">'x-api-key'</span>],
+    endpoint: <span class="capi-string">`${req.method} ${req.path}`</span>,
+    cost: cost,
+    timestamp: Date.now(),
+    responseTime: req.responseTime,
+    statusCode: req.res.statusCode
+  };
+
+  <span class="capi-comment">// Write to durable log (Kafka, SQS, or Cloud Pub/Sub)</span>
+  <span class="capi-keyword">await</span> usageQueue.publish(<span class="capi-string">'api.usage'</span>, event);
+
+  <span class="capi-comment">// Increment real-time counter for rate limiting</span>
+  <span class="capi-keyword">await</span> redis.incrby(<span class="capi-string">`usage:${event.apiKey}:monthly`</span>, cost);
+}
+            </div>
+        </section>
+
+        <div class="capi-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Cost-based limiting weights requests by their actual computational expense</li>
+                <li>Endpoint cost weights turn request counts into point budgets</li>
+                <li>Tiered quotas align rate limits with commercial pricing tiers</li>
+                <li>GraphQL needs query complexity analysis before execution</li>
+                <li>Usage metering must be durable and accurate for billing integration</li>
+                <li>Define overage policies upfront: hard cutoff, soft limit, or grace period</li>
+            </ul>
+        </div>
+
+        <nav class="capi-nav-footer">
+            <a href="capi-rl-08.html" class="capi-nav-btn">&lt; Previous: DDoS Protection</a>
+            <a href="capi-rl-10.html" class="capi-nav-btn capi-primary">Next: Lab - Build a Gateway &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+    (function() {
+        var completed = false;
+        function checkScroll() {
+            if (completed) return;
+            var scrolled = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight;
+            if (scrolled >= 0.8) { completed = true; ModuleProgress.complete('cloud', 'capi-rl-09'); }
+        }
+        window.addEventListener('scroll', checkScroll);
+        checkScroll();
+    })();
+    </script>
+</body>
+</html>

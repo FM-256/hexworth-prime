@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DES-04: Error Handling & Standard Error Formats | API Design & Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent: #79c0ff; --accent-dim: rgba(121,192,255,0.12); --accent-border: rgba(121,192,255,0.25);
+            --bg: #0d1117; --bg-card: #161b22; --bg-card2: #1c2128;
+            --text: #e6edf3; --text-muted: #8b949e; --text-dim: #6e7681;
+            --green: #3fb950; --green-dim: rgba(63,185,80,0.12); --green-border: rgba(63,185,80,0.3);
+            --red: #f85149; --red-dim: rgba(248,81,73,0.1); --red-border: rgba(248,81,73,0.3);
+            --yellow: #d29922; --yellow-dim: rgba(210,153,34,0.12); --yellow-border: rgba(210,153,34,0.3);
+            --border: rgba(255,255,255,0.08);
+        }
+        body { min-height: 100vh; background: var(--bg); font-family: 'Inter', system-ui, sans-serif; color: var(--text); line-height: 1.7; }
+        .capi-header { background: rgba(13,17,23,0.96); border-bottom: 1px solid var(--accent-border); padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+        .capi-header-left { display: flex; align-items: center; gap: 14px; }
+        .capi-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .capi-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .capi-back { color: var(--text-muted); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .capi-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .breadcrumb { max-width: 880px; margin: 0 auto; padding: 14px 24px 0; font-size: 0.78rem; color: var(--text-dim); }
+        .breadcrumb a { color: var(--accent); text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .capi-content { max-width: 880px; margin: 0 auto; padding: 10px 24px 60px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 20px 0 30px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 32px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        p { color: var(--text-muted); margin-bottom: 14px; font-size: 0.95rem; }
+        .code-block { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text); }
+        .code-block .comment { color: var(--text-dim); }
+        .code-block .keyword { color: var(--accent); }
+        .code-block .string { color: var(--green); }
+        .code-block .number { color: #d2a8ff; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-muted); font-size: 0.85rem; }
+        table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        th, td { padding: 10px 14px; text-align: left; border: 1px solid var(--border); }
+        th { background: var(--bg-card); color: var(--accent); font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        td { color: var(--text-muted); background: var(--bg-card2); }
+        td code { font-family: 'JetBrains Mono', monospace; color: var(--green); font-size: 0.82rem; }
+        .callout { background: var(--yellow-dim); border: 1px solid var(--yellow-border); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .callout strong { color: var(--yellow); }
+        .callout p { color: var(--text-muted); margin: 4px 0 0; }
+        .callout-red { background: var(--red-dim); border: 1px solid var(--red-border); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .callout-red strong { color: var(--red); }
+        .callout-red p { color: var(--text-muted); margin: 4px 0 0; }
+        .takeaways { background: linear-gradient(135deg, rgba(63,185,80,0.1), rgba(63,185,80,0.04)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { opacity: 0.9; }
+        @media (max-width: 700px) { .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="capi-header">
+        <div class="capi-header-left">
+            <span class="capi-badge">DES-04</span>
+            <h1>Error Handling & Standard Error Formats</h1>
+        </div>
+        <a href="./" class="capi-back">&lt; Course Home</a>
+    </header>
+
+    <div class="breadcrumb">
+        <a href="../../index.html">House of the Cloud</a> &raquo;
+        <a href="../">API Security</a> &raquo;
+        <a href="./">API Design & Documentation</a> &raquo;
+        Error Handling & Standard Error Formats
+    </div>
+
+    <div class="capi-content">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Design consistent error response structures across an entire API</li>
+                <li>Implement RFC 7807 Problem Details for HTTP APIs</li>
+                <li>Distinguish validation errors from business logic errors</li>
+                <li>Include actionable error information without leaking internals</li>
+                <li>Add retry guidance with Retry-After headers</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Why Error Design Matters</h2>
+            <p>Developers spend more time debugging errors than reading success responses. A well-designed error format reduces support tickets, shortens debugging time, and prevents security information leaks. The difference between a good and bad API often comes down to how it handles failure.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Consistency</strong>
+                    <span>Every error from every endpoint follows the same shape -- no surprises</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Actionability</strong>
+                    <span>The error tells the developer exactly what went wrong and how to fix it</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Security</strong>
+                    <span>Never expose stack traces, database queries, or internal service names in production</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Machine-Readable</strong>
+                    <span>Error codes and types that client code can switch on, not just human messages</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">RFC 7807: Problem Details for HTTP APIs</h2>
+            <p>RFC 7807 defines a standard JSON format for conveying machine-readable error details. It uses the media type <code style="font-family:'JetBrains Mono',monospace;color:var(--green);">application/problem+json</code> and specifies five standard fields.</p>
+
+            <div class="code-block">
+<span class="comment"># RFC 7807 Problem Details response</span>
+HTTP/1.1 <span class="number">403</span> Forbidden
+Content-Type: <span class="string">application/problem+json</span>
+
+{
+  <span class="string">"type"</span>: <span class="string">"https://api.example.com/errors/insufficient-funds"</span>,
+  <span class="string">"title"</span>: <span class="string">"Insufficient Funds"</span>,
+  <span class="string">"status"</span>: <span class="number">403</span>,
+  <span class="string">"detail"</span>: <span class="string">"Account balance is $12.50 but the transfer requires $50.00."</span>,
+  <span class="string">"instance"</span>: <span class="string">"/api/v1/transfers/req-abc123"</span>
+}
+            </div>
+
+            <table>
+                <thead><tr><th>Field</th><th>Type</th><th>Purpose</th></tr></thead>
+                <tbody>
+                    <tr><td><code>type</code></td><td>URI</td><td>A URI reference that identifies the error type. Dereferenceable to human-readable docs.</td></tr>
+                    <tr><td><code>title</code></td><td>String</td><td>Short, human-readable summary. Should not change between occurrences.</td></tr>
+                    <tr><td><code>status</code></td><td>Integer</td><td>HTTP status code. Duplicated here for convenience when the body is logged separately.</td></tr>
+                    <tr><td><code>detail</code></td><td>String</td><td>Human-readable explanation specific to this occurrence.</td></tr>
+                    <tr><td><code>instance</code></td><td>URI</td><td>URI reference identifying this specific occurrence. Useful for support lookup.</td></tr>
+                </tbody>
+            </table>
+
+            <p>The <code style="font-family:'JetBrains Mono',monospace;color:var(--green);">type</code> field is the machine-readable identifier. Clients should switch on this value, not parse the detail string. You can extend the Problem Details object with additional fields specific to your domain.</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Validation Error Patterns</h2>
+            <p>Validation errors are the most common error type. When a POST or PUT fails validation, return all field errors at once so the client can fix everything in one round trip.</p>
+
+            <div class="code-block">
+<span class="comment"># Validation error with field-level details</span>
+HTTP/1.1 <span class="number">422</span> Unprocessable Entity
+Content-Type: <span class="string">application/problem+json</span>
+
+{
+  <span class="string">"type"</span>: <span class="string">"https://api.example.com/errors/validation"</span>,
+  <span class="string">"title"</span>: <span class="string">"Validation Failed"</span>,
+  <span class="string">"status"</span>: <span class="number">422</span>,
+  <span class="string">"detail"</span>: <span class="string">"2 fields failed validation."</span>,
+  <span class="string">"errors"</span>: [
+    {
+      <span class="string">"field"</span>: <span class="string">"email"</span>,
+      <span class="string">"code"</span>: <span class="string">"invalid_format"</span>,
+      <span class="string">"message"</span>: <span class="string">"Must be a valid email address."</span>
+    },
+    {
+      <span class="string">"field"</span>: <span class="string">"age"</span>,
+      <span class="string">"code"</span>: <span class="string">"out_of_range"</span>,
+      <span class="string">"message"</span>: <span class="string">"Must be between 18 and 120."</span>
+    }
+  ]
+}
+            </div>
+
+            <div class="callout-red">
+                <strong>Anti-Pattern: One Error at a Time</strong>
+                <p>Returning only the first validation error forces clients into a guessing game. Always collect and return all validation failures in a single response.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Rate Limiting Errors</h2>
+            <p>When a client exceeds the rate limit, return 429 with explicit guidance on when they can retry. The <code style="font-family:'JetBrains Mono',monospace;color:var(--green);">Retry-After</code> header is essential.</p>
+
+            <div class="code-block">
+HTTP/1.1 <span class="number">429</span> Too Many Requests
+<span class="keyword">Retry-After</span>: <span class="number">30</span>
+<span class="keyword">X-RateLimit-Limit</span>: <span class="number">100</span>
+<span class="keyword">X-RateLimit-Remaining</span>: <span class="number">0</span>
+<span class="keyword">X-RateLimit-Reset</span>: <span class="number">1710547200</span>
+
+{
+  <span class="string">"type"</span>: <span class="string">"https://api.example.com/errors/rate-limit"</span>,
+  <span class="string">"title"</span>: <span class="string">"Rate Limit Exceeded"</span>,
+  <span class="string">"status"</span>: <span class="number">429</span>,
+  <span class="string">"detail"</span>: <span class="string">"You have exceeded 100 requests per minute. Retry after 30 seconds."</span>
+}
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Security Considerations</h2>
+            <p>Error responses are an information disclosure vector. In production, never return:</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Stack Traces</strong>
+                    <span>Reveals internal code paths, frameworks, and file structures to attackers</span>
+                </div>
+                <div class="feature-card">
+                    <strong>SQL Queries</strong>
+                    <span>Exposes database schema and can guide SQL injection attacks</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Internal Service Names</strong>
+                    <span>Leaks infrastructure details that aid lateral movement planning</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Existence Hints</strong>
+                    <span>Differentiating "not found" from "forbidden" enables resource enumeration</span>
+                </div>
+            </div>
+
+            <div class="callout">
+                <strong>Production Rule:</strong>
+                <p>Log full error details server-side with a correlation ID. Return only the correlation ID and a safe message to the client. The <code style="font-family:'JetBrains Mono',monospace;color:var(--green);">instance</code> field in RFC 7807 is ideal for this correlation.</p>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>RFC 7807 Problem Details is the standard for machine-readable HTTP error responses</li>
+                <li>Always return all validation errors at once, not one at a time</li>
+                <li>Include Retry-After headers with 429 responses so clients can back off correctly</li>
+                <li>Never expose stack traces, SQL, or internal service names in production errors</li>
+                <li>Use correlation IDs (the instance field) to link client errors to server-side logs</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="capi-des-03.html" class="nav-btn">&lt; Previous: Request/Response</a>
+            <a href="capi-des-05.html" class="nav-btn primary">Next: OpenAPI/Swagger &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+    (function() {
+        let scrollDone = false;
+        window.addEventListener('scroll', function() {
+            if (scrollDone) return;
+            const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+            if (scrollable > 0 && (window.scrollY / scrollable) >= 0.8) {
+                scrollDone = true;
+                ModuleProgress.complete('cloud', 'capi-des-04');
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

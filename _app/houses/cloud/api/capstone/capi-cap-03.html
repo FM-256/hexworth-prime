@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAP-03: Authentication Layer Implementation | House of the Cloud</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #0d1117; --bg-card: #161b22; --accent: #79c0ff; --accent-dim: rgba(121, 192, 255, 0.12); --accent-border: rgba(121, 192, 255, 0.25); --green: #3fb950; --red: #f85149; --yellow: #d29922; --text-primary: #e6edf3; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.08); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .capi-header { background: var(--bg-card); border-bottom: 1px solid var(--accent-border); padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+        .capi-header-left { display: flex; align-items: center; gap: 14px; }
+        .capi-badge { background: var(--accent); color: #0d1117; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .capi-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .capi-back-link { color: var(--accent); text-decoration: none; padding: 6px 14px; border: 1px solid var(--accent-border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .capi-back-link:hover { background: var(--accent); color: #0d1117; }
+        .capi-content { max-width: 860px; margin: 0 auto; padding: 30px 35px; }
+        .capi-breadcrumb { color: var(--text-secondary); font-size: 0.8rem; display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+        .capi-breadcrumb a { color: var(--text-secondary); text-decoration: none; } .capi-breadcrumb a:hover { color: var(--accent); }
+        .capi-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .capi-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .capi-objectives ul { list-style: none; } .capi-objectives li { padding: 4px 0 4px 22px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .capi-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .capi-section { margin-bottom: 35px; }
+        .capi-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .capi-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .capi-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .capi-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+        .capi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; } .capi-card:hover { border-color: var(--accent-border); }
+        .capi-card.full { grid-column: 1 / -1; }
+        .capi-card-title { font-family: 'JetBrains Mono', monospace; font-size: 1rem; color: var(--green); margin-bottom: 8px; }
+        .capi-card-desc { color: var(--text-secondary); font-size: 0.9rem; }
+        .capi-code { background: #0d1117; border: 1px solid var(--border); padding: 14px 18px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; margin: 14px 0; }
+        .capi-code .comment { color: var(--text-secondary); font-style: italic; } .capi-code .keyword { color: var(--accent); } .capi-code .prompt { color: var(--green); }
+        .capi-tip { background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 0.9rem; color: var(--text-secondary); } .capi-tip strong { color: #3b82f6; }
+        .capi-warning { background: rgba(248, 81, 73, 0.08); border-left: 3px solid var(--red); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 0.9rem; color: var(--text-secondary); } .capi-warning strong { color: var(--red); }
+        .capi-takeaways { background: linear-gradient(135deg, rgba(63, 185, 80, 0.08), rgba(63, 185, 80, 0.03)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .capi-takeaways h3 { color: var(--green); margin-bottom: 12px; } .capi-takeaways ul { list-style: none; }
+        .capi-takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .capi-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .capi-nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .capi-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .capi-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .capi-nav-btn.primary { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+        @media (max-width: 768px) { .capi-card-grid { grid-template-columns: 1fr; } .capi-content { padding: 20px 18px; } }
+    </style>
+</head>
+<body>
+    <header class="capi-header">
+        <div class="capi-header-left"><span class="capi-badge">CAP-03</span><h1>Authentication Layer Implementation</h1></div>
+        <a href="index.html" class="capi-back-link">&lt; Course Hub</a>
+    </header>
+    <div class="capi-content">
+        <div class="capi-breadcrumb"><a href="../../index.html">Cloud</a> / <a href="index.html">API Capstone</a> / CAP-03</div>
+
+        <div class="capi-objectives"><h2>Learning Objectives</h2><ul>
+            <li>Implement secure password hashing with bcrypt and proper cost factors</li>
+            <li>Build JWT-based authentication with short-lived access tokens and refresh tokens</li>
+            <li>Create a token refresh flow that prevents token theft and replay</li>
+            <li>Implement secure password reset with time-limited, single-use tokens</li>
+        </ul></div>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Password Hashing with bcrypt</h2>
+            <p class="capi-text">Never store passwords in plaintext or with weak hashing (MD5, SHA-256 without salt). Use bcrypt, which incorporates a salt and configurable work factor (cost). A cost factor of 12 provides approximately 250ms hashing time on modern hardware -- slow enough to resist brute-force, fast enough for user experience.</p>
+            <div class="capi-code">
+<span class="comment">// src/utils/password.js</span>
+<span class="keyword">const</span> bcrypt = require('bcrypt');
+
+<span class="keyword">const</span> SALT_ROUNDS = 12;  <span class="comment">// ~250ms on modern hardware</span>
+
+exports.hashPassword = async (plaintext) => {
+  return bcrypt.hash(plaintext, SALT_ROUNDS);
+};
+
+exports.verifyPassword = async (plaintext, hash) => {
+  return bcrypt.compare(plaintext, hash);
+};
+
+<span class="comment">// Registration controller</span>
+exports.register = async (req, res) => {
+  <span class="keyword">const</span> { email, password, name } = req.body;
+
+  <span class="comment">// Check for existing user (prevent enumeration by using same response)</span>
+  <span class="keyword">const</span> existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    return res.status(409).json({ error: 'Email already registered' });
+  }
+
+  <span class="keyword">const</span> passwordHash = await hashPassword(password);
+  <span class="keyword">const</span> user = await prisma.user.create({
+    data: { email, passwordHash, name },
+    select: { id: true, email: true, name: true, createdAt: true }
+  });
+
+  res.status(201).json({ data: user });
+};
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">JWT Token Architecture</h2>
+            <p class="capi-text">Implement a dual-token system: a short-lived access token (15 minutes) and a long-lived refresh token (7 days). The access token travels in the Authorization header for every request. The refresh token is used only to obtain new access tokens.</p>
+            <div class="capi-code">
+<span class="comment">// src/utils/tokens.js</span>
+<span class="keyword">const</span> jwt = require('jsonwebtoken');
+<span class="keyword">const</span> crypto = require('crypto');
+
+exports.generateAccessToken = (user) => {
+  return jwt.sign(
+    { sub: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m', algorithm: 'HS256' }
+  );
+};
+
+exports.generateRefreshToken = () => {
+  return crypto.randomBytes(40).toString('hex');
+};
+
+<span class="comment">// Login controller</span>
+exports.login = async (req, res) => {
+  <span class="keyword">const</span> { email, password } = req.body;
+  <span class="keyword">const</span> user = await prisma.user.findUnique({ where: { email } });
+
+  <span class="comment">// Constant-time comparison: don't reveal if email exists</span>
+  if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  <span class="keyword">const</span> accessToken = generateAccessToken(user);
+  <span class="keyword">const</span> refreshToken = generateRefreshToken();
+
+  <span class="comment">// Store refresh token hash in database (not plaintext)</span>
+  await prisma.refreshToken.create({
+    data: {
+      tokenHash: crypto.createHash('sha256').update(refreshToken).digest('hex'),
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  res.json({ accessToken, refreshToken, expiresIn: 900 });
+};
+            </div>
+
+            <div class="capi-card-grid">
+                <div class="capi-card">
+                    <div class="capi-card-title">Auth Middleware</div>
+                    <div class="capi-card-desc">Extract the Bearer token from the Authorization header, verify the JWT signature and expiration, attach the decoded user to req.user, and return 401 for invalid or expired tokens. This middleware protects all authenticated routes.</div>
+                </div>
+                <div class="capi-card">
+                    <div class="capi-card-title">Token Refresh Flow</div>
+                    <div class="capi-card-desc">Client sends refresh token to POST /auth/refresh. Server verifies the token hash exists in the database and has not expired. Issue new access token + new refresh token (rotation). Delete the old refresh token to prevent reuse.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="capi-section">
+            <h2 class="capi-section-title">Password Reset Implementation</h2>
+            <p class="capi-text">Password reset requires a cryptographically random, time-limited, single-use token sent via email. The token hash (not the token itself) is stored in the database.</p>
+            <div class="capi-code">
+<span class="comment">// POST /auth/forgot-password</span>
+exports.forgotPassword = async (req, res) => {
+  <span class="keyword">const</span> { email } = req.body;
+  <span class="keyword">const</span> user = await prisma.user.findUnique({ where: { email } });
+
+  <span class="comment">// Always return success (prevent email enumeration)</span>
+  if (!user) {
+    return res.json({ message: 'If the email exists, a reset link was sent.' });
+  }
+
+  <span class="keyword">const</span> resetToken = crypto.randomBytes(32).toString('hex');
+  <span class="keyword">const</span> resetHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+  await prisma.passwordReset.create({
+    data: {
+      tokenHash: resetHash,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000)  <span class="comment">// 30 minutes</span>
+    }
+  });
+
+  <span class="comment">// Send email with resetToken (not the hash)</span>
+  await sendResetEmail(email, resetToken);
+
+  res.json({ message: 'If the email exists, a reset link was sent.' });
+};
+            </div>
+        </section>
+
+        <div class="capi-warning">
+            <strong>Security Checklist:</strong> Never log passwords or tokens. Use constant-time comparison for credentials. Hash refresh tokens and reset tokens before storage. Implement account lockout after 5 failed login attempts. Return identical error messages for "user not found" and "wrong password" to prevent enumeration.
+        </div>
+
+        <div class="capi-takeaways"><h3>Key Takeaways</h3><ul>
+            <li>Use bcrypt with cost factor 12+ for password hashing -- never MD5 or plain SHA</li>
+            <li>Short-lived access tokens (15 min) with rotating refresh tokens (7 days)</li>
+            <li>Store only token hashes in the database, never plaintext tokens</li>
+            <li>Identical error messages for missing users and wrong passwords prevent enumeration</li>
+            <li>Password reset tokens must be cryptographically random, time-limited, and single-use</li>
+        </ul></div>
+
+        <nav class="capi-nav-footer">
+            <a href="capi-cap-02.html" class="capi-nav-btn">&lt; Previous: Building the Backend</a>
+            <a href="capi-cap-04.html" class="capi-nav-btn primary">Next: Authorization & Access Control &gt;</a>
+        </nav>
+    </div>
+    <script>
+    (function() { var c = false; window.addEventListener('scroll', function() { if (c) return; if ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight >= 0.8) { c = true; ModuleProgress.complete('cloud', 'capi-cap-03'); } }); })();
+    </script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

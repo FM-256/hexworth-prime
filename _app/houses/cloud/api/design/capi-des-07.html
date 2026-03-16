@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DES-07: GraphQL API Design | API Design & Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent: #79c0ff; --accent-dim: rgba(121,192,255,0.12); --accent-border: rgba(121,192,255,0.25);
+            --bg: #0d1117; --bg-card: #161b22; --bg-card2: #1c2128;
+            --text: #e6edf3; --text-muted: #8b949e; --text-dim: #6e7681;
+            --green: #3fb950; --green-dim: rgba(63,185,80,0.12); --green-border: rgba(63,185,80,0.3);
+            --yellow: #d29922; --yellow-dim: rgba(210,153,34,0.12); --yellow-border: rgba(210,153,34,0.3);
+            --purple: #a371f7; --purple-dim: rgba(163,113,247,0.1);
+            --border: rgba(255,255,255,0.08);
+        }
+        body { min-height: 100vh; background: var(--bg); font-family: 'Inter', system-ui, sans-serif; color: var(--text); line-height: 1.7; }
+        .capi-header { background: rgba(13,17,23,0.96); border-bottom: 1px solid var(--accent-border); padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+        .capi-header-left { display: flex; align-items: center; gap: 14px; }
+        .capi-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .capi-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .capi-back { color: var(--text-muted); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .capi-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .breadcrumb { max-width: 880px; margin: 0 auto; padding: 14px 24px 0; font-size: 0.78rem; color: var(--text-dim); }
+        .breadcrumb a { color: var(--accent); text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .capi-content { max-width: 880px; margin: 0 auto; padding: 10px 24px 60px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 20px 0 30px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .section { margin-bottom: 32px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        p { color: var(--text-muted); margin-bottom: 14px; font-size: 0.95rem; }
+        .code-block { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text); }
+        .code-block .comment { color: var(--text-dim); }
+        .code-block .keyword { color: var(--accent); }
+        .code-block .string { color: var(--green); }
+        .code-block .type { color: var(--purple); }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .feature-card span { color: var(--text-muted); font-size: 0.85rem; }
+        table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        th, td { padding: 10px 14px; text-align: left; border: 1px solid var(--border); }
+        th { background: var(--bg-card); color: var(--accent); font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        td { color: var(--text-muted); background: var(--bg-card2); }
+        .callout { background: var(--yellow-dim); border: 1px solid var(--yellow-border); border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+        .callout strong { color: var(--yellow); }
+        .callout p { color: var(--text-muted); margin: 4px 0 0; }
+        .takeaways { background: linear-gradient(135deg, rgba(63,185,80,0.1), rgba(63,185,80,0.04)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-muted); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { opacity: 0.9; }
+        @media (max-width: 700px) { .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="capi-header">
+        <div class="capi-header-left">
+            <span class="capi-badge">DES-07</span>
+            <h1>GraphQL API Design</h1>
+        </div>
+        <a href="./" class="capi-back">&lt; Course Home</a>
+    </header>
+
+    <div class="breadcrumb">
+        <a href="../../index.html">House of the Cloud</a> &raquo;
+        <a href="../">API Security</a> &raquo;
+        <a href="./">API Design & Documentation</a> &raquo;
+        GraphQL API Design
+    </div>
+
+    <div class="capi-content">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand how GraphQL differs from REST architecturally</li>
+                <li>Design schemas with types, queries, mutations, and subscriptions</li>
+                <li>Solve the N+1 query problem with DataLoader</li>
+                <li>Implement pagination with the Relay connection specification</li>
+                <li>Assess when GraphQL is the right choice vs REST</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">REST vs GraphQL</h2>
+            <p>GraphQL, created by Facebook in 2012 and open-sourced in 2015, is a query language for APIs. Unlike REST where the server defines the response shape, GraphQL lets the client specify exactly which fields it needs -- eliminating over-fetching and under-fetching.</p>
+
+            <table>
+                <thead><tr><th>Aspect</th><th>REST</th><th>GraphQL</th></tr></thead>
+                <tbody>
+                    <tr><td>Endpoints</td><td>Multiple endpoints, one per resource</td><td>Single endpoint for all queries</td></tr>
+                    <tr><td>Data fetching</td><td>Server decides what to return</td><td>Client specifies exact fields</td></tr>
+                    <tr><td>Over-fetching</td><td>Common -- extra fields always sent</td><td>Eliminated -- client picks fields</td></tr>
+                    <tr><td>Under-fetching</td><td>Requires multiple requests</td><td>Single request gets related data</td></tr>
+                    <tr><td>Versioning</td><td>Explicit (v1, v2)</td><td>Schema evolution with @deprecated</td></tr>
+                    <tr><td>Caching</td><td>HTTP caching works naturally</td><td>Requires specialized cache (Apollo)</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Schema Design</h2>
+            <p>The schema is the contract. GraphQL schemas use SDL (Schema Definition Language) to define types, their fields, and the relationships between them.</p>
+
+            <div class="code-block">
+<span class="comment"># Schema Definition Language (SDL)</span>
+<span class="keyword">type</span> <span class="type">User</span> {
+  <span class="keyword">id</span>: <span class="type">ID!</span>
+  <span class="keyword">name</span>: <span class="type">String!</span>
+  <span class="keyword">email</span>: <span class="type">String!</span>
+  <span class="keyword">role</span>: <span class="type">Role!</span>
+  <span class="keyword">orders</span>: [<span class="type">Order!</span>]!
+  <span class="keyword">createdAt</span>: <span class="type">DateTime!</span>
+}
+
+<span class="keyword">type</span> <span class="type">Order</span> {
+  <span class="keyword">id</span>: <span class="type">ID!</span>
+  <span class="keyword">total</span>: <span class="type">Float!</span>
+  <span class="keyword">status</span>: <span class="type">OrderStatus!</span>
+  <span class="keyword">items</span>: [<span class="type">OrderItem!</span>]!
+  <span class="keyword">user</span>: <span class="type">User!</span>
+}
+
+<span class="keyword">enum</span> <span class="type">Role</span> { USER ADMIN MODERATOR }
+<span class="keyword">enum</span> <span class="type">OrderStatus</span> { PENDING SHIPPED DELIVERED CANCELLED }
+
+<span class="keyword">type</span> <span class="type">Query</span> {
+  <span class="keyword">user</span>(id: <span class="type">ID!</span>): <span class="type">User</span>
+  <span class="keyword">users</span>(limit: <span class="type">Int</span>, after: <span class="type">String</span>): <span class="type">UserConnection!</span>
+}
+
+<span class="keyword">type</span> <span class="type">Mutation</span> {
+  <span class="keyword">createUser</span>(input: <span class="type">CreateUserInput!</span>): <span class="type">User!</span>
+  <span class="keyword">updateUser</span>(id: <span class="type">ID!</span>, input: <span class="type">UpdateUserInput!</span>): <span class="type">User!</span>
+}
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Queries and Mutations</h2>
+            <p>Queries read data; mutations modify it. The client sends a query document specifying exactly which fields to return.</p>
+
+            <div class="code-block">
+<span class="comment"># Query: fetch a user with their recent orders</span>
+<span class="keyword">query</span> GetUserWithOrders {
+  user(id: <span class="string">"42"</span>) {
+    name
+    email
+    orders {
+      id
+      total
+      status
+    }
+  }
+}
+
+<span class="comment"># Response: exactly the fields requested</span>
+{
+  <span class="string">"data"</span>: {
+    <span class="string">"user"</span>: {
+      <span class="string">"name"</span>: <span class="string">"Alice Chen"</span>,
+      <span class="string">"email"</span>: <span class="string">"alice@example.com"</span>,
+      <span class="string">"orders"</span>: [
+        { <span class="string">"id"</span>: <span class="string">"101"</span>, <span class="string">"total"</span>: 99.99, <span class="string">"status"</span>: <span class="string">"SHIPPED"</span> }
+      ]
+    }
+  }
+}
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Mutation: create a new user</span>
+<span class="keyword">mutation</span> CreateNewUser {
+  createUser(input: {
+    name: <span class="string">"Bob Smith"</span>
+    email: <span class="string">"bob@example.com"</span>
+    role: USER
+  }) {
+    id
+    name
+  }
+}
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">The N+1 Problem</h2>
+            <p>The biggest performance pitfall in GraphQL. When resolving a list of users and their orders, a naive implementation executes 1 query for the user list + N queries for each user's orders. DataLoader solves this by batching and caching database calls within a single request.</p>
+
+            <div class="code-block">
+<span class="comment"># Without DataLoader: N+1 queries</span>
+SELECT * FROM users LIMIT 10;          <span class="comment"># 1 query</span>
+SELECT * FROM orders WHERE user_id=1;  <span class="comment"># N queries</span>
+SELECT * FROM orders WHERE user_id=2;
+SELECT * FROM orders WHERE user_id=3;
+<span class="comment">... 10 total queries</span>
+
+<span class="comment"># With DataLoader: 2 queries</span>
+SELECT * FROM users LIMIT 10;
+SELECT * FROM orders WHERE user_id IN (1,2,3,...10);
+            </div>
+
+            <div class="callout">
+                <strong>Performance Rule:</strong>
+                <p>Always use DataLoader (or equivalent batching) for any field resolver that hits a database or external service. Without it, a single GraphQL query can generate hundreds of database round trips.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Subscriptions</h2>
+            <p>Subscriptions provide real-time data via WebSocket connections. The client subscribes to an event type and receives updates as they happen.</p>
+
+            <div class="code-block">
+<span class="keyword">type</span> <span class="type">Subscription</span> {
+  <span class="keyword">orderStatusChanged</span>(userId: <span class="type">ID!</span>): <span class="type">Order!</span>
+}
+
+<span class="comment"># Client subscribes</span>
+<span class="keyword">subscription</span> WatchMyOrders {
+  orderStatusChanged(userId: <span class="string">"42"</span>) {
+    id
+    status
+    total
+  }
+}
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">When to Choose GraphQL</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Choose GraphQL When</strong>
+                    <span>Multiple clients need different data shapes, complex nested relationships, rapid iteration on the frontend</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Choose REST When</strong>
+                    <span>Simple CRUD, file uploads, strong HTTP caching needs, team unfamiliar with GraphQL</span>
+                </div>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>GraphQL eliminates over-fetching and under-fetching by letting clients specify exact fields</li>
+                <li>Schema-first design with SDL defines the contract between frontend and backend</li>
+                <li>DataLoader is essential to prevent N+1 query performance problems</li>
+                <li>Subscriptions enable real-time data delivery over WebSocket connections</li>
+                <li>GraphQL and REST are complementary -- choose based on use case, not hype</li>
+            </ul>
+        </div>
+
+        <nav class="nav-footer">
+            <a href="capi-des-06.html" class="nav-btn">&lt; Previous: Documentation</a>
+            <a href="capi-des-08.html" class="nav-btn primary">Next: gRPC & Protocol Buffers &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+    (function() {
+        let scrollDone = false;
+        window.addEventListener('scroll', function() {
+            if (scrollDone) return;
+            const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+            if (scrollable > 0 && (window.scrollY / scrollable) >= 0.8) {
+                scrollDone = true;
+                ModuleProgress.complete('cloud', 'capi-des-07');
+            }
+        });
+    })();
+    </script>
+</body>
+</html>
