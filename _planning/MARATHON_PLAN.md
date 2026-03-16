@@ -170,21 +170,21 @@
 ## Wave 14: The Cortex — AI/ML Track (5 parallel agents → serial chain)
 *Sprints: ML-1 through ML-15 — dependency chain*
 
-- [ ] **ML-1** — Design Cortex hub page and AI/ML curriculum
-- [ ] **ML-2** — AI foundations, history, and ethics (← ML-1)
-- [ ] **ML-3** — Mathematics for machine learning (← ML-1)
-- [ ] **ML-4** — Classical ML: supervised learning (← ML-3)
-- [ ] **ML-5** — Classical ML: unsupervised learning (← ML-3)
-- [ ] **ML-6** — Deep learning fundamentals (← ML-4)
-- [ ] **ML-7** — Convolutional Neural Networks (← ML-6)
-- [ ] **ML-8** — Recurrent Neural Networks and transformers (← ML-6)
-- [ ] **ML-9** — Natural Language Processing (← ML-8)
-- [ ] **ML-10** — Reinforcement learning (← ML-6)
-- [ ] **ML-11** — Generative AI: GANs, diffusion, LLMs (← ML-7)
-- [ ] **ML-12** — Adversarial machine learning (← ML-6)
-- [ ] **ML-13** — ML for cybersecurity: detection models (← ML-4, ML-5)
-- [ ] **ML-14** — MLOps, deployment, and production (← ML-4, ML-6)
-- [ ] **ML-15** — AI/ML hands-on capstone projects (← ML-4, ML-5, ML-6, ML-13)
+- [x] **ML-1** — Design Cortex hub page and AI/ML curriculum
+- [x] **ML-2** — AI foundations, history, and ethics (← ML-1)
+- [x] **ML-3** — Mathematics for machine learning (← ML-1)
+- [x] **ML-4** — Classical ML: supervised learning (← ML-3)
+- [x] **ML-5** — Classical ML: unsupervised learning (← ML-3)
+- [x] **ML-6** — Deep learning fundamentals (← ML-4)
+- [x] **ML-7** — Convolutional Neural Networks (← ML-6)
+- [x] **ML-8** — Recurrent Neural Networks and transformers (← ML-6)
+- [x] **ML-9** — Natural Language Processing (← ML-8)
+- [x] **ML-10** — Reinforcement learning (← ML-6)
+- [x] **ML-11** — Generative AI: GANs, diffusion, LLMs (← ML-7)
+- [x] **ML-12** — Adversarial machine learning (← ML-6)
+- [x] **ML-13** — ML for cybersecurity: detection models (← ML-4, ML-5)
+- [x] **ML-14** — MLOps, deployment, and production (← ML-4, ML-6)
+- [x] **ML-15** — AI/ML hands-on capstone projects (← ML-4, ML-5, ML-6, ML-13)
 
 ---
 ## Wave 15: API Foundations (3 parallel agents → serial chain)

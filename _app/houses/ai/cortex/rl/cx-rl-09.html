@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../../components/ModuleProgress.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inverse RL and Imitation — The Cortex</title>
+  <style>
+    :root{--accent:#8b5cf6;--accent-dim:#6d28d9;--bg:#0f0f13;--surface:#1a1a24;--surface2:#22223a;--border:#2e2e48;--text:#e2e8f0;--text-muted:#94a3b8;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;line-height:1.7;overflow-x:hidden;}
+    .cx-particle-field{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+    .cx-particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--accent);opacity:var(--o,.15);animation:cx-drift 22s linear infinite;}
+    @keyframes cx-drift{from{transform:translateY(100vh)}to{transform:translateY(-10vh) translateX(50px)}}
+    .cx-wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+    .cx-breadcrumb{font-size:.78rem;color:var(--text-muted);margin-bottom:2rem;display:flex;gap:.4rem;flex-wrap:wrap;}
+    .cx-breadcrumb a{color:var(--text-muted);text-decoration:none;}.cx-breadcrumb a:hover{color:var(--accent);}.cx-breadcrumb span{color:var(--accent);}
+    .cx-hero-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:.4rem;}
+    .cx-hero-title{font-size:2.2rem;font-weight:800;line-height:1.1;margin-bottom:.75rem;}
+    .cx-hero-desc{color:var(--text-muted);max-width:640px;font-size:.97rem;margin-bottom:2rem;}
+    h2{font-size:1.25rem;font-weight:700;margin:2.5rem 0 1rem;}
+    h3{font-size:1rem;font-weight:600;margin:1.5rem 0 .5rem;color:var(--accent);}
+    p{margin-bottom:1rem;color:var(--text-muted);font-size:.95rem;}
+    .cx-code{background:#0d0d14;border:1px solid var(--border);border-radius:8px;padding:1.25rem 1.5rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.82rem;line-height:1.7;overflow-x:auto;margin:1rem 0;color:#c4b5fd;}
+    .cx-code .cm{color:#4b5563;}.cx-code .kw{color:#8b5cf6;}.cx-code .fn{color:#34d399;}.cx-code .st{color:#fbbf24;}.cx-code .nm{color:#f9a8d4;}.cx-code .dc{color:#7dd3fc;}
+    .cx-callout{border-left:3px solid var(--accent);background:var(--surface);border-radius:0 8px 8px 0;padding:1rem 1.25rem;margin:1.5rem 0;font-size:.9rem;}
+    .cx-callout.green{border-color:var(--green);}.cx-callout.yellow{border-color:var(--yellow);}
+    .cx-callout strong{color:var(--text);display:block;margin-bottom:.25rem;}
+    .cx-table-wrap{overflow-x:auto;margin:1.5rem 0;}
+    table{width:100%;border-collapse:collapse;font-size:.85rem;}
+    th{background:var(--surface2);color:var(--accent);font-weight:600;padding:.6rem 1rem;text-align:left;border-bottom:2px solid var(--border);}
+    td{padding:.55rem 1rem;border-bottom:1px solid var(--border);color:var(--text-muted);vertical-align:top;}
+    tr:last-child td{border-bottom:none;}
+    .cx-diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.5rem 0;font-family:monospace;font-size:.82rem;line-height:1.8;overflow-x:auto;}
+    .cx-diagram .label{color:var(--accent);font-weight:700;}
+    .cx-section-tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;font-size:.72rem;color:var(--text-muted);padding:.15rem .5rem;margin-bottom:1.5rem;font-family:monospace;}
+    .cx-nav-footer{display:flex;justify-content:space-between;gap:1rem;margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);}
+    .cx-nav-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1.25rem;color:var(--text-muted);text-decoration:none;font-size:.88rem;transition:border-color .2s,color .2s;}
+    .cx-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .cx-nav-btn .dir{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.15rem;}
+    .cx-approach-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1.5rem 0;}
+    .cx-approach-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;}
+    .cx-approach-card h4{font-size:.88rem;font-weight:700;color:var(--text);margin-bottom:.4rem;}
+    .cx-approach-card p{font-size:.82rem;margin:0;color:var(--text-muted);}
+  </style>
+</head>
+<body>
+  <div class="cx-particle-field" aria-hidden="true">
+    <span class="cx-particle" style="left:4%;animation-delay:0s;--o:.1"></span>
+    <span class="cx-particle" style="left:18%;animation-delay:6s;--o:.12"></span>
+    <span class="cx-particle" style="left:34%;animation-delay:10s;--o:.09"></span>
+    <span class="cx-particle" style="left:50%;animation-delay:2s;--o:.11"></span>
+    <span class="cx-particle" style="left:66%;animation-delay:8s;--o:.08"></span>
+    <span class="cx-particle" style="left:80%;animation-delay:13s;--o:.1"></span>
+    <span class="cx-particle" style="left:93%;animation-delay:4s;--o:.09"></span>
+  </div>
+
+  <div class="cx-wrap">
+    <nav class="cx-breadcrumb">
+      <a href="../../../../../index.html">Home</a><span>/</span>
+      <a href="../../../../index.html">AI House</a><span>/</span>
+      <a href="../index.html">The Cortex</a><span>/</span>
+      <a href="index.html">Reinforcement Learning</a><span>/</span>
+      <span>Inverse RL and Imitation</span>
+    </nav>
+
+    <div class="cx-hero-label">Reinforcement Learning — Module 09</div>
+    <h1 class="cx-hero-title">Inverse RL and Imitation Learning</h1>
+    <p class="cx-hero-desc">When reward functions are hard to specify, we can learn them from expert demonstrations. Inverse RL recovers a reward function; behavior cloning and GAIL learn policies directly from observed behavior.</p>
+
+    <!-- ── 1. Problem Setting ──────────────────────────────── -->
+    <div class="cx-section-tag">01 / problem setting</div>
+    <h2>The Reward Specification Problem</h2>
+    <p>Specifying a reward function is often harder than demonstrating the desired behavior. A security analyst can demonstrate good log triage without articulating a complete scoring formula. IRL and imitation learning exploit this: learn from what the expert does, not from an explicit reward.</p>
+
+    <div class="cx-diagram">
+<span class="label">Standard RL:</span>
+  Given:  MDP (S, A, P, R)
+  Find:   optimal policy pi*
+
+<span class="label">Inverse RL (IRL):</span>
+  Given:  MDP (S, A, P) + expert demonstrations D = {tau_1, ..., tau_n}
+  Find:   reward function R that makes expert policy optimal
+
+<span class="label">Imitation Learning:</span>
+  Given:  expert demonstrations D
+  Find:   policy pi that mimics expert behavior
+  (may not recover reward — directly clones behavior)
+
+<span class="label">When to use which:</span>
+  Behavior Cloning:  fast, simple, but distribution shift problem
+  DAgger:            queries expert interactively, handles distribution shift
+  IRL/GAIL:          reward generalization, harder to implement
+    </div>
+
+    <!-- ── 2. Behavior Cloning ─────────────────────────────── -->
+    <div class="cx-section-tag">02 / behavior cloning</div>
+    <h2>Behavior Cloning</h2>
+    <p>Behavior cloning (BC) treats imitation as supervised learning: map observations to actions using the expert's demonstrations as labeled data. Simple and fast, but suffers from compounding errors when the agent encounters states outside the training distribution.</p>
+
+    <div class="cx-code">
+<span class="kw">import</span> torch
+<span class="kw">import</span> torch.nn <span class="kw">as</span> nn
+<span class="kw">import</span> torch.nn.functional <span class="kw">as</span> F
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="kw">class</span> <span class="fn">BCPolicy</span>(nn.Module):
+    <span class="st">"""Simple MLP policy for behavior cloning."""</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, n_actions, hidden=<span class="nm">256</span>):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden),  nn.ReLU(),
+            nn.Linear(hidden, n_actions),
+        )
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x): <span class="kw">return</span> self.net(x)
+
+
+<span class="kw">class</span> <span class="fn">BehaviorCloningTrainer</span>:
+    <span class="st">"""
+    Behavior Cloning: supervised learning on expert (obs, action) pairs.
+    Handles both discrete (cross-entropy) and continuous (MSE) actions.
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, n_actions, lr=<span class="nm">3e-4</span>, discrete=<span class="kw">True</span>):
+        self.policy   = BCPolicy(obs_dim, n_actions)
+        self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=lr)
+        self.discrete  = discrete
+
+    <span class="kw">def</span> <span class="fn">train_on_demonstrations</span>(self, demos, n_epochs=<span class="nm">50</span>, batch_size=<span class="nm">64</span>):
+        <span class="st">"""
+        demos: list of (obs, action) tuples from expert trajectories
+        Returns: training loss history
+        """</span>
+        obs_arr = torch.tensor(np.array([d[<span class="nm">0</span>] <span class="kw">for</span> d <span class="kw">in</span> demos]), dtype=torch.float32)
+        act_arr = torch.tensor(np.array([d[<span class="nm">1</span>] <span class="kw">for</span> d <span class="kw">in</span> demos]),
+                               dtype=torch.long <span class="kw">if</span> self.discrete <span class="kw">else</span> torch.float32)
+        N = len(demos)
+        losses = []
+
+        <span class="kw">for</span> epoch <span class="kw">in</span> range(n_epochs):
+            perm    = torch.randperm(N)
+            ep_loss = []
+            <span class="kw">for</span> start <span class="kw">in</span> range(<span class="nm">0</span>, N, batch_size):
+                idx    = perm[start:start+batch_size]
+                logits = self.policy(obs_arr[idx])
+
+                <span class="kw">if</span> self.discrete:
+                    loss = F.cross_entropy(logits, act_arr[idx])
+                <span class="kw">else</span>:
+                    loss = F.mse_loss(logits, act_arr[idx])
+
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                ep_loss.append(loss.item())
+
+            losses.append(np.mean(ep_loss))
+            <span class="kw">if</span> epoch % <span class="nm">10</span> == <span class="nm">0</span>:
+                print(<span class="st">f"Epoch {epoch:3d} | Loss: {losses[-1]:.4f}"</span>)
+        <span class="kw">return</span> losses
+
+    <span class="kw">def</span> <span class="fn">predict</span>(self, obs):
+        <span class="kw">with</span> torch.no_grad():
+            logits = self.policy(torch.tensor(obs, dtype=torch.float32))
+        <span class="kw">if</span> self.discrete:
+            <span class="kw">return</span> int(logits.argmax().item())
+        <span class="kw">return</span> logits.numpy()
+    </div>
+
+    <!-- ── 3. DAgger ───────────────────────────────────────── -->
+    <div class="cx-section-tag">03 / dagger</div>
+    <h2>DAgger: Dataset Aggregation</h2>
+    <p>Distribution shift is the core failure mode of BC: the agent makes a small error, enters a state the expert never demonstrated, and mistakes compound. DAgger fixes this by iteratively collecting expert labels on states the policy actually visits.</p>
+
+    <div class="cx-diagram">
+<span class="label">DAgger Algorithm:</span>
+  1. Train initial policy pi_1 on expert demonstrations D_0
+  2. For iteration i = 1, 2, ..., N:
+     a. Deploy pi_i in environment, collect trajectory
+     b. Query expert for correct actions at every visited state
+     c. Aggregate: D_i = D_{i-1} + new labeled states
+     d. Retrain policy on D_i
+
+<span class="label">Key insight:</span>
+  Policy is trained on ALL states it actually visits (not just expert states)
+  Expert corrects errors before they compound
+
+<span class="label">Trade-off:</span>
+  Requires interactive expert (can be expensive)
+  Can use approximate expert (scripted or model-based)
+    </div>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">dagger_iteration</span>(policy, env, expert_policy, n_steps=<span class="nm">1000</span>,
+                      beta=<span class="nm">0.5</span>, aggregated_data=<span class="nm">None</span>):
+    <span class="st">"""
+    One DAgger iteration: roll out policy, label with expert, aggregate.
+    beta: probability of following policy (vs expert) during rollout
+          - beta=0 → pure expert (iteration 0)
+          - beta=1 → pure policy (last iteration)
+    """</span>
+    <span class="kw">if</span> aggregated_data <span class="kw">is</span> <span class="nm">None</span>:
+        aggregated_data = []
+
+    new_data = []
+    state, _ = env.reset()
+
+    <span class="kw">for</span> _ <span class="kw">in</span> range(n_steps):
+        obs_t = torch.tensor(state, dtype=torch.float32)
+
+        <span class="cm"># mixed policy: beta determines exploration vs imitation</span>
+        <span class="kw">if</span> np.random.rand() &lt; beta:
+            <span class="kw">with</span> torch.no_grad():
+                action = int(policy(obs_t.unsqueeze(<span class="nm">0</span>)).argmax().item())
+        <span class="kw">else</span>:
+            action = expert_policy(state)
+
+        <span class="cm"># always label with EXPERT action (regardless of who acted)</span>
+        expert_action = expert_policy(state)
+        new_data.append((state, expert_action))
+
+        next_state, _, term, trunc, _ = env.step(action)
+        <span class="kw">if</span> term <span class="kw">or</span> trunc:
+            state, _ = env.reset()
+        <span class="kw">else</span>:
+            state = next_state
+
+    aggregated_data.extend(new_data)
+    <span class="kw">return</span> aggregated_data
+    </div>
+
+    <!-- ── 4. Reward Shaping ────────────────────────────────── -->
+    <div class="cx-section-tag">04 / reward shaping</div>
+    <h2>Reward Shaping</h2>
+    <p>Reward shaping adds auxiliary rewards F(s,s') to the environment reward to guide learning without changing the optimal policy. Potential-based shaping guarantees policy invariance: F(s,s') = gamma * Phi(s') - Phi(s) for any potential function Phi.</p>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">potential_based_shaping</span>(state, next_state, gamma, phi):
+    <span class="st">"""
+    Potential-based shaping: F(s,s') = gamma*Phi(s') - Phi(s).
+    Does NOT change the optimal policy of the original MDP.
+    phi: callable(state) -> float — potential function
+    """</span>
+    <span class="kw">return</span> gamma * phi(next_state) - phi(state)
+
+
+<span class="kw">def</span> <span class="fn">distance_to_goal_potential</span>(state, goal_state):
+    <span class="st">"""Example potential: negative Euclidean distance to goal."""</span>
+    <span class="kw">return</span> -np.linalg.norm(np.array(state) - np.array(goal_state))
+
+
+<span class="kw">class</span> <span class="fn">ShapedRewardWrapper</span>:
+    <span class="st">"""
+    Gym wrapper that adds potential-based shaping to environment reward.
+    Useful for dense guidance in sparse-reward environments.
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, env, phi, gamma=<span class="nm">0.99</span>):
+        self.env   = env
+        self.phi   = phi
+        self.gamma = gamma
+        self.prev_state = <span class="nm">None</span>
+
+    <span class="kw">def</span> <span class="fn">reset</span>(self):
+        obs, info = self.env.reset()
+        self.prev_state = obs
+        <span class="kw">return</span> obs, info
+
+    <span class="kw">def</span> <span class="fn">step</span>(self, action):
+        obs, reward, term, trunc, info = self.env.step(action)
+        <span class="cm"># add shaping reward</span>
+        shaping = potential_based_shaping(self.prev_state, obs, self.gamma, self.phi)
+        self.prev_state = obs
+        <span class="kw">return</span> obs, reward + shaping, term, trunc, info
+    </div>
+
+    <!-- ── 5. GAIL ─────────────────────────────────────────── -->
+    <div class="cx-section-tag">05 / gail</div>
+    <h2>Generative Adversarial Imitation Learning (GAIL)</h2>
+    <p>GAIL uses a GAN-style discriminator to distinguish expert trajectories from agent trajectories. The discriminator's output serves as the reward signal: the agent is rewarded when it fools the discriminator into thinking it is the expert.</p>
+
+    <div class="cx-diagram">
+<span class="label">GAIL Training Loop:</span>
+  1. Collect agent trajectories using current policy pi_theta
+  2. Update Discriminator D_psi:
+       maximize E_expert[log D(s,a)] + E_pi[log(1 - D(s,a))]
+       (D(s,a) = 1 for expert, 0 for agent)
+  3. Compute reward: r(s,a) = -log(1 - D(s,a))  (high when fooling D)
+  4. Update policy pi_theta using PPO/TRPO on shaped reward
+
+<span class="label">Connection to IRL:</span>
+  GAIL implicitly recovers the reward function through the discriminator
+  D(s,a) approximates: exp(R*(s,a)) / (exp(R*(s,a)) + pi(a|s))
+    </div>
+
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">Discriminator</span>(nn.Module):
+    <span class="st">"""
+    GAIL discriminator: outputs P(expert | state, action).
+    Trained to distinguish expert (state, action) pairs from agent pairs.
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, action_dim, hidden=<span class="nm">128</span>):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim + action_dim, hidden), nn.Tanh(),
+            nn.Linear(hidden, hidden),               nn.Tanh(),
+            nn.Linear(hidden, <span class="nm">1</span>),
+            nn.Sigmoid(),
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, obs, action):
+        x = torch.cat([obs, action], dim=-<span class="nm">1</span>)
+        <span class="kw">return</span> self.net(x).squeeze(-<span class="nm">1</span>)   <span class="cm"># P(from expert)</span>
+
+
+<span class="kw">def</span> <span class="fn">gail_discriminator_update</span>(disc, disc_optimizer,
+                               expert_batch, agent_batch):
+    <span class="st">"""
+    Update discriminator to maximize log D(expert) + log(1-D(agent)).
+    expert_batch, agent_batch: (obs, actions) tensors
+    """</span>
+    expert_obs, expert_act = expert_batch
+    agent_obs,  agent_act  = agent_batch
+
+    <span class="cm"># one-hot or float actions for continuous</span>
+    d_expert = disc(expert_obs, expert_act.float())
+    d_agent  = disc(agent_obs,  agent_act.float())
+
+    <span class="cm"># binary cross-entropy: expert=1, agent=0</span>
+    loss = -(torch.log(d_expert + <span class="nm">1e-8</span>).mean()
+             + torch.log(<span class="nm">1</span> - d_agent + <span class="nm">1e-8</span>).mean())
+
+    disc_optimizer.zero_grad()
+    loss.backward()
+    disc_optimizer.step()
+    <span class="kw">return</span> loss.item()
+
+
+<span class="kw">def</span> <span class="fn">gail_reward</span>(disc, obs, action):
+    <span class="st">"""Reward signal for agent: -log(1-D) = log D / (1-D) shaped."""</span>
+    <span class="kw">with</span> torch.no_grad():
+        d = disc(obs, action.float())
+    <span class="kw">return</span> -torch.log(<span class="nm">1</span> - d + <span class="nm">1e-8</span>)       <span class="cm"># high when agent fools discriminator</span>
+    </div>
+
+    <!-- ── 6. IRL: Maximum Entropy ─────────────────────────── -->
+    <div class="cx-section-tag">06 / maxent irl</div>
+    <h2>Maximum Entropy IRL</h2>
+    <p>Maximum Entropy IRL (Ziebart et al.) recovers a reward function by finding R such that the induced policy has the same expected feature counts as the expert, while maximizing policy entropy (avoiding distributional assumptions about the expert's optimality).</p>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">maxent_irl</span>(feature_matrix, P, n_states, n_actions, expert_demos,
+               gamma=<span class="nm">0.99</span>, lr=<span class="nm">0.01</span>, n_iter=<span class="nm">200</span>):
+    <span class="st">"""
+    Maximum Entropy IRL for small tabular MDPs.
+    feature_matrix: (n_states, n_features) — feature representation of states
+    expert_demos:   list of state sequences from expert
+    Returns: learned reward weights theta s.t. R(s) = theta . phi(s)
+    """</span>
+    n_features = feature_matrix.shape[<span class="nm">1</span>]
+    theta      = np.zeros(n_features)             <span class="cm"># reward weight vector</span>
+
+    <span class="cm"># compute expert feature expectations mu_E</span>
+    mu_expert = np.zeros(n_features)
+    <span class="kw">for</span> demo <span class="kw">in</span> expert_demos:
+        <span class="kw">for</span> t, s <span class="kw">in</span> enumerate(demo):
+            mu_expert += gamma**t * feature_matrix[s]
+    mu_expert /= len(expert_demos)
+
+    <span class="kw">for</span> iteration <span class="kw">in</span> range(n_iter):
+        <span class="cm"># compute reward from current theta</span>
+        R = feature_matrix @ theta               <span class="cm"># (n_states,)</span>
+
+        <span class="cm"># solve soft value iteration (MaxEnt policy)</span>
+        V = np.zeros(n_states)
+        <span class="kw">for</span> _ <span class="kw">in</span> range(<span class="nm">100</span>):
+            Q   = np.zeros((n_states, n_actions))
+            <span class="kw">for</span> s <span class="kw">in</span> range(n_states):
+                <span class="kw">for</span> a <span class="kw">in</span> range(n_actions):
+                    Q[s, a] = R[s] + gamma * sum(
+                        P[s][a][i][<span class="nm">0</span>] * V[P[s][a][i][<span class="nm">1</span>]]
+                        <span class="kw">for</span> i <span class="kw">in</span> range(len(P[s][a]))
+                    )
+            V_new = np.log(np.exp(Q).sum(axis=<span class="nm">1</span>))   <span class="cm"># soft-max Bellman</span>
+            <span class="kw">if</span> np.max(np.abs(V_new - V)) &lt; <span class="nm">1e-6</span>: <span class="kw">break</span>
+            V = V_new
+
+        <span class="cm"># compute induced policy (softmax)  pi(a|s) = exp(Q(s,a)-V(s))</span>
+        pi = np.exp(Q - V[:, np.newaxis])
+
+        <span class="cm"># compute learner feature expectations mu_L</span>
+        mu_learner = np.zeros(n_features)
+        state_freq = np.ones(n_states) / n_states   <span class="cm"># uniform initial state dist</span>
+        <span class="kw">for</span> t <span class="kw">in</span> range(<span class="nm">50</span>):                        <span class="cm"># trajectory length</span>
+            mu_learner += gamma**t * (state_freq[:, np.newaxis] * feature_matrix).sum(<span class="nm">0</span>)
+            <span class="cm"># propagate state frequency under policy pi</span>
+            new_freq = np.zeros(n_states)
+            <span class="kw">for</span> s <span class="kw">in</span> range(n_states):
+                <span class="kw">for</span> a <span class="kw">in</span> range(n_actions):
+                    <span class="kw">for</span> prob, ns, _, _ <span class="kw">in</span> P[s][a]:
+                        new_freq[ns] += state_freq[s] * pi[s, a] * prob
+            state_freq = new_freq
+
+        <span class="cm"># gradient ascent on theta: maximize E_expert[R] - log Z</span>
+        grad  = mu_expert - mu_learner
+        theta += lr * grad
+
+    R_final = feature_matrix @ theta
+    <span class="kw">return</span> theta, R_final
+    </div>
+
+    <!-- ── 7. Imitation for Security ───────────────────────── -->
+    <div class="cx-section-tag">07 / security applications</div>
+    <h2>Imitation Learning for Security</h2>
+
+    <div class="cx-approach-grid">
+      <div class="cx-approach-card">
+        <h4>Expert SOC Analyst Cloning</h4>
+        <p>Train an agent on analyst alert triage decisions. BC learns the analyst's prioritization heuristics from historical tickets without requiring an explicit scoring formula.</p>
+      </div>
+      <div class="cx-approach-card">
+        <h4>Red Team TTP Imitation</h4>
+        <p>Given logs from known APT campaigns (MITRE ATT&amp;CK), learn an attacker model that generates realistic attack sequences for testing blue team detection.</p>
+      </div>
+      <div class="cx-approach-card">
+        <h4>Malware Behavior Modeling</h4>
+        <p>IRL recovers the implicit "reward function" of malware: what objectives (persistence, exfiltration, lateral movement) drive observed system call sequences.</p>
+      </div>
+      <div class="cx-approach-card">
+        <h4>Patch Prioritization</h4>
+        <p>Learn from expert vulnerability patching decisions to build an agent that prioritizes CVEs under CVSS uncertainty, considering attacker likelihood and asset value.</p>
+      </div>
+    </div>
+
+    <!-- ── 8. Comparison Table ────────────────────────────── -->
+    <div class="cx-section-tag">08 / comparison</div>
+    <h2>Imitation Learning Methods Compared</h2>
+
+    <div class="cx-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Expert Interaction</th>
+            <th>Reward Required</th>
+            <th>Distributional Robustness</th>
+            <th>Complexity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Behavior Cloning</td>
+            <td>Offline only</td>
+            <td>No</td>
+            <td>Low (covariate shift)</td>
+            <td>Low</td>
+          </tr>
+          <tr>
+            <td>DAgger</td>
+            <td>Online (iterative)</td>
+            <td>No</td>
+            <td>High</td>
+            <td>Medium</td>
+          </tr>
+          <tr>
+            <td>MaxEnt IRL</td>
+            <td>Offline demos</td>
+            <td>Inferred</td>
+            <td>Medium</td>
+            <td>High (DP per iteration)</td>
+          </tr>
+          <tr>
+            <td>GAIL</td>
+            <td>Offline demos</td>
+            <td>Inferred via D</td>
+            <td>High</td>
+            <td>High (GAN instability)</td>
+          </tr>
+          <tr>
+            <td>AIRL</td>
+            <td>Offline demos</td>
+            <td>Inferred, transferable</td>
+            <td>High</td>
+            <td>High</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cx-callout green">
+      <strong>Offline RL: A Middle Ground</strong>
+      Offline RL (Conservative Q-Learning, Implicit Q-Learning) learns from a fixed dataset of pre-collected experience without environment interaction — similar to BC but with RL-style credit assignment. Useful when interacting with the environment is expensive or dangerous (e.g., production network defense).
+    </div>
+
+    <div class="cx-callout yellow">
+      <strong>Causal Confusion in Imitation</strong>
+      BC agents can learn spurious correlations: in a driving task, an agent might learn to steer based on the speedometer position (correlates with curves in demos) rather than the road curvature. Causal analysis and interventional data collection help identify and remove such confounders.
+    </div>
+
+    <nav class="cx-nav-footer">
+      <a href="cx-rl-08.html" class="cx-nav-btn">
+        <span class="dir">Previous</span>
+        RL for Security
+      </a>
+      <a href="cx-rl-10.html" class="cx-nav-btn">
+        <span class="dir">Next</span>
+        Hands-On: DQN Agent
+      </a>
+    </nav>
+  </div>
+
+  <script src="../../../../../components/FluxCapacitor.js"></script>
+  <script>
+    const MODULE_ID = 'cx-rl-09';
+    const HOUSE_ID  = 'ai';
+    let marked = false;
+    window.addEventListener('scroll', function() {
+      if (marked) return;
+      const scrolled = window.scrollY + window.innerHeight;
+      const total    = document.documentElement.scrollHeight;
+      if (scrolled / total >= 0.80) {
+        marked = true;
+        if (typeof ModuleProgress !== 'undefined') {
+          ModuleProgress.complete(HOUSE_ID, MODULE_ID);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

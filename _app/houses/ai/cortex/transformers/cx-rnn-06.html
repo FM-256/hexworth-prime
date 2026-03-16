@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../../components/ModuleProgress.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transformer Architecture — The Cortex</title>
+  <style>
+    :root {
+      --accent: #8b5cf6;
+      --accent-dim: #6d28d9;
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #22223a;
+      --border: #2e2e48;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; line-height: 1.7; }
+
+    /* Particle layer */
+    .cx-particle-field { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .cx-particle { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--accent); opacity: var(--o, 0.15); animation: cx-drift 20s linear infinite; }
+    @keyframes cx-drift { from { transform: translateY(100vh) translateX(0); } to { transform: translateY(-10vh) translateX(40px); } }
+
+    .cx-module-wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* Breadcrumb */
+    .cx-breadcrumb { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 2rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .cx-breadcrumb a { color: var(--text-muted); text-decoration: none; }
+    .cx-breadcrumb a:hover { color: var(--accent); }
+    .cx-breadcrumb span { color: var(--accent); }
+
+    /* Header */
+    .cx-module-header { margin-bottom: 2.5rem; }
+    .cx-module-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.5rem; }
+    .cx-module-title { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.75rem; }
+    .cx-module-subtitle { color: var(--text-muted); font-size: 1rem; }
+
+    /* Objectives */
+    .objectives { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; }
+    .objectives h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.75rem; }
+    .objectives ul { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+    .objectives ul li::before { content: '-> '; color: var(--accent); font-weight: 700; }
+    .objectives ul li { font-size: 0.95rem; }
+
+    /* Section */
+    .section-title { font-size: 1.3rem; font-weight: 700; color: var(--accent); margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+    .content-text { color: var(--text-muted); margin-bottom: 1rem; font-size: 0.97rem; }
+
+    /* Feature grid */
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 1.25rem 0; }
+    .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; }
+    .feature-card h4 { font-size: 0.9rem; color: var(--accent); margin-bottom: 0.4rem; }
+    .feature-card p { font-size: 0.87rem; color: var(--text-muted); }
+
+    /* Code block */
+    .code-block { background: #0d0d14; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.4rem; margin: 1.25rem 0; overflow-x: auto; }
+    .code-block pre { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.84rem; line-height: 1.65; white-space: pre; }
+    .kw { color: #f87171; }
+    .str { color: #60a5fa; }
+    .cm { color: #6b7280; font-style: italic; }
+    .num { color: #60a5fa; }
+    .out { color: #34d399; }
+    .hl { background: rgba(139,92,246,0.15); border-radius: 3px; padding: 0 2px; }
+
+    /* Diagram box */
+    .diagram-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin: 1.25rem 0; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.8; color: var(--text-muted); overflow-x: auto; }
+    .diagram-box .d-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 1rem; font-family: 'Segoe UI', sans-serif; }
+    .diagram-box .d-hl { color: var(--accent); font-weight: 700; }
+    .diagram-box .d-green { color: var(--green); }
+    .diagram-box .d-yellow { color: var(--yellow); }
+    .diagram-box .d-blue { color: var(--blue); }
+
+    /* Callouts */
+    .callout--info  { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); border-radius: 6px; padding: 1rem 1.25rem; margin: 1.25rem 0; font-size: 0.93rem; color: var(--text-muted); }
+    .callout--warn  { background: rgba(245,158,11,0.08); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 1rem 1.25rem; margin: 1.25rem 0; font-size: 0.93rem; color: var(--text-muted); }
+    .callout--info strong, .callout--warn strong { color: var(--text); display: block; margin-bottom: 0.3rem; }
+
+    /* State table */
+    .state-table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: 0.88rem; }
+    .state-table th { background: var(--surface2); color: var(--accent); text-align: left; padding: 0.6rem 0.9rem; border: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .state-table td { padding: 0.55rem 0.9rem; border: 1px solid var(--border); color: var(--text-muted); vertical-align: top; }
+    .state-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+    /* Try it */
+    .try-it { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+    .try-it h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--green); margin-bottom: 0.75rem; }
+    .try-it ol { padding-left: 1.2rem; color: var(--text-muted); font-size: 0.92rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+    /* Takeaways */
+    .takeaways { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+    .takeaways h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.75rem; }
+    .takeaways ul { list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
+    .takeaways ul li::before { content: '[+] '; color: var(--accent); font-family: monospace; }
+    .takeaways ul li { font-size: 0.93rem; color: var(--text-muted); }
+
+    /* Nav footer */
+    .nav-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .nav-btn { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; padding: 0.6rem 1.1rem; border-radius: 6px; font-size: 0.88rem; transition: all 0.2s; }
+    .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .nav-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .nav-btn.primary:hover { background: var(--accent-dim); }
+
+    /* Progress bar */
+    .cx-progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0%; z-index: 100; transition: width 0.2s; }
+  </style>
+</head>
+<body>
+  <div class="cx-progress-bar" id="progressBar"></div>
+
+  <!-- Particle field -->
+  <div class="cx-particle-field" aria-hidden="true">
+    <span class="cx-particle" style="left:8%;animation-delay:0s;--o:0.12"></span>
+    <span class="cx-particle" style="left:22%;animation-delay:3s;--o:0.08"></span>
+    <span class="cx-particle" style="left:37%;animation-delay:7s;--o:0.15"></span>
+    <span class="cx-particle" style="left:53%;animation-delay:1s;--o:0.1"></span>
+    <span class="cx-particle" style="left:68%;animation-delay:5s;--o:0.13"></span>
+    <span class="cx-particle" style="left:81%;animation-delay:9s;--o:0.07"></span>
+    <span class="cx-particle" style="left:91%;animation-delay:4s;--o:0.11"></span>
+  </div>
+
+  <div class="cx-module-wrap">
+    <!-- Breadcrumb -->
+    <nav class="cx-breadcrumb" aria-label="breadcrumb">
+      <a href="../../../../../index.html">Home</a><span>/</span>
+      <a href="../../../../index.html">AI House</a><span>/</span>
+      <a href="../index.html">The Cortex</a><span>/</span>
+      <a href="index.html">RNNs &amp; Transformers</a><span>/</span>
+      <span>Transformer Architecture</span>
+    </nav>
+
+    <!-- Header -->
+    <header class="cx-module-header">
+      <div class="cx-module-label">Module 6 of 10 — RNNs &amp; Transformers</div>
+      <h1 class="cx-module-title">Transformer Architecture</h1>
+      <p class="cx-module-subtitle">Multi-head attention, positional encoding, layer norm, and the encoder/decoder stack that redefined sequence modeling.</p>
+    </header>
+
+    <!-- Objectives -->
+    <div class="objectives">
+      <h3>Learning Objectives</h3>
+      <ul>
+        <li>Explain the Transformer encoder/decoder architecture and data flow</li>
+        <li>Implement multi-head attention from scaled dot-product primitives</li>
+        <li>Derive sinusoidal positional encoding and understand learned alternatives</li>
+        <li>Describe the role of layer normalization and residual connections</li>
+        <li>Build a complete Transformer encoder block in PyTorch</li>
+      </ul>
+    </div>
+
+    <!-- Section 1: Why Transformers -->
+    <h2 class="section-title">1. From Attention to Architecture</h2>
+    <p class="content-text">
+      The attention mechanism (Module 5) solved the information bottleneck of seq2seq models by letting the decoder look at all encoder states simultaneously. The Transformer — introduced in "Attention Is All You Need" (Vaswani et al., 2017) — went further: it discards recurrence entirely and builds the whole model out of attention layers. No RNN cells, no sequential hidden state.
+    </p>
+    <p class="content-text">
+      This unlocks massive parallelism. Every token attends to every other token in a single matrix multiply — training is now limited by memory bandwidth, not sequence length dependency.
+    </p>
+
+    <div class="diagram-box">
+      <div class="d-title">High-Level Transformer — Encoder + Decoder</div>
+<span class="d-yellow">Input Tokens</span>           <span class="d-yellow">Output Tokens (shifted right)</span>
+     |                                 |
+<span class="d-hl">[Token Embedding + Positional Encoding]</span>   <span class="d-hl">[Token Embedding + Positional Encoding]</span>
+     |                                 |
+  +------+  x N                    +----------+  x N
+  | <span class="d-green">Encoder</span>|                   |  <span class="d-blue">Decoder</span>   |
+  | Block  |                   |  Block     |
+  |  MHA   |  ----memory---->  |  Masked MHA|
+  |  FFN   |                   |  Cross MHA |
+  +------+                     |  FFN       |
+     |                         +----------+
+  <span class="d-green">Encoder</span>                            |
+  <span class="d-green">Output</span>                     Linear + Softmax
+                                       |
+                               <span class="d-yellow">Next Token Prediction</span>
+    </div>
+
+    <div class="callout--info">
+      <strong>Encoder vs Decoder</strong>
+      The encoder reads the full source sequence bidirectionally — every token can attend to every other. The decoder is autoregressive: during generation it can only attend to tokens already produced (causal mask). Cross-attention lets decoder queries read encoder keys/values.
+    </div>
+
+    <!-- Section 2: Multi-Head Attention -->
+    <h2 class="section-title">2. Multi-Head Attention</h2>
+    <p class="content-text">
+      Single-head scaled dot-product attention computes one set of weighted context vectors. Multi-head attention runs <em>h</em> parallel attention heads, each with its own learned projection matrices, then concatenates and projects the results.
+    </p>
+
+    <div class="diagram-box">
+      <div class="d-title">Multi-Head Attention</div>
+Q, K, V  (shape: [batch, seq, d_model])
+     |
+  +-----+-----+-----+  (h heads, each projects to d_k = d_model/h)
+  W_Q1  W_Q2  W_Qh     Q_i = Q * W_Qi
+  W_K1  W_K2  W_Kh     K_i = K * W_Ki
+  W_V1  W_V2  W_Vh     V_i = V * W_Vi
+     |    |    |
+  <span class="d-hl">Attn1</span> <span class="d-hl">Attn2</span> <span class="d-hl">Attn_h</span>  -- scaled dot-product, each [batch, seq, d_k]
+     |    |    |
+  [Concat: batch, seq, h*d_k = d_model]
+     |
+  W_O  (d_model x d_model)
+     |
+  <span class="d-green">MultiHead(Q,K,V)</span>
+    </div>
+
+    <p class="content-text">
+      Each head learns a different attention pattern — one may capture syntactic dependencies, another semantic similarity, another coreference. Concatenation preserves all of them.
+    </p>
+
+    <div class="code-block"><pre><span class="kw">import</span> torch
+<span class="kw">import</span> torch.nn <span class="kw">as</span> nn
+<span class="kw">import</span> torch.nn.functional <span class="kw">as</span> F
+<span class="kw">import</span> math
+
+<span class="kw">class</span> <span class="hl">MultiHeadAttention</span>(nn.Module):
+    <span class="str">"""
+    Multi-head scaled dot-product attention.
+    d_model must be divisible by num_heads.
+    """</span>
+    <span class="kw">def</span> __init__(self, d_model: int, num_heads: int, dropout: float = <span class="num">0.1</span>):
+        <span class="kw">super</span>().__init__()
+        <span class="kw">assert</span> d_model % num_heads == <span class="num">0</span>
+        self.d_k = d_model // num_heads
+        self.num_heads = num_heads
+
+        <span class="cm"># Single fused projections are faster than separate W_Q, W_K, W_V</span>
+        self.q_proj = nn.Linear(d_model, d_model, bias=<span class="kw">False</span>)
+        self.k_proj = nn.Linear(d_model, d_model, bias=<span class="kw">False</span>)
+        self.v_proj = nn.Linear(d_model, d_model, bias=<span class="kw">False</span>)
+        self.out_proj = nn.Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    <span class="kw">def</span> forward(self, q, k, v, mask=<span class="kw">None</span>):
+        B, T_q, _ = q.shape
+        _, T_k, _ = k.shape
+
+        <span class="cm"># Project and split into heads: [B, heads, T, d_k]</span>
+        Q = self.q_proj(q).view(B, T_q, self.num_heads, self.d_k).transpose(<span class="num">1</span>, <span class="num">2</span>)
+        K = self.k_proj(k).view(B, T_k, self.num_heads, self.d_k).transpose(<span class="num">1</span>, <span class="num">2</span>)
+        V = self.v_proj(v).view(B, T_k, self.num_heads, self.d_k).transpose(<span class="num">1</span>, <span class="num">2</span>)
+
+        <span class="cm"># Scaled dot-product attention</span>
+        scores = (Q @ K.transpose(<span class="num">-2</span>, <span class="num">-1</span>)) / math.sqrt(self.d_k)  <span class="cm"># [B, H, T_q, T_k]</span>
+        <span class="kw">if</span> mask <span class="kw">is not</span> <span class="kw">None</span>:
+            scores = scores.masked_fill(mask == <span class="num">0</span>, <span class="num">float</span>(<span class="str">'-inf'</span>))
+        attn = self.dropout(F.softmax(scores, dim=<span class="num">-1</span>))
+
+        <span class="cm"># Weighted sum of values, merge heads</span>
+        out = (attn @ V).transpose(<span class="num">1</span>, <span class="num">2</span>).contiguous().view(B, T_q, <span class="num">-1</span>)
+        <span class="kw">return</span> self.out_proj(out), attn</pre></div>
+
+    <!-- Section 3: Positional Encoding -->
+    <h2 class="section-title">3. Positional Encoding</h2>
+    <p class="content-text">
+      Attention is permutation-invariant — shuffle the tokens and the outputs shuffle identically. To inject order, a positional encoding is added to each token embedding before the first layer.
+    </p>
+
+    <div class="diagram-box">
+      <div class="d-title">Sinusoidal Positional Encoding (Vaswani et al. 2017)</div>
+PE(pos, 2i)   = sin( pos / 10000^(2i / d_model) )
+PE(pos, 2i+1) = cos( pos / 10000^(2i / d_model) )
+
+  pos = token position  (0, 1, 2, ...)
+  i   = dimension index (0, 1, ..., d_model/2 - 1)
+
+<span class="d-green">Property:</span> PE(pos+k) is a linear function of PE(pos)
+  -- the model can learn to attend by relative offset
+<span class="d-green">Property:</span> Each position has a unique encoding
+<span class="d-green">Property:</span> Works on sequences longer than those seen in training
+    </div>
+
+    <div class="code-block"><pre><span class="kw">class</span> <span class="hl">SinusoidalPositionalEncoding</span>(nn.Module):
+    <span class="str">"""Fixed (non-learned) sinusoidal positional encoding."""</span>
+    <span class="kw">def</span> __init__(self, d_model: int, max_len: int = <span class="num">5000</span>, dropout: float = <span class="num">0.1</span>):
+        <span class="kw">super</span>().__init__()
+        self.dropout = nn.Dropout(dropout)
+
+        <span class="cm"># Precompute the encoding matrix [max_len, d_model]</span>
+        pe = torch.zeros(max_len, d_model)
+        pos = torch.arange(max_len, dtype=torch.float).unsqueeze(<span class="num">1</span>)         <span class="cm"># [max_len, 1]</span>
+        div = torch.exp(torch.arange(<span class="num">0</span>, d_model, <span class="num">2</span>).float()
+                        * (-math.log(<span class="num">10000.0</span>) / d_model))                  <span class="cm"># [d_model/2]</span>
+        pe[:, <span class="num">0</span>::<span class="num">2</span>] = torch.sin(pos * div)    <span class="cm"># even dims</span>
+        pe[:, <span class="num">1</span>::<span class="num">2</span>] = torch.cos(pos * div)    <span class="cm"># odd dims</span>
+        self.register_buffer(<span class="str">'pe'</span>, pe.unsqueeze(<span class="num">0</span>))  <span class="cm"># [1, max_len, d_model]</span>
+
+    <span class="kw">def</span> forward(self, x):
+        <span class="cm"># x: [batch, seq, d_model]</span>
+        x = x + self.pe[:, :x.size(<span class="num">1</span>)]
+        <span class="kw">return</span> self.dropout(x)</pre></div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Sinusoidal (Fixed)</h4>
+        <p>Deterministic, no extra parameters, generalizes to unseen lengths. Used in original Transformer.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Learned Absolute</h4>
+        <p>Embeddings per position trained end-to-end. Used in BERT, GPT-2. Cannot generalize beyond max training length.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Relative (RoPE / ALiBi)</h4>
+        <p>Encodes relative distance between tokens. Length generalizes better. Used in LLaMA, GPT-NeoX (RoPE), BLOOM (ALiBi).</p>
+      </div>
+    </div>
+
+    <!-- Section 4: Feed-Forward and Layer Norm -->
+    <h2 class="section-title">4. Position-Wise FFN and Layer Normalization</h2>
+    <p class="content-text">
+      After each attention sub-layer, the Transformer applies an identical feed-forward network independently to each position. This is just two linear layers with a non-linearity — but with an inner dimension 4x larger than d_model, which is where most parameters live.
+    </p>
+
+    <div class="code-block"><pre><span class="kw">class</span> <span class="hl">PositionWiseFFN</span>(nn.Module):
+    <span class="str">"""Two-layer FFN applied identically to each token position."""</span>
+    <span class="kw">def</span> __init__(self, d_model: int, d_ff: int, dropout: float = <span class="num">0.1</span>):
+        <span class="kw">super</span>().__init__()
+        self.fc1 = nn.Linear(d_model, d_ff)
+        self.fc2 = nn.Linear(d_ff, d_model)
+        self.dropout = nn.Dropout(dropout)
+        self.act = nn.GELU()         <span class="cm"># GELU preferred over ReLU in modern Transformers</span>
+
+    <span class="kw">def</span> forward(self, x):
+        <span class="kw">return</span> self.fc2(self.dropout(self.act(self.fc1(x))))</pre></div>
+
+    <p class="content-text">
+      Layer normalization is applied before (Pre-LN) or after (Post-LN) each sub-layer, wrapped with a residual connection. Pre-LN is more common in modern practice — it stabilizes training without warm-up learning rate schedules.
+    </p>
+
+    <div class="diagram-box">
+      <div class="d-title">Residual + LayerNorm (Pre-LN variant)</div>
+x  ----+---> LayerNorm --> SubLayer (MHA or FFN) ----+--> output
+       |                                             |
+       +---------------------------------------------+
+                    (residual bypass)
+
+<span class="d-hl">Post-LN:</span>  output = LayerNorm(x + SubLayer(x))   [original paper]
+<span class="d-hl">Pre-LN:</span>   output = x + SubLayer(LayerNorm(x))    [GPT-2, modern practice]
+
+LayerNorm normalizes across d_model (feature dim), not batch:
+  y = gamma * (x - mean) / (std + eps) + beta
+    </div>
+
+    <div class="callout--warn">
+      <strong>Gradient flow insight</strong>
+      Residual connections give gradients a highway through the network. Without them, deep Transformers (24+ layers) suffer vanishing gradients just like deep RNNs. Pre-LN pushes the normalization before the residual addition, keeping gradient scale more uniform across layers.
+    </div>
+
+    <!-- Section 5: Encoder Block -->
+    <h2 class="section-title">5. Encoder Block</h2>
+    <p class="content-text">
+      One encoder block = Multi-Head Self-Attention + Position-Wise FFN, each with residual and layer norm. The encoder stacks N identical blocks (typically 6–24 depending on model size).
+    </p>
+
+    <div class="code-block"><pre><span class="kw">class</span> <span class="hl">EncoderBlock</span>(nn.Module):
+    <span class="str">"""Single Transformer encoder block (Pre-LN variant)."""</span>
+    <span class="kw">def</span> __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float = <span class="num">0.1</span>):
+        <span class="kw">super</span>().__init__()
+        self.self_attn  = MultiHeadAttention(d_model, num_heads, dropout)
+        self.ffn        = PositionWiseFFN(d_model, d_ff, dropout)
+        self.norm1      = nn.LayerNorm(d_model)
+        self.norm2      = nn.LayerNorm(d_model)
+        self.dropout    = nn.Dropout(dropout)
+
+    <span class="kw">def</span> forward(self, x, src_mask=<span class="kw">None</span>):
+        <span class="cm"># Self-attention with residual (Pre-LN)</span>
+        attn_out, _ = self.self_attn(self.norm1(x), self.norm1(x), self.norm1(x), src_mask)
+        x = x + self.dropout(attn_out)
+
+        <span class="cm"># Feed-forward with residual (Pre-LN)</span>
+        x = x + self.dropout(self.ffn(self.norm2(x)))
+        <span class="kw">return</span> x
+
+
+<span class="kw">class</span> <span class="hl">TransformerEncoder</span>(nn.Module):
+    <span class="str">"""Stack of N encoder blocks."""</span>
+    <span class="kw">def</span> __init__(self, vocab_size: int, d_model: int = <span class="num">256</span>,
+                 num_heads: int = <span class="num">8</span>, d_ff: int = <span class="num">1024</span>,
+                 num_layers: int = <span class="num">6</span>, dropout: float = <span class="num">0.1</span>):
+        <span class="kw">super</span>().__init__()
+        self.embed     = nn.Embedding(vocab_size, d_model)
+        self.pos_enc   = SinusoidalPositionalEncoding(d_model, dropout=dropout)
+        self.layers    = nn.ModuleList([
+            EncoderBlock(d_model, num_heads, d_ff, dropout)
+            <span class="kw">for</span> _ <span class="kw">in</span> range(num_layers)
+        ])
+        self.final_norm = nn.LayerNorm(d_model)
+        self.scale      = d_model ** <span class="num">0.5</span>  <span class="cm"># scale embeddings before adding PE</span>
+
+    <span class="kw">def</span> forward(self, src, src_mask=<span class="kw">None</span>):
+        x = self.pos_enc(self.embed(src) * self.scale)
+        <span class="kw">for</span> layer <span class="kw">in</span> self.layers:
+            x = layer(x, src_mask)
+        <span class="kw">return</span> self.final_norm(x)</pre></div>
+
+    <!-- Section 6: Decoder Block -->
+    <h2 class="section-title">6. Decoder Block</h2>
+    <p class="content-text">
+      The decoder adds a second attention sub-layer: masked self-attention over the target sequence (causal, prevents peeking at future tokens), followed by cross-attention where the queries come from the decoder and keys/values come from the encoder output.
+    </p>
+
+    <div class="code-block"><pre><span class="kw">class</span> <span class="hl">DecoderBlock</span>(nn.Module):
+    <span class="str">"""
+    Single Transformer decoder block.
+    Masked self-attn -> cross-attn -> FFN, all with Pre-LN residuals.
+    """</span>
+    <span class="kw">def</span> __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float = <span class="num">0.1</span>):
+        <span class="kw">super</span>().__init__()
+        self.self_attn  = MultiHeadAttention(d_model, num_heads, dropout)
+        self.cross_attn = MultiHeadAttention(d_model, num_heads, dropout)
+        self.ffn        = PositionWiseFFN(d_model, d_ff, dropout)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.norm3 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    <span class="kw">def</span> forward(self, x, enc_out, src_mask=<span class="kw">None</span>, tgt_mask=<span class="kw">None</span>):
+        <span class="cm"># 1. Masked self-attention (causal — tgt_mask blocks future positions)</span>
+        sa_out, _ = self.self_attn(self.norm1(x), self.norm1(x), self.norm1(x), tgt_mask)
+        x = x + self.dropout(sa_out)
+
+        <span class="cm"># 2. Cross-attention: Q from decoder, K/V from encoder</span>
+        ca_out, _ = self.cross_attn(self.norm2(x), enc_out, enc_out, src_mask)
+        x = x + self.dropout(ca_out)
+
+        <span class="cm"># 3. FFN</span>
+        x = x + self.dropout(self.ffn(self.norm3(x)))
+        <span class="kw">return</span> x
+
+
+<span class="kw">def</span> <span class="hl">make_causal_mask</span>(seq_len: int, device) -> torch.Tensor:
+    <span class="str">"""Lower-triangular mask: position i cannot attend to j > i."""</span>
+    <span class="kw">return</span> torch.tril(torch.ones(seq_len, seq_len, device=device)).unsqueeze(<span class="num">0</span>).unsqueeze(<span class="num">0</span>)</pre></div>
+
+    <!-- Section 7: Complexity and Scaling -->
+    <h2 class="section-title">7. Complexity and Model Scaling</h2>
+
+    <table class="state-table">
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Time Complexity</th>
+          <th>Memory</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Self-Attention</td>
+          <td>O(n² · d)</td>
+          <td>O(n²)</td>
+          <td>Quadratic in sequence length n — bottleneck for long sequences</td>
+        </tr>
+        <tr>
+          <td>FFN</td>
+          <td>O(n · d · d_ff)</td>
+          <td>O(n · d_ff)</td>
+          <td>Linear in n — dominates parameter count at scale</td>
+        </tr>
+        <tr>
+          <td>RNN (LSTM)</td>
+          <td>O(n · d²)</td>
+          <td>O(d)</td>
+          <td>Sequential — cannot parallelize over n</td>
+        </tr>
+        <tr>
+          <td>Transformer total</td>
+          <td>O(n² · d + n · d²)</td>
+          <td>O(n² + n · d)</td>
+          <td>Fully parallel over n during training</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="content-text">
+      For the original base model: d_model = 512, num_heads = 8, d_ff = 2048, num_layers = 6. These are now considered tiny — modern LLMs scale to d_model = 12288, 96 layers, trillions of parameters.
+    </p>
+
+    <table class="state-table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>d_model</th>
+          <th>Heads</th>
+          <th>Layers</th>
+          <th>Parameters</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Transformer Base</td><td>512</td><td>8</td><td>6+6</td><td>65M</td></tr>
+        <tr><td>BERT-Base</td><td>768</td><td>12</td><td>12</td><td>110M</td></tr>
+        <tr><td>BERT-Large</td><td>1024</td><td>16</td><td>24</td><td>340M</td></tr>
+        <tr><td>GPT-2 Large</td><td>1280</td><td>20</td><td>36</td><td>774M</td></tr>
+        <tr><td>GPT-3</td><td>12288</td><td>96</td><td>96</td><td>175B</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Section 8: Full Encoder-Decoder -->
+    <h2 class="section-title">8. Assembling the Full Model</h2>
+
+    <div class="code-block"><pre><span class="kw">class</span> <span class="hl">Transformer</span>(nn.Module):
+    <span class="str">"""
+    Encoder-decoder Transformer for sequence-to-sequence tasks
+    (translation, summarization, etc.).
+    """</span>
+    <span class="kw">def</span> __init__(self, src_vocab: int, tgt_vocab: int,
+                 d_model=<span class="num">256</span>, num_heads=<span class="num">8</span>, d_ff=<span class="num">1024</span>,
+                 num_layers=<span class="num">6</span>, dropout=<span class="num">0.1</span>):
+        <span class="kw">super</span>().__init__()
+        <span class="cm"># Encoder side</span>
+        self.src_embed = nn.Embedding(src_vocab, d_model)
+        self.src_pos   = SinusoidalPositionalEncoding(d_model, dropout=dropout)
+        self.enc_layers = nn.ModuleList([
+            EncoderBlock(d_model, num_heads, d_ff, dropout) <span class="kw">for</span> _ <span class="kw">in</span> range(num_layers)
+        ])
+        self.enc_norm  = nn.LayerNorm(d_model)
+
+        <span class="cm"># Decoder side</span>
+        self.tgt_embed = nn.Embedding(tgt_vocab, d_model)
+        self.tgt_pos   = SinusoidalPositionalEncoding(d_model, dropout=dropout)
+        self.dec_layers = nn.ModuleList([
+            DecoderBlock(d_model, num_heads, d_ff, dropout) <span class="kw">for</span> _ <span class="kw">in</span> range(num_layers)
+        ])
+        self.dec_norm  = nn.LayerNorm(d_model)
+        self.lm_head   = nn.Linear(d_model, tgt_vocab)
+        self.scale     = d_model ** <span class="num">0.5</span>
+
+        self._init_weights()
+
+    <span class="kw">def</span> _init_weights(self):
+        <span class="cm"># Xavier uniform for linear layers — keeps variance stable at init</span>
+        <span class="kw">for</span> p <span class="kw">in</span> self.parameters():
+            <span class="kw">if</span> p.dim() > <span class="num">1</span>:
+                nn.init.xavier_uniform_(p)
+
+    <span class="kw">def</span> encode(self, src, src_mask=<span class="kw">None</span>):
+        x = self.src_pos(self.src_embed(src) * self.scale)
+        <span class="kw">for</span> layer <span class="kw">in</span> self.enc_layers:
+            x = layer(x, src_mask)
+        <span class="kw">return</span> self.enc_norm(x)
+
+    <span class="kw">def</span> decode(self, tgt, enc_out, src_mask=<span class="kw">None</span>, tgt_mask=<span class="kw">None</span>):
+        x = self.tgt_pos(self.tgt_embed(tgt) * self.scale)
+        <span class="kw">for</span> layer <span class="kw">in</span> self.dec_layers:
+            x = layer(x, enc_out, src_mask, tgt_mask)
+        <span class="kw">return</span> self.dec_norm(x)
+
+    <span class="kw">def</span> forward(self, src, tgt, src_mask=<span class="kw">None</span>):
+        T_tgt = tgt.size(<span class="num">1</span>)
+        tgt_mask = make_causal_mask(T_tgt, tgt.device)
+        enc_out  = self.encode(src, src_mask)
+        dec_out  = self.decode(tgt, enc_out, src_mask, tgt_mask)
+        <span class="kw">return</span> self.lm_head(dec_out)    <span class="cm"># [batch, T_tgt, tgt_vocab]</span>
+
+
+<span class="cm"># Quick sanity check</span>
+model = Transformer(src_vocab=<span class="num">32000</span>, tgt_vocab=<span class="num">32000</span>)
+src = torch.randint(<span class="num">0</span>, <span class="num">32000</span>, (<span class="num">2</span>, <span class="num">20</span>))   <span class="cm"># batch=2, src_len=20</span>
+tgt = torch.randint(<span class="num">0</span>, <span class="num">32000</span>, (<span class="num">2</span>, <span class="num">15</span>))   <span class="cm"># batch=2, tgt_len=15</span>
+logits = model(src, tgt)
+<span class="out">print(logits.shape)   # torch.Size([2, 15, 32000])</span></pre></div>
+
+    <!-- Try it -->
+    <div class="try-it">
+      <h3>Try It</h3>
+      <ol>
+        <li>Instantiate <code>MultiHeadAttention(d_model=64, num_heads=8)</code> and verify d_k = 8. Pass random tensors and check the output shape.</li>
+        <li>Plot the sinusoidal PE matrix as a heatmap using matplotlib — observe the low-frequency columns (smooth) vs high-frequency columns (oscillating).</li>
+        <li>Count parameters: for d_model=256, how many parameters does one EncoderBlock have? (Hint: 4 matrices in MHA + 2 in FFN + 4 LayerNorm params.)</li>
+        <li>Modify <code>TransformerEncoder</code> to return attention weights from each layer, then visualize which source tokens a given query position attends to most.</li>
+        <li>Build a toy character-level Transformer for sorting sequences: input "dcba", target "abcd". Train for 1000 steps and verify it generalizes to unseen permutations.</li>
+      </ol>
+    </div>
+
+    <!-- Takeaways -->
+    <div class="takeaways">
+      <h3>Key Takeaways</h3>
+      <ul>
+        <li>Transformers replace recurrence with multi-head self-attention, enabling full parallelism during training</li>
+        <li>Multi-head attention projects Q/K/V into h subspaces, each capturing different relational patterns</li>
+        <li>Positional encoding injects order information; sinusoidal PE generalizes to unseen lengths, RoPE scales better</li>
+        <li>Residual connections + layer normalization are essential for training stability in deep stacks</li>
+        <li>The FFN (4x expansion) between attention layers is where most parameters and representational capacity live</li>
+        <li>Encoder = bidirectional self-attention; Decoder adds causal masking + cross-attention to encoder output</li>
+        <li>Self-attention is O(n²) in sequence length — the primary scaling bottleneck for long contexts</li>
+      </ul>
+    </div>
+
+    <!-- Nav footer -->
+    <div class="nav-footer">
+      <a href="cx-rnn-05.html" class="nav-btn">&larr; Attention Mechanism</a>
+      <a href="cx-rnn-07.html" class="nav-btn primary">BERT &rarr;</a>
+    </div>
+  </div>
+
+  <script src="../../../../../components/FluxCapacitor.js"></script>
+  <script>
+    // ---- Scroll-based progress tracking ----
+    const MODULE_ID = 'cx-rnn-06';
+    const HOUSE_ID  = 'ai';
+    let completed   = false;
+
+    window.addEventListener('scroll', () => {
+      // Update progress bar
+      const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+      document.getElementById('progressBar').style.width = pct + '%';
+
+      // Mark complete at 80% scroll
+      if (!completed && pct >= 80) {
+        completed = true;
+        ModuleProgress.complete(HOUSE_ID, MODULE_ID);
+      }
+    });
+  </script>
+</body>
+</html>

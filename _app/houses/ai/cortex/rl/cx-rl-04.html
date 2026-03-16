@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../../components/ModuleProgress.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deep Q-Networks — The Cortex</title>
+  <style>
+    :root{--accent:#8b5cf6;--accent-dim:#6d28d9;--bg:#0f0f13;--surface:#1a1a24;--surface2:#22223a;--border:#2e2e48;--text:#e2e8f0;--text-muted:#94a3b8;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;line-height:1.7;overflow-x:hidden;}
+    .cx-particle-field{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+    .cx-particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--accent);opacity:var(--o,.15);animation:cx-drift 22s linear infinite;}
+    @keyframes cx-drift{from{transform:translateY(100vh)}to{transform:translateY(-10vh) translateX(50px)}}
+    .cx-wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+    .cx-breadcrumb{font-size:.78rem;color:var(--text-muted);margin-bottom:2rem;display:flex;gap:.4rem;flex-wrap:wrap;}
+    .cx-breadcrumb a{color:var(--text-muted);text-decoration:none;}.cx-breadcrumb a:hover{color:var(--accent);}.cx-breadcrumb span{color:var(--accent);}
+    .cx-hero-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:.4rem;}
+    .cx-hero-title{font-size:2.2rem;font-weight:800;line-height:1.1;margin-bottom:.75rem;}
+    .cx-hero-desc{color:var(--text-muted);max-width:640px;font-size:.97rem;margin-bottom:2rem;}
+    h2{font-size:1.25rem;font-weight:700;margin:2.5rem 0 1rem;}
+    h3{font-size:1rem;font-weight:600;margin:1.5rem 0 .5rem;color:var(--accent);}
+    p{margin-bottom:1rem;color:var(--text-muted);font-size:.95rem;}
+    .cx-code{background:#0d0d14;border:1px solid var(--border);border-radius:8px;padding:1.25rem 1.5rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.82rem;line-height:1.7;overflow-x:auto;margin:1rem 0;color:#c4b5fd;}
+    .cx-code .cm{color:#4b5563;}.cx-code .kw{color:#8b5cf6;}.cx-code .fn{color:#34d399;}.cx-code .st{color:#fbbf24;}.cx-code .nm{color:#f9a8d4;}.cx-code .dc{color:#7dd3fc;}
+    .cx-callout{border-left:3px solid var(--accent);background:var(--surface);border-radius:0 8px 8px 0;padding:1rem 1.25rem;margin:1.5rem 0;font-size:.9rem;}
+    .cx-callout.green{border-color:var(--green);}.cx-callout.yellow{border-color:var(--yellow);}
+    .cx-callout strong{color:var(--text);display:block;margin-bottom:.25rem;}
+    .cx-table-wrap{overflow-x:auto;margin:1.5rem 0;}
+    table{width:100%;border-collapse:collapse;font-size:.85rem;}
+    th{background:var(--surface2);color:var(--accent);font-weight:600;padding:.6rem 1rem;text-align:left;border-bottom:2px solid var(--border);}
+    td{padding:.55rem 1rem;border-bottom:1px solid var(--border);color:var(--text-muted);vertical-align:top;}
+    tr:last-child td{border-bottom:none;}
+    .cx-diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.5rem 0;font-family:monospace;font-size:.82rem;line-height:1.8;overflow-x:auto;}
+    .cx-diagram .label{color:var(--accent);font-weight:700;}
+    .cx-diagram .arrow{color:var(--text-muted);}
+    .cx-section-tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;font-size:.72rem;color:var(--text-muted);padding:.15rem .5rem;margin-bottom:1.5rem;font-family:monospace;}
+    .cx-nav-footer{display:flex;justify-content:space-between;gap:1rem;margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);}
+    .cx-nav-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1.25rem;color:var(--text-muted);text-decoration:none;font-size:.88rem;transition:border-color .2s,color .2s;}
+    .cx-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .cx-nav-btn .dir{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.15rem;}
+    .cx-feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1.5rem 0;}
+    .cx-feature-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;}
+    .cx-feature-card h4{font-size:.88rem;font-weight:700;color:var(--text);margin-bottom:.4rem;}
+    .cx-feature-card p{font-size:.82rem;margin:0;color:var(--text-muted);}
+  </style>
+</head>
+<body>
+  <div class="cx-particle-field" aria-hidden="true">
+    <span class="cx-particle" style="left:5%;animation-delay:0s;--o:.1"></span>
+    <span class="cx-particle" style="left:19%;animation-delay:6s;--o:.12"></span>
+    <span class="cx-particle" style="left:34%;animation-delay:10s;--o:.09"></span>
+    <span class="cx-particle" style="left:51%;animation-delay:3s;--o:.11"></span>
+    <span class="cx-particle" style="left:67%;animation-delay:8s;--o:.08"></span>
+    <span class="cx-particle" style="left:81%;animation-delay:13s;--o:.1"></span>
+    <span class="cx-particle" style="left:94%;animation-delay:5s;--o:.09"></span>
+  </div>
+
+  <div class="cx-wrap">
+    <nav class="cx-breadcrumb">
+      <a href="../../../../../index.html">Home</a><span>/</span>
+      <a href="../../../../index.html">AI House</a><span>/</span>
+      <a href="../index.html">The Cortex</a><span>/</span>
+      <a href="index.html">Reinforcement Learning</a><span>/</span>
+      <span>Deep Q-Networks</span>
+    </nav>
+
+    <div class="cx-hero-label">Reinforcement Learning — Module 04</div>
+    <h1 class="cx-hero-title">Deep Q-Networks</h1>
+    <p class="cx-hero-desc">Tabular Q-learning cannot scale to pixel inputs or continuous observations. DQN replaces the Q-table with a neural network and adds three key stability tricks: experience replay, a frozen target network, and frame preprocessing.</p>
+
+    <!-- ── 1. Why Deep RL ────────────────────────────────────── -->
+    <div class="cx-section-tag">01 / motivation</div>
+    <h2>Why Deep RL?</h2>
+    <p>Atari games have 33,600-pixel screens. Storing a Q-value for every (pixel state, action) pair is impossible. A convolutional network acts as a universal function approximator: Q(s,a;theta) generalized across similar visual observations.</p>
+
+    <div class="cx-diagram">
+<span class="label">Tabular Q-Learning:</span>
+  State space: discrete, small
+  Q-table:     |S| x |A| entries
+  Atari Space: 256^(84x84) states — infeasible
+
+<span class="label">DQN:</span>
+  Input:   84x84x4 frame stack (grayscale, 4 consecutive frames)
+  Network: Conv2d -> Conv2d -> Conv2d -> Dense -> |A| outputs
+  Output:  Q(s, a) for EACH action simultaneously
+  Benefit: Generalizes to unseen but visually similar states
+    </div>
+
+    <!-- ── 2. Three Core Tricks ──────────────────────────────── -->
+    <div class="cx-section-tag">02 / stability tricks</div>
+    <h2>Three Core Stability Tricks</h2>
+
+    <div class="cx-feature-grid">
+      <div class="cx-feature-card">
+        <h4>Experience Replay</h4>
+        <p>Store (s,a,r,s',done) tuples in a ring buffer. Sample random mini-batches for gradient updates. Breaks temporal correlation between consecutive transitions.</p>
+      </div>
+      <div class="cx-feature-card">
+        <h4>Target Network</h4>
+        <p>Freeze a copy of the Q-network (theta-) to compute TD targets. Sync with online network every C steps. Prevents oscillating updates from chasing a moving target.</p>
+      </div>
+      <div class="cx-feature-card">
+        <h4>Gradient Clipping</h4>
+        <p>Clip gradients to [-1, 1] (Huber loss) or clip by norm. Prevents catastrophic updates from rare, high-reward transitions corrupting learned representations.</p>
+      </div>
+    </div>
+
+    <!-- ── 3. Replay Buffer ──────────────────────────────────── -->
+    <div class="cx-section-tag">03 / replay buffer</div>
+    <h2>Replay Buffer</h2>
+    <div class="cx-code">
+<span class="kw">import</span> torch
+<span class="kw">import</span> torch.nn <span class="kw">as</span> nn
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> collections <span class="kw">import</span> deque
+<span class="kw">import</span> random
+
+<span class="kw">class</span> <span class="fn">ReplayBuffer</span>:
+    <span class="st">"""
+    Circular replay buffer storing (state, action, reward, next_state, done) tuples.
+    capacity: maximum number of transitions to store
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, capacity=<span class="nm">100_000</span>):
+        self.buffer = deque(maxlen=capacity)
+
+    <span class="kw">def</span> <span class="fn">push</span>(self, state, action, reward, next_state, done):
+        <span class="cm"># store transition; deque auto-discards oldest when full</span>
+        self.buffer.append((state, action, reward, next_state, done))
+
+    <span class="kw">def</span> <span class="fn">sample</span>(self, batch_size, device=<span class="st">'cpu'</span>):
+        batch = random.sample(self.buffer, batch_size)
+        states, actions, rewards, next_states, dones = zip(*batch)
+
+        <span class="cm"># convert to tensors for GPU-accelerated gradient computation</span>
+        states      = torch.tensor(np.array(states),      dtype=torch.float32).to(device)
+        actions     = torch.tensor(actions,               dtype=torch.long).to(device)
+        rewards     = torch.tensor(rewards,               dtype=torch.float32).to(device)
+        next_states = torch.tensor(np.array(next_states), dtype=torch.float32).to(device)
+        dones       = torch.tensor(dones,                 dtype=torch.float32).to(device)
+        <span class="kw">return</span> states, actions, rewards, next_states, dones
+
+    <span class="kw">def</span> <span class="fn">__len__</span>(self):
+        <span class="kw">return</span> len(self.buffer)
+    </div>
+
+    <!-- ── 4. DQN Network ────────────────────────────────────── -->
+    <div class="cx-section-tag">04 / network architecture</div>
+    <h2>DQN Network Architecture</h2>
+    <p>The original DQN uses three convolutional layers to extract spatial features from preprocessed frames, followed by two fully connected layers outputting one Q-value per action.</p>
+
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">DQN</span>(nn.Module):
+    <span class="st">"""
+    Convolutional DQN for pixel-based observations (Atari-style).
+    input_shape: (C, H, W) — e.g. (4, 84, 84) for 4-frame stack
+    n_actions:   number of discrete actions
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, input_shape, n_actions):
+        super().__init__()
+        c, h, w = input_shape
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(c, <span class="nm">32</span>, kernel_size=<span class="nm">8</span>, stride=<span class="nm">4</span>),  <span class="cm"># 32 filters, 8x8 kernel</span>
+            nn.ReLU(),
+            nn.Conv2d(<span class="nm">32</span>, <span class="nm">64</span>, kernel_size=<span class="nm">4</span>, stride=<span class="nm">2</span>),
+            nn.ReLU(),
+            nn.Conv2d(<span class="nm">64</span>, <span class="nm">64</span>, kernel_size=<span class="nm">3</span>, stride=<span class="nm">1</span>),
+            nn.ReLU(),
+        )
+
+        <span class="cm"># compute conv output size dynamically</span>
+        conv_out = self._conv_out_size(input_shape)
+
+        self.fc = nn.Sequential(
+            nn.Linear(conv_out, <span class="nm">512</span>),
+            nn.ReLU(),
+            nn.Linear(<span class="nm">512</span>, n_actions),   <span class="cm"># one Q-value per action</span>
+        )
+
+    <span class="kw">def</span> <span class="fn">_conv_out_size</span>(self, shape):
+        dummy = torch.zeros(<span class="nm">1</span>, *shape)
+        <span class="kw">return</span> int(self.conv(dummy).view(<span class="nm">1</span>, -<span class="nm">1</span>).size(<span class="nm">1</span>))
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        x = x / <span class="nm">255.0</span>                    <span class="cm"># normalize pixel values to [0,1]</span>
+        x = self.conv(x).view(x.size(<span class="nm">0</span>), -<span class="nm">1</span>)
+        <span class="kw">return</span> self.fc(x)               <span class="cm"># shape: (batch, n_actions)</span>
+
+
+<span class="kw">class</span> <span class="fn">MLP_DQN</span>(nn.Module):
+    <span class="st">"""Simpler DQN for vector observations (e.g. CartPole, LunarLander)."""</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, n_actions, hidden=<span class="nm">256</span>):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden),  nn.ReLU(),
+            nn.Linear(hidden, n_actions),
+        )
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x): <span class="kw">return</span> self.net(x)
+    </div>
+
+    <!-- ── 5. DQN Agent ──────────────────────────────────────── -->
+    <div class="cx-section-tag">05 / dqn agent</div>
+    <h2>DQN Agent with Target Network</h2>
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">DQNAgent</span>:
+    <span class="st">"""
+    DQN agent with:
+      - Epsilon-greedy exploration with linear decay
+      - Replay buffer for decorrelated training
+      - Frozen target network synced every target_update steps
+      - Huber loss for gradient stability
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, n_actions, device=<span class="st">'cuda'</span>,
+                 lr=<span class="nm">1e-4</span>, gamma=<span class="nm">0.99</span>, batch_size=<span class="nm">64</span>,
+                 buffer_size=<span class="nm">100_000</span>, target_update=<span class="nm">1000</span>,
+                 eps_start=<span class="nm">1.0</span>, eps_end=<span class="nm">0.01</span>, eps_decay=<span class="nm">50_000</span>):
+
+        self.device       = torch.device(device <span class="kw">if</span> torch.cuda.is_available() <span class="kw">else</span> <span class="st">'cpu'</span>)
+        self.n_actions    = n_actions
+        self.gamma        = gamma
+        self.batch_size   = batch_size
+        self.target_update = target_update
+
+        <span class="cm"># online network (trained) and target network (frozen)</span>
+        self.online = MLP_DQN(obs_dim, n_actions).to(self.device)
+        self.target = MLP_DQN(obs_dim, n_actions).to(self.device)
+        self.target.load_state_dict(self.online.state_dict())
+        self.target.eval()                 <span class="cm"># target never receives gradients</span>
+
+        self.optimizer = torch.optim.Adam(self.online.parameters(), lr=lr)
+        self.loss_fn   = nn.SmoothL1Loss()  <span class="cm"># Huber loss: L1 for large errors, L2 for small</span>
+        self.buffer    = ReplayBuffer(buffer_size)
+
+        <span class="cm"># epsilon schedule</span>
+        self.eps_start = eps_start
+        self.eps_end   = eps_end
+        self.eps_decay = eps_decay
+        self.steps     = <span class="nm">0</span>
+
+    <span class="kw">def</span> <span class="fn">epsilon</span>(self):
+        <span class="cm"># linear decay from eps_start to eps_end over eps_decay steps</span>
+        frac = min(<span class="nm">1.0</span>, self.steps / self.eps_decay)
+        <span class="kw">return</span> self.eps_start + frac * (self.eps_end - self.eps_start)
+
+    <span class="kw">def</span> <span class="fn">select_action</span>(self, state):
+        <span class="kw">if</span> np.random.rand() &lt; self.epsilon():
+            <span class="kw">return</span> np.random.randint(self.n_actions)
+        state_t = torch.tensor(state, dtype=torch.float32).unsqueeze(<span class="nm">0</span>).to(self.device)
+        <span class="kw">with</span> torch.no_grad():
+            q_vals = self.online(state_t)
+        <span class="kw">return</span> int(q_vals.argmax(dim=<span class="nm">1</span>).item())
+
+    <span class="kw">def</span> <span class="fn">train_step</span>(self):
+        <span class="kw">if</span> len(self.buffer) &lt; self.batch_size:
+            <span class="kw">return</span> <span class="nm">None</span>
+
+        states, actions, rewards, next_states, dones = \
+            self.buffer.sample(self.batch_size, self.device)
+
+        <span class="cm"># ── current Q-values from online network ──────────────</span>
+        q_values = self.online(states).gather(<span class="nm">1</span>, actions.unsqueeze(<span class="nm">1</span>)).squeeze(<span class="nm">1</span>)
+
+        <span class="cm"># ── target Q-values from frozen target network ────────</span>
+        <span class="kw">with</span> torch.no_grad():
+            next_q    = self.target(next_states).max(dim=<span class="nm">1</span>).values
+            td_target = rewards + self.gamma * next_q * (<span class="nm">1</span> - dones)
+
+        loss = self.loss_fn(q_values, td_target)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.online.parameters(), <span class="nm">10.0</span>)  <span class="cm"># gradient clipping</span>
+        self.optimizer.step()
+
+        self.steps += <span class="nm">1</span>
+
+        <span class="cm"># sync target network every target_update steps</span>
+        <span class="kw">if</span> self.steps % self.target_update == <span class="nm">0</span>:
+            self.target.load_state_dict(self.online.state_dict())
+
+        <span class="kw">return</span> loss.item()
+    </div>
+
+    <!-- ── 6. Training Loop ──────────────────────────────────── -->
+    <div class="cx-section-tag">06 / training loop</div>
+    <h2>Training Loop</h2>
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">train_dqn</span>(env_name=<span class="st">'LunarLander-v2'</span>, n_episodes=<span class="nm">1000</span>, min_buffer=<span class="nm">1000</span>):
+    <span class="kw">import</span> gymnasium <span class="kw">as</span> gym
+
+    env   = gym.make(env_name)
+    agent = DQNAgent(
+        obs_dim   = env.observation_space.shape[<span class="nm">0</span>],
+        n_actions = env.action_space.n,
+    )
+
+    episode_rewards = []
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = env.reset()
+        done = <span class="kw">False</span>
+        ep_reward = <span class="nm">0.0</span>
+        losses = []
+
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            action = agent.select_action(state)
+            next_state, reward, term, trunc, _ = env.step(action)
+            done = term <span class="kw">or</span> trunc
+
+            agent.buffer.push(state, action, reward, next_state, done)
+            state = next_state
+            ep_reward += reward
+
+            <span class="cm"># only start training once buffer has enough samples</span>
+            <span class="kw">if</span> len(agent.buffer) >= min_buffer:
+                loss = agent.train_step()
+                <span class="kw">if</span> loss <span class="kw">is</span> <span class="kw">not</span> <span class="nm">None</span>:
+                    losses.append(loss)
+
+        episode_rewards.append(ep_reward)
+
+        <span class="kw">if</span> ep % <span class="nm">50</span> == <span class="nm">0</span>:
+            avg = np.mean(episode_rewards[-<span class="nm">50</span>:])
+            eps = agent.epsilon()
+            avg_loss = np.mean(losses) <span class="kw">if</span> losses <span class="kw">else</span> <span class="nm">0</span>
+            print(<span class="st">f"Ep {ep:4d} | Avg Reward: {avg:7.1f} | "
+                  f"Eps: {eps:.3f} | Loss: {avg_loss:.4f}"</span>)
+
+    env.close()
+    <span class="kw">return</span> agent, episode_rewards
+    </div>
+
+    <!-- ── 7. Double DQN ─────────────────────────────────────── -->
+    <div class="cx-section-tag">07 / double dqn</div>
+    <h2>Double DQN</h2>
+    <p>Standard DQN suffers from overestimation: using max Q(s',a) from the target network for both selecting and evaluating the best next action inflates Q-values. Double DQN uses the online network to select the action and the target network to evaluate it.</p>
+
+    <div class="cx-diagram">
+<span class="label">DQN target:</span>
+  y = r + γ · max_a Q_target(s', a)
+          ↑ same network selects AND evaluates → overestimation
+
+<span class="label">Double DQN target:</span>
+  a* = argmax_a Q_online(s', a)    ← online selects
+  y  = r + γ · Q_target(s', a*)   ← target evaluates
+    </div>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">train_step_ddqn</span>(self):
+    <span class="st">"""Drop-in replacement for DQNAgent.train_step() using Double DQN target."""</span>
+    <span class="kw">if</span> len(self.buffer) &lt; self.batch_size:
+        <span class="kw">return</span> <span class="nm">None</span>
+
+    states, actions, rewards, next_states, dones = \
+        self.buffer.sample(self.batch_size, self.device)
+
+    q_values = self.online(states).gather(<span class="nm">1</span>, actions.unsqueeze(<span class="nm">1</span>)).squeeze(<span class="nm">1</span>)
+
+    <span class="kw">with</span> torch.no_grad():
+        <span class="cm"># DDQN: online network selects best next action</span>
+        next_actions = self.online(next_states).argmax(dim=<span class="nm">1</span>, keepdim=<span class="nm">True</span>)
+        <span class="cm"># target network evaluates that selected action</span>
+        next_q    = self.target(next_states).gather(<span class="nm">1</span>, next_actions).squeeze(<span class="nm">1</span>)
+        td_target = rewards + self.gamma * next_q * (<span class="nm">1</span> - dones)
+
+    loss = self.loss_fn(q_values, td_target)
+    self.optimizer.zero_grad()
+    loss.backward()
+    nn.utils.clip_grad_norm_(self.online.parameters(), <span class="nm">10.0</span>)
+    self.optimizer.step()
+    self.steps += <span class="nm">1</span>
+    <span class="kw">if</span> self.steps % self.target_update == <span class="nm">0</span>:
+        self.target.load_state_dict(self.online.state_dict())
+    <span class="kw">return</span> loss.item()
+    </div>
+
+    <!-- ── 8. Dueling DQN ────────────────────────────────────── -->
+    <div class="cx-section-tag">08 / dueling dqn</div>
+    <h2>Dueling DQN</h2>
+    <p>Dueling DQN separates the Q-value into a state-value stream V(s) and an advantage stream A(s,a). The advantage measures how much better each action is relative to average. This helps the network learn which states are valuable even when no particular action matters much.</p>
+
+    <div class="cx-diagram">
+<span class="label">Q(s,a) = V(s) + A(s,a) - mean_a A(s,a)</span>
+
+  Conv backbone
+       |
+  ┌────┴────┐
+  V(s)    A(s,a_1..n)        two heads share features
+  └────┬────┘
+  Q(s,a) = V + A - mean(A)   mean subtracted for identifiability
+    </div>
+
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">DuelingDQN</span>(nn.Module):
+    <span class="st">"""
+    Dueling network architecture: Q(s,a) = V(s) + A(s,a) - mean(A(s,·))
+    Shared feature extractor splits into value and advantage streams.
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, n_actions, hidden=<span class="nm">256</span>):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Linear(obs_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden),  nn.ReLU(),
+        )
+        <span class="cm"># value stream: scalar V(s)</span>
+        self.value_head = nn.Linear(hidden, <span class="nm">1</span>)
+        <span class="cm"># advantage stream: A(s,a) per action</span>
+        self.advantage_head = nn.Linear(hidden, n_actions)
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        feat = self.features(x)
+        V    = self.value_head(feat)                     <span class="cm"># (batch, 1)</span>
+        A    = self.advantage_head(feat)                 <span class="cm"># (batch, n_actions)</span>
+        <span class="cm"># subtract mean advantage for identifiability of V and A</span>
+        Q    = V + (A - A.mean(dim=<span class="nm">1</span>, keepdim=<span class="nm">True</span>))   <span class="cm"># (batch, n_actions)</span>
+        <span class="kw">return</span> Q
+    </div>
+
+    <!-- ── 9. Prioritized Experience Replay ──────────────────── -->
+    <div class="cx-section-tag">09 / prioritized replay</div>
+    <h2>Prioritized Experience Replay (PER)</h2>
+    <p>Standard replay samples uniformly. PER samples transitions proportional to their TD error: high-error transitions are more informative and get sampled more often. Importance-sampling weights correct for the resulting bias.</p>
+
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">PrioritizedReplayBuffer</span>:
+    <span class="st">"""
+    PER using a sum-tree for O(log N) priority updates and sampling.
+    alpha: priority exponent (0=uniform, 1=full priority)
+    beta:  IS-weight exponent, annealed from beta_start to 1.0
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, capacity, alpha=<span class="nm">0.6</span>, beta_start=<span class="nm">0.4</span>):
+        self.capacity   = capacity
+        self.alpha      = alpha
+        self.beta       = beta_start
+        self.buffer     = []
+        self.priorities = np.zeros(capacity, dtype=np.float32)
+        self.pos        = <span class="nm">0</span>
+
+    <span class="kw">def</span> <span class="fn">push</span>(self, transition):
+        <span class="cm"># new transitions get maximum priority so they are sampled at least once</span>
+        max_priority = self.priorities.max() <span class="kw">if</span> self.buffer <span class="kw">else</span> <span class="nm">1.0</span>
+        <span class="kw">if</span> len(self.buffer) &lt; self.capacity:
+            self.buffer.append(transition)
+        <span class="kw">else</span>:
+            self.buffer[self.pos] = transition
+        self.priorities[self.pos] = max_priority
+        self.pos = (self.pos + <span class="nm">1</span>) % self.capacity
+
+    <span class="kw">def</span> <span class="fn">sample</span>(self, batch_size):
+        N = len(self.buffer)
+        probs = self.priorities[:N] ** self.alpha
+        probs /= probs.sum()
+        indices = np.random.choice(N, batch_size, p=probs, replace=<span class="kw">False</span>)
+
+        <span class="cm"># importance-sampling weights to correct prioritization bias</span>
+        weights = (N * probs[indices]) ** (-self.beta)
+        weights /= weights.max()                  <span class="cm"># normalize so max weight = 1</span>
+
+        batch = [self.buffer[i] <span class="kw">for</span> i <span class="kw">in</span> indices]
+        <span class="kw">return</span> batch, indices, weights
+
+    <span class="kw">def</span> <span class="fn">update_priorities</span>(self, indices, td_errors, eps=<span class="nm">1e-6</span>):
+        <span class="cm"># update priorities based on new TD errors after gradient step</span>
+        <span class="kw">for</span> i, err <span class="kw">in</span> zip(indices, td_errors):
+            self.priorities[i] = abs(err) + eps    <span class="cm"># epsilon avoids zero priority</span>
+    </div>
+
+    <!-- ── 10. DQN Variant Comparison ────────────────────────── -->
+    <div class="cx-section-tag">10 / variants</div>
+    <h2>DQN Variants Comparison</h2>
+
+    <div class="cx-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Variant</th>
+            <th>Key Idea</th>
+            <th>Problem Solved</th>
+            <th>Paper</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>DQN</td>
+            <td>CNN + replay buffer + target network</td>
+            <td>Instability from correlated samples</td>
+            <td>Mnih et al. 2015</td>
+          </tr>
+          <tr>
+            <td>Double DQN</td>
+            <td>Decouple action selection and evaluation</td>
+            <td>Q-value overestimation</td>
+            <td>van Hasselt et al. 2016</td>
+          </tr>
+          <tr>
+            <td>Dueling DQN</td>
+            <td>Separate V(s) and A(s,a) streams</td>
+            <td>Better value estimation in sparse-reward settings</td>
+            <td>Wang et al. 2016</td>
+          </tr>
+          <tr>
+            <td>PER</td>
+            <td>Priority-weighted sampling by TD error</td>
+            <td>Inefficient use of rare informative transitions</td>
+            <td>Schaul et al. 2016</td>
+          </tr>
+          <tr>
+            <td>Rainbow</td>
+            <td>All six improvements combined</td>
+            <td>State-of-the-art Atari performance</td>
+            <td>Hessel et al. 2018</td>
+          </tr>
+          <tr>
+            <td>C51 / QR-DQN</td>
+            <td>Distributional: learn full return distribution</td>
+            <td>Better uncertainty and tail-risk estimation</td>
+            <td>Bellemare et al. 2017</td>
+          </tr>
+          <tr>
+            <td>Noisy DQN</td>
+            <td>Parametric noise in FC layers for exploration</td>
+            <td>Epsilon-greedy replaced with learned exploration</td>
+            <td>Fortunato et al. 2018</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── 11. Epsilon Scheduling ─────────────────────────────── -->
+    <div class="cx-section-tag">11 / epsilon schedules</div>
+    <h2>Exploration Schedules</h2>
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">linear_epsilon</span>(step, start=<span class="nm">1.0</span>, end=<span class="nm">0.01</span>, decay_steps=<span class="nm">100_000</span>):
+    <span class="cm"># most common; predictable decay timeline</span>
+    frac = min(<span class="nm">1.0</span>, step / decay_steps)
+    <span class="kw">return</span> start + frac * (end - start)
+
+<span class="kw">def</span> <span class="fn">exponential_epsilon</span>(step, start=<span class="nm">1.0</span>, end=<span class="nm">0.01</span>, decay=<span class="nm">0.995</span>):
+    <span class="cm"># fast early decay, slow late decay</span>
+    <span class="kw">return</span> max(end, start * decay**step)
+
+<span class="kw">def</span> <span class="fn">cosine_epsilon</span>(step, total_steps, start=<span class="nm">1.0</span>, end=<span class="nm">0.05</span>):
+    <span class="cm"># smooth cosine annealing; less likely to get stuck</span>
+    progress = min(<span class="nm">1.0</span>, step / total_steps)
+    <span class="kw">return</span> end + <span class="nm">0.5</span> * (start - end) * (<span class="nm">1</span> + np.cos(np.pi * progress))
+    </div>
+
+    <div class="cx-callout green">
+      <strong>Reference Performance on LunarLander-v2</strong>
+      DQN with default hyperparameters typically reaches average reward of +200 (solved threshold) in 400-600 episodes. Double DQN tends to converge more reliably. Dueling DQN often reaches +230 reward on landing tasks with good hyperparameter tuning.
+    </div>
+
+    <div class="cx-callout yellow">
+      <strong>DQN Limitations</strong>
+      DQN only handles discrete action spaces. Continuous control (e.g., robotic joints) requires policy gradient methods like PPO or SAC. DQN also requires careful hyperparameter tuning: buffer size, target update frequency, and learning rate all interact significantly.
+    </div>
+
+    <nav class="cx-nav-footer">
+      <a href="cx-rl-03.html" class="cx-nav-btn">
+        <span class="dir">Previous</span>
+        Monte Carlo and TD Learning
+      </a>
+      <a href="cx-rl-05.html" class="cx-nav-btn">
+        <span class="dir">Next</span>
+        Policy Gradient Methods
+      </a>
+    </nav>
+  </div>
+
+  <script src="../../../../../components/FluxCapacitor.js"></script>
+  <script>
+    const MODULE_ID = 'cx-rl-04';
+    const HOUSE_ID  = 'ai';
+    let marked = false;
+    window.addEventListener('scroll', function() {
+      if (marked) return;
+      const scrolled = window.scrollY + window.innerHeight;
+      const total    = document.documentElement.scrollHeight;
+      if (scrolled / total >= 0.80) {
+        marked = true;
+        if (typeof ModuleProgress !== 'undefined') {
+          ModuleProgress.complete(HOUSE_ID, MODULE_ID);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

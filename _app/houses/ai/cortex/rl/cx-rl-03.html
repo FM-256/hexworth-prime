@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../../components/ModuleProgress.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monte Carlo and TD Learning — The Cortex</title>
+  <style>
+    :root{--accent:#8b5cf6;--accent-dim:#6d28d9;--bg:#0f0f13;--surface:#1a1a24;--surface2:#22223a;--border:#2e2e48;--text:#e2e8f0;--text-muted:#94a3b8;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;line-height:1.7;overflow-x:hidden;}
+    .cx-particle-field{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+    .cx-particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--accent);opacity:var(--o,.15);animation:cx-drift 22s linear infinite;}
+    @keyframes cx-drift{from{transform:translateY(100vh) translateX(0)}to{transform:translateY(-10vh) translateX(50px)}}
+    .cx-wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+    .cx-breadcrumb{font-size:.78rem;color:var(--text-muted);margin-bottom:2rem;display:flex;gap:.4rem;flex-wrap:wrap;}
+    .cx-breadcrumb a{color:var(--text-muted);text-decoration:none;}.cx-breadcrumb a:hover{color:var(--accent);}.cx-breadcrumb span{color:var(--accent);}
+    .cx-hero-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:.4rem;}
+    .cx-hero-title{font-size:2.2rem;font-weight:800;line-height:1.1;margin-bottom:.75rem;}
+    .cx-hero-desc{color:var(--text-muted);max-width:640px;font-size:.97rem;margin-bottom:2rem;}
+    h2{font-size:1.25rem;font-weight:700;margin:2.5rem 0 1rem;color:var(--text);}
+    h3{font-size:1rem;font-weight:600;margin:1.5rem 0 .5rem;color:var(--accent);}
+    p{margin-bottom:1rem;color:var(--text-muted);font-size:.95rem;}
+    .cx-code{background:#0d0d14;border:1px solid var(--border);border-radius:8px;padding:1.25rem 1.5rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.82rem;line-height:1.7;overflow-x:auto;margin:1rem 0;color:#c4b5fd;}
+    .cx-code .cm{color:#4b5563;}.cx-code .kw{color:#8b5cf6;}.cx-code .fn{color:#34d399;}.cx-code .st{color:#fbbf24;}.cx-code .nm{color:#f9a8d4;}.cx-code .dc{color:#7dd3fc;}
+    .cx-callout{border-left:3px solid var(--accent);background:var(--surface);border-radius:0 8px 8px 0;padding:1rem 1.25rem;margin:1.5rem 0;font-size:.9rem;}
+    .cx-callout.green{border-color:var(--green);}.cx-callout.yellow{border-color:var(--yellow);}
+    .cx-callout strong{color:var(--text);display:block;margin-bottom:.25rem;}
+    .cx-table-wrap{overflow-x:auto;margin:1.5rem 0;}
+    table{width:100%;border-collapse:collapse;font-size:.85rem;}
+    th{background:var(--surface2);color:var(--accent);font-weight:600;padding:.6rem 1rem;text-align:left;border-bottom:2px solid var(--border);}
+    td{padding:.55rem 1rem;border-bottom:1px solid var(--border);color:var(--text-muted);vertical-align:top;}
+    tr:last-child td{border-bottom:none;}
+    .cx-algo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin:1.5rem 0;}
+    .cx-algo-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;}
+    .cx-algo-card h4{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:.5rem;}
+    .cx-algo-card p{font-size:.82rem;margin:0;color:var(--text-muted);}
+    .cx-algo-card .cx-badge{display:inline-block;font-size:.72rem;padding:.2rem .6rem;border-radius:4px;margin-bottom:.5rem;font-weight:600;}
+    .cx-badge.on-policy{background:#1e1b4b;color:#a78bfa;}.cx-badge.off-policy{background:#064e3b;color:#6ee7b7;}
+    .cx-diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.5rem 0;font-family:monospace;font-size:.82rem;line-height:1.8;overflow-x:auto;}
+    .cx-diagram .label{color:var(--accent);font-weight:700;}
+    .cx-diagram .arrow{color:var(--text-muted);}
+    .cx-nav-footer{display:flex;justify-content:space-between;gap:1rem;margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);}
+    .cx-nav-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1.25rem;color:var(--text-muted);text-decoration:none;font-size:.88rem;transition:border-color .2s,color .2s;}
+    .cx-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .cx-nav-btn .dir{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.15rem;}
+    .cx-section-tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;font-size:.72rem;color:var(--text-muted);padding:.15rem .5rem;margin-bottom:1.5rem;font-family:monospace;}
+  </style>
+</head>
+<body>
+  <div class="cx-particle-field" aria-hidden="true">
+    <span class="cx-particle" style="left:6%;animation-delay:0s;--o:.1"></span>
+    <span class="cx-particle" style="left:18%;animation-delay:5s;--o:.12"></span>
+    <span class="cx-particle" style="left:33%;animation-delay:9s;--o:.09"></span>
+    <span class="cx-particle" style="left:48%;animation-delay:2s;--o:.11"></span>
+    <span class="cx-particle" style="left:63%;animation-delay:7s;--o:.08"></span>
+    <span class="cx-particle" style="left:78%;animation-delay:12s;--o:.1"></span>
+    <span class="cx-particle" style="left:91%;animation-delay:4s;--o:.09"></span>
+  </div>
+
+  <div class="cx-wrap">
+    <nav class="cx-breadcrumb">
+      <a href="../../../../../index.html">Home</a><span>/</span>
+      <a href="../../../../index.html">AI House</a><span>/</span>
+      <a href="../index.html">The Cortex</a><span>/</span>
+      <a href="index.html">Reinforcement Learning</a><span>/</span>
+      <span>Monte Carlo and TD Learning</span>
+    </nav>
+
+    <div class="cx-hero-label">Reinforcement Learning — Module 03</div>
+    <h1 class="cx-hero-title">Monte Carlo and TD Learning</h1>
+    <p class="cx-hero-desc">Model-free methods that learn directly from experience. MC waits for episode ends; TD bootstraps at every step. Together they span the spectrum from pure sampling to pure bootstrapping.</p>
+
+    <!-- ── 1. The Model-Free Setting ─────────────────────────────── -->
+    <div class="cx-section-tag">01 / model-free setting</div>
+    <h2>The Model-Free Setting</h2>
+    <p>Dynamic programming requires the full transition model P(s'|s,a). In practice, that model is unknown. Model-free methods bypass this by sampling trajectories from the environment directly.</p>
+
+    <div class="cx-diagram">
+<span class="label">Model-Based (DP):</span>      known P, R  →  compute V/Q analytically
+<span class="label">Model-Free (MC/TD):</span>    unknown P, R → collect episodes → learn V/Q from data
+
+<span class="arrow">Spectrum:</span>
+  MC          TD(λ)         TD(0)
+  ←────────────────────────────→
+  full return  mixed        1-step bootstrap
+  high var     balanced     low var / biased
+    </div>
+
+    <div class="cx-algo-grid">
+      <div class="cx-algo-card">
+        <div class="cx-badge on-policy">On-Policy</div>
+        <h4>Monte Carlo</h4>
+        <p>Averages full episode returns. Zero bias, high variance. Only for episodic tasks.</p>
+      </div>
+      <div class="cx-algo-card">
+        <div class="cx-badge on-policy">On-Policy</div>
+        <h4>SARSA</h4>
+        <p>TD update using the action actually taken under the current policy. Safe for control.</p>
+      </div>
+      <div class="cx-algo-card">
+        <div class="cx-badge off-policy">Off-Policy</div>
+        <h4>Q-Learning</h4>
+        <p>TD update using the greedy action regardless of behavior policy. Can learn from any data.</p>
+      </div>
+    </div>
+
+    <!-- ── 2. Monte Carlo Prediction ─────────────────────────────── -->
+    <div class="cx-section-tag">02 / monte carlo prediction</div>
+    <h2>Monte Carlo Prediction</h2>
+    <p>Run full episodes under policy pi. For each visited state, accumulate the discounted return G and average over episodes. First-visit MC counts a state only on its first occurrence per episode; every-visit MC counts all occurrences.</p>
+
+    <div class="cx-code">
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> collections <span class="kw">import</span> defaultdict
+
+<span class="kw">def</span> <span class="fn">mc_prediction</span>(env, policy, gamma=<span class="nm">0.99</span>, n_episodes=<span class="nm">5000</span>, first_visit=<span class="nm">True</span>):
+    <span class="st">"""
+    Monte Carlo prediction: estimate V(s) under a fixed policy.
+    env: OpenAI Gym-style environment
+    policy: callable(state) -> action
+    Returns: dict mapping state -> estimated value
+    """</span>
+    returns_sum   = defaultdict(<span class="kw">float</span>)   <span class="cm"># cumulative returns per state</span>
+    returns_count = defaultdict(<span class="kw">int</span>)     <span class="cm"># visit counts per state</span>
+    V = defaultdict(<span class="kw">float</span>)              <span class="cm"># value estimates</span>
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        <span class="cm"># ── generate one episode ──────────────────────────</span>
+        episode = []                          <span class="cm"># list of (state, action, reward)</span>
+        state, _ = env.reset()
+        done = <span class="kw">False</span>
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            action = policy(state)
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            episode.append((state, action, reward))
+            done = terminated <span class="kw">or</span> truncated
+            state = next_state
+
+        <span class="cm"># ── compute returns backward through episode ──────</span>
+        G = <span class="nm">0.0</span>
+        visited = <span class="kw">set</span>()                       <span class="cm"># for first-visit tracking</span>
+        <span class="kw">for</span> state, action, reward <span class="kw">in</span> reversed(episode):
+            G = reward + gamma * G            <span class="cm"># discounted return from this step</span>
+            <span class="kw">if</span> first_visit <span class="kw">and</span> state <span class="kw">in</span> visited:
+                <span class="kw">continue</span>
+            visited.add(state)
+            returns_sum[state]   += G
+            returns_count[state] += <span class="nm">1</span>
+            V[state] = returns_sum[state] / returns_count[state]
+
+    <span class="kw">return</span> V
+    </div>
+
+    <!-- ── 3. MC Control: On-Policy ────────────────────────────── -->
+    <div class="cx-section-tag">03 / mc control</div>
+    <h2>MC Control: On-Policy Epsilon-Greedy</h2>
+    <p>To improve the policy we estimate Q(s,a) instead of V(s), then act epsilon-greedy. Epsilon-soft policies ensure all state-action pairs are visited (exploration).</p>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">mc_control</span>(env, gamma=<span class="nm">0.99</span>, epsilon=<span class="nm">0.1</span>, n_episodes=<span class="nm">50_000</span>):
+    <span class="st">"""
+    On-policy first-visit MC control with epsilon-greedy policy.
+    Returns: Q table (dict) and derived greedy policy (dict).
+    """</span>
+    n_actions = env.action_space.n
+    Q = defaultdict(<span class="kw">lambda</span>: np.zeros(n_actions))
+    returns_sum   = defaultdict(<span class="kw">float</span>)
+    returns_count = defaultdict(<span class="kw">int</span>)
+
+    <span class="kw">def</span> <span class="fn">policy</span>(state):
+        <span class="cm"># epsilon-greedy: explore with prob epsilon</span>
+        <span class="kw">if</span> np.random.rand() &lt; epsilon:
+            <span class="kw">return</span> env.action_space.sample()
+        <span class="kw">return</span> int(np.argmax(Q[state]))
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        episode = []
+        state, _ = env.reset()
+        done = <span class="kw">False</span>
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            action = policy(state)
+            next_state, reward, term, trunc, _ = env.step(action)
+            episode.append((state, action, reward))
+            done = term <span class="kw">or</span> trunc
+            state = next_state
+
+        G = <span class="nm">0.0</span>
+        visited_sa = <span class="kw">set</span>()
+        <span class="kw">for</span> state, action, reward <span class="kw">in</span> reversed(episode):
+            G = reward + gamma * G
+            sa = (state, action)
+            <span class="kw">if</span> sa <span class="kw">in</span> visited_sa:
+                <span class="kw">continue</span>
+            visited_sa.add(sa)
+            returns_sum[sa]   += G
+            returns_count[sa] += <span class="nm">1</span>
+            Q[state][action] = returns_sum[sa] / returns_count[sa]
+
+    <span class="cm"># extract greedy policy from Q</span>
+    policy_dict = {s: int(np.argmax(a)) <span class="kw">for</span> s, a <span class="kw">in</span> Q.items()}
+    <span class="kw">return</span> Q, policy_dict
+    </div>
+
+    <!-- ── 4. Temporal-Difference Learning ────────────────────── -->
+    <div class="cx-section-tag">04 / temporal difference</div>
+    <h2>Temporal-Difference Learning</h2>
+    <p>TD methods update estimates at every step using a bootstrap target: the observed reward plus the discounted estimate of the next state. No need to wait for episode end.</p>
+
+    <div class="cx-diagram">
+<span class="label">MC update:</span>
+  V(S_t) ← V(S_t) + α [ G_t  -  V(S_t) ]
+                          ↑
+                     full return (known only at episode end)
+
+<span class="label">TD(0) update:</span>
+  V(S_t) ← V(S_t) + α [ R_{t+1} + γ·V(S_{t+1})  -  V(S_t) ]
+                          ├─────────────────────┤
+                             TD target (bootstrap)
+                          └──────────────────────────────────┘
+                                    TD error δ_t
+    </div>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">td0_prediction</span>(env, policy, alpha=<span class="nm">0.1</span>, gamma=<span class="nm">0.99</span>, n_episodes=<span class="nm">10_000</span>):
+    <span class="st">"""TD(0) policy evaluation: online, step-by-step V(s) updates."""</span>
+    V = defaultdict(<span class="kw">float</span>)
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = env.reset()
+        done = <span class="kw">False</span>
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            action = policy(state)
+            next_state, reward, term, trunc, _ = env.step(action)
+            done = term <span class="kw">or</span> trunc
+
+            <span class="cm"># TD(0) update: bootstrap off V(next_state)</span>
+            td_target = reward + gamma * V[next_state] * (<span class="nm">1</span> - done)
+            td_error  = td_target - V[state]
+            V[state] += alpha * td_error
+
+            state = next_state
+    <span class="kw">return</span> V
+    </div>
+
+    <!-- ── 5. SARSA ────────────────────────────────────────────── -->
+    <div class="cx-section-tag">05 / sarsa</div>
+    <h2>SARSA: On-Policy TD Control</h2>
+    <p>SARSA (State-Action-Reward-State-Action) learns Q(s,a) by updating with the action actually chosen under the behavior policy. Because the update uses the same policy that generates data, it is on-policy.</p>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">sarsa</span>(env, alpha=<span class="nm">0.1</span>, gamma=<span class="nm">0.99</span>, epsilon=<span class="nm">0.1</span>, n_episodes=<span class="nm">50_000</span>):
+    <span class="st">"""
+    SARSA: on-policy TD control.
+    Update rule:  Q(s,a) ← Q(s,a) + α[r + γQ(s',a') - Q(s,a)]
+    a' is sampled from the SAME policy (epsilon-greedy over Q).
+    """</span>
+    n_actions = env.action_space.n
+    Q = defaultdict(<span class="kw">lambda</span>: np.zeros(n_actions))
+
+    <span class="kw">def</span> <span class="fn">eps_greedy</span>(state):
+        <span class="kw">if</span> np.random.rand() &lt; epsilon:
+            <span class="kw">return</span> env.action_space.sample()
+        <span class="kw">return</span> int(np.argmax(Q[state]))
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = env.reset()
+        action = eps_greedy(state)           <span class="cm"># choose initial action</span>
+        done = <span class="kw">False</span>
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            next_state, reward, term, trunc, _ = env.step(action)
+            done = term <span class="kw">or</span> trunc
+            next_action = eps_greedy(next_state)  <span class="cm"># sample next action from policy</span>
+
+            <span class="cm"># SARSA update — uses (s, a, r, s', a') quintuple</span>
+            td_target = reward + gamma * Q[next_state][next_action] * (<span class="nm">1</span> - done)
+            Q[state][action] += alpha * (td_target - Q[state][action])
+
+            state, action = next_state, next_action
+    <span class="kw">return</span> Q
+    </div>
+
+    <!-- ── 6. Q-Learning ─────────────────────────────────────── -->
+    <div class="cx-section-tag">06 / q-learning</div>
+    <h2>Q-Learning: Off-Policy TD Control</h2>
+    <p>Q-learning decouples the behavior policy (epsilon-greedy for exploration) from the target policy (greedy). The update bootstraps off the maximum Q-value in the next state, regardless of what action was actually taken. This makes it off-policy.</p>
+
+    <div class="cx-diagram">
+<span class="label">SARSA target:</span>   r + γ · Q(s', <span class="arrow">a'</span>)        a' ~ behavior policy
+<span class="label">Q-Learning target:</span> r + γ · <span class="arrow">max_a</span> Q(s', a)   always greedy
+
+<span class="label">Cliff Walking comparison:</span>
+  SARSA:      learns safe path (epsilon-aware)
+  Q-Learning: learns optimal path, but risky during training
+    </div>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">q_learning</span>(env, alpha=<span class="nm">0.1</span>, gamma=<span class="nm">0.99</span>, epsilon=<span class="nm">0.1</span>, n_episodes=<span class="nm">50_000</span>):
+    <span class="st">"""
+    Q-Learning: off-policy TD control.
+    Update rule:  Q(s,a) ← Q(s,a) + α[r + γ max_a' Q(s',a') - Q(s,a)]
+    """</span>
+    n_actions = env.action_space.n
+    Q = defaultdict(<span class="kw">lambda</span>: np.zeros(n_actions))
+
+    <span class="kw">def</span> <span class="fn">eps_greedy</span>(state):
+        <span class="kw">if</span> np.random.rand() &lt; epsilon:
+            <span class="kw">return</span> env.action_space.sample()
+        <span class="kw">return</span> int(np.argmax(Q[state]))
+
+    rewards_per_episode = []
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = env.reset()
+        done = <span class="kw">False</span>
+        ep_reward = <span class="nm">0.0</span>
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            action = eps_greedy(state)        <span class="cm"># behavior: epsilon-greedy</span>
+            next_state, reward, term, trunc, _ = env.step(action)
+            done = term <span class="kw">or</span> trunc
+
+            <span class="cm"># target uses greedy action (max) — off-policy</span>
+            best_next = np.max(Q[next_state]) * (<span class="nm">1</span> - done)
+            td_target = reward + gamma * best_next
+            Q[state][action] += alpha * (td_target - Q[state][action])
+
+            ep_reward += reward
+            state = next_state
+        rewards_per_episode.append(ep_reward)
+
+    <span class="kw">return</span> Q, rewards_per_episode
+    </div>
+
+    <div class="cx-callout green">
+      <strong>Convergence Guarantee</strong>
+      Q-learning converges to Q* under the conditions: all state-action pairs visited infinitely often (GLIE), step sizes satisfying Robbins-Monro (sum alpha_t = inf, sum alpha_t^2 &lt; inf), and bounded rewards.
+    </div>
+
+    <!-- ── 7. Eligibility Traces ───────────────────────────────── -->
+    <div class="cx-section-tag">07 / eligibility traces</div>
+    <h2>Eligibility Traces and TD(lambda)</h2>
+    <p>Eligibility traces provide a bridge between TD(0) (one-step bootstrap) and MC (full return). Each state maintains a trace e(s) that decays by gamma*lambda each step but spikes when visited. When a TD error occurs, all states with high traces receive proportional credit.</p>
+
+    <div class="cx-diagram">
+<span class="label">TD(0):</span>      ←─ update only current state
+<span class="label">TD(λ=0.5):</span>  ←────── blended credit assignment
+<span class="label">MC (TD(1)):</span> ←────────────────── full episode credit
+
+<span class="label">Trace update:</span>
+  e(s) ← γ·λ·e(s)       for all s ≠ current
+  e(s) ← γ·λ·e(s) + 1   for current state s (accumulating)
+
+<span class="label">Value update:</span>
+  V(s) ← V(s) + α·δ·e(s)    for all s
+         where δ = r + γV(s') - V(s)
+    </div>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">td_lambda_prediction</span>(env, policy, alpha=<span class="nm">0.1</span>, gamma=<span class="nm">0.99</span>,
+                           lam=<span class="nm">0.8</span>, n_episodes=<span class="nm">10_000</span>):
+    <span class="st">"""
+    TD(lambda) with accumulating eligibility traces for V(s) estimation.
+    lam=0 reduces to TD(0); lam=1 approximates MC under online updates.
+    """</span>
+    V = defaultdict(<span class="kw">float</span>)
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = env.reset()
+        e = defaultdict(<span class="kw">float</span>)             <span class="cm"># eligibility traces, reset each episode</span>
+        done = <span class="kw">False</span>
+
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            action = policy(state)
+            next_state, reward, term, trunc, _ = env.step(action)
+            done = term <span class="kw">or</span> trunc
+
+            <span class="cm"># compute TD error</span>
+            td_error = reward + gamma * V[next_state] * (<span class="nm">1</span> - done) - V[state]
+
+            <span class="cm"># update trace for current state (accumulating traces)</span>
+            e[state] += <span class="nm">1.0</span>
+
+            <span class="cm"># update all states proportionally to their trace</span>
+            <span class="kw">for</span> s <span class="kw">in</span> e:
+                V[s] += alpha * td_error * e[s]
+                e[s] *= gamma * lam          <span class="cm"># decay trace</span>
+
+            state = next_state
+    <span class="kw">return</span> V
+    </div>
+
+    <!-- ── 8. SARSA(lambda) ────────────────────────────────────── -->
+    <div class="cx-section-tag">08 / sarsa-lambda</div>
+    <h2>SARSA(lambda): Traces for Control</h2>
+    <p>Eligibility traces extend naturally to Q-learning. SARSA(lambda) propagates the TD error back through the recent trajectory, giving faster credit assignment than one-step SARSA.</p>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">sarsa_lambda</span>(env, alpha=<span class="nm">0.1</span>, gamma=<span class="nm">0.99</span>, lam=<span class="nm">0.8</span>,
+                   epsilon=<span class="nm">0.1</span>, n_episodes=<span class="nm">30_000</span>):
+    <span class="st">"""SARSA(lambda): on-policy TD control with eligibility traces."""</span>
+    n_actions = env.action_space.n
+    Q = defaultdict(<span class="kw">lambda</span>: np.zeros(n_actions))
+
+    <span class="kw">def</span> <span class="fn">eps_greedy</span>(state):
+        <span class="kw">if</span> np.random.rand() &lt; epsilon:
+            <span class="kw">return</span> env.action_space.sample()
+        <span class="kw">return</span> int(np.argmax(Q[state]))
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = env.reset()
+        action = eps_greedy(state)
+        e = defaultdict(<span class="kw">lambda</span>: np.zeros(n_actions))  <span class="cm"># Q-trace per (s,a)</span>
+        done = <span class="kw">False</span>
+
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            next_state, reward, term, trunc, _ = env.step(action)
+            done = term <span class="kw">or</span> trunc
+            next_action = eps_greedy(next_state)
+
+            td_error = (reward
+                        + gamma * Q[next_state][next_action] * (<span class="nm">1</span> - done)
+                        - Q[state][action])
+
+            e[state][action] += <span class="nm">1.0</span>            <span class="cm"># increment trace for current (s,a)</span>
+
+            <span class="kw">for</span> s <span class="kw">in</span> e:
+                Q[s] += alpha * td_error * e[s]
+                e[s] *= gamma * lam
+
+            state, action = next_state, next_action
+    <span class="kw">return</span> Q
+    </div>
+
+    <!-- ── 9. Comparison Table ────────────────────────────────── -->
+    <div class="cx-section-tag">09 / comparison</div>
+    <h2>Algorithm Comparison</h2>
+
+    <div class="cx-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Policy</th>
+            <th>Update Frequency</th>
+            <th>Bootstrap</th>
+            <th>Target</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>MC Prediction</td>
+            <td>Fixed</td>
+            <td>Episode end</td>
+            <td>None</td>
+            <td>G_t (full return)</td>
+            <td>Zero bias, high variance</td>
+          </tr>
+          <tr>
+            <td>TD(0)</td>
+            <td>Fixed</td>
+            <td>Every step</td>
+            <td>V(s')</td>
+            <td>r + gamma*V(s')</td>
+            <td>Low variance, some bias</td>
+          </tr>
+          <tr>
+            <td>SARSA</td>
+            <td>On-policy</td>
+            <td>Every step</td>
+            <td>Q(s',a')</td>
+            <td>r + gamma*Q(s',a')</td>
+            <td>Safe; learns policy risks</td>
+          </tr>
+          <tr>
+            <td>Q-Learning</td>
+            <td>Off-policy</td>
+            <td>Every step</td>
+            <td>max Q(s',·)</td>
+            <td>r + gamma*max Q(s',a)</td>
+            <td>Optimal; riskier during training</td>
+          </tr>
+          <tr>
+            <td>TD(lambda)</td>
+            <td>Fixed</td>
+            <td>Every step</td>
+            <td>Mixed</td>
+            <td>Blended n-step returns</td>
+            <td>Continuous MC/TD trade-off</td>
+          </tr>
+          <tr>
+            <td>SARSA(lambda)</td>
+            <td>On-policy</td>
+            <td>Every step</td>
+            <td>Mixed</td>
+            <td>Blended n-step returns</td>
+            <td>Faster credit assignment</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── 10. Double Q-Learning ──────────────────────────────── -->
+    <div class="cx-section-tag">10 / double q-learning</div>
+    <h2>Double Q-Learning</h2>
+    <p>Standard Q-learning suffers from maximization bias: using max Q(s',a) for both selection and evaluation of the next action overestimates values. Double Q-learning decouples selection from evaluation using two separate Q-tables.</p>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">double_q_learning</span>(env, alpha=<span class="nm">0.1</span>, gamma=<span class="nm">0.99</span>,
+                        epsilon=<span class="nm">0.1</span>, n_episodes=<span class="nm">50_000</span>):
+    <span class="st">"""
+    Double Q-Learning: reduces maximization bias.
+    Q1 selects the greedy action; Q2 evaluates it (and vice versa with 50% prob).
+    Update:  Q1(s,a) ← Q1(s,a) + α[r + γ·Q2(s', argmax_a Q1(s',a)) - Q1(s,a)]
+    """</span>
+    n_actions = env.action_space.n
+    Q1 = defaultdict(<span class="kw">lambda</span>: np.zeros(n_actions))
+    Q2 = defaultdict(<span class="kw">lambda</span>: np.zeros(n_actions))
+
+    <span class="kw">def</span> <span class="fn">eps_greedy</span>(state):
+        <span class="kw">if</span> np.random.rand() &lt; epsilon:
+            <span class="kw">return</span> env.action_space.sample()
+        <span class="cm"># act greedy on combined Q</span>
+        <span class="kw">return</span> int(np.argmax(Q1[state] + Q2[state]))
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = env.reset()
+        done = <span class="kw">False</span>
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            action = eps_greedy(state)
+            next_state, reward, term, trunc, _ = env.step(action)
+            done = term <span class="kw">or</span> trunc
+
+            <span class="kw">if</span> np.random.rand() &lt; <span class="nm">0.5</span>:
+                <span class="cm"># update Q1: select with Q1, evaluate with Q2</span>
+                best_a = int(np.argmax(Q1[next_state]))
+                td_target = reward + gamma * Q2[next_state][best_a] * (<span class="nm">1</span> - done)
+                Q1[state][action] += alpha * (td_target - Q1[state][action])
+            <span class="kw">else</span>:
+                <span class="cm"># update Q2: select with Q2, evaluate with Q1</span>
+                best_a = int(np.argmax(Q2[next_state]))
+                td_target = reward + gamma * Q1[next_state][best_a] * (<span class="nm">1</span> - done)
+                Q2[state][action] += alpha * (td_target - Q2[state][action])
+
+            state = next_state
+    <span class="kw">return</span> Q1, Q2
+    </div>
+
+    <div class="cx-callout yellow">
+      <strong>Practical Note: Hyperparameter Sensitivity</strong>
+      Alpha (learning rate) dominates convergence speed. Alpha too large causes oscillation; too small causes slow learning. Common starting points: alpha=0.1 for tabular, alpha=1e-3 to 1e-4 for neural approximators. Epsilon decay schedules (linear from 1.0 to 0.01 over training) are standard.
+    </div>
+
+    <!-- ── 11. n-Step Returns ─────────────────────────────────── -->
+    <div class="cx-section-tag">11 / n-step returns</div>
+    <h2>n-Step Returns</h2>
+    <p>n-step methods generalize the one-step TD target by accumulating rewards over n steps before bootstrapping. This unifies TD(0) (n=1) and MC (n=infinity) into a single family.</p>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">n_step_td</span>(env, policy, n=<span class="nm">5</span>, alpha=<span class="nm">0.1</span>, gamma=<span class="nm">0.99</span>, n_episodes=<span class="nm">5000</span>):
+    <span class="st">"""
+    n-step TD prediction.
+    G_{t:t+n} = R_{t+1} + gamma*R_{t+2} + ... + gamma^(n-1)*R_{t+n} + gamma^n * V(S_{t+n})
+    """</span>
+    V = defaultdict(<span class="kw">float</span>)
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = env.reset()
+        states  = [state]
+        rewards = [<span class="nm">0.0</span>]                  <span class="cm"># index 0 is placeholder</span>
+        done = <span class="kw">False</span>
+        T = <span class="kw">float</span>(<span class="st">'inf'</span>)
+        t = <span class="nm">0</span>
+
+        <span class="kw">while</span> <span class="kw">True</span>:
+            <span class="kw">if</span> t &lt; T:
+                action = policy(states[t])
+                next_state, reward, term, trunc, _ = env.step(action)
+                states.append(next_state)
+                rewards.append(reward)
+                <span class="kw">if</span> term <span class="kw">or</span> trunc:
+                    T = t + <span class="nm">1</span>
+
+            tau = t - n + <span class="nm">1</span>             <span class="cm"># state being updated</span>
+            <span class="kw">if</span> tau >= <span class="nm">0</span>:
+                <span class="cm"># accumulate n-step return</span>
+                G = sum(gamma**(i - tau - <span class="nm">1</span>) * rewards[i]
+                        <span class="kw">for</span> i <span class="kw">in</span> range(tau + <span class="nm">1</span>, min(tau + n, T) + <span class="nm">1</span>))
+                <span class="kw">if</span> tau + n &lt; T:
+                    G += gamma**n * V[states[tau + n]]
+                s_tau = states[tau]
+                V[s_tau] += alpha * (G - V[s_tau])
+
+            <span class="kw">if</span> tau == T - <span class="nm">1</span>:
+                <span class="kw">break</span>
+            t += <span class="nm">1</span>
+    <span class="kw">return</span> V
+    </div>
+
+    <div class="cx-callout">
+      <strong>Looking Ahead: Deep Q-Networks</strong>
+      Tabular Q-learning scales only to small state spaces. When states are continuous or high-dimensional (e.g., pixel observations), we replace the Q-table with a neural network. The next module introduces DQN, experience replay, and the target network tricks that make deep RL stable.
+    </div>
+
+    <nav class="cx-nav-footer">
+      <a href="cx-rl-02.html" class="cx-nav-btn">
+        <span class="dir">Previous</span>
+        Dynamic Programming
+      </a>
+      <a href="cx-rl-04.html" class="cx-nav-btn">
+        <span class="dir">Next</span>
+        Deep Q-Networks
+      </a>
+    </nav>
+  </div>
+
+  <script src="../../../../../components/FluxCapacitor.js"></script>
+  <script>
+    // Mark module complete at 80% scroll depth
+    const MODULE_ID = 'cx-rl-03';
+    const HOUSE_ID  = 'ai';
+    let marked = false;
+    window.addEventListener('scroll', function() {
+      if (marked) return;
+      const scrolled = window.scrollY + window.innerHeight;
+      const total    = document.documentElement.scrollHeight;
+      if (scrolled / total >= 0.80) {
+        marked = true;
+        if (typeof ModuleProgress !== 'undefined') {
+          ModuleProgress.complete(HOUSE_ID, MODULE_ID);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

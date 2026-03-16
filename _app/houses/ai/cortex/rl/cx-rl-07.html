@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../../components/ModuleProgress.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Agent RL — The Cortex</title>
+  <style>
+    :root{--accent:#8b5cf6;--accent-dim:#6d28d9;--bg:#0f0f13;--surface:#1a1a24;--surface2:#22223a;--border:#2e2e48;--text:#e2e8f0;--text-muted:#94a3b8;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;line-height:1.7;overflow-x:hidden;}
+    .cx-particle-field{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+    .cx-particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--accent);opacity:var(--o,.15);animation:cx-drift 22s linear infinite;}
+    @keyframes cx-drift{from{transform:translateY(100vh)}to{transform:translateY(-10vh) translateX(50px)}}
+    .cx-wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+    .cx-breadcrumb{font-size:.78rem;color:var(--text-muted);margin-bottom:2rem;display:flex;gap:.4rem;flex-wrap:wrap;}
+    .cx-breadcrumb a{color:var(--text-muted);text-decoration:none;}.cx-breadcrumb a:hover{color:var(--accent);}.cx-breadcrumb span{color:var(--accent);}
+    .cx-hero-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:.4rem;}
+    .cx-hero-title{font-size:2.2rem;font-weight:800;line-height:1.1;margin-bottom:.75rem;}
+    .cx-hero-desc{color:var(--text-muted);max-width:640px;font-size:.97rem;margin-bottom:2rem;}
+    h2{font-size:1.25rem;font-weight:700;margin:2.5rem 0 1rem;}
+    h3{font-size:1rem;font-weight:600;margin:1.5rem 0 .5rem;color:var(--accent);}
+    p{margin-bottom:1rem;color:var(--text-muted);font-size:.95rem;}
+    .cx-code{background:#0d0d14;border:1px solid var(--border);border-radius:8px;padding:1.25rem 1.5rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.82rem;line-height:1.7;overflow-x:auto;margin:1rem 0;color:#c4b5fd;}
+    .cx-code .cm{color:#4b5563;}.cx-code .kw{color:#8b5cf6;}.cx-code .fn{color:#34d399;}.cx-code .st{color:#fbbf24;}.cx-code .nm{color:#f9a8d4;}.cx-code .dc{color:#7dd3fc;}
+    .cx-callout{border-left:3px solid var(--accent);background:var(--surface);border-radius:0 8px 8px 0;padding:1rem 1.25rem;margin:1.5rem 0;font-size:.9rem;}
+    .cx-callout.green{border-color:var(--green);}.cx-callout.yellow{border-color:var(--yellow);}
+    .cx-callout strong{color:var(--text);display:block;margin-bottom:.25rem;}
+    .cx-table-wrap{overflow-x:auto;margin:1.5rem 0;}
+    table{width:100%;border-collapse:collapse;font-size:.85rem;}
+    th{background:var(--surface2);color:var(--accent);font-weight:600;padding:.6rem 1rem;text-align:left;border-bottom:2px solid var(--border);}
+    td{padding:.55rem 1rem;border-bottom:1px solid var(--border);color:var(--text-muted);vertical-align:top;}
+    tr:last-child td{border-bottom:none;}
+    .cx-diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.5rem 0;font-family:monospace;font-size:.82rem;line-height:1.8;overflow-x:auto;}
+    .cx-diagram .label{color:var(--accent);font-weight:700;}
+    .cx-section-tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;font-size:.72rem;color:var(--text-muted);padding:.15rem .5rem;margin-bottom:1.5rem;font-family:monospace;}
+    .cx-nav-footer{display:flex;justify-content:space-between;gap:1rem;margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);}
+    .cx-nav-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1.25rem;color:var(--text-muted);text-decoration:none;font-size:.88rem;transition:border-color .2s,color .2s;}
+    .cx-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .cx-nav-btn .dir{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.15rem;}
+    .cx-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin:1.5rem 0;}
+    .cx-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;}
+    .cx-card h4{font-size:.88rem;font-weight:700;color:var(--text);margin-bottom:.4rem;}
+    .cx-card p{font-size:.82rem;margin:0;color:var(--text-muted);}
+  </style>
+</head>
+<body>
+  <div class="cx-particle-field" aria-hidden="true">
+    <span class="cx-particle" style="left:5%;animation-delay:0s;--o:.1"></span>
+    <span class="cx-particle" style="left:20%;animation-delay:7s;--o:.12"></span>
+    <span class="cx-particle" style="left:36%;animation-delay:11s;--o:.09"></span>
+    <span class="cx-particle" style="left:50%;animation-delay:3s;--o:.11"></span>
+    <span class="cx-particle" style="left:65%;animation-delay:9s;--o:.08"></span>
+    <span class="cx-particle" style="left:79%;animation-delay:14s;--o:.1"></span>
+    <span class="cx-particle" style="left:91%;animation-delay:5s;--o:.09"></span>
+  </div>
+
+  <div class="cx-wrap">
+    <nav class="cx-breadcrumb">
+      <a href="../../../../../index.html">Home</a><span>/</span>
+      <a href="../../../../index.html">AI House</a><span>/</span>
+      <a href="../index.html">The Cortex</a><span>/</span>
+      <a href="index.html">Reinforcement Learning</a><span>/</span>
+      <span>Multi-Agent RL</span>
+    </nav>
+
+    <div class="cx-hero-label">Reinforcement Learning — Module 07</div>
+    <h1 class="cx-hero-title">Multi-Agent Reinforcement Learning</h1>
+    <p class="cx-hero-desc">When multiple agents share an environment, each agent's optimal behavior depends on all others. MARL addresses cooperative, competitive, and mixed settings — from network intrusion teams to financial markets.</p>
+
+    <!-- ── 1. MARL Fundamentals ─────────────────────────────── -->
+    <div class="cx-section-tag">01 / fundamentals</div>
+    <h2>MARL Fundamentals</h2>
+    <p>Single-agent RL assumes a stationary environment. In MARL, the environment is non-stationary from each agent's perspective because other agents are also learning and changing their policies. This breaks the convergence guarantees of standard RL algorithms.</p>
+
+    <div class="cx-diagram">
+<span class="label">Decentralized Partially Observable MDP (Dec-POMDP):</span>
+  N agents, each with local observation o_i (not full state s)
+  Each agent i has its own policy: pi_i(a_i | o_i)
+  Joint action: a = (a_1, ..., a_N)
+  Global reward: r(s, a) — shared in cooperative tasks
+  Individual rewards: r_i(s, a) — competitive tasks
+
+<span class="label">Challenge: Non-stationarity</span>
+  From agent i's view: environment transitions depend on a_{-i}
+  Other agents' policies change during training → moving target problem
+    </div>
+
+    <!-- ── 2. Taxonomy ─────────────────────────────────────── -->
+    <div class="cx-section-tag">02 / taxonomy</div>
+    <h2>MARL Taxonomy</h2>
+
+    <div class="cx-card-grid">
+      <div class="cx-card">
+        <h4>Fully Cooperative</h4>
+        <p>All agents share a single global reward. Goal: maximize team performance. Example: robot swarm coordination, multi-UAV coverage.</p>
+      </div>
+      <div class="cx-card">
+        <h4>Fully Competitive</h4>
+        <p>Zero-sum: one agent's gain is another's loss. Nash equilibrium is the solution concept. Example: poker, chess, adversarial red vs blue.</p>
+      </div>
+      <div class="cx-card">
+        <h4>Mixed (General-Sum)</h4>
+        <p>Agents have partially overlapping goals. Example: trading markets, network congestion control, negotiation.</p>
+      </div>
+      <div class="cx-card">
+        <h4>Team Competition</h4>
+        <p>Cooperative within a team, competitive between teams. Example: 5v5 game AI, red team vs blue team security simulation.</p>
+      </div>
+    </div>
+
+    <!-- ── 3. CTDE Paradigm ────────────────────────────────── -->
+    <div class="cx-section-tag">03 / ctde</div>
+    <h2>Centralized Training, Decentralized Execution (CTDE)</h2>
+    <p>CTDE is the dominant MARL paradigm. During training, agents share observations and a central critic has access to global state. At execution time, each agent acts using only its local observation — enabling deployment in environments without a central coordinator.</p>
+
+    <div class="cx-diagram">
+<span class="label">Training:</span>
+  Central Critic: Q(s, a_1, ..., a_N)  — uses full state + all actions
+  Agents share experiences via shared replay buffer or shared parameters
+
+<span class="label">Execution:</span>
+  Agent i: a_i = pi_i(o_i)             — only local observation
+  No communication required at deployment
+
+<span class="label">Algorithms using CTDE:</span>
+  MADDPG — continuous actions, cooperative/competitive
+  QMIX   — cooperative, factorized Q-function
+  MAPPO  — PPO with centralized value function
+    </div>
+
+    <!-- ── 4. Independent Q-Learning ──────────────────────── -->
+    <div class="cx-section-tag">04 / iql</div>
+    <h2>Independent Q-Learning (IQL)</h2>
+    <p>The simplest MARL baseline: treat other agents as part of the environment and train each agent independently with Q-learning. Ignores the non-stationarity problem, but works surprisingly well in practice for loosely coupled agents.</p>
+
+    <div class="cx-code">
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> collections <span class="kw">import</span> defaultdict
+
+<span class="kw">class</span> <span class="fn">IQLAgent</span>:
+    <span class="st">"""
+    Independent Q-Learner: standard Q-learning treating other agents as noise.
+    Each agent maintains its own Q-table indexed by local observation.
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, agent_id, n_actions, alpha=<span class="nm">0.1</span>, gamma=<span class="nm">0.99</span>, epsilon=<span class="nm">0.1</span>):
+        self.id       = agent_id
+        self.n_actions = n_actions
+        self.alpha    = alpha
+        self.gamma    = gamma
+        self.epsilon  = epsilon
+        self.Q        = defaultdict(<span class="kw">lambda</span>: np.zeros(n_actions))
+
+    <span class="kw">def</span> <span class="fn">select_action</span>(self, obs):
+        <span class="kw">if</span> np.random.rand() &lt; self.epsilon:
+            <span class="kw">return</span> np.random.randint(self.n_actions)
+        <span class="kw">return</span> int(np.argmax(self.Q[obs]))
+
+    <span class="kw">def</span> <span class="fn">update</span>(self, obs, action, reward, next_obs, done):
+        best_next = np.max(self.Q[next_obs]) * (<span class="nm">1</span> - done)
+        td_target = reward + self.gamma * best_next
+        self.Q[obs][action] += self.alpha * (td_target - self.Q[obs][action])
+
+
+<span class="kw">def</span> <span class="fn">run_iql</span>(env, n_agents, n_episodes=<span class="nm">10_000</span>):
+    <span class="st">"""Run IQL on a multi-agent environment with n_agents agents."""</span>
+    agents = [IQLAgent(i, env.action_space[i].n) <span class="kw">for</span> i <span class="kw">in</span> range(n_agents)]
+    rewards_log = []
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        obs, _ = env.reset()                    <span class="cm"># obs is a dict/list per agent</span>
+        done   = {i: <span class="kw">False</span> <span class="kw">for</span> i <span class="kw">in</span> range(n_agents)}
+        ep_rew = np.zeros(n_agents)
+
+        <span class="kw">while</span> <span class="kw">not</span> all(done.values()):
+            actions = {i: agents[i].select_action(obs[i]) <span class="kw">for</span> i <span class="kw">in</span> range(n_agents)}
+            next_obs, rewards, terminateds, truncateds, _ = env.step(actions)
+
+            <span class="kw">for</span> i <span class="kw">in</span> range(n_agents):
+                d = terminateds[i] <span class="kw">or</span> truncateds[i]
+                agents[i].update(obs[i], actions[i], rewards[i], next_obs[i], d)
+                done[i]  = d
+                ep_rew[i] += rewards[i]
+
+            obs = next_obs
+        rewards_log.append(ep_rew.sum())
+
+    <span class="kw">return</span> agents, rewards_log
+    </div>
+
+    <!-- ── 5. MADDPG ───────────────────────────────────────── -->
+    <div class="cx-section-tag">05 / maddpg</div>
+    <h2>Multi-Agent DDPG (MADDPG)</h2>
+    <p>MADDPG extends CTDE to continuous action spaces. Each agent i has its own actor pi_i(o_i) but a centralized critic Q_i(s, a_1,...,a_N) that observes the joint state and all agents' actions during training.</p>
+
+    <div class="cx-code">
+<span class="kw">import</span> torch
+<span class="kw">import</span> torch.nn <span class="kw">as</span> nn
+
+<span class="kw">class</span> <span class="fn">MADDPGCritic</span>(nn.Module):
+    <span class="st">"""
+    Centralized critic for agent i: takes global state + all agents' actions.
+    obs_dim:    dimension of global state (concatenated all agent obs)
+    all_act_dim: sum of all agents' action dimensions
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, all_act_dim, hidden=<span class="nm">256</span>):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim + all_act_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden),                nn.ReLU(),
+            nn.Linear(hidden, <span class="nm">1</span>),
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, global_obs, all_actions):
+        <span class="cm"># concatenate full state and all agents' actions</span>
+        x = torch.cat([global_obs, all_actions], dim=-<span class="nm">1</span>)
+        <span class="kw">return</span> self.net(x).squeeze(-<span class="nm">1</span>)
+
+
+<span class="kw">class</span> <span class="fn">MADDPGActor</span>(nn.Module):
+    <span class="st">"""Decentralized actor: only uses local observation at execution time."""</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, action_dim, hidden=<span class="nm">128</span>):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden),  nn.ReLU(),
+            nn.Linear(hidden, action_dim), nn.Tanh(),  <span class="cm"># bounded actions</span>
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, local_obs):
+        <span class="kw">return</span> self.net(local_obs)
+
+
+<span class="kw">def</span> <span class="fn">maddpg_critic_loss</span>(critic, target_critic, target_actors,
+                       batch, gamma=<span class="nm">0.99</span>):
+    <span class="st">"""
+    Compute critic loss for one agent in MADDPG.
+    batch: dict with 'obs' (all agents), 'actions' (all), 'rewards' (agent i),
+           'next_obs' (all), 'dones' (agent i)
+    """</span>
+    obs, actions, rewards = batch[<span class="st">'obs'</span>], batch[<span class="st">'actions'</span>], batch[<span class="st">'rewards'</span>]
+    next_obs, dones       = batch[<span class="st">'next_obs'</span>], batch[<span class="st">'dones'</span>]
+
+    <span class="kw">with</span> torch.no_grad():
+        <span class="cm"># compute all target actions using target actor networks</span>
+        target_actions = torch.cat(
+            [ta(next_obs[j]) <span class="kw">for</span> j, ta <span class="kw">in</span> enumerate(target_actors)], dim=-<span class="nm">1</span>
+        )
+        global_next_obs = torch.cat(next_obs, dim=-<span class="nm">1</span>)
+        next_q = target_critic(global_next_obs, target_actions)
+        td_target = rewards + gamma * next_q * (<span class="nm">1</span> - dones)
+
+    global_obs = torch.cat(obs, dim=-<span class="nm">1</span>)
+    all_actions = torch.cat(actions, dim=-<span class="nm">1</span>)
+    q_pred = critic(global_obs, all_actions)
+    <span class="kw">return</span> nn.functional.mse_loss(q_pred, td_target)
+    </div>
+
+    <!-- ── 6. QMIX ─────────────────────────────────────────── -->
+    <div class="cx-section-tag">06 / qmix</div>
+    <h2>QMIX: Value Decomposition for Cooperative Agents</h2>
+    <p>In cooperative settings, QMIX decomposes the joint Q-function into per-agent utility functions Q_i(o_i, a_i) combined through a monotone mixing network. This guarantees that the greedy joint action equals the combination of individual greedy actions — enabling decentralized execution.</p>
+
+    <div class="cx-diagram">
+<span class="label">Joint Q-function factorization:</span>
+  Q_tot(s, a_1,...,a_N) = f(Q_1(o_1,a_1), ..., Q_N(o_N,a_N); s)
+
+  f is a monotone mixing network (all weights non-negative via abs())
+  Monotonicity ensures: argmax Q_tot = (argmax Q_1, ..., argmax Q_N)
+
+<span class="label">Mixing Network:</span>
+  Input:  Q_1, ..., Q_N (scalar utilities)
+  Hidden: weights generated by hypernetwork conditioned on global state s
+  Output: Q_tot (scalar)
+
+<span class="label">Why monotonicity matters:</span>
+  Agents can act greedily on their own Q_i → decentralized execution
+  No need for joint optimization at execution time
+    </div>
+
+    <!-- ── 7. Emergent Behavior ────────────────────────────── -->
+    <div class="cx-section-tag">07 / emergent behavior</div>
+    <h2>Emergent Behavior in MARL</h2>
+    <p>When agents learn in shared environments without explicit coordination programs, complex group behaviors emerge from individual interactions. OpenAI's hide-and-seek agents discovered tool use, ramp construction, and box surfing — behaviors never programmed.</p>
+
+    <div class="cx-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Environment</th>
+            <th>Emergent Behavior</th>
+            <th>Agents</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>OpenAI Hide and Seek</td>
+            <td>Ramp blocking, box surfing, tool use</td>
+            <td>2 hiders vs 2 seekers</td>
+          </tr>
+          <tr>
+            <td>StarCraft Multi-Agent (SMAC)</td>
+            <td>Flanking, focus fire, kiting</td>
+            <td>8-27 marines/zerglings</td>
+          </tr>
+          <tr>
+            <td>OpenAI Five (Dota 2)</td>
+            <td>Coordinated teamfights, warding, draft</td>
+            <td>5 heroes per team</td>
+          </tr>
+          <tr>
+            <td>AlphaStar (StarCraft II)</td>
+            <td>Economy management, multi-unit micro</td>
+            <td>Single agent vs human</td>
+          </tr>
+          <tr>
+            <td>NetSecGame</td>
+            <td>Lateral movement, persistence tactics</td>
+            <td>Attacker + defender</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── 8. MARL for Security ────────────────────────────── -->
+    <div class="cx-section-tag">08 / security</div>
+    <h2>MARL for Security Applications</h2>
+    <p>Red vs blue team simulation maps naturally onto competitive MARL. Red agents (attackers) and blue agents (defenders) each learn optimal strategies against adaptive opponents — producing more robust security policies than hand-crafted rules.</p>
+
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">NetworkSecurityEnv</span>:
+    <span class="st">"""
+    Simplified red vs blue environment.
+    Red agent: chooses exploitation paths through a network graph.
+    Blue agent: chooses which nodes to patch or monitor.
+    State: (node_compromised[N], node_patched[N], alert_level)
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, n_nodes=<span class="nm">10</span>, n_services=<span class="nm">3</span>):
+        self.n_nodes    = n_nodes
+        self.n_services = n_services
+        self.compromised = np.zeros(n_nodes, dtype=bool)
+        self.patched     = np.zeros(n_nodes, dtype=bool)
+        self.alert_level = <span class="nm">0</span>
+
+    <span class="kw">def</span> <span class="fn">red_step</span>(self, target_node, service):
+        <span class="st">"""Red agent attempts exploitation."""</span>
+        reward = <span class="nm">0.0</span>
+        success_prob = <span class="nm">0.7</span> <span class="kw">if</span> <span class="kw">not</span> self.patched[target_node] <span class="kw">else</span> <span class="nm">0.1</span>
+        <span class="kw">if</span> np.random.rand() &lt; success_prob:
+            self.compromised[target_node] = <span class="kw">True</span>
+            reward += <span class="nm">10.0</span>                <span class="cm"># reward for compromise</span>
+        self.alert_level += <span class="nm">1</span>           <span class="cm"># exploitation increases noise</span>
+        <span class="kw">return</span> reward
+
+    <span class="kw">def</span> <span class="fn">blue_step</span>(self, node_to_patch, node_to_monitor):
+        <span class="st">"""Blue agent patches vulnerability and monitors a node."""</span>
+        reward = <span class="nm">0.0</span>
+        self.patched[node_to_patch] = <span class="kw">True</span>
+        <span class="kw">if</span> self.compromised[node_to_monitor]:
+            reward += <span class="nm">5.0</span>              <span class="cm"># reward for detecting compromise</span>
+            self.compromised[node_to_monitor] = <span class="kw">False</span>  <span class="cm"># remediation</span>
+        reward -= <span class="nm">0.1</span> * self.alert_level   <span class="cm"># cost of unpatched alerts</span>
+        <span class="kw">return</span> reward
+
+    <span class="kw">def</span> <span class="fn">get_red_obs</span>(self):
+        <span class="kw">return</span> np.concatenate([self.compromised.astype(float),
+                               self.patched.astype(float),
+                               [self.alert_level / <span class="nm">100.0</span>]])
+
+    <span class="kw">def</span> <span class="fn">get_blue_obs</span>(self):
+        <span class="cm"># blue has partial observation: sees alerts but not full compromise state</span>
+        visible = self.compromised & (np.random.rand(self.n_nodes) &gt; <span class="nm">0.5</span>)
+        <span class="kw">return</span> np.concatenate([visible.astype(float),
+                               self.patched.astype(float),
+                               [self.alert_level / <span class="nm">100.0</span>]])
+    </div>
+
+    <!-- ── 9. Key Challenges ───────────────────────────────── -->
+    <div class="cx-section-tag">09 / challenges</div>
+    <h2>Key MARL Challenges</h2>
+
+    <div class="cx-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Challenge</th>
+            <th>Description</th>
+            <th>Mitigation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Non-stationarity</td>
+            <td>Other agents' policies change during training</td>
+            <td>CTDE, opponent modeling, experience replay with age filtering</td>
+          </tr>
+          <tr>
+            <td>Credit assignment</td>
+            <td>Which agent deserves credit for team reward?</td>
+            <td>QMIX, COMA (counterfactual baseline), difference rewards</td>
+          </tr>
+          <tr>
+            <td>Scalability</td>
+            <td>Joint action space grows exponentially with N agents</td>
+            <td>Value decomposition (QMIX), mean-field approximation</td>
+          </tr>
+          <tr>
+            <td>Communication</td>
+            <td>How should agents share information?</td>
+            <td>CommNet, DIAL, attention-based communication protocols</td>
+          </tr>
+          <tr>
+            <td>Equilibrium selection</td>
+            <td>Multiple Nash equilibria; which to converge to?</td>
+            <td>Self-play, fictitious play, population-based training</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cx-callout yellow">
+      <strong>Self-Play: The Foundation of Game-Playing AI</strong>
+      AlphaGo, AlphaStar, and OpenAI Five all use self-play: agents train against past versions of themselves. This creates a curriculum of gradually improving opponents, avoiding the instability of two fully adversarial agents learning simultaneously.
+    </div>
+
+    <div class="cx-callout green">
+      <strong>PettingZoo: MARL Environments</strong>
+      PettingZoo (pip install pettingzoo) provides a standardized API for MARL environments analogous to Gymnasium for single-agent RL. Includes classic board games, Atari multi-player, MPE (multi-particle environments), and SISL cooperative tasks.
+    </div>
+
+    <nav class="cx-nav-footer">
+      <a href="cx-rl-06.html" class="cx-nav-btn">
+        <span class="dir">Previous</span>
+        PPO and Advanced Algorithms
+      </a>
+      <a href="cx-rl-08.html" class="cx-nav-btn">
+        <span class="dir">Next</span>
+        RL for Security
+      </a>
+    </nav>
+  </div>
+
+  <script src="../../../../../components/FluxCapacitor.js"></script>
+  <script>
+    const MODULE_ID = 'cx-rl-07';
+    const HOUSE_ID  = 'ai';
+    let marked = false;
+    window.addEventListener('scroll', function() {
+      if (marked) return;
+      const scrolled = window.scrollY + window.innerHeight;
+      const total    = document.documentElement.scrollHeight;
+      if (scrolled / total >= 0.80) {
+        marked = true;
+        if (typeof ModuleProgress !== 'undefined') {
+          ModuleProgress.complete(HOUSE_ID, MODULE_ID);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

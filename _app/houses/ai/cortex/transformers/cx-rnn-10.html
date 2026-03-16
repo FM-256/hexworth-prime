@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../../components/ModuleProgress.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hands-On: BERT Sentiment — The Cortex</title>
+  <style>
+    :root {
+      --accent: #8b5cf6;
+      --accent-dim: #6d28d9;
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #22223a;
+      --border: #2e2e48;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; line-height: 1.7; }
+
+    .cx-particle-field { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .cx-particle { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--accent); opacity: var(--o, 0.15); animation: cx-drift 20s linear infinite; }
+    @keyframes cx-drift { from { transform: translateY(100vh); } to { transform: translateY(-10vh) translateX(40px); } }
+
+    .cx-module-wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    .cx-breadcrumb { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 2rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .cx-breadcrumb a { color: var(--text-muted); text-decoration: none; }
+    .cx-breadcrumb a:hover { color: var(--accent); }
+    .cx-breadcrumb span { color: var(--accent); }
+
+    .cx-module-header { margin-bottom: 2.5rem; }
+    .cx-module-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.5rem; }
+    .cx-module-title { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.75rem; }
+    .cx-module-subtitle { color: var(--text-muted); font-size: 1rem; }
+
+    .objectives { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; }
+    .objectives h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.75rem; }
+    .objectives ul { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+    .objectives ul li::before { content: '-> '; color: var(--accent); font-weight: 700; }
+    .objectives ul li { font-size: 0.95rem; }
+
+    .section-title { font-size: 1.3rem; font-weight: 700; color: var(--accent); margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+    .content-text { color: var(--text-muted); margin-bottom: 1rem; font-size: 0.97rem; }
+
+    .phase-badge { display: inline-block; background: var(--surface2); border: 1px solid var(--accent); color: var(--accent); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.2rem 0.6rem; border-radius: 4px; margin-bottom: 0.6rem; }
+
+    .code-block { background: #0d0d14; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.4rem; margin: 1.25rem 0; overflow-x: auto; }
+    .code-block pre { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.84rem; line-height: 1.65; white-space: pre; }
+    .kw { color: #f87171; }
+    .str { color: #60a5fa; }
+    .cm { color: #6b7280; font-style: italic; }
+    .num { color: #60a5fa; }
+    .out { color: #34d399; }
+    .hl { background: rgba(139,92,246,0.15); border-radius: 3px; padding: 0 2px; }
+
+    .diagram-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin: 1.25rem 0; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.8; color: var(--text-muted); overflow-x: auto; }
+    .diagram-box .d-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 1rem; font-family: 'Segoe UI', sans-serif; }
+    .diagram-box .d-hl { color: var(--accent); font-weight: 700; }
+    .diagram-box .d-green { color: var(--green); }
+    .diagram-box .d-yellow { color: var(--yellow); }
+
+    .callout--info  { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); border-radius: 6px; padding: 1rem 1.25rem; margin: 1.25rem 0; font-size: 0.93rem; color: var(--text-muted); }
+    .callout--warn  { background: rgba(245,158,11,0.08); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 1rem 1.25rem; margin: 1.25rem 0; font-size: 0.93rem; color: var(--text-muted); }
+    .callout--info strong, .callout--warn strong { color: var(--text); display: block; margin-bottom: 0.3rem; }
+
+    .state-table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: 0.88rem; }
+    .state-table th { background: var(--surface2); color: var(--accent); text-align: left; padding: 0.6rem 0.9rem; border: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .state-table td { padding: 0.55rem 0.9rem; border: 1px solid var(--border); color: var(--text-muted); vertical-align: top; }
+    .state-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+    .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin: 1.25rem 0; }
+    .result-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+    .result-card .metric { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+    .result-card .label  { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.2rem; }
+
+    .try-it { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+    .try-it h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--green); margin-bottom: 0.75rem; }
+    .try-it ol { padding-left: 1.2rem; color: var(--text-muted); font-size: 0.92rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .takeaways { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+    .takeaways h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.75rem; }
+    .takeaways ul { list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
+    .takeaways ul li::before { content: '[+] '; color: var(--accent); font-family: monospace; }
+    .takeaways ul li { font-size: 0.93rem; color: var(--text-muted); }
+
+    .course-complete { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(16,185,129,0.08)); border: 1px solid var(--accent); border-radius: 10px; padding: 1.75rem; margin: 2.5rem 0; text-align: center; }
+    .course-complete h3 { color: var(--accent); font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .course-complete p { color: var(--text-muted); font-size: 0.93rem; }
+
+    .nav-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .nav-btn { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; padding: 0.6rem 1.1rem; border-radius: 6px; font-size: 0.88rem; transition: all 0.2s; }
+    .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .nav-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .nav-btn.primary:hover { background: var(--accent-dim); }
+
+    .cx-progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0%; z-index: 100; transition: width 0.2s; }
+  </style>
+</head>
+<body>
+  <div class="cx-progress-bar" id="progressBar"></div>
+
+  <div class="cx-particle-field" aria-hidden="true">
+    <span class="cx-particle" style="left:6%;animation-delay:0s;--o:0.14"></span>
+    <span class="cx-particle" style="left:18%;animation-delay:3s;--o:0.09"></span>
+    <span class="cx-particle" style="left:31%;animation-delay:6s;--o:0.13"></span>
+    <span class="cx-particle" style="left:47%;animation-delay:1s;--o:0.11"></span>
+    <span class="cx-particle" style="left:63%;animation-delay:8s;--o:0.08"></span>
+    <span class="cx-particle" style="left:77%;animation-delay:4s;--o:0.15"></span>
+    <span class="cx-particle" style="left:92%;animation-delay:10s;--o:0.1"></span>
+  </div>
+
+  <div class="cx-module-wrap">
+    <nav class="cx-breadcrumb" aria-label="breadcrumb">
+      <a href="../../../../../index.html">Home</a><span>/</span>
+      <a href="../../../../index.html">AI House</a><span>/</span>
+      <a href="../index.html">The Cortex</a><span>/</span>
+      <a href="index.html">RNNs &amp; Transformers</a><span>/</span>
+      <span>Hands-On: BERT Sentiment</span>
+    </nav>
+
+    <header class="cx-module-header">
+      <div class="cx-module-label">Module 10 of 10 — RNNs &amp; Transformers</div>
+      <h1 class="cx-module-title">Hands-On: BERT Sentiment Analysis</h1>
+      <p class="cx-module-subtitle">End-to-end fine-tuning pipeline — dataset loading, tokenization, training loop, evaluation metrics, and error analysis on IMDb reviews.</p>
+    </header>
+
+    <div class="objectives">
+      <h3>Learning Objectives</h3>
+      <ul>
+        <li>Build a complete BERT fine-tuning pipeline from data loading to inference</li>
+        <li>Handle tokenization edge cases: truncation, special tokens, attention masks</li>
+        <li>Apply best-practice training: linear warm-up, gradient clipping, mixed precision</li>
+        <li>Evaluate with F1, confusion matrix, and per-class precision/recall</li>
+        <li>Perform error analysis to identify systematic failure patterns</li>
+      </ul>
+    </div>
+
+    <!-- Overview -->
+    <div class="diagram-box">
+      <div class="d-title">Full Pipeline Overview</div>
+<span class="d-hl">Phase 1</span>  Dataset      -- Load IMDb, split train/val/test, inspect class balance
+<span class="d-hl">Phase 2</span>  Tokenization -- WordPiece encoding, padding/truncation, attention masks
+<span class="d-hl">Phase 3</span>  Data Loading -- PyTorch Dataset + DataLoader, batching strategy
+<span class="d-hl">Phase 4</span>  Model Setup  -- BERT-base + classification head, optimizer, scheduler
+<span class="d-hl">Phase 5</span>  Training     -- 3-epoch loop, mixed precision, gradient clipping, logging
+<span class="d-hl">Phase 6</span>  Evaluation   -- Accuracy, F1, confusion matrix, ROC-AUC
+<span class="d-hl">Phase 7</span>  Error Analysis -- Misclassified examples, confidence calibration, attention viz
+<span class="d-hl">Phase 8</span>  Inference    -- Batch inference, threshold tuning, production wrapper
+    </div>
+
+    <!-- Phase 1: Dataset -->
+    <h2 class="section-title">Phase 1 — Dataset Loading</h2>
+    <div class="phase-badge">Phase 1</div>
+
+    <div class="code-block"><pre><span class="kw">from</span> datasets <span class="kw">import</span> load_dataset
+<span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cm"># IMDb: 25k train, 25k test, binary sentiment (0=neg, 1=pos)</span>
+dataset = load_dataset(<span class="str">'imdb'</span>)
+train_data = dataset[<span class="str">'train'</span>].shuffle(seed=<span class="num">42</span>)
+test_data  = dataset[<span class="str">'test'</span>]
+
+<span class="cm"># Create validation split from training data (10%)</span>
+split = train_data.train_test_split(test_size=<span class="num">0.1</span>, seed=<span class="num">42</span>)
+train_ds = split[<span class="str">'train'</span>]   <span class="cm"># 22500 examples</span>
+val_ds   = split[<span class="str">'test'</span>]    <span class="cm"># 2500  examples</span>
+
+<span class="cm"># Inspect distribution</span>
+labels = np.array(train_ds[<span class="str">'label'</span>])
+<span class="out">print(f"Train: {len(train_ds)} | Pos: {labels.sum()} ({labels.mean():.1%}) | Neg: {(1-labels).sum()}")</span>
+<span class="cm"># Inspect text length distribution to choose max_length</span>
+lengths = [len(t.split()) <span class="kw">for</span> t <span class="kw">in</span> train_ds[<span class="str">'text'</span>][:<span class="num">5000</span>]]
+<span class="out">print(f"Word count — mean: {np.mean(lengths):.0f}, p95: {np.percentile(lengths,95):.0f}, max: {max(lengths)}")</span>
+<span class="cm"># IMDb reviews average ~230 words, p95 ~600 -- max_length=512 truncates ~5% of reviews</span></pre></div>
+
+    <!-- Phase 2: Tokenization -->
+    <h2 class="section-title">Phase 2 — Tokenization</h2>
+    <div class="phase-badge">Phase 2</div>
+
+    <div class="code-block"><pre><span class="kw">from</span> transformers <span class="kw">import</span> AutoTokenizer
+
+MODEL_NAME = <span class="str">'bert-base-uncased'</span>
+MAX_LEN    = <span class="num">512</span>
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+<span class="kw">def</span> <span class="hl">tokenize_batch</span>(batch):
+    <span class="str">"""Tokenize a batch of texts. Returns input_ids, attention_mask, token_type_ids."""</span>
+    encoding = tokenizer(
+        batch[<span class="str">'text'</span>],
+        truncation=<span class="kw">True</span>,
+        padding=<span class="str">'max_length'</span>,   <span class="cm"># pad to MAX_LEN in batch map; DataCollator handles dynamic padding</span>
+        max_length=MAX_LEN,
+        return_tensors=<span class="kw">None</span>      <span class="cm"># return lists for datasets map()</span>
+    )
+    encoding[<span class="str">'labels'</span>] = batch[<span class="str">'label'</span>]
+    <span class="kw">return</span> encoding
+
+<span class="cm"># Apply in parallel across all splits</span>
+tokenized_train = train_ds.map(tokenize_batch, batched=<span class="kw">True</span>, batch_size=<span class="num">256</span>, remove_columns=[<span class="str">'text'</span>])
+tokenized_val   = val_ds.map(tokenize_batch,   batched=<span class="kw">True</span>, batch_size=<span class="num">256</span>, remove_columns=[<span class="str">'text'</span>])
+tokenized_test  = test_data.map(tokenize_batch, batched=<span class="kw">True</span>, batch_size=<span class="num">256</span>, remove_columns=[<span class="str">'text'</span>])
+
+tokenized_train.set_format(<span class="str">'torch'</span>)
+tokenized_val.set_format(<span class="str">'torch'</span>)
+tokenized_test.set_format(<span class="str">'torch'</span>)
+
+<span class="cm"># Examine one tokenized example</span>
+sample = tokenized_train[<span class="num">0</span>]
+<span class="out">print(f"input_ids shape:    {sample['input_ids'].shape}")</span>
+<span class="out">print(f"attention_mask sum: {sample['attention_mask'].sum().item()}  (non-padding tokens)")</span></pre></div>
+
+    <!-- Phase 3: DataLoader -->
+    <h2 class="section-title">Phase 3 — Data Loading</h2>
+    <div class="phase-badge">Phase 3</div>
+
+    <div class="code-block"><pre><span class="kw">from</span> torch.utils.data <span class="kw">import</span> DataLoader
+<span class="kw">from</span> transformers <span class="kw">import</span> DataCollatorWithPadding
+
+<span class="cm"># Dynamic padding: each batch padded to its longest sequence (more efficient than max_len)</span>
+collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
+BATCH_SIZE = <span class="num">16</span>   <span class="cm"># fits on 12GB GPU; reduce to 8 if OOM; use gradient accumulation</span>
+
+train_loader = DataLoader(tokenized_train, batch_size=BATCH_SIZE, shuffle=<span class="kw">True</span>,  collate_fn=collator, num_workers=<span class="num">4</span>, pin_memory=<span class="kw">True</span>)
+val_loader   = DataLoader(tokenized_val,   batch_size=BATCH_SIZE*<span class="num">2</span>, shuffle=<span class="kw">False</span>, collate_fn=collator, num_workers=<span class="num">4</span>)
+test_loader  = DataLoader(tokenized_test,  batch_size=BATCH_SIZE*<span class="num">2</span>, shuffle=<span class="kw">False</span>, collate_fn=collator, num_workers=<span class="num">4</span>)</pre></div>
+
+    <!-- Phase 4: Model Setup -->
+    <h2 class="section-title">Phase 4 — Model and Optimizer</h2>
+    <div class="phase-badge">Phase 4</div>
+
+    <div class="code-block"><pre><span class="kw">import</span> torch
+<span class="kw">from</span> transformers <span class="kw">import</span> AutoModelForSequenceClassification, get_linear_schedule_with_warmup
+<span class="kw">from</span> torch.optim <span class="kw">import</span> AdamW
+
+device = torch.device(<span class="str">'cuda'</span> <span class="kw">if</span> torch.cuda.is_available() <span class="kw">else</span> <span class="str">'cpu'</span>)
+
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=<span class="num">2</span>)
+model = model.to(device)
+
+<span class="cm"># Differential learning rates: smaller LR for pre-trained layers, larger for head</span>
+optimizer_grouped = [
+    {<span class="str">'params'</span>: [p <span class="kw">for</span> n, p <span class="kw">in</span> model.bert.named_parameters()], <span class="str">'lr'</span>: <span class="num">2e-5</span>},
+    {<span class="str">'params'</span>: model.classifier.parameters(), <span class="str">'lr'</span>: <span class="num">5e-5</span>}
+]
+optimizer = AdamW(optimizer_grouped, weight_decay=<span class="num">0.01</span>, eps=<span class="num">1e-8</span>)
+
+NUM_EPOCHS   = <span class="num">3</span>
+WARMUP_RATIO = <span class="num">0.06</span>
+TOTAL_STEPS  = NUM_EPOCHS * len(train_loader)
+WARMUP_STEPS = <span class="kw">int</span>(TOTAL_STEPS * WARMUP_RATIO)
+
+scheduler = get_linear_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps=WARMUP_STEPS,
+    num_training_steps=TOTAL_STEPS
+)
+
+<span class="out">print(f"Total steps: {TOTAL_STEPS} | Warmup: {WARMUP_STEPS}")</span></pre></div>
+
+    <!-- Phase 5: Training -->
+    <h2 class="section-title">Phase 5 — Training Loop</h2>
+    <div class="phase-badge">Phase 5</div>
+
+    <div class="code-block"><pre><span class="kw">from</span> torch.cuda.amp <span class="kw">import</span> autocast, GradScaler
+<span class="kw">import</span> time
+
+scaler = GradScaler()   <span class="cm"># mixed precision: FP16 forward, FP32 gradients</span>
+
+<span class="kw">def</span> <span class="hl">train_epoch</span>(model, loader, optimizer, scheduler, scaler, device):
+    model.train()
+    total_loss, total_correct, total_samples = <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>
+
+    <span class="kw">for</span> step, batch <span class="kw">in</span> enumerate(loader):
+        batch = {k: v.to(device) <span class="kw">for</span> k, v <span class="kw">in</span> batch.items()}
+
+        <span class="kw">with</span> autocast():                    <span class="cm"># FP16 forward pass</span>
+            outputs = model(**batch)
+            loss    = outputs.loss
+
+        scaler.scale(loss).backward()
+
+        <span class="kw">if</span> (step + <span class="num">1</span>) % <span class="num">1</span> == <span class="num">0</span>:            <span class="cm"># update every step (no accumulation here)</span>
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=<span class="num">1.0</span>)
+            scaler.step(optimizer)
+            scaler.update()
+            scheduler.step()
+            optimizer.zero_grad()
+
+        preds = outputs.logits.argmax(dim=<span class="num">-1</span>)
+        total_correct += (preds == batch[<span class="str">'labels'</span>]).sum().item()
+        total_samples += len(batch[<span class="str">'labels'</span>])
+        total_loss    += loss.item()
+
+        <span class="kw">if</span> step % <span class="num">200</span> == <span class="num">0</span>:
+            <span class="out">print(f"  step {step}/{len(loader)} | loss {loss.item():.4f}")</span>
+
+    <span class="kw">return</span> total_loss / len(loader), total_correct / total_samples
+
+
+<span class="kw">def</span> <span class="hl">evaluate</span>(model, loader, device):
+    model.eval()
+    all_preds, all_labels, all_logits = [], [], []
+
+    <span class="kw">with</span> torch.no_grad():
+        <span class="kw">for</span> batch <span class="kw">in</span> loader:
+            batch = {k: v.to(device) <span class="kw">for</span> k, v <span class="kw">in</span> batch.items()}
+            outputs = model(**batch)
+            preds   = outputs.logits.argmax(dim=<span class="num">-1</span>)
+            all_preds.extend(preds.cpu().tolist())
+            all_labels.extend(batch[<span class="str">'labels'</span>].cpu().tolist())
+            all_logits.extend(outputs.logits.softmax(dim=<span class="num">-1</span>)[:, <span class="num">1</span>].cpu().tolist())
+
+    <span class="kw">return</span> np.array(all_preds), np.array(all_labels), np.array(all_logits)
+
+
+<span class="cm"># Main training loop</span>
+best_val_f1 = <span class="num">0</span>
+history = {<span class="str">'train_loss'</span>: [], <span class="str">'val_acc'</span>: [], <span class="str">'val_f1'</span>: []}
+
+<span class="kw">from</span> sklearn.metrics <span class="kw">import</span> f1_score, accuracy_score
+
+<span class="kw">for</span> epoch <span class="kw">in</span> range(NUM_EPOCHS):
+    t0 = time.time()
+    train_loss, train_acc = train_epoch(model, train_loader, optimizer, scheduler, scaler, device)
+
+    val_preds, val_labels, val_probs = evaluate(model, val_loader, device)
+    val_acc = accuracy_score(val_labels, val_preds)
+    val_f1  = f1_score(val_labels, val_preds)
+
+    history[<span class="str">'train_loss'</span>].append(train_loss)
+    history[<span class="str">'val_acc'</span>].append(val_acc)
+    history[<span class="str">'val_f1'</span>].append(val_f1)
+
+    <span class="out">print(f"\nEpoch {epoch+1}/{NUM_EPOCHS} | {time.time()-t0:.0f}s")</span>
+    <span class="out">print(f"  train loss: {train_loss:.4f} | train acc: {train_acc:.4f}")</span>
+    <span class="out">print(f"  val   acc:  {val_acc:.4f} | val F1: {val_f1:.4f}")</span>
+
+    <span class="kw">if</span> val_f1 > best_val_f1:
+        best_val_f1 = val_f1
+        model.save_pretrained(<span class="str">'best_bert_sentiment'</span>)
+        tokenizer.save_pretrained(<span class="str">'best_bert_sentiment'</span>)
+        <span class="out">print(f"  Saved new best model (F1={best_val_f1:.4f})")</span></pre></div>
+
+    <!-- Phase 6: Evaluation -->
+    <h2 class="section-title">Phase 6 — Evaluation Metrics</h2>
+    <div class="phase-badge">Phase 6</div>
+
+    <!-- Typical results reference -->
+    <div class="results-grid">
+      <div class="result-card">
+        <div class="metric">93.1%</div>
+        <div class="label">Test Accuracy</div>
+      </div>
+      <div class="result-card">
+        <div class="metric">93.2%</div>
+        <div class="label">F1 Score</div>
+      </div>
+      <div class="result-card">
+        <div class="metric">0.983</div>
+        <div class="label">ROC-AUC</div>
+      </div>
+      <div class="result-card">
+        <div class="metric">94.1%</div>
+        <div class="label">Precision</div>
+      </div>
+      <div class="result-card">
+        <div class="metric">92.3%</div>
+        <div class="label">Recall</div>
+      </div>
+    </div>
+    <p class="content-text" style="font-size:0.82rem;">Reference results for BERT-base-uncased fine-tuned 3 epochs on IMDb with batch size 16, lr 2e-5.</p>
+
+    <div class="code-block"><pre><span class="kw">from</span> sklearn.metrics <span class="kw">import</span> (classification_report, confusion_matrix,
+                              roc_auc_score, roc_curve)
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+
+<span class="cm"># Load best checkpoint for final test evaluation</span>
+best_model = AutoModelForSequenceClassification.from_pretrained(<span class="str">'best_bert_sentiment'</span>).to(device)
+test_preds, test_labels, test_probs = evaluate(best_model, test_loader, device)
+
+<span class="out">print(classification_report(test_labels, test_preds, target_names=['negative','positive']))</span>
+
+<span class="cm"># Confusion matrix</span>
+cm = confusion_matrix(test_labels, test_preds)
+<span class="out">print(f"\nConfusion Matrix:\n{cm}")</span>
+<span class="out">print(f"TN={cm[0,0]}  FP={cm[0,1]}")</span>
+<span class="out">print(f"FN={cm[1,0]}  TP={cm[1,1]}")</span>
+
+<span class="cm"># ROC-AUC</span>
+auc = roc_auc_score(test_labels, test_probs)
+<span class="out">print(f"\nROC-AUC: {auc:.4f}")</span>
+
+<span class="cm"># Calibration check: confidence distribution for correct vs incorrect predictions</span>
+correct_mask = (test_preds == test_labels)
+<span class="out">print(f"\nMean confidence — correct:   {test_probs[correct_mask].mean():.3f}")</span>
+<span class="out">print(f"Mean confidence — incorrect: {test_probs[~correct_mask].mean():.3f}")</span></pre></div>
+
+    <!-- Phase 7: Error Analysis -->
+    <h2 class="section-title">Phase 7 — Error Analysis</h2>
+    <div class="phase-badge">Phase 7</div>
+
+    <div class="code-block"><pre><span class="cm"># Identify systematic error patterns</span>
+test_texts  = test_data[<span class="str">'text'</span>]
+errors_idx  = np.where(test_preds != test_labels)[<span class="num">0</span>]
+
+<span class="cm"># Sort errors by confidence (highest first = most egregious mistakes)</span>
+error_confs = test_probs[errors_idx]
+top_errors  = errors_idx[np.argsort(error_confs)[::-<span class="num">1</span>][:<span class="num">10</span>]]
+
+<span class="out">print("=== Top 10 High-Confidence Errors ===\n")</span>
+<span class="kw">for</span> idx <span class="kw">in</span> top_errors:
+    pred_label  = <span class="str">"positive"</span> <span class="kw">if</span> test_preds[idx] <span class="kw">else</span> <span class="str">"negative"</span>
+    true_label  = <span class="str">"positive"</span> <span class="kw">if</span> test_labels[idx] <span class="kw">else</span> <span class="str">"negative"</span>
+    <span class="out">print(f"[conf={test_probs[idx]:.3f}] Predicted: {pred_label} | True: {true_label}")</span>
+    <span class="out">print(f"  {test_texts[idx][:200]}...\n")</span>
+
+<span class="cm"># Categorize errors by length (short reviews harder to classify?)</span>
+lengths = np.array([len(t.split()) <span class="kw">for</span> t <span class="kw">in</span> test_texts])
+<span class="out">print(f"\nError rate by length:")</span>
+<span class="kw">for</span> lo, hi <span class="kw">in</span> [(<span class="num">0</span>,<span class="num">50</span>), (<span class="num">50</span>,<span class="num">150</span>), (<span class="num">150</span>,<span class="num">300</span>), (<span class="num">300</span>,<span class="num">10000</span>)]:
+    mask  = (lengths >= lo) & (lengths < hi)
+    wrong = (test_preds[mask] != test_labels[mask]).sum()
+    total = mask.sum()
+    <span class="out">print(f"  {lo}-{hi} words: {wrong}/{total} errors ({100*wrong/total:.1f}%)")</span></pre></div>
+
+    <!-- Phase 8: Inference -->
+    <h2 class="section-title">Phase 8 — Production Inference</h2>
+    <div class="phase-badge">Phase 8</div>
+
+    <div class="code-block"><pre><span class="kw">class</span> <span class="hl">SentimentClassifier</span>:
+    <span class="str">"""
+    Production-ready BERT sentiment wrapper.
+    Handles single strings and batches, returns label + confidence.
+    """</span>
+    <span class="kw">def</span> __init__(self, model_path: str, device: str = <span class="str">'cpu'</span>):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.model     = AutoModelForSequenceClassification.from_pretrained(model_path)
+        self.model.to(device).eval()
+        self.device    = device
+        self.labels    = [<span class="str">'negative'</span>, <span class="str">'positive'</span>]
+
+    <span class="kw">def</span> predict(self, texts, batch_size=<span class="num">32</span>, threshold=<span class="num">0.5</span>):
+        <span class="str">"""
+        texts: str or list[str]
+        returns: list of {'label': str, 'score': float, 'positive_prob': float}
+        """</span>
+        <span class="kw">if</span> isinstance(texts, str):
+            texts = [texts]
+
+        results = []
+        <span class="kw">for</span> i <span class="kw">in</span> range(<span class="num">0</span>, len(texts), batch_size):
+            batch_texts = texts[i:i+batch_size]
+            encoding    = self.tokenizer(
+                batch_texts, truncation=<span class="kw">True</span>, padding=<span class="kw">True</span>,
+                max_length=<span class="num">512</span>, return_tensors=<span class="str">'pt'</span>
+            ).to(self.device)
+
+            <span class="kw">with</span> torch.no_grad():
+                logits = self.model(**encoding).logits
+                probs  = logits.softmax(dim=<span class="num">-1</span>).cpu()
+
+            <span class="kw">for</span> prob <span class="kw">in</span> probs:
+                pos_prob = prob[<span class="num">1</span>].item()
+                results.append({
+                    <span class="str">'label'</span>:        <span class="str">'positive'</span> <span class="kw">if</span> pos_prob >= threshold <span class="kw">else</span> <span class="str">'negative'</span>,
+                    <span class="str">'score'</span>:         max(pos_prob, <span class="num">1</span> - pos_prob),
+                    <span class="str">'positive_prob'</span>: pos_prob
+                })
+        <span class="kw">return</span> results
+
+
+<span class="cm"># Usage</span>
+clf = SentimentClassifier(<span class="str">'best_bert_sentiment'</span>)
+samples = [
+    <span class="str">"The vulnerability was patched within hours — excellent response."</span>,
+    <span class="str">"Completely broken authentication, any user can access admin panel."</span>,
+    <span class="str">"Not the worst I've seen, but certainly not impressive either."</span>
+]
+<span class="kw">for</span> text, result <span class="kw">in</span> zip(samples, clf.predict(samples)):
+    <span class="out">print(f"[{result['label'].upper():8s}  {result['score']:.3f}]  {text[:60]}")</span></pre></div>
+
+    <div class="callout--warn">
+      <strong>Threshold Tuning</strong>
+      The default 0.5 threshold maximizes accuracy but not F1 or precision/recall trade-offs. For high-stakes applications (e.g., flagging malicious content), use the ROC curve to pick a threshold that sets the false positive rate you can tolerate, then re-evaluate precision and recall at that operating point.
+    </div>
+
+    <!-- Common pitfalls -->
+    <h2 class="section-title">Common Pitfalls and Fixes</h2>
+
+    <table class="state-table">
+      <thead>
+        <tr><th>Problem</th><th>Symptom</th><th>Fix</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Catastrophic forgetting</td>
+          <td>Training loss drops but validation loss spikes early</td>
+          <td>Lower LR (1e-5), warmup steps, early stopping on val_f1</td>
+        </tr>
+        <tr>
+          <td>OOM on GPU</td>
+          <td>CUDA out of memory error</td>
+          <td>Reduce batch size; use gradient accumulation; FP16</td>
+        </tr>
+        <tr>
+          <td>Gradient explosion</td>
+          <td>Loss becomes NaN</td>
+          <td>Clip gradients at 1.0; reduce LR; check label encoding</td>
+        </tr>
+        <tr>
+          <td>Slow tokenization</td>
+          <td>DataLoader bottleneck</td>
+          <td>Pre-tokenize with <code>.map(batched=True)</code>, cache to disk, use num_workers</td>
+        </tr>
+        <tr>
+          <td>Long reviews truncated</td>
+          <td>Poor accuracy on verbose reviews</td>
+          <td>Try beginning + end concatenation strategy; use Longformer for 4096+ tokens</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Try it -->
+    <div class="try-it">
+      <h3>Try It</h3>
+      <ol>
+        <li>Run the full pipeline on IMDb. Record val F1 at the end of epochs 1, 2, and 3. At which epoch does improvement plateau?</li>
+        <li>Replace <code>bert-base-uncased</code> with <code>distilbert-base-uncased</code>. How much faster is training? What is the test F1 cost?</li>
+        <li>Try gradient accumulation: set <code>batch_size=4</code> and accumulate for 4 steps before updating. Verify the effective batch size is 16 and compare final accuracy.</li>
+        <li>Identify the 20 reviews with highest model confidence that were still classified incorrectly. What linguistic patterns do they share? (Sarcasm? Domain-specific jargon?)</li>
+        <li>Fine-tune the best checkpoint further on 200 manually labeled security blog post excerpts (positive = helpful/informative, negative = harmful/misleading). Report accuracy on a 50-example held-out set.</li>
+      </ol>
+    </div>
+
+    <!-- Course complete -->
+    <div class="course-complete">
+      <h3>RNNs and Transformers — Course Complete</h3>
+      <p>You have covered the full arc: sequential models (RNNs, LSTMs) through attention and seq2seq, up to the Transformer, BERT, GPT, ViTs, and hands-on fine-tuning. The next course in The Cortex covers Natural Language Processing in depth.</p>
+    </div>
+
+    <!-- Takeaways -->
+    <div class="takeaways">
+      <h3>Key Takeaways</h3>
+      <ul>
+        <li>Pre-tokenize the dataset with <code>.map(batched=True)</code> and cache — this eliminates the data loading bottleneck</li>
+        <li>Use <code>DataCollatorWithPadding</code> for dynamic padding — much more memory efficient than padding all sequences to max_length</li>
+        <li>Differential learning rates (smaller for BERT backbone, larger for head) preserve pre-trained representations</li>
+        <li>Linear warm-up + decay is the standard BERT scheduling recipe; 6% warm-up steps is a common starting point</li>
+        <li>Mixed precision (FP16) roughly halves GPU memory usage and speeds up training 1.5-2x with no accuracy loss</li>
+        <li>Always evaluate with F1, not just accuracy, especially on tasks with potential class imbalance</li>
+        <li>Error analysis on high-confidence misclassifications surfaces systematic model failures (sarcasm, negation, long-range dependencies)</li>
+      </ul>
+    </div>
+
+    <div class="nav-footer">
+      <a href="cx-rnn-09.html" class="nav-btn">&larr; Vision Transformers</a>
+      <a href="index.html" class="nav-btn primary">Back to Course Hub &rarr;</a>
+    </div>
+  </div>
+
+  <script src="../../../../../components/FluxCapacitor.js"></script>
+  <script>
+    const MODULE_ID = 'cx-rnn-10';
+    const HOUSE_ID  = 'ai';
+    let completed   = false;
+
+    window.addEventListener('scroll', () => {
+      const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+      document.getElementById('progressBar').style.width = pct + '%';
+      if (!completed && pct >= 80) {
+        completed = true;
+        ModuleProgress.complete(HOUSE_ID, MODULE_ID);
+      }
+    });
+  </script>
+</body>
+</html>

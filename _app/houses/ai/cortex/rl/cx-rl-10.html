@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../../components/ModuleProgress.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hands-On: DQN Agent — The Cortex</title>
+  <style>
+    :root{--accent:#8b5cf6;--accent-dim:#6d28d9;--bg:#0f0f13;--surface:#1a1a24;--surface2:#22223a;--border:#2e2e48;--text:#e2e8f0;--text-muted:#94a3b8;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;line-height:1.7;overflow-x:hidden;}
+    .cx-particle-field{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+    .cx-particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--accent);opacity:var(--o,.15);animation:cx-drift 22s linear infinite;}
+    @keyframes cx-drift{from{transform:translateY(100vh)}to{transform:translateY(-10vh) translateX(50px)}}
+    .cx-wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+    .cx-breadcrumb{font-size:.78rem;color:var(--text-muted);margin-bottom:2rem;display:flex;gap:.4rem;flex-wrap:wrap;}
+    .cx-breadcrumb a{color:var(--text-muted);text-decoration:none;}.cx-breadcrumb a:hover{color:var(--accent);}.cx-breadcrumb span{color:var(--accent);}
+    .cx-hero-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:.4rem;}
+    .cx-hero-title{font-size:2.2rem;font-weight:800;line-height:1.1;margin-bottom:.75rem;}
+    .cx-hero-desc{color:var(--text-muted);max-width:640px;font-size:.97rem;margin-bottom:2rem;}
+    h2{font-size:1.25rem;font-weight:700;margin:2.5rem 0 1rem;}
+    h3{font-size:1rem;font-weight:600;margin:1.5rem 0 .5rem;color:var(--accent);}
+    p{margin-bottom:1rem;color:var(--text-muted);font-size:.95rem;}
+    .cx-code{background:#0d0d14;border:1px solid var(--border);border-radius:8px;padding:1.25rem 1.5rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.82rem;line-height:1.7;overflow-x:auto;margin:1rem 0;color:#c4b5fd;}
+    .cx-code .cm{color:#4b5563;}.cx-code .kw{color:#8b5cf6;}.cx-code .fn{color:#34d399;}.cx-code .st{color:#fbbf24;}.cx-code .nm{color:#f9a8d4;}.cx-code .dc{color:#7dd3fc;}
+    .cx-callout{border-left:3px solid var(--accent);background:var(--surface);border-radius:0 8px 8px 0;padding:1rem 1.25rem;margin:1.5rem 0;font-size:.9rem;}
+    .cx-callout.green{border-color:var(--green);}.cx-callout.yellow{border-color:var(--yellow);}
+    .cx-callout strong{color:var(--text);display:block;margin-bottom:.25rem;}
+    .cx-table-wrap{overflow-x:auto;margin:1.5rem 0;}
+    table{width:100%;border-collapse:collapse;font-size:.85rem;}
+    th{background:var(--surface2);color:var(--accent);font-weight:600;padding:.6rem 1rem;text-align:left;border-bottom:2px solid var(--border);}
+    td{padding:.55rem 1rem;border-bottom:1px solid var(--border);color:var(--text-muted);vertical-align:top;}
+    tr:last-child td{border-bottom:none;}
+    .cx-phase-badge{display:inline-block;background:var(--surface2);border:1px solid var(--accent);border-radius:4px;font-size:.72rem;font-weight:700;color:var(--accent);padding:.2rem .65rem;margin-bottom:.75rem;font-family:monospace;letter-spacing:.05em;}
+    .cx-section-tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;font-size:.72rem;color:var(--text-muted);padding:.15rem .5rem;margin-bottom:1.5rem;font-family:monospace;}
+    .cx-results-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin:1.5rem 0;}
+    .cx-result-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center;}
+    .cx-result-card .val{font-size:1.6rem;font-weight:800;color:var(--accent);font-family:monospace;}
+    .cx-result-card .lbl{font-size:.75rem;color:var(--text-muted);margin-top:.25rem;}
+    .cx-nav-footer{display:flex;justify-content:space-between;gap:1rem;margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);}
+    .cx-nav-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1.25rem;color:var(--text-muted);text-decoration:none;font-size:.88rem;transition:border-color .2s,color .2s;}
+    .cx-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .cx-nav-btn .dir{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.15rem;}
+    .cx-complete-banner{background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--green);border-radius:10px;padding:1.5rem;margin-top:2.5rem;text-align:center;}
+    .cx-complete-banner h3{font-size:1.1rem;font-weight:700;color:var(--green);margin-bottom:.5rem;}
+    .cx-complete-banner p{font-size:.9rem;color:var(--text-muted);margin:0;}
+  </style>
+</head>
+<body>
+  <div class="cx-particle-field" aria-hidden="true">
+    <span class="cx-particle" style="left:5%;animation-delay:0s;--o:.1"></span>
+    <span class="cx-particle" style="left:19%;animation-delay:7s;--o:.12"></span>
+    <span class="cx-particle" style="left:35%;animation-delay:11s;--o:.09"></span>
+    <span class="cx-particle" style="left:51%;animation-delay:3s;--o:.11"></span>
+    <span class="cx-particle" style="left:67%;animation-delay:9s;--o:.08"></span>
+    <span class="cx-particle" style="left:81%;animation-delay:14s;--o:.1"></span>
+    <span class="cx-particle" style="left:94%;animation-delay:5s;--o:.09"></span>
+  </div>
+
+  <div class="cx-wrap">
+    <nav class="cx-breadcrumb">
+      <a href="../../../../../index.html">Home</a><span>/</span>
+      <a href="../../../../index.html">AI House</a><span>/</span>
+      <a href="../index.html">The Cortex</a><span>/</span>
+      <a href="index.html">Reinforcement Learning</a><span>/</span>
+      <span>Hands-On: DQN Agent</span>
+    </nav>
+
+    <div class="cx-hero-label">Reinforcement Learning — Module 10 (Final)</div>
+    <h1 class="cx-hero-title">Hands-On: DQN Agent</h1>
+    <p class="cx-hero-desc">A complete DQN pipeline from scratch: environment setup, network architecture, replay buffer, training loop, evaluation protocol, and learning curve visualization. The target environment is LunarLander-v2.</p>
+
+    <!-- ── Phase 1: Setup ──────────────────────────────────── -->
+    <div class="cx-phase-badge">PHASE 01 — ENVIRONMENT SETUP</div>
+    <h2>Environment and Dependencies</h2>
+
+    <div class="cx-code">
+<span class="cm"># Installation</span>
+<span class="cm"># pip install gymnasium[box2d] torch numpy matplotlib tqdm</span>
+
+<span class="kw">import</span> gymnasium <span class="kw">as</span> gym
+<span class="kw">import</span> torch
+<span class="kw">import</span> torch.nn <span class="kw">as</span> nn
+<span class="kw">import</span> torch.nn.functional <span class="kw">as</span> F
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+<span class="kw">from</span> collections <span class="kw">import</span> deque
+<span class="kw">import</span> random
+<span class="kw">from</span> tqdm <span class="kw">import</span> tqdm
+
+<span class="cm"># Environment: LunarLander-v2</span>
+<span class="cm"># Observation: 8-dimensional vector (position, velocity, angle, angular vel, leg contacts)</span>
+<span class="cm"># Actions:     4 discrete (do nothing, left engine, main engine, right engine)</span>
+<span class="cm"># Reward:      +100-140 for landing, -100 for crash, -0.3/frame for main engine</span>
+<span class="cm"># Solved:      mean reward >= 200 over 100 consecutive episodes</span>
+
+env = gym.make(<span class="st">'LunarLander-v2'</span>)
+OBS_DIM  = env.observation_space.shape[<span class="nm">0</span>]   <span class="cm"># 8</span>
+N_ACTIONS = env.action_space.n               <span class="cm"># 4</span>
+
+print(<span class="st">f"Observation space: {env.observation_space}"</span>)
+print(<span class="st">f"Action space:      {env.action_space}"</span>)
+print(<span class="st">f"Reward range:      {env.reward_range}"</span>)
+
+<span class="cm"># seed for reproducibility</span>
+SEED = <span class="nm">42</span>
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+random.seed(SEED)
+
+DEVICE = torch.device(<span class="st">'cuda'</span> <span class="kw">if</span> torch.cuda.is_available() <span class="kw">else</span> <span class="st">'cpu'</span>)
+print(<span class="st">f"Device: {DEVICE}"</span>)
+    </div>
+
+    <!-- ── Phase 2: Network ────────────────────────────────── -->
+    <div class="cx-phase-badge">PHASE 02 — NETWORK ARCHITECTURE</div>
+    <h2>DQN Network</h2>
+    <p>For the LunarLander vector observation, we use a Dueling DQN architecture. The shared feature extractor feeds two heads: a value stream V(s) and an advantage stream A(s,a). This separates "how good is this state" from "which action is best here".</p>
+
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">DuelingDQN</span>(nn.Module):
+    <span class="st">"""
+    Dueling DQN for LunarLander-v2.
+    Shared backbone + separate V(s) and A(s,a) heads.
+    Q(s,a) = V(s) + A(s,a) - mean(A(s,·))
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim=<span class="nm">8</span>, n_actions=<span class="nm">4</span>, hidden=<span class="nm">256</span>):
+        super().__init__()
+
+        <span class="cm"># shared feature extractor</span>
+        self.backbone = nn.Sequential(
+            nn.Linear(obs_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden),  nn.ReLU(),
+        )
+
+        <span class="cm"># value stream: V(s) — how good is this state overall?</span>
+        self.value = nn.Sequential(
+            nn.Linear(hidden, hidden // <span class="nm">2</span>), nn.ReLU(),
+            nn.Linear(hidden // <span class="nm">2</span>, <span class="nm">1</span>),
+        )
+
+        <span class="cm"># advantage stream: A(s,a) — how much better is each action?</span>
+        self.advantage = nn.Sequential(
+            nn.Linear(hidden, hidden // <span class="nm">2</span>), nn.ReLU(),
+            nn.Linear(hidden // <span class="nm">2</span>, n_actions),
+        )
+
+        <span class="cm"># initialize weights for stable early training</span>
+        self._init_weights()
+
+    <span class="kw">def</span> <span class="fn">_init_weights</span>(self):
+        <span class="kw">for</span> m <span class="kw">in</span> self.modules():
+            <span class="kw">if</span> isinstance(m, nn.Linear):
+                nn.init.orthogonal_(m.weight, gain=np.sqrt(<span class="nm">2</span>))
+                nn.init.constant_(m.bias, <span class="nm">0.0</span>)
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        features = self.backbone(x)
+        V        = self.value(features)                            <span class="cm"># (batch, 1)</span>
+        A        = self.advantage(features)                        <span class="cm"># (batch, n_actions)</span>
+        Q        = V + (A - A.mean(dim=<span class="nm">1</span>, keepdim=<span class="nm">True</span>))        <span class="cm"># (batch, n_actions)</span>
+        <span class="kw">return</span> Q
+
+
+<span class="cm"># sanity check: output shape</span>
+model = DuelingDQN(OBS_DIM, N_ACTIONS).to(DEVICE)
+dummy = torch.zeros(<span class="nm">1</span>, OBS_DIM).to(DEVICE)
+print(<span class="st">f"Output shape: {model(dummy).shape}"</span>)   <span class="cm"># torch.Size([1, 4])</span>
+n_params = sum(p.numel() <span class="kw">for</span> p <span class="kw">in</span> model.parameters())
+print(<span class="st">f"Parameters:   {n_params:,}"</span>)            <span class="cm"># ~200k</span>
+    </div>
+
+    <!-- ── Phase 3: Replay Buffer ──────────────────────────── -->
+    <div class="cx-phase-badge">PHASE 03 — REPLAY BUFFER</div>
+    <h2>Experience Replay Buffer</h2>
+
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">ReplayBuffer</span>:
+    <span class="st">"""Ring buffer for (state, action, reward, next_state, done) transitions."""</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, capacity=<span class="nm">100_000</span>):
+        self.buffer = deque(maxlen=capacity)
+
+    <span class="kw">def</span> <span class="fn">push</span>(self, s, a, r, ns, d):
+        self.buffer.append((np.array(s, dtype=np.float32),
+                            int(a), float(r),
+                            np.array(ns, dtype=np.float32),
+                            float(d)))
+
+    <span class="kw">def</span> <span class="fn">sample</span>(self, n):
+        batch = random.sample(self.buffer, n)
+        s, a, r, ns, d = zip(*batch)
+        <span class="kw">return</span> (torch.tensor(np.array(s),  device=DEVICE),
+                torch.tensor(a,             device=DEVICE, dtype=torch.long),
+                torch.tensor(r,             device=DEVICE, dtype=torch.float32),
+                torch.tensor(np.array(ns),  device=DEVICE),
+                torch.tensor(d,             device=DEVICE, dtype=torch.float32))
+
+    <span class="kw">def</span> <span class="fn">__len__</span>(self): <span class="kw">return</span> len(self.buffer)
+    </div>
+
+    <!-- ── Phase 4: Agent ──────────────────────────────────── -->
+    <div class="cx-phase-badge">PHASE 04 — AGENT</div>
+    <h2>DQN Agent</h2>
+
+    <div class="cx-code">
+<span class="kw">class</span> <span class="fn">DDQNAgent</span>:
+    <span class="st">"""
+    Double DQN agent with Dueling network.
+    Combines: Dueling architecture + Double Q-target + experience replay.
+    """</span>
+    <span class="cm"># hyperparameters — tuned for LunarLander-v2</span>
+    BATCH_SIZE    = <span class="nm">64</span>
+    GAMMA         = <span class="nm">0.99</span>
+    LR            = <span class="nm">5e-4</span>
+    BUFFER_SIZE   = <span class="nm">100_000</span>
+    TARGET_UPDATE = <span class="nm">500</span>           <span class="cm"># sync target every N gradient steps</span>
+    EPS_START     = <span class="nm">1.0</span>
+    EPS_END       = <span class="nm">0.01</span>
+    EPS_DECAY     = <span class="nm">30_000</span>        <span class="cm"># linear decay over this many steps</span>
+    MIN_BUFFER    = <span class="nm">1_000</span>         <span class="cm"># start training after this many samples</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, n_actions):
+        self.n_actions  = n_actions
+        self.online     = DuelingDQN(obs_dim, n_actions).to(DEVICE)
+        self.target     = DuelingDQN(obs_dim, n_actions).to(DEVICE)
+        self.target.load_state_dict(self.online.state_dict())
+        self.target.eval()
+
+        self.optimizer  = torch.optim.Adam(self.online.parameters(), lr=self.LR)
+        self.buffer     = ReplayBuffer(self.BUFFER_SIZE)
+        self.steps      = <span class="nm">0</span>
+        self.losses     = []
+
+    <span class="kw">def</span> <span class="fn">epsilon</span>(self):
+        frac = min(<span class="nm">1.0</span>, self.steps / self.EPS_DECAY)
+        <span class="kw">return</span> self.EPS_START + frac * (self.EPS_END - self.EPS_START)
+
+    <span class="kw">def</span> <span class="fn">act</span>(self, state):
+        <span class="kw">if</span> np.random.rand() &lt; self.epsilon():
+            <span class="kw">return</span> np.random.randint(self.n_actions)
+        s = torch.tensor(state, dtype=torch.float32, device=DEVICE).unsqueeze(<span class="nm">0</span>)
+        <span class="kw">with</span> torch.no_grad():
+            <span class="kw">return</span> int(self.online(s).argmax().item())
+
+    <span class="kw">def</span> <span class="fn">update</span>(self):
+        <span class="kw">if</span> len(self.buffer) &lt; self.MIN_BUFFER:
+            <span class="kw">return</span>
+
+        s, a, r, ns, d = self.buffer.sample(self.BATCH_SIZE)
+
+        <span class="cm"># Double DQN: online selects next action, target evaluates it</span>
+        <span class="kw">with</span> torch.no_grad():
+            next_actions = self.online(ns).argmax(dim=<span class="nm">1</span>, keepdim=<span class="nm">True</span>)
+            next_q       = self.target(ns).gather(<span class="nm">1</span>, next_actions).squeeze(<span class="nm">1</span>)
+            td_target    = r + self.GAMMA * next_q * (<span class="nm">1</span> - d)
+
+        q_pred = self.online(s).gather(<span class="nm">1</span>, a.unsqueeze(<span class="nm">1</span>)).squeeze(<span class="nm">1</span>)
+        loss   = F.smooth_l1_loss(q_pred, td_target)     <span class="cm"># Huber loss</span>
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.online.parameters(), <span class="nm">10.0</span>)
+        self.optimizer.step()
+        self.losses.append(loss.item())
+        self.steps += <span class="nm">1</span>
+
+        <span class="kw">if</span> self.steps % self.TARGET_UPDATE == <span class="nm">0</span>:
+            self.target.load_state_dict(self.online.state_dict())
+    </div>
+
+    <!-- ── Phase 5: Training ───────────────────────────────── -->
+    <div class="cx-phase-badge">PHASE 05 — TRAINING LOOP</div>
+    <h2>Training Loop</h2>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">train</span>(n_episodes=<span class="nm">800</span>, eval_every=<span class="nm">50</span>, eval_episodes=<span class="nm">20</span>):
+    agent = DDQNAgent(OBS_DIM, N_ACTIONS)
+    rewards_history  = []
+    eval_history     = []
+    solved_at        = <span class="nm">None</span>
+
+    <span class="kw">for</span> ep <span class="kw">in</span> tqdm(range(n_episodes), desc=<span class="st">'Training'</span>):
+        state, _ = env.reset(seed=ep)
+        done = <span class="kw">False</span>
+        ep_reward = <span class="nm">0.0</span>
+
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            action = agent.act(state)
+            next_state, reward, term, trunc, _ = env.step(action)
+            done = term <span class="kw">or</span> trunc
+
+            agent.buffer.push(state, action, reward, next_state, done)
+            agent.update()
+
+            ep_reward += reward
+            state = next_state
+
+        rewards_history.append(ep_reward)
+
+        <span class="cm"># periodic evaluation using greedy policy (no exploration)</span>
+        <span class="kw">if</span> (ep + <span class="nm">1</span>) % eval_every == <span class="nm">0</span>:
+            avg_eval = evaluate(agent, eval_episodes)
+            eval_history.append((ep + <span class="nm">1</span>, avg_eval))
+            eps = agent.epsilon()
+            avg_train = np.mean(rewards_history[-eval_every:])
+            print(<span class="st">f"\nEp {ep+1:4d} | Train: {avg_train:7.1f} | "
+                  f"Eval: {avg_eval:7.1f} | Eps: {eps:.3f}"</span>)
+
+            <span class="kw">if</span> avg_eval >= <span class="nm">200</span> <span class="kw">and</span> solved_at <span class="kw">is</span> <span class="nm">None</span>:
+                solved_at = ep + <span class="nm">1</span>
+                print(<span class="st">f"  ** SOLVED at episode {solved_at} **"</span>)
+
+    <span class="kw">return</span> agent, rewards_history, eval_history, solved_at
+
+
+<span class="kw">def</span> <span class="fn">evaluate</span>(agent, n_episodes=<span class="nm">20</span>):
+    <span class="st">"""Evaluate agent with greedy policy (epsilon=0)."""</span>
+    eval_env = gym.make(<span class="st">'LunarLander-v2'</span>)
+    orig_eps = agent.EPS_END
+    total_rewards = []
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = eval_env.reset(seed=<span class="nm">1000</span> + ep)
+        done = <span class="kw">False</span>
+        ep_reward = <span class="nm">0.0</span>
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            s = torch.tensor(state, dtype=torch.float32, device=DEVICE).unsqueeze(<span class="nm">0</span>)
+            <span class="kw">with</span> torch.no_grad():
+                action = int(agent.online(s).argmax().item())
+            state, reward, term, trunc, _ = eval_env.step(action)
+            done = term <span class="kw">or</span> trunc
+            ep_reward += reward
+        total_rewards.append(ep_reward)
+
+    eval_env.close()
+    <span class="kw">return</span> np.mean(total_rewards)
+    </div>
+
+    <!-- ── Phase 6: Visualization ─────────────────────────── -->
+    <div class="cx-phase-badge">PHASE 06 — VISUALIZATION</div>
+    <h2>Learning Curve Visualization</h2>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">plot_training</span>(rewards_history, eval_history, solved_at=<span class="nm">None</span>):
+    <span class="st">"""
+    Plot smoothed training rewards and evaluation checkpoints.
+    Saves figure to 'dqn_training.png'.
+    """</span>
+    fig, axes = plt.subplots(<span class="nm">1</span>, <span class="nm">2</span>, figsize=(<span class="nm">14</span>, <span class="nm">5</span>))
+    fig.patch.set_facecolor(<span class="st">'#0f0f13'</span>)
+
+    <span class="kw">for</span> ax <span class="kw">in</span> axes:
+        ax.set_facecolor(<span class="st">'#1a1a24'</span>)
+        ax.tick_params(colors=<span class="st">'#94a3b8'</span>)
+        <span class="kw">for</span> spine <span class="kw">in</span> ax.spines.values():
+            spine.set_edgecolor(<span class="st">'#2e2e48'</span>)
+
+    <span class="cm"># ── left: training curve with rolling average ──────────────────</span>
+    episodes = np.arange(len(rewards_history))
+    raw      = np.array(rewards_history)
+    window   = <span class="nm">50</span>
+    smooth   = np.convolve(raw, np.ones(window)/window, mode=<span class="st">'valid'</span>)
+
+    axes[<span class="nm">0</span>].plot(episodes, raw, alpha=<span class="nm">0.25</span>, color=<span class="st">'#8b5cf6'</span>, linewidth=<span class="nm">0.8</span>)
+    axes[<span class="nm">0</span>].plot(np.arange(window-<span class="nm">1</span>, len(raw)), smooth,
+                 color=<span class="st">'#8b5cf6'</span>, linewidth=<span class="nm">2</span>, label=<span class="st">f'Rolling-{window}'</span>)
+    axes[<span class="nm">0</span>].axhline(<span class="nm">200</span>, color=<span class="st">'#10b981'</span>, linestyle=<span class="st">'--'</span>, linewidth=<span class="nm">1.2</span>,
+                    label=<span class="st">'Solved threshold'</span>)
+    <span class="kw">if</span> solved_at:
+        axes[<span class="nm">0</span>].axvline(solved_at, color=<span class="st">'#f59e0b'</span>, linestyle=<span class="st">':'</span>, linewidth=<span class="nm">1.5</span>,
+                        label=<span class="st">f'Solved @ ep {solved_at}'</span>)
+    axes[<span class="nm">0</span>].set_xlabel(<span class="st">'Episode'</span>, color=<span class="st">'#94a3b8'</span>)
+    axes[<span class="nm">0</span>].set_ylabel(<span class="st">'Reward'</span>, color=<span class="st">'#94a3b8'</span>)
+    axes[<span class="nm">0</span>].set_title(<span class="st">'Training Rewards'</span>, color=<span class="st">'#e2e8f0'</span>)
+    axes[<span class="nm">0</span>].legend(facecolor=<span class="st">'#22223a'</span>, edgecolor=<span class="st">'#2e2e48'</span>,
+                   labelcolor=<span class="st">'#e2e8f0'</span>)
+
+    <span class="cm"># ── right: evaluation scores ───────────────────────────────────</span>
+    eval_eps, eval_scores = zip(*eval_history)
+    axes[<span class="nm">1</span>].plot(eval_eps, eval_scores, color=<span class="st">'#34d399'</span>, marker=<span class="st">'o'</span>,
+                markersize=<span class="nm">4</span>, linewidth=<span class="nm">2</span>, label=<span class="st">'Eval (greedy)'</span>)
+    axes[<span class="nm">1</span>].axhline(<span class="nm">200</span>, color=<span class="st">'#10b981'</span>, linestyle=<span class="st">'--'</span>, linewidth=<span class="nm">1.2</span>)
+    axes[<span class="nm">1</span>].set_xlabel(<span class="st">'Episode'</span>, color=<span class="st">'#94a3b8'</span>)
+    axes[<span class="nm">1</span>].set_ylabel(<span class="st">'Mean Reward (20 eps)'</span>, color=<span class="st">'#94a3b8'</span>)
+    axes[<span class="nm">1</span>].set_title(<span class="st">'Evaluation Rewards'</span>, color=<span class="st">'#e2e8f0'</span>)
+    axes[<span class="nm">1</span>].legend(facecolor=<span class="st">'#22223a'</span>, edgecolor=<span class="st">'#2e2e48'</span>,
+                   labelcolor=<span class="st">'#e2e8f0'</span>)
+
+    plt.tight_layout()
+    plt.savefig(<span class="st">'dqn_training.png'</span>, dpi=<span class="nm">150</span>, facecolor=fig.get_facecolor())
+    plt.show()
+    print(<span class="st">"Saved: dqn_training.png"</span>)
+    </div>
+
+    <!-- ── Phase 7: Model Save/Load ───────────────────────── -->
+    <div class="cx-phase-badge">PHASE 07 — CHECKPOINTING</div>
+    <h2>Model Checkpointing</h2>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">save_checkpoint</span>(agent, path=<span class="st">'dqn_lunarlander.pt'</span>):
+    <span class="st">"""Save online network weights and training state."""</span>
+    torch.save({
+        <span class="st">'online_state_dict'</span>:  agent.online.state_dict(),
+        <span class="st">'target_state_dict'</span>:  agent.target.state_dict(),
+        <span class="st">'optimizer_state'</span>:    agent.optimizer.state_dict(),
+        <span class="st">'steps'</span>:              agent.steps,
+        <span class="st">'losses'</span>:             agent.losses[-<span class="nm">1000</span>:],   <span class="cm"># keep last 1000 losses</span>
+    }, path)
+    print(<span class="st">f"Checkpoint saved: {path}"</span>)
+
+
+<span class="kw">def</span> <span class="fn">load_checkpoint</span>(path=<span class="st">'dqn_lunarlander.pt'</span>):
+    <span class="st">"""Load and resume a saved agent."""</span>
+    agent = DDQNAgent(OBS_DIM, N_ACTIONS)
+    ckpt  = torch.load(path, map_location=DEVICE)
+    agent.online.load_state_dict(ckpt[<span class="st">'online_state_dict'</span>])
+    agent.target.load_state_dict(ckpt[<span class="st">'target_state_dict'</span>])
+    agent.optimizer.load_state_dict(ckpt[<span class="st">'optimizer_state'</span>])
+    agent.steps  = ckpt[<span class="st">'steps'</span>]
+    agent.losses = ckpt[<span class="st">'losses'</span>]
+    print(<span class="st">f"Loaded checkpoint: step {agent.steps}"</span>)
+    <span class="kw">return</span> agent
+    </div>
+
+    <!-- ── Phase 8: Error Analysis ────────────────────────── -->
+    <div class="cx-phase-badge">PHASE 08 — EVALUATION AND ANALYSIS</div>
+    <h2>Detailed Evaluation</h2>
+
+    <div class="cx-code">
+<span class="kw">def</span> <span class="fn">detailed_evaluation</span>(agent, n_episodes=<span class="nm">100</span>):
+    <span class="st">"""
+    Run 100 evaluation episodes and report detailed statistics.
+    Tracks: mean/std/min/max reward, crash rate, landing rate, timeout rate.
+    """</span>
+    eval_env = gym.make(<span class="st">'LunarLander-v2'</span>)
+    rewards, outcomes = [], []
+
+    <span class="kw">for</span> ep <span class="kw">in</span> range(n_episodes):
+        state, _ = eval_env.reset(seed=<span class="nm">2000</span> + ep)
+        done = <span class="kw">False</span>
+        ep_reward = <span class="nm">0.0</span>
+        steps = <span class="nm">0</span>
+        terminated_crashed = <span class="kw">False</span>
+
+        <span class="kw">while</span> <span class="kw">not</span> done:
+            s = torch.tensor(state, dtype=torch.float32, device=DEVICE).unsqueeze(<span class="nm">0</span>)
+            <span class="kw">with</span> torch.no_grad():
+                action = int(agent.online(s).argmax().item())
+            state, reward, term, trunc, info = eval_env.step(action)
+            done = term <span class="kw">or</span> trunc
+            ep_reward += reward
+            steps += <span class="nm">1</span>
+            <span class="kw">if</span> term <span class="kw">and</span> ep_reward &lt; -<span class="nm">50</span>:
+                terminated_crashed = <span class="kw">True</span>
+
+        rewards.append(ep_reward)
+        <span class="kw">if</span> terminated_crashed:           outcomes.append(<span class="st">'crash'</span>)
+        <span class="kw">elif</span> ep_reward >= <span class="nm">200</span>:           outcomes.append(<span class="st">'success'</span>)
+        <span class="kw">elif</span> trunc:                       outcomes.append(<span class="st">'timeout'</span>)
+        <span class="kw">else</span>:                             outcomes.append(<span class="st">'other'</span>)
+
+    rewards = np.array(rewards)
+    from collections <span class="kw">import</span> Counter
+    outcome_counts = Counter(outcomes)
+
+    print(<span class="st">"\n=== Evaluation Results (100 episodes) ==="</span>)
+    print(<span class="st">f"Mean Reward:    {rewards.mean():.1f} +/- {rewards.std():.1f}"</span>)
+    print(<span class="st">f"Min / Max:      {rewards.min():.1f} / {rewards.max():.1f}"</span>)
+    print(<span class="st">f"Solved >=200:   {(rewards >= 200).mean()*100:.1f}%"</span>)
+    print(<span class="st">f"Success:        {outcome_counts['success']}"</span>)
+    print(<span class="st">f"Crashes:        {outcome_counts['crash']}"</span>)
+    print(<span class="st">f"Timeouts:       {outcome_counts['timeout']}"</span>)
+    eval_env.close()
+    <span class="kw">return</span> rewards
+    </div>
+
+    <!-- ── Reference Results ──────────────────────────────── -->
+    <div class="cx-section-tag">reference results</div>
+    <h2>Reference Results (LunarLander-v2)</h2>
+    <p>Expected performance with the Dueling Double DQN configuration in this pipeline, trained for 800 episodes on a single GPU or CPU:</p>
+
+    <div class="cx-results-grid">
+      <div class="cx-result-card">
+        <div class="val">~400</div>
+        <div class="lbl">Episodes to solve</div>
+      </div>
+      <div class="cx-result-card">
+        <div class="val">240+</div>
+        <div class="lbl">Mean eval reward</div>
+      </div>
+      <div class="cx-result-card">
+        <div class="val">85%+</div>
+        <div class="lbl">Success rate</div>
+      </div>
+      <div class="cx-result-card">
+        <div class="val">~8min</div>
+        <div class="lbl">Training time (CPU)</div>
+      </div>
+    </div>
+
+    <!-- ── Phase 8: Full Script ───────────────────────────── -->
+    <div class="cx-phase-badge">FULL PIPELINE — ENTRYPOINT</div>
+    <h2>Complete Run Script</h2>
+
+    <div class="cx-code">
+<span class="kw">if</span> __name__ == <span class="st">'__main__'</span>:
+    <span class="cm"># ── 1. Train ──────────────────────────────────────────────────</span>
+    agent, rewards_history, eval_history, solved_at = train(
+        n_episodes   = <span class="nm">800</span>,
+        eval_every   = <span class="nm">50</span>,
+        eval_episodes = <span class="nm">20</span>,
+    )
+
+    <span class="cm"># ── 2. Save checkpoint ────────────────────────────────────────</span>
+    save_checkpoint(agent, <span class="st">'dqn_lunarlander.pt'</span>)
+
+    <span class="cm"># ── 3. Visualize learning curves ──────────────────────────────</span>
+    plot_training(rewards_history, eval_history, solved_at)
+
+    <span class="cm"># ── 4. Detailed evaluation ────────────────────────────────────</span>
+    detailed_evaluation(agent, n_episodes=<span class="nm">100</span>)
+
+    <span class="cm"># ── 5. Watch a greedy episode (requires render mode) ──────────</span>
+    vis_env = gym.make(<span class="st">'LunarLander-v2'</span>, render_mode=<span class="st">'human'</span>)
+    state, _ = vis_env.reset()
+    done = <span class="kw">False</span>
+    total = <span class="nm">0.0</span>
+    <span class="kw">while</span> <span class="kw">not</span> done:
+        s = torch.tensor(state, dtype=torch.float32, device=DEVICE).unsqueeze(<span class="nm">0</span>)
+        <span class="kw">with</span> torch.no_grad():
+            action = int(agent.online(s).argmax().item())
+        state, reward, term, trunc, _ = vis_env.step(action)
+        total += reward
+        done = term <span class="kw">or</span> trunc
+    vis_env.close()
+    print(<span class="st">f"Demo episode reward: {total:.1f}"</span>)
+    </div>
+
+    <div class="cx-callout green">
+      <strong>Extension Ideas</strong>
+      Replace Dueling DQN with Rainbow (add PER + Noisy Net + distributional return) for 15-20% improvement. Try the harder environments: BipedalWalker-v3 (requires SAC), CarRacing-v2 (pixel DQN), or ALE/Pong-v5 (original Atari setting). For security, swap in the PentestEnv from Module 08 as the environment.
+    </div>
+
+    <div class="cx-complete-banner">
+      <h3>Reinforcement Learning Course Complete</h3>
+      <p>You have covered the full RL stack: MDPs, Dynamic Programming, Monte Carlo, TD Learning, DQN, Policy Gradients, PPO, SAC, Multi-Agent RL, RL for Security, Inverse RL, and a complete hands-on DQN pipeline. Return to the course index to mark your progress.</p>
+    </div>
+
+    <nav class="cx-nav-footer">
+      <a href="cx-rl-09.html" class="cx-nav-btn">
+        <span class="dir">Previous</span>
+        Inverse RL and Imitation
+      </a>
+      <a href="index.html" class="cx-nav-btn">
+        <span class="dir">Back to</span>
+        Course Index
+      </a>
+    </nav>
+  </div>
+
+  <script src="../../../../../components/FluxCapacitor.js"></script>
+  <script>
+    const MODULE_ID = 'cx-rl-10';
+    const HOUSE_ID  = 'ai';
+    let marked = false;
+    window.addEventListener('scroll', function() {
+      if (marked) return;
+      const scrolled = window.scrollY + window.innerHeight;
+      const total    = document.documentElement.scrollHeight;
+      if (scrolled / total >= 0.80) {
+        marked = true;
+        if (typeof ModuleProgress !== 'undefined') {
+          ModuleProgress.complete(HOUSE_ID, MODULE_ID);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
