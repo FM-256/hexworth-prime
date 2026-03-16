@@ -112,9 +112,9 @@
 - [x] **PL-16** — Swift & Kotlin (modern mobile development)
 - [x] **PL-17** — Lua, Perl, R (specialized scripting)
 - [x] **PL-18** — Language comparison tool & recommendation engine
-- [ ] **PL-19** — Per-language coding challenges (depends on PL-2/3/4/6/7)
-- [ ] **PL-20** — Security-focused language selection guide
-- [ ] **PL-21** — Python Graphics (turtle, pygame — depends on PL-2)
+- [x] **PL-19** — Per-language coding challenges (depends on PL-2/3/4/6/7)
+- [x] **PL-20** — Security-focused language selection guide
+- [x] **PL-21** — Python Graphics (turtle, pygame — depends on PL-2)
 
 ---
 ## Wave 10: The Backbone — Hub Design (1 agent)

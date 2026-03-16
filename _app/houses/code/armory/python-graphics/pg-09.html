@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PG-09: Game State Management | Code Armory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117; --accent: #f59e0b; --accent-dim: rgba(245,158,11,0.15); --green: #4EC9B0; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.1); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .module-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .back-link { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .back-link:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 35px 60px; }
+        .section { margin-bottom: 35px; }
+        .section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.95rem; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; color: var(--text-primary); }
+        .code-block .comment { color: #6a737d; } .code-block .keyword { color: #ff7b72; } .code-block .string { color: #a5d6ff; } .code-block .function { color: #d2a8ff; } .code-block .builtin { color: #79c0ff; } .code-block .number { color: #79c0ff; }
+        .try-it { background: rgba(78,201,176,0.08); border: 1px solid rgba(78,201,176,0.25); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p, .try-it ol { color: var(--text-secondary); font-size: 0.9rem; } .try-it ol { padding-left: 20px; } .try-it li { margin-bottom: 4px; }
+        .takeaways { background: linear-gradient(135deg, rgba(78,201,176,0.1), rgba(78,201,176,0.05)); border: 1px solid var(--green); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--green); margin-bottom: 12px; } .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { background: #d97706; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--green); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left"><span class="module-badge">PG-09</span><h1>Game State Management</h1></div>
+        <a href="index.html" class="back-link">&lt; Python Graphics</a>
+    </header>
+    <div class="content-panel">
+        <div class="objectives"><h2>Learning Objectives</h2><ul>
+            <li>Implement a state machine for game flow control</li>
+            <li>Build menu screens with selectable options</li>
+            <li>Create level progression and difficulty scaling</li>
+            <li>Implement score tracking with high score persistence</li>
+            <li>Build game over and victory screens with restart</li>
+        </ul></div>
+
+        <section class="section">
+            <h2 class="section-title">What Is Game State?</h2>
+            <p class="content-text">A game is not just one continuous loop -- it has distinct phases. The title screen waits for the player to press Start. The playing state runs the game logic. The pause screen freezes action. The game over screen shows the final score. Each phase has its own event handling, update logic, and rendering.</p>
+            <p class="content-text">A state machine manages these transitions. The game loop checks which state is active and runs only that state's code. States can transition to other states based on events (player dies -> game over, press Escape -> pause).</p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Simple State Machine</h2>
+            <div class="code-block"><div class="code-block-header">state_machine.py</div>
+                <pre><span class="keyword">import</span> pygame, sys
+
+<span class="comment"># Game states</span>
+MENU = <span class="string">"menu"</span>
+PLAYING = <span class="string">"playing"</span>
+PAUSED = <span class="string">"paused"</span>
+GAME_OVER = <span class="string">"game_over"</span>
+
+<span class="keyword">class</span> <span class="function">Game</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self):
+        pygame.<span class="function">init</span>()
+        self.screen = pygame.display.<span class="function">set_mode</span>((<span class="number">800</span>, <span class="number">600</span>))
+        self.clock = pygame.time.<span class="function">Clock</span>()
+        self.font = pygame.font.<span class="function">Font</span>(<span class="keyword">None</span>, <span class="number">48</span>)
+        self.small_font = pygame.font.<span class="function">Font</span>(<span class="keyword">None</span>, <span class="number">28</span>)
+        self.state = MENU
+        self.score = <span class="number">0</span>
+        self.high_score = <span class="number">0</span>
+        self.lives = <span class="number">3</span>
+
+    <span class="keyword">def</span> <span class="function">run</span>(self):
+        <span class="keyword">while</span> <span class="keyword">True</span>:
+            <span class="keyword">for</span> event <span class="keyword">in</span> pygame.event.<span class="function">get</span>():
+                <span class="keyword">if</span> event.type == pygame.QUIT:
+                    pygame.<span class="function">quit</span>(); sys.<span class="function">exit</span>()
+                self.<span class="function">handle_event</span>(event)
+
+            self.<span class="function">update</span>()
+            self.<span class="function">draw</span>()
+            pygame.display.<span class="function">flip</span>()
+            self.clock.<span class="function">tick</span>(<span class="number">60</span>)
+
+    <span class="keyword">def</span> <span class="function">handle_event</span>(self, event):
+        <span class="keyword">if</span> self.state == MENU:
+            <span class="keyword">if</span> event.type == pygame.KEYDOWN <span class="keyword">and</span> event.key == pygame.K_RETURN:
+                self.state = PLAYING
+                self.score = <span class="number">0</span>
+                self.lives = <span class="number">3</span>
+        <span class="keyword">elif</span> self.state == PLAYING:
+            <span class="keyword">if</span> event.type == pygame.KEYDOWN <span class="keyword">and</span> event.key == pygame.K_ESCAPE:
+                self.state = PAUSED
+        <span class="keyword">elif</span> self.state == PAUSED:
+            <span class="keyword">if</span> event.type == pygame.KEYDOWN:
+                <span class="keyword">if</span> event.key == pygame.K_ESCAPE:
+                    self.state = PLAYING
+                <span class="keyword">if</span> event.key == pygame.K_q:
+                    self.state = MENU
+        <span class="keyword">elif</span> self.state == GAME_OVER:
+            <span class="keyword">if</span> event.type == pygame.KEYDOWN <span class="keyword">and</span> event.key == pygame.K_RETURN:
+                self.state = MENU
+
+    <span class="keyword">def</span> <span class="function">update</span>(self):
+        <span class="keyword">if</span> self.state == PLAYING:
+            <span class="comment"># Game logic here</span>
+            <span class="keyword">if</span> self.lives <= <span class="number">0</span>:
+                <span class="keyword">if</span> self.score > self.high_score:
+                    self.high_score = self.score
+                self.state = GAME_OVER
+
+    <span class="keyword">def</span> <span class="function">draw</span>(self):
+        self.screen.<span class="function">fill</span>((<span class="number">9</span>, <span class="number">9</span>, <span class="number">16</span>))
+
+        <span class="keyword">if</span> self.state == MENU:
+            self.<span class="function">draw_text</span>(<span class="string">"MY GAME"</span>, <span class="number">400</span>, <span class="number">200</span>, self.font, (<span class="number">245</span>,<span class="number">158</span>,<span class="number">11</span>))
+            self.<span class="function">draw_text</span>(<span class="string">"Press ENTER to Start"</span>, <span class="number">400</span>, <span class="number">350</span>, self.small_font, (<span class="number">200</span>,<span class="number">200</span>,<span class="number">200</span>))
+            self.<span class="function">draw_text</span>(<span class="string">f"High Score: {self.high_score}"</span>, <span class="number">400</span>, <span class="number">420</span>, self.small_font, (<span class="number">140</span>,<span class="number">140</span>,<span class="number">140</span>))
+        <span class="keyword">elif</span> self.state == PLAYING:
+            <span class="comment"># Draw game objects</span>
+            self.<span class="function">draw_text</span>(<span class="string">f"Score: {self.score}  Lives: {self.lives}"</span>, <span class="number">400</span>, <span class="number">30</span>, self.small_font, (<span class="number">255</span>,<span class="number">255</span>,<span class="number">255</span>))
+        <span class="keyword">elif</span> self.state == PAUSED:
+            self.<span class="function">draw_text</span>(<span class="string">"PAUSED"</span>, <span class="number">400</span>, <span class="number">250</span>, self.font, (<span class="number">245</span>,<span class="number">158</span>,<span class="number">11</span>))
+            self.<span class="function">draw_text</span>(<span class="string">"ESC to Resume | Q to Quit"</span>, <span class="number">400</span>, <span class="number">330</span>, self.small_font, (<span class="number">160</span>,<span class="number">160</span>,<span class="number">160</span>))
+        <span class="keyword">elif</span> self.state == GAME_OVER:
+            self.<span class="function">draw_text</span>(<span class="string">"GAME OVER"</span>, <span class="number">400</span>, <span class="number">220</span>, self.font, (<span class="number">239</span>,<span class="number">68</span>,<span class="number">68</span>))
+            self.<span class="function">draw_text</span>(<span class="string">f"Final Score: {self.score}"</span>, <span class="number">400</span>, <span class="number">300</span>, self.small_font, (<span class="number">255</span>,<span class="number">255</span>,<span class="number">255</span>))
+            self.<span class="function">draw_text</span>(<span class="string">"Press ENTER for Menu"</span>, <span class="number">400</span>, <span class="number">380</span>, self.small_font, (<span class="number">160</span>,<span class="number">160</span>,<span class="number">160</span>))
+
+    <span class="keyword">def</span> <span class="function">draw_text</span>(self, text, x, y, font, color):
+        surface = font.<span class="function">render</span>(text, <span class="keyword">True</span>, color)
+        rect = surface.<span class="function">get_rect</span>(center=(x, y))
+        self.screen.<span class="function">blit</span>(surface, rect)
+
+<span class="function">Game</span>().<span class="function">run</span>()</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Level Progression</h2>
+            <p class="content-text">Levels add structure. Each level can increase difficulty (faster enemies, more obstacles), change the environment, or introduce new mechanics. Track the current level and adjust parameters accordingly.</p>
+            <div class="code-block"><div class="code-block-header">levels.py</div>
+                <pre><span class="keyword">class</span> <span class="function">LevelManager</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self):
+        self.level = <span class="number">1</span>
+        self.enemies_killed = <span class="number">0</span>
+        self.enemies_per_level = <span class="number">10</span>
+
+    <span class="keyword">def</span> <span class="function">get_enemy_speed</span>(self):
+        <span class="keyword">return</span> <span class="number">2</span> + (self.level * <span class="number">0.5</span>)
+
+    <span class="keyword">def</span> <span class="function">get_enemy_count</span>(self):
+        <span class="keyword">return</span> <span class="number">3</span> + self.level
+
+    <span class="keyword">def</span> <span class="function">get_spawn_rate</span>(self):
+        <span class="keyword">return</span> <span class="builtin">max</span>(<span class="number">500</span>, <span class="number">2000</span> - (self.level * <span class="number">200</span>))  <span class="comment"># ms between spawns</span>
+
+    <span class="keyword">def</span> <span class="function">enemy_killed</span>(self):
+        self.enemies_killed += <span class="number">1</span>
+        <span class="keyword">if</span> self.enemies_killed >= self.enemies_per_level:
+            self.enemies_killed = <span class="number">0</span>
+            self.level += <span class="number">1</span>
+            <span class="keyword">return</span> <span class="keyword">True</span>  <span class="comment"># Level up!</span>
+        <span class="keyword">return</span> <span class="keyword">False</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">High Score Persistence</h2>
+            <p class="content-text">Save high scores to a file so they persist between sessions. A simple approach uses JSON for readability.</p>
+            <div class="code-block"><div class="code-block-header">highscore.py</div>
+                <pre><span class="keyword">import</span> json
+<span class="keyword">import</span> os
+
+<span class="keyword">class</span> <span class="function">HighScoreManager</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, filename=<span class="string">"highscores.json"</span>):
+        self.filename = filename
+        self.scores = self.<span class="function">load</span>()
+
+    <span class="keyword">def</span> <span class="function">load</span>(self):
+        <span class="keyword">if</span> os.path.<span class="function">exists</span>(self.filename):
+            <span class="keyword">with</span> <span class="builtin">open</span>(self.filename) <span class="keyword">as</span> f:
+                <span class="keyword">return</span> json.<span class="function">load</span>(f)
+        <span class="keyword">return</span> []
+
+    <span class="keyword">def</span> <span class="function">save</span>(self):
+        <span class="keyword">with</span> <span class="builtin">open</span>(self.filename, <span class="string">"w"</span>) <span class="keyword">as</span> f:
+            json.<span class="function">dump</span>(self.scores, f)
+
+    <span class="keyword">def</span> <span class="function">add_score</span>(self, name, score):
+        self.scores.<span class="function">append</span>({<span class="string">"name"</span>: name, <span class="string">"score"</span>: score})
+        self.scores.<span class="function">sort</span>(key=<span class="keyword">lambda</span> x: x[<span class="string">"score"</span>], reverse=<span class="keyword">True</span>)
+        self.scores = self.scores[:<span class="number">10</span>]  <span class="comment"># Keep top 10</span>
+        self.<span class="function">save</span>()
+
+    <span class="keyword">def</span> <span class="function">is_high_score</span>(self, score):
+        <span class="keyword">if</span> <span class="builtin">len</span>(self.scores) < <span class="number">10</span>:
+            <span class="keyword">return</span> <span class="keyword">True</span>
+        <span class="keyword">return</span> score > self.scores[-<span class="number">1</span>][<span class="string">"score"</span>]
+
+    <span class="keyword">def</span> <span class="function">get_top</span>(self, n=<span class="number">5</span>):
+        <span class="keyword">return</span> self.scores[:n]</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Transition Effects</h2>
+            <p class="content-text">Smooth transitions between states make the game feel polished. Fade in/out effects are the simplest and most effective.</p>
+            <div class="code-block"><div class="code-block-header">transitions.py</div>
+                <pre><span class="keyword">def</span> <span class="function">fade_out</span>(screen, duration_frames=<span class="number">30</span>):
+    <span class="string">"""Fade the screen to black over N frames."""</span>
+    overlay = pygame.<span class="function">Surface</span>(screen.<span class="function">get_size</span>())
+    overlay.<span class="function">fill</span>((<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>))
+    <span class="keyword">for</span> alpha <span class="keyword">in</span> <span class="builtin">range</span>(<span class="number">0</span>, <span class="number">256</span>, <span class="number">255</span> // duration_frames):
+        overlay.<span class="function">set_alpha</span>(alpha)
+        screen.<span class="function">blit</span>(overlay, (<span class="number">0</span>, <span class="number">0</span>))
+        pygame.display.<span class="function">flip</span>()
+        pygame.time.<span class="function">delay</span>(<span class="number">16</span>)
+
+<span class="keyword">def</span> <span class="function">fade_in</span>(screen, background, duration_frames=<span class="number">30</span>):
+    <span class="string">"""Fade from black to the background surface."""</span>
+    overlay = pygame.<span class="function">Surface</span>(screen.<span class="function">get_size</span>())
+    overlay.<span class="function">fill</span>((<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>))
+    <span class="keyword">for</span> alpha <span class="keyword">in</span> <span class="builtin">range</span>(<span class="number">255</span>, -<span class="number">1</span>, -(<span class="number">255</span> // duration_frames)):
+        screen.<span class="function">blit</span>(background, (<span class="number">0</span>, <span class="number">0</span>))
+        overlay.<span class="function">set_alpha</span>(alpha)
+        screen.<span class="function">blit</span>(overlay, (<span class="number">0</span>, <span class="number">0</span>))
+        pygame.display.<span class="function">flip</span>()
+        pygame.time.<span class="function">delay</span>(<span class="number">16</span>)
+
+<span class="comment"># Usage: before changing state</span>
+fade_out(screen)
+self.state = PLAYING
+<span class="comment"># New state draws on next frame</span></pre>
+            </div>
+        </section>
+
+        <div class="try-it"><h3>Try It Yourself</h3><p>Build a complete game with state management:</p><ol>
+            <li>Title screen with animated background and "Press Enter"</li>
+            <li>Playing state with score, lives, and level display</li>
+            <li>Pause state triggered by Escape key</li>
+            <li>Game over state with high score check</li>
+            <li>Fade transitions between states</li>
+            <li>Save/load high scores from a JSON file</li>
+        </ol></div>
+
+        <div class="takeaways"><h3>Key Takeaways</h3><ul>
+            <li>Game states (menu, playing, paused, game over) each have their own logic</li>
+            <li>A state variable controls which code runs in the main loop</li>
+            <li>Level managers scale difficulty by adjusting speed, count, and spawn rates</li>
+            <li>High scores persist using JSON file read/write</li>
+            <li>Fade transitions use Surface alpha blending for polish</li>
+            <li>Encapsulate the game in a class for clean organization</li>
+        </ul></div>
+
+        <nav class="nav-footer">
+            <a href="pg-08.html" class="nav-btn">&lt; Previous: Sound & Music</a>
+            <a href="pg-10.html" class="nav-btn primary">Next: Capstone Project &gt;</a>
+        </nav>
+    </div>
+    <script>
+        (function() {
+            var MODULE_ID = 'pg-09'; var scrollThreshold = 0.8; var completed = false;
+            function checkScroll() { if (completed) return; var s = window.scrollY || document.documentElement.scrollTop; var d = document.documentElement.scrollHeight - window.innerHeight; if (d > 0 && (s / d) >= scrollThreshold) { completed = true; saveProgress(); } }
+            function saveProgress() { var p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); if (!p.code) p.code = {}; p.code[MODULE_ID] = { completed: true, completedAt: new Date().toISOString(), lastAccess: Date.now() }; localStorage.setItem('hexworth_progress', JSON.stringify(p)); ModuleProgress.complete('code', MODULE_ID); }
+            (function() { var p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); if (p.code && p.code[MODULE_ID] && p.code[MODULE_ID].completed) completed = true; })();
+            window.addEventListener('scroll', checkScroll);
+        })();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
