@@ -223,10 +223,10 @@
 ## Wave 18: Content & Branding (4 parallel agents)
 *Sprints: M-10, M-11, BR-19, A-4*
 
-- [ ] **M-10** — Network-Essentials + Web house content gaps
-- [ ] **M-11** — Microsoft Security-101 course (Shield house onboarding track)
-- [ ] **BR-19** — Mascot Digital Life System (idle animations, reactions, cross-mascot encounters, seasonal, terrarium)
-- [ ] **A-4** — Tourist Visa: sorting quiz bypass for unsorted explorers
+- [x] **M-10** — Network-Essentials + Web house content gaps
+- [x] **M-11** — Microsoft Security-101 course (Shield house onboarding track)
+- [x] **BR-19** — Mascot Digital Life System (idle animations, reactions, cross-mascot encounters, seasonal, terrarium)
+- [x] **A-4** — Tourist Visa: sorting quiz bypass for unsorted explorers
 
 ---
 ## Wave 19: Tooling & Analytics (4 parallel agents)
