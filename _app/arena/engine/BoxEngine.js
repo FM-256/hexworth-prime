@@ -1092,7 +1092,7 @@ const BoxEngine = {
         const scoring = this.config.scoring || {};
         const elapsed = Math.round((Date.now() - s.startTime) / 60000);
 
-        let html = `<h4>Score Breakdown</h4>`;
+        let html = '<h4>Score Breakdown</h4>';
         html += `<div class="detail-row"><span>Base</span><span>${scoring.base || 1000}</span></div>`;
 
         s.flagsFound.forEach(id => {
@@ -2489,7 +2489,7 @@ const BoxEngine = {
         let bodyHtml = '';
 
         // 1. ATTACK CHAIN
-        bodyHtml += `<div class="report-section"><h4 class="report-section-title">ATTACK CHAIN</h4>`;
+        bodyHtml += '<div class="report-section"><h4 class="report-section-title">ATTACK CHAIN</h4>';
         if (phases.length > 0) {
             phases.forEach((phase, idx) => {
                 const isCompleted = (s.completedPhases || []).includes(phase.id);
@@ -2529,10 +2529,10 @@ const BoxEngine = {
                     `;
                 });
             } else {
-                bodyHtml += `<div class="report-chain-empty">No attack chain data available.</div>`;
+                bodyHtml += '<div class="report-chain-empty">No attack chain data available.</div>';
             }
         }
-        bodyHtml += `</div>`;
+        bodyHtml += '</div>';
 
         // 2. MITRE ATT&CK MAPPING
         const allMitre = [];
@@ -2551,17 +2551,17 @@ const BoxEngine = {
         });
 
         if (allMitre.length > 0) {
-            bodyHtml += `<div class="report-section"><h4 class="report-section-title">MITRE ATT&CK</h4>`;
-            bodyHtml += `<div class="report-mitre-list">`;
+            bodyHtml += '<div class="report-section"><h4 class="report-section-title">MITRE ATT&CK</h4>';
+            bodyHtml += '<div class="report-mitre-list">';
             allMitre.forEach(t => {
                 bodyHtml += `<span class="report-mitre-tag">${this._escHtml(t)}</span>`;
             });
-            bodyHtml += `</div></div>`;
+            bodyHtml += '</div></div>';
         }
 
         // 3. SCORE BREAKDOWN
-        bodyHtml += `<div class="report-section"><h4 class="report-section-title">SCORE BREAKDOWN</h4>`;
-        bodyHtml += `<div class="report-score-table">`;
+        bodyHtml += '<div class="report-section"><h4 class="report-section-title">SCORE BREAKDOWN</h4>';
+        bodyHtml += '<div class="report-score-table">';
         bodyHtml += `<div class="report-score-row"><span>Base score</span><span>${scoring.base || 1000}</span></div>`;
 
         s.flagsFound.forEach(id => {
@@ -2585,11 +2585,11 @@ const BoxEngine = {
         }
 
         bodyHtml += `<div class="report-score-row total"><span>Final Score</span><span>${s.score}</span></div>`;
-        bodyHtml += `</div></div>`;
+        bodyHtml += '</div></div>';
 
         // 4. PERFORMANCE METRICS
-        bodyHtml += `<div class="report-section"><h4 class="report-section-title">PERFORMANCE METRICS</h4>`;
-        bodyHtml += `<div class="report-metrics-grid">`;
+        bodyHtml += '<div class="report-section"><h4 class="report-section-title">PERFORMANCE METRICS</h4>';
+        bodyHtml += '<div class="report-metrics-grid">';
 
         // Time per phase
         if (phases.length > 0) {
@@ -2614,17 +2614,17 @@ const BoxEngine = {
         const totalNavs = events.filter(e => e.type === 'navigate').length;
         bodyHtml += `<div class="report-metric"><span class="report-metric-label">Page navigations</span><span class="report-metric-value">${totalNavs}</span></div>`;
 
-        bodyHtml += `</div></div>`;
+        bodyHtml += '</div></div>';
 
         // 5. RECOMMENDATIONS
         const recs = this._generateRecommendations(s, scoring, phases, flags, events);
         if (recs.length > 0) {
-            bodyHtml += `<div class="report-section"><h4 class="report-section-title">RECOMMENDATIONS</h4>`;
-            bodyHtml += `<div class="report-recommendations">`;
+            bodyHtml += '<div class="report-section"><h4 class="report-section-title">RECOMMENDATIONS</h4>';
+            bodyHtml += '<div class="report-recommendations">';
             recs.forEach(r => {
                 bodyHtml += `<div class="report-rec-item"><span class="report-rec-icon">${r.icon}</span><span class="report-rec-text">${this._escHtml(r.text)}</span></div>`;
             });
-            bodyHtml += `</div></div>`;
+            bodyHtml += '</div></div>';
         }
 
         document.getElementById('reportBody').innerHTML = bodyHtml;

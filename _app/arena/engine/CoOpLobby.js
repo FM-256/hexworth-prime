@@ -166,7 +166,7 @@ const CoOpLobby = (function() {
 
     async function _performRejoin(roomCode, sessionData) {
         const stage = _overlayEl.querySelector('.coop-rejoin-prompt');
-        if (stage) stage.innerHTML = `<div class="coop-loading">Reconnecting...</div>`;
+        if (stage) stage.innerHTML = '<div class="coop-loading">Reconnecting...</div>';
 
         try {
             const data = await CoOpSync.joinSession(roomCode);
@@ -361,7 +361,7 @@ const CoOpLobby = (function() {
 
     async function _createVsRoom() {
         const stage = document.getElementById('coopLobbyStage');
-        stage.innerHTML = `<div class="coop-loading">Initializing battle arena...</div>`;
+        stage.innerHTML = '<div class="coop-loading">Initializing battle arena...</div>';
 
         try {
             await CoOpSync.init();
@@ -492,7 +492,7 @@ const CoOpLobby = (function() {
 
     async function _createRoom() {
         const stage = document.getElementById('coopLobbyStage');
-        stage.innerHTML = `<div class="coop-loading">Initializing secure channel...</div>`;
+        stage.innerHTML = '<div class="coop-loading">Initializing secure channel...</div>';
 
         try {
             await CoOpSync.init();

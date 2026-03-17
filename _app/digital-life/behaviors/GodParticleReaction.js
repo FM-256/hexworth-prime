@@ -201,7 +201,7 @@ class GodParticleReaction {
 
         // Boost opacity to show protection
         if (firefly.element) {
-            firefly.element.style.filter = `brightness(1.3) drop-shadow(0 0 8px rgba(168, 85, 247, 0.6))`;
+            firefly.element.style.filter = 'brightness(1.3) drop-shadow(0 0 8px rgba(168, 85, 247, 0.6))';
         }
     }
 
@@ -281,7 +281,7 @@ class GodParticleReaction {
 
         // Curious glow
         if (firefly.element) {
-            firefly.element.style.filter = `brightness(1.1) drop-shadow(0 0 6px rgba(96, 165, 250, 0.5))`;
+            firefly.element.style.filter = 'brightness(1.1) drop-shadow(0 0 6px rgba(96, 165, 250, 0.5))';
         }
     }
 
@@ -309,7 +309,7 @@ class GodParticleReaction {
             const trembleX = (Math.random() - 0.5) * params.trembleAmount;
             const trembleY = (Math.random() - 0.5) * params.trembleAmount;
             firefly.element.style.transform = `translate(${trembleX}px, ${trembleY}px)`;
-            firefly.element.style.filter = `brightness(0.8) opacity(0.7)`;
+            firefly.element.style.filter = 'brightness(0.8) opacity(0.7)';
         }
     }
 
@@ -357,7 +357,7 @@ class GodParticleReaction {
 
                 // Flash effect
                 if (firefly.element) {
-                    firefly.element.style.filter = `brightness(2) drop-shadow(0 0 15px rgba(239, 68, 68, 1))`;
+                    firefly.element.style.filter = 'brightness(2) drop-shadow(0 0 15px rgba(239, 68, 68, 1))';
                     setTimeout(() => {
                         if (firefly.element) {
                             firefly.element.style.filter = '';
@@ -369,7 +369,7 @@ class GodParticleReaction {
 
         // Aggressive glow
         if (firefly.element && !firefly.isCharging) {
-            firefly.element.style.filter = `brightness(1.2) drop-shadow(0 0 6px rgba(239, 68, 68, 0.6))`;
+            firefly.element.style.filter = 'brightness(1.2) drop-shadow(0 0 6px rgba(239, 68, 68, 0.6))';
         }
     }
 
