@@ -40,6 +40,82 @@ window.SignalGuides['sg-06'] = {
 
     wiringNotes: '<p>The CYD has <strong>no external wiring</strong> for this project. The TFT, touch controller, and ESP32 are all connected on the PCB. You only need a USB-C cable for power and flashing. The pin assignments above are documented so you can configure the TFT_eSPI library correctly.</p>',
 
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+        '<defs>' +
+        '<pattern id="sg06-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="700" height="380" fill="url(#sg06-grid)" rx="4"/>' +
+        '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">ESP32 CYD — ALL-IN-ONE BOARD LAYOUT</text>' +
+
+        '<!-- CYD Board -->' +
+        '<rect x="160" y="55" width="400" height="280" rx="10" fill="#1a1f2b" stroke="#3b82f6" stroke-width="2"/>' +
+        '<rect x="160" y="55" width="400" height="30" rx="10" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="160" y="77" width="400" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="360" y="75" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="600">ESP32-2432S028R (CYD)</text>' +
+
+        '<!-- USB-C connector -->' +
+        '<rect x="330" y="42" width="60" height="18" rx="4" fill="#2a2a3a" stroke="#888" stroke-width="1"/>' +
+        '<text x="360" y="54" text-anchor="middle" fill="#999" font-size="7">USB-C</text>' +
+
+        '<!-- TFT Display area -->' +
+        '<rect x="185" y="100" width="200" height="140" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+        '<text x="285" y="120" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">2.8" ILI9341 TFT</text>' +
+        '<text x="285" y="136" text-anchor="middle" fill="#4ade80" font-size="7">320 x 240 px</text>' +
+        '<rect x="200" y="148" width="170" height="80" rx="3" fill="rgba(34,197,94,0.03)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+        '<text x="285" y="175" text-anchor="middle" fill="#22c55e" font-size="8" opacity="0.6">WiFi Scan Results</text>' +
+        '<text x="285" y="190" text-anchor="middle" fill="#22c55e" font-size="6" opacity="0.4">HomeNet_5G    Ch6  WPA2</text>' +
+        '<text x="285" y="200" text-anchor="middle" fill="#22c55e" font-size="6" opacity="0.4">Office_WiFi   Ch1  WPA2</text>' +
+        '<text x="285" y="210" text-anchor="middle" fill="#eab308" font-size="6" opacity="0.4">[HIDDEN]      Ch11 WPA2</text>' +
+
+        '<!-- Touch overlay label -->' +
+        '<rect x="185" y="244" width="200" height="20" rx="0" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+        '<text x="285" y="257" text-anchor="middle" fill="#a855f7" font-size="7">XPT2046 Touch Controller</text>' +
+
+        '<!-- ESP32 Module -->' +
+        '<rect x="410" y="105" width="130" height="80" rx="6" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.25)" stroke-width="1"/>' +
+        '<text x="475" y="125" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">ESP32-WROOM-32</text>' +
+        '<rect x="440" y="135" width="70" height="12" rx="2" fill="rgba(59,130,246,0.1)"/>' +
+        '<text x="475" y="144" text-anchor="middle" fill="#3b82f6" font-size="6">WiFi 802.11 b/g/n</text>' +
+        '<rect x="440" y="152" width="70" height="12" rx="2" fill="rgba(59,130,246,0.1)"/>' +
+        '<text x="475" y="161" text-anchor="middle" fill="#3b82f6" font-size="6">Dual-core 240MHz</text>' +
+        '<rect x="440" y="169" width="70" height="12" rx="2" fill="rgba(59,130,246,0.1)"/>' +
+        '<text x="475" y="178" text-anchor="middle" fill="#3b82f6" font-size="6">520KB SRAM</text>' +
+
+        '<!-- Internal wiring traces -->' +
+        '<text x="420" y="210" fill="#555" font-size="7" font-weight="600">Internal SPI Bus</text>' +
+        '<line x1="385" y1="170" x2="410" y2="170" stroke="#eab308" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>' +
+        '<line x1="385" y1="180" x2="410" y2="180" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>' +
+        '<line x1="385" y1="190" x2="410" y2="190" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>' +
+
+        '<!-- Pin assignment table -->' +
+        '<rect x="410" y="222" width="130" height="100" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+        '<text x="475" y="237" text-anchor="middle" fill="#8b949e" font-size="7" font-weight="600">Pin Map (on-PCB)</text>' +
+        '<text x="420" y="252" fill="#eab308" font-size="6">SCLK  = GPIO 14</text>' +
+        '<text x="420" y="263" fill="#22c55e" font-size="6">MOSI  = GPIO 13</text>' +
+        '<text x="420" y="274" fill="#3b82f6" font-size="6">MISO  = GPIO 12</text>' +
+        '<text x="420" y="285" fill="#f97316" font-size="6">CS    = GPIO 15</text>' +
+        '<text x="420" y="296" fill="#c084fc" font-size="6">DC    = GPIO  2</text>' +
+        '<text x="420" y="307" fill="#a855f7" font-size="6">T_CS  = GPIO 33</text>' +
+
+        '<!-- WiFi antenna indicator -->' +
+        '<rect x="495" y="90" width="50" height="16" rx="3" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
+        '<text x="520" y="101" text-anchor="middle" fill="#22c55e" font-size="6">Antenna</text>' +
+
+        '<!-- USB cable -->' +
+        '<line x1="360" y1="42" x2="360" y2="20" stroke="#ef4444" stroke-width="2" opacity="0.6"/>' +
+        '<rect x="335" y="8" width="50" height="14" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.25)" stroke-width="0.5"/>' +
+        '<text x="360" y="18" text-anchor="middle" fill="#ef4444" font-size="6">Power + Flash</text>' +
+
+        '<!-- Legend -->' +
+        '<rect x="40" y="350" width="640" height="35" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>' +
+        '<text x="60" y="372" fill="#555" font-size="7" font-weight="600">NOTES:</text>' +
+        '<text x="115" y="372" fill="#8b949e" font-size="7">No external wiring needed. All components are on-board. USB-C for power and programming only.</text>' +
+
+        '</svg>' +
+        '</div>',
+
     steps: [
         {
             title: 'Install Arduino IDE and ESP32 Board Support',
@@ -166,6 +242,107 @@ window.SignalGuides['sg-07'] = {
 
     wiringNotes: '<p>This project requires <strong>only the ESP32 DevKit and a USB cable</strong>. All Bluetooth scanning uses the built-in antenna on the ESP32-WROOM-32 module. Output goes to the Serial Monitor over USB.</p>',
 
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+        '<defs>' +
+        '<pattern id="sg07-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="700" height="380" fill="url(#sg07-grid)" rx="4"/>' +
+        '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">ESP32 DEVKIT V1 — BLUETOOTH SCANNER SETUP</text>' +
+
+        '<!-- ESP32 DevKit Board -->' +
+        '<rect x="230" y="60" width="260" height="260" rx="10" fill="#1a1f2b" stroke="#a855f7" stroke-width="2"/>' +
+        '<rect x="230" y="60" width="260" height="30" rx="10" fill="rgba(168,85,247,0.12)"/>' +
+        '<rect x="230" y="82" width="260" height="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<text x="360" y="80" text-anchor="middle" fill="#c084fc" font-size="12" font-weight="600">ESP32 DevKit V1</text>' +
+
+        '<!-- USB Micro connector -->' +
+        '<rect x="335" y="47" width="50" height="18" rx="4" fill="#2a2a3a" stroke="#888" stroke-width="1"/>' +
+        '<text x="360" y="59" text-anchor="middle" fill="#999" font-size="7">USB</text>' +
+
+        '<!-- ESP32 Module on board -->' +
+        '<rect x="280" y="100" width="160" height="70" rx="6" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.25)" stroke-width="1"/>' +
+        '<text x="360" y="120" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">ESP32-WROOM-32</text>' +
+        '<rect x="310" y="130" width="100" height="12" rx="2" fill="rgba(168,85,247,0.1)"/>' +
+        '<text x="360" y="139" text-anchor="middle" fill="#a855f7" font-size="6">WiFi + BT + BLE</text>' +
+        '<rect x="310" y="147" width="100" height="12" rx="2" fill="rgba(168,85,247,0.1)"/>' +
+        '<text x="360" y="156" text-anchor="middle" fill="#a855f7" font-size="6">Dual-core 240MHz</text>' +
+
+        '<!-- Antenna -->' +
+        '<rect x="330" y="90" width="60" height="14" rx="3" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
+        '<text x="360" y="100" text-anchor="middle" fill="#22c55e" font-size="6">PCB Antenna</text>' +
+
+        '<!-- Left pin column -->' +
+        '<g>' +
+        '<circle cx="244" cy="195" r="3" fill="#8b949e"/><text x="260" y="198" fill="#8b949e" font-size="7">EN</text>' +
+        '<circle cx="244" cy="210" r="3" fill="#8b949e"/><text x="260" y="213" fill="#8b949e" font-size="7">VP</text>' +
+        '<circle cx="244" cy="225" r="3" fill="#8b949e"/><text x="260" y="228" fill="#8b949e" font-size="7">VN</text>' +
+        '<circle cx="244" cy="240" r="3" fill="#8b949e"/><text x="260" y="243" fill="#8b949e" font-size="7">D34</text>' +
+        '<circle cx="244" cy="255" r="3" fill="#8b949e"/><text x="260" y="258" fill="#8b949e" font-size="7">D35</text>' +
+        '<circle cx="244" cy="270" r="3" fill="#333" stroke="#888" stroke-width="0.5"/><text x="260" y="273" fill="#8b949e" font-size="7">GND</text>' +
+        '<circle cx="244" cy="285" r="3" fill="#ef4444"/><text x="260" y="288" fill="#8b949e" font-size="7">VIN</text>' +
+        '</g>' +
+
+        '<!-- Right pin column -->' +
+        '<g>' +
+        '<circle cx="476" cy="195" r="3" fill="#8b949e"/><text x="460" y="198" fill="#8b949e" font-size="7" text-anchor="end">D23</text>' +
+        '<circle cx="476" cy="210" r="3" fill="#8b949e"/><text x="460" y="213" fill="#8b949e" font-size="7" text-anchor="end">D22</text>' +
+        '<circle cx="476" cy="225" r="3" fill="#8b949e"/><text x="460" y="228" fill="#8b949e" font-size="7" text-anchor="end">TX0</text>' +
+        '<circle cx="476" cy="240" r="3" fill="#8b949e"/><text x="460" y="243" fill="#8b949e" font-size="7" text-anchor="end">RX0</text>' +
+        '<circle cx="476" cy="255" r="3" fill="#8b949e"/><text x="460" y="258" fill="#8b949e" font-size="7" text-anchor="end">D21</text>' +
+        '<circle cx="476" cy="270" r="3" fill="#ef4444"/><text x="460" y="273" fill="#8b949e" font-size="7" text-anchor="end">3V3</text>' +
+        '<circle cx="476" cy="285" r="3" fill="#333" stroke="#888" stroke-width="0.5"/><text x="460" y="288" fill="#8b949e" font-size="7" text-anchor="end">GND</text>' +
+        '</g>' +
+
+        '<!-- USB cable to PC -->' +
+        '<line x1="360" y1="47" x2="360" y2="20" stroke="#ef4444" stroke-width="2" opacity="0.6"/>' +
+        '<rect x="310" y="6" width="100" height="16" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.25)" stroke-width="0.5"/>' +
+        '<text x="360" y="17" text-anchor="middle" fill="#ef4444" font-size="7">USB to PC / Laptop</text>' +
+
+        '<!-- Serial Monitor on PC -->' +
+        '<rect x="530" y="70" width="160" height="180" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+        '<rect x="530" y="70" width="160" height="24" rx="8" fill="rgba(234,179,8,0.1)"/>' +
+        '<rect x="530" y="86" width="160" height="8" fill="rgba(234,179,8,0.1)"/>' +
+        '<text x="610" y="86" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">Serial Monitor</text>' +
+        '<text x="545" y="110" fill="#8b949e" font-size="6">[BT] Phone_XS   -42dBm</text>' +
+        '<text x="545" y="122" fill="#8b949e" font-size="6">[BLE] Mi Band 7  -58dBm</text>' +
+        '<text x="545" y="134" fill="#8b949e" font-size="6">[BLE] AirPods    -63dBm</text>' +
+        '<text x="545" y="146" fill="#8b949e" font-size="6">[BT] JBL Flip    -71dBm</text>' +
+        '<text x="545" y="158" fill="#c084fc" font-size="6">Classic: 2  BLE: 8</text>' +
+        '<text x="545" y="170" fill="#c084fc" font-size="6">Total: 10 devices</text>' +
+
+        '<!-- Arrow from USB to PC -->' +
+        '<path d="M490,150 C510,150 520,130 530,130" stroke="#eab308" stroke-width="1.5" fill="none" stroke-dasharray="4,3" opacity="0.5"/>' +
+        '<polygon points="528,126 536,130 528,134" fill="#eab308" opacity="0.5"/>' +
+
+        '<!-- Wireless scan indicators -->' +
+        '<g>' +
+        '<!-- BT Classic waves -->' +
+        '<path d="M210,140 Q190,150 210,160" stroke="#3b82f6" stroke-width="1" fill="none" opacity="0.3"/>' +
+        '<path d="M200,130 Q175,150 200,170" stroke="#3b82f6" stroke-width="1" fill="none" opacity="0.2"/>' +
+        '<text x="175" y="155" text-anchor="middle" fill="#3b82f6" font-size="7" opacity="0.6">BT</text>' +
+
+        '<!-- BLE waves -->' +
+        '<path d="M210,200 Q190,210 210,220" stroke="#22c55e" stroke-width="1" fill="none" opacity="0.3"/>' +
+        '<path d="M200,190 Q175,210 200,230" stroke="#22c55e" stroke-width="1" fill="none" opacity="0.2"/>' +
+        '<text x="175" y="215" text-anchor="middle" fill="#22c55e" font-size="7" opacity="0.6">BLE</text>' +
+        '</g>' +
+
+        '<!-- Scan info -->' +
+        '<rect x="40" y="280" width="150" height="60" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+        '<text x="115" y="298" text-anchor="middle" fill="#8b949e" font-size="7" font-weight="600">Dual Radio Scan</text>' +
+        '<text x="115" y="312" text-anchor="middle" fill="#3b82f6" font-size="6">Classic BT: 10s inquiry</text>' +
+        '<text x="115" y="324" text-anchor="middle" fill="#22c55e" font-size="6">BLE: 5s advertising scan</text>' +
+
+        '<!-- Legend -->' +
+        '<rect x="40" y="355" width="640" height="35" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>' +
+        '<text x="60" y="377" fill="#555" font-size="7" font-weight="600">NOTES:</text>' +
+        '<text x="115" y="377" fill="#8b949e" font-size="7">No external wiring. USB cable provides power and serial data. All scanning uses on-board antenna.</text>' +
+
+        '</svg>' +
+        '</div>',
+
     steps: [
         {
             title: 'Enable Bluetooth in Arduino IDE',
@@ -260,6 +437,108 @@ window.SignalGuides['sg-08'] = {
 
     wiringNotes: '<p>No additional hardware beyond the CYD and USB-C cable. This project is purely a firmware change from SG-06. The same TFT_eSPI configuration applies.</p>',
 
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+        '<defs>' +
+        '<pattern id="sg08-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="700" height="380" fill="url(#sg08-grid)" rx="4"/>' +
+        '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">PACKET TRAFFIC DASHBOARD — PROMISCUOUS MODE</text>' +
+
+        '<!-- CYD Board -->' +
+        '<rect x="230" y="55" width="260" height="200" rx="10" fill="#1a1f2b" stroke="#22c55e" stroke-width="2"/>' +
+        '<rect x="230" y="55" width="260" height="28" rx="10" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="230" y="75" width="260" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="360" y="74" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="600">ESP32 CYD (Promiscuous)</text>' +
+
+        '<!-- USB-C -->' +
+        '<rect x="335" y="42" width="50" height="18" rx="4" fill="#2a2a3a" stroke="#888" stroke-width="1"/>' +
+        '<text x="360" y="54" text-anchor="middle" fill="#999" font-size="7">USB-C</text>' +
+
+        '<!-- TFT showing dashboard -->' +
+        '<rect x="250" y="95" width="160" height="100" rx="4" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="330" y="110" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">TRAFFIC DASHBOARD</text>' +
+        '<!-- Bar chart representation -->' +
+        '<text x="260" y="124" fill="#22c55e" font-size="5">MGMT</text>' +
+        '<rect x="290" y="118" width="100" height="8" rx="2" fill="rgba(34,197,94,0.4)"/>' +
+        '<text x="260" y="138" fill="#eab308" font-size="5">CTRL</text>' +
+        '<rect x="290" y="132" width="45" height="8" rx="2" fill="rgba(234,179,8,0.4)"/>' +
+        '<text x="260" y="152" fill="#60a5fa" font-size="5">DATA</text>' +
+        '<rect x="290" y="146" width="70" height="8" rx="2" fill="rgba(59,130,246,0.4)"/>' +
+        '<text x="260" y="168" fill="#f97316" font-size="5">Probes: 42</text>' +
+        '<text x="260" y="178" fill="#ef4444" font-size="5">Deauths: 0</text>' +
+        '<text x="330" y="190" text-anchor="middle" fill="#555" font-size="5">Ch 6 | 287 fps</text>' +
+
+        '<!-- ESP32 radio info -->' +
+        '<rect x="425" y="100" width="55" height="90" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+        '<text x="452" y="115" text-anchor="middle" fill="#4ade80" font-size="6" font-weight="600">WiFi</text>' +
+        '<text x="452" y="128" text-anchor="middle" fill="#4ade80" font-size="5">Monitor</text>' +
+        '<text x="452" y="138" text-anchor="middle" fill="#4ade80" font-size="5">Mode</text>' +
+        '<text x="452" y="155" text-anchor="middle" fill="#8b949e" font-size="5">Ch 1-13</text>' +
+        '<text x="452" y="168" text-anchor="middle" fill="#8b949e" font-size="5">Hopping</text>' +
+        '<text x="452" y="181" text-anchor="middle" fill="#8b949e" font-size="5">200ms</text>' +
+
+        '<!-- Wireless frames coming in from left -->' +
+        '<g opacity="0.6">' +
+        '<!-- Access points -->' +
+        '<rect x="40" y="80" width="110" height="40" rx="5" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+        '<text x="95" y="98" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Access Point 1</text>' +
+        '<text x="95" y="112" text-anchor="middle" fill="#8b949e" font-size="6">Beacons @ 10/sec</text>' +
+
+        '<rect x="40" y="135" width="110" height="40" rx="5" fill="#1e2736" stroke="#eab308" stroke-width="1"/>' +
+        '<text x="95" y="153" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">Client Device</text>' +
+        '<text x="95" y="167" text-anchor="middle" fill="#8b949e" font-size="6">Probe Requests</text>' +
+
+        '<rect x="40" y="190" width="110" height="40" rx="5" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+        '<text x="95" y="208" text-anchor="middle" fill="#3b82f6" font-size="7" font-weight="600">Data Traffic</text>' +
+        '<text x="95" y="222" text-anchor="middle" fill="#8b949e" font-size="6">Encrypted Frames</text>' +
+        '</g>' +
+
+        '<!-- Frame arrows -->' +
+        '<line x1="150" y1="100" x2="226" y2="130" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+        '<polygon points="224,126 230,132 222,134" fill="#22c55e" opacity="0.4"/>' +
+        '<line x1="150" y1="155" x2="226" y2="155" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+        '<polygon points="224,151 230,155 224,159" fill="#eab308" opacity="0.4"/>' +
+        '<line x1="150" y1="210" x2="226" y2="180" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+        '<polygon points="224,176 230,178 224,182" fill="#3b82f6" opacity="0.4"/>' +
+
+        '<!-- Right side: access points -->' +
+        '<g opacity="0.6">' +
+        '<rect x="570" y="80" width="110" height="40" rx="5" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+        '<text x="625" y="98" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Access Point 2</text>' +
+        '<text x="625" y="112" text-anchor="middle" fill="#8b949e" font-size="6">Ch 11 / WPA2</text>' +
+
+        '<rect x="570" y="135" width="110" height="40" rx="5" fill="#1e2736" stroke="#f97316" stroke-width="1"/>' +
+        '<text x="625" y="153" text-anchor="middle" fill="#f97316" font-size="7" font-weight="600">Phone (Probing)</text>' +
+        '<text x="625" y="167" text-anchor="middle" fill="#8b949e" font-size="6">"Home_WiFi?"</text>' +
+        '</g>' +
+
+        '<line x1="570" y1="100" x2="494" y2="130" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+        '<polygon points="496,126 490,132 498,134" fill="#22c55e" opacity="0.4"/>' +
+        '<line x1="570" y1="155" x2="494" y2="155" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+        '<polygon points="496,151 490,155 496,159" fill="#f97316" opacity="0.4"/>' +
+
+        '<!-- 802.11 Frame Types legend -->' +
+        '<rect x="40" y="270" width="640" height="55" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+        '<text x="60" y="288" fill="#555" font-size="7" font-weight="600" letter-spacing="0.1em">802.11 FRAME TYPES CAPTURED</text>' +
+        '<rect x="60" y="296" width="120" height="20" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="120" y="309" text-anchor="middle" fill="#22c55e" font-size="7">Management (Beacons)</text>' +
+        '<rect x="195" y="296" width="120" height="20" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+        '<text x="255" y="309" text-anchor="middle" fill="#eab308" font-size="7">Control (ACK/RTS)</text>' +
+        '<rect x="330" y="296" width="120" height="20" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+        '<text x="390" y="309" text-anchor="middle" fill="#3b82f6" font-size="7">Data (Payload)</text>' +
+        '<rect x="465" y="296" width="100" height="20" rx="3" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+        '<text x="515" y="309" text-anchor="middle" fill="#f97316" font-size="7">Probe Requests</text>' +
+
+        '<!-- Bottom note -->' +
+        '<rect x="40" y="340" width="640" height="35" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>' +
+        '<text x="60" y="362" fill="#555" font-size="7" font-weight="600">NOTES:</text>' +
+        '<text x="115" y="362" fill="#8b949e" font-size="7">Same CYD hardware as SG-06. Promiscuous mode captures all 802.11 frames on the current channel.</text>' +
+
+        '</svg>' +
+        '</div>',
+
     steps: [
         {
             title: 'Understand 802.11 Frame Types',
@@ -344,6 +623,128 @@ window.SignalGuides['sg-09'] = {
     wiring: null,
 
     wiringNotes: null,
+
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+        '<defs>' +
+        '<pattern id="sg09-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="720" height="420" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="700" height="400" fill="url(#sg09-grid)" rx="4"/>' +
+        '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">RASPBERRY PI NETWORK PROBE — DEPLOYMENT</text>' +
+
+        '<!-- Raspberry Pi Board -->' +
+        '<rect x="250" y="60" width="220" height="170" rx="10" fill="#1a1f2b" stroke="#22c55e" stroke-width="2"/>' +
+        '<rect x="250" y="60" width="220" height="28" rx="10" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="250" y="80" width="220" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="360" y="78" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="600">Raspberry Pi 4/5</text>' +
+
+        '<!-- CPU -->' +
+        '<rect x="300" y="100" width="60" height="35" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="330" y="117" text-anchor="middle" fill="#4ade80" font-size="6" font-weight="600">BCM2711</text>' +
+        '<text x="330" y="129" text-anchor="middle" fill="#22c55e" font-size="5">4x Cortex-A72</text>' +
+
+        '<!-- RAM -->' +
+        '<rect x="380" y="100" width="60" height="35" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+        '<text x="410" y="117" text-anchor="middle" fill="#60a5fa" font-size="6" font-weight="600">RAM</text>' +
+        '<text x="410" y="129" text-anchor="middle" fill="#3b82f6" font-size="5">4/8 GB</text>' +
+
+        '<!-- Ethernet port -->' +
+        '<rect x="450" y="145" width="30" height="40" rx="3" fill="#2a2a3a" stroke="#eab308" stroke-width="1.5"/>' +
+        '<text x="465" y="168" text-anchor="middle" fill="#eab308" font-size="5" font-weight="600">ETH</text>' +
+
+        '<!-- USB ports -->' +
+        '<rect x="450" y="95" width="15" height="18" rx="2" fill="#2a2a3a" stroke="#888" stroke-width="0.5"/>' +
+        '<rect x="450" y="115" width="15" height="18" rx="2" fill="#2a2a3a" stroke="#888" stroke-width="0.5"/>' +
+        '<text x="448" y="109" fill="#888" font-size="4" text-anchor="end">USB</text>' +
+
+        '<!-- MicroSD slot -->' +
+        '<rect x="250" y="195" width="50" height="16" rx="2" fill="#2a2a3a" stroke="#a855f7" stroke-width="1"/>' +
+        '<text x="275" y="206" text-anchor="middle" fill="#a855f7" font-size="5">MicroSD</text>' +
+
+        '<!-- USB-C power -->' +
+        '<rect x="305" y="210" width="40" height="15" rx="3" fill="#2a2a3a" stroke="#ef4444" stroke-width="1"/>' +
+        '<text x="325" y="220" text-anchor="middle" fill="#ef4444" font-size="5">PWR</text>' +
+
+        '<!-- WiFi indicator -->' +
+        '<rect x="370" y="145" width="60" height="20" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+        '<text x="400" y="158" text-anchor="middle" fill="#a855f7" font-size="5">WiFi (optional)</text>' +
+
+        '<!-- GPIO header -->' +
+        '<rect x="270" y="140" width="80" height="12" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>' +
+        '<text x="310" y="150" text-anchor="middle" fill="#666" font-size="5">40-pin GPIO Header</text>' +
+
+        '<!-- Ethernet cable -->' +
+        '<line x1="480" y1="165" x2="560" y2="165" stroke="#eab308" stroke-width="3" stroke-linecap="round"/>' +
+        '<text x="520" y="158" text-anchor="middle" fill="#eab308" font-size="6">CAT5e/6</text>' +
+
+        '<!-- Router/Switch -->' +
+        '<rect x="560" y="55" width="130" height="130" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+        '<rect x="560" y="55" width="130" height="24" rx="8" fill="rgba(234,179,8,0.1)"/>' +
+        '<rect x="560" y="72" width="130" height="7" fill="rgba(234,179,8,0.1)"/>' +
+        '<text x="625" y="72" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">Network Switch</text>' +
+
+        '<!-- Devices on the network -->' +
+        '<rect x="575" y="90" width="100" height="14" rx="2" fill="rgba(255,255,255,0.03)"/>' +
+        '<text x="625" y="100" text-anchor="middle" fill="#8b949e" font-size="6">192.168.1.0/24</text>' +
+        '<circle cx="585" cy="120" r="5" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.5"/>' +
+        '<text x="600" y="123" fill="#8b949e" font-size="5">Laptop</text>' +
+        '<circle cx="585" cy="138" r="5" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="0.5"/>' +
+        '<text x="600" y="141" fill="#8b949e" font-size="5">Phone</text>' +
+        '<circle cx="585" cy="156" r="5" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.5"/>' +
+        '<text x="600" y="159" fill="#8b949e" font-size="5">IoT Device</text>' +
+        '<circle cx="585" cy="174" r="5" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="0.5"/>' +
+        '<text x="600" y="177" fill="#8b949e" font-size="5">Server</text>' +
+
+        '<!-- Power supply -->' +
+        '<line x1="325" y1="225" x2="325" y2="260" stroke="#ef4444" stroke-width="2" opacity="0.6"/>' +
+        '<rect x="295" y="260" width="60" height="20" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.25)" stroke-width="0.5"/>' +
+        '<text x="325" y="273" text-anchor="middle" fill="#ef4444" font-size="6">5V 3A USB-C</text>' +
+
+        '<!-- MicroSD detail -->' +
+        '<line x1="275" y1="211" x2="275" y2="260" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,2" opacity="0.4"/>' +
+        '<rect x="200" y="260" width="80" height="20" rx="4" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.25)" stroke-width="0.5"/>' +
+        '<text x="240" y="273" text-anchor="middle" fill="#a855f7" font-size="6">Pi OS Lite (64-bit)</text>' +
+
+        '<!-- Tools installed -->' +
+        '<rect x="40" y="60" width="170" height="170" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="40" y="60" width="170" height="24" rx="8" fill="rgba(59,130,246,0.1)"/>' +
+        '<rect x="40" y="77" width="170" height="7" fill="rgba(59,130,246,0.1)"/>' +
+        '<text x="125" y="76" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">Network Tools</text>' +
+
+        '<rect x="55" y="92" width="140" height="18" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+        '<text x="125" y="104" text-anchor="middle" fill="#22c55e" font-size="7">nmap (port scanner)</text>' +
+
+        '<rect x="55" y="116" width="140" height="18" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+        '<text x="125" y="128" text-anchor="middle" fill="#eab308" font-size="7">arp-scan (L2 discovery)</text>' +
+
+        '<rect x="55" y="140" width="140" height="18" rx="3" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+        '<text x="125" y="152" text-anchor="middle" fill="#f97316" font-size="7">scapy (ARP monitor)</text>' +
+
+        '<rect x="55" y="164" width="140" height="18" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+        '<text x="125" y="176" text-anchor="middle" fill="#a855f7" font-size="7">Python 3 (automation)</text>' +
+
+        '<rect x="55" y="188" width="140" height="18" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+        '<text x="125" y="200" text-anchor="middle" fill="#ef4444" font-size="7">cron (scheduled scans)</text>' +
+
+        '<!-- Arrow from tools to Pi -->' +
+        '<line x1="210" y1="145" x2="246" y2="145" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+        '<polygon points="244,141 250,145 244,149" fill="#3b82f6" opacity="0.4"/>' +
+
+        '<!-- SSH from laptop -->' +
+        '<rect x="40" y="280" width="130" height="50" rx="6" fill="#1e2736" stroke="#60a5fa" stroke-width="1"/>' +
+        '<text x="105" y="300" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Your Laptop</text>' +
+        '<text x="105" y="315" text-anchor="middle" fill="#8b949e" font-size="6">ssh pi@probe.local</text>' +
+        '<line x1="170" y1="300" x2="340" y2="230" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+        '<polygon points="338,226 344,232 336,234" fill="#60a5fa" opacity="0.4"/>' +
+
+        '<!-- Bottom legend -->' +
+        '<rect x="40" y="370" width="640" height="35" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>' +
+        '<text x="60" y="392" fill="#555" font-size="7" font-weight="600">SETUP:</text>' +
+        '<text x="105" y="392" fill="#8b949e" font-size="7">Headless Pi on Ethernet. SSH for control. arp-scan + nmap for discovery. Python monitor for real-time alerts.</text>' +
+
+        '</svg>' +
+        '</div>',
 
     steps: [
         {

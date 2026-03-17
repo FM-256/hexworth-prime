@@ -13,6 +13,113 @@ window.SignalGuides = {
                '<p>You will write a complete game from the ground up: a game loop with frame timing, sprite rendering, collision detection, input handling, score tracking, and sound effects. These are the same fundamental concepts behind every video game ever made, from Pong in 1972 to modern engines today.</p>' +
                '<p>No soldering required. The CYD has everything onboard. Plug in USB-C, flash the code, and play. Optional tactile buttons give you physical controls if you prefer them over touch.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs><pattern id="bg-grid-26" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#bg-grid-26)" rx="4"/>' +
+            '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-26 WIRING &mdash; ESP32 CYD + OPTIONAL BUTTONS</text>' +
+
+            '<!-- CYD Board -->' +
+            '<g>' +
+            '<rect x="60" y="55" width="240" height="210" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="60" y="55" width="240" height="26" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="60" y="73" width="240" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="180" y="73" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">ESP32 CYD Board</text>' +
+
+            '<!-- Built-in components -->' +
+            '<rect x="75" y="95" width="95" height="55" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
+            '<text x="122" y="112" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">ILI9341 TFT</text>' +
+            '<text x="122" y="125" text-anchor="middle" fill="#22c55e" font-size="6" opacity="0.7">2.8" 320x240</text>' +
+            '<text x="122" y="137" text-anchor="middle" fill="#22c55e" font-size="6" opacity="0.7">+ Touch (XPT2046)</text>' +
+
+            '<rect x="180" y="95" width="105" height="55" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.25)" stroke-width="0.5"/>' +
+            '<text x="232" y="112" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">Onboard</text>' +
+            '<text x="232" y="125" text-anchor="middle" fill="#a855f7" font-size="6" opacity="0.7">Buzzer (GPIO 26)</text>' +
+            '<text x="232" y="137" text-anchor="middle" fill="#a855f7" font-size="6" opacity="0.7">WiFi + BT</text>' +
+
+            '<!-- USB-C -->' +
+            '<rect x="145" y="242" width="70" height="18" rx="4" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="180" y="254" text-anchor="middle" fill="#666" font-size="7">USB-C</text>' +
+
+            '<!-- GPIO Header -->' +
+            '<rect x="75" y="160" width="210" height="72" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+            '<text x="180" y="176" text-anchor="middle" fill="#8b949e" font-size="8">GPIO Header</text>' +
+
+            '<!-- GPIO pins -->' +
+            '<circle cx="110" cy="196" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="126" y="199" fill="#8b949e" font-size="7">GND</text>' +
+            '<circle cx="110" cy="214" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="126" y="217" fill="#8b949e" font-size="7">IO22</text>' +
+            '<circle cx="200" cy="196" r="4" fill="#3b82f6" stroke="#93c5fd" stroke-width="0.5"/><text x="216" y="199" fill="#8b949e" font-size="7">IO27</text>' +
+            '<circle cx="200" cy="214" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/><text x="216" y="217" fill="#8b949e" font-size="7">IO17</text>' +
+            '<circle cx="200" cy="232" r="4" fill="#e6edf3" stroke="#ccc" stroke-width="0.5"/><text x="216" y="235" fill="#8b949e" font-size="7">IO16</text>' +
+            '</g>' +
+
+            '<!-- Breadboard with buttons -->' +
+            '<g>' +
+            '<rect x="380" y="55" width="280" height="210" rx="6" fill="#1a1f2b" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+            '<text x="520" y="73" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.1em">BREADBOARD (OPTIONAL)</text>' +
+
+            '<!-- GND rail -->' +
+            '<rect x="395" y="85" width="250" height="14" rx="2" fill="rgba(0,0,0,0.3)" stroke="rgba(136,136,136,0.3)" stroke-width="0.5"/>' +
+            '<text x="520" y="95" text-anchor="middle" fill="#888" font-size="6">GND RAIL</text>' +
+
+            '<!-- P1 Buttons -->' +
+            '<text x="440" y="120" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">Player 1</text>' +
+            '<rect x="400" y="128" width="80" height="28" rx="4" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+            '<text x="440" y="140" text-anchor="middle" fill="#22c55e" font-size="7">BTN UP</text>' +
+            '<text x="440" y="152" text-anchor="middle" fill="#555" font-size="5">IO22</text>' +
+            '<rect x="400" y="162" width="80" height="28" rx="4" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>' +
+            '<text x="440" y="174" text-anchor="middle" fill="#3b82f6" font-size="7">BTN DOWN</text>' +
+            '<text x="440" y="186" text-anchor="middle" fill="#555" font-size="5">IO27</text>' +
+
+            '<!-- P2 Buttons -->' +
+            '<text x="580" y="120" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">Player 2</text>' +
+            '<rect x="540" y="128" width="80" height="28" rx="4" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>' +
+            '<text x="580" y="140" text-anchor="middle" fill="#eab308" font-size="7">BTN UP</text>' +
+            '<text x="580" y="152" text-anchor="middle" fill="#555" font-size="5">IO17</text>' +
+            '<rect x="540" y="162" width="80" height="28" rx="4" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>' +
+            '<text x="580" y="174" text-anchor="middle" fill="#e6edf3" font-size="7">BTN DOWN</text>' +
+            '<text x="580" y="186" text-anchor="middle" fill="#555" font-size="5">IO16</text>' +
+
+            '<!-- Pull-up note -->' +
+            '<text x="520" y="215" text-anchor="middle" fill="#555" font-size="7">INPUT_PULLUP — no resistors needed</text>' +
+            '<text x="520" y="228" text-anchor="middle" fill="#555" font-size="7">Each button: one leg to GPIO, other to GND</text>' +
+            '</g>' +
+
+            '<!-- Wires from CYD to breadboard -->' +
+            '<line x1="114" y1="196" x2="395" y2="92" stroke="#666" stroke-width="2" stroke-dasharray="4,3" opacity="0.6"/>' +
+            '<line x1="114" y1="214" x2="440" y2="128" stroke="#22c55e" stroke-width="2" opacity="0.6"/>' +
+            '<line x1="204" y1="196" x2="440" y2="162" stroke="#3b82f6" stroke-width="2" opacity="0.6"/>' +
+            '<line x1="204" y1="214" x2="580" y2="128" stroke="#eab308" stroke-width="2" opacity="0.6"/>' +
+            '<line x1="204" y1="232" x2="580" y2="162" stroke="#e6edf3" stroke-width="2" opacity="0.4"/>' +
+
+            '<!-- SPI Bus Legend -->' +
+            '<rect x="60" y="290" width="600" height="90" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+            '<text x="80" y="310" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">BUILT-IN CONNECTIONS (NO WIRING NEEDED)</text>' +
+            '<g>' +
+            '<rect x="75" y="320" width="130" height="44" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="140" y="337" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">TFT Display</text>' +
+            '<text x="140" y="353" text-anchor="middle" fill="#555" font-size="6">SPI: MOSI=13, SCK=14</text>' +
+            '</g>' +
+            '<g>' +
+            '<rect x="215" y="320" width="130" height="44" rx="5" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="280" y="337" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">Touch Panel</text>' +
+            '<text x="280" y="353" text-anchor="middle" fill="#555" font-size="6">XPT2046, CS=33</text>' +
+            '</g>' +
+            '<g>' +
+            '<rect x="355" y="320" width="130" height="44" rx="5" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+            '<text x="420" y="337" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">Buzzer</text>' +
+            '<text x="420" y="353" text-anchor="middle" fill="#555" font-size="6">GPIO 26 (LEDC)</text>' +
+            '</g>' +
+            '<g>' +
+            '<rect x="495" y="320" width="150" height="44" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="570" y="337" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Backlight</text>' +
+            '<text x="570" y="353" text-anchor="middle" fill="#555" font-size="6">GPIO 21, active HIGH</text>' +
+            '</g>' +
+
+            '</svg>' +
+            '</div>',
+
         wiring: '    ESP32 CYD Board (built-in TFT + Touch)\n' +
                 '    +------------------------------------------+\n' +
                 '    |  CYD has TFT, touch, and buzzer onboard  |\n' +
@@ -134,6 +241,142 @@ window.SignalGuides = {
         intro: '<p>Emulation is one of the most impressive things a microcontroller can do &mdash; pretending to be a completely different CPU. In this project you will turn an ESP32 into a handheld Game Boy using Peanut-GB, an open-source Game Boy emulator small enough to run on embedded hardware.</p>' +
                '<p>You will wire an ILI9341 TFT display, six buttons (D-pad, A, B), an SD card reader for ROM storage, and a speaker for audio. Add a LiPo battery and you have a portable, self-contained retro gaming handheld that fits in your pocket.</p>' +
                '<p>This project teaches you about emulation architecture (fetch-decode-execute), SPI bus sharing (display and SD on the same bus), and real firmware development with PlatformIO. It is a significant step up from the Pong project &mdash; you are working with someone else\'s codebase and adapting it to your hardware.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs><pattern id="bg-grid-27" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#bg-grid-27)" rx="4"/>' +
+            '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-27 WIRING &mdash; ESP32 HANDHELD GAME BOY</text>' +
+
+            '<!-- ESP32 DevKit -->' +
+            '<g>' +
+            '<rect x="40" y="55" width="150" height="280" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="55" width="150" height="26" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="73" width="150" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="115" y="73" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 DevKit</text>' +
+
+            '<!-- USB port -->' +
+            '<rect x="85" y="42" width="60" height="16" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="115" y="53" text-anchor="middle" fill="#666" font-size="7">USB</text>' +
+
+            '<!-- Pin labels left side -->' +
+            '<text x="55" y="100" fill="#ef4444" font-size="7">3V3</text><circle cx="170" cy="97" r="3" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/>' +
+            '<text x="55" y="116" fill="#666" font-size="7">GND</text><circle cx="170" cy="113" r="3" fill="#333" stroke="#888" stroke-width="0.5"/>' +
+            '<text x="55" y="132" fill="#fb923c" font-size="7">GP23</text><circle cx="170" cy="129" r="3" fill="#fb923c" stroke="#fdba74" stroke-width="0.5"/>' +
+            '<text x="55" y="148" fill="#eab308" font-size="7">GP18</text><circle cx="170" cy="145" r="3" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/>' +
+            '<text x="55" y="164" fill="#22c55e" font-size="7">GP5</text><circle cx="170" cy="161" r="3" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/>' +
+            '<text x="55" y="180" fill="#3b82f6" font-size="7">GP2</text><circle cx="170" cy="177" r="3" fill="#3b82f6" stroke="#93c5fd" stroke-width="0.5"/>' +
+            '<text x="55" y="196" fill="#a855f7" font-size="7">GP4</text><circle cx="170" cy="193" r="3" fill="#a855f7" stroke="#c084fc" stroke-width="0.5"/>' +
+            '<text x="55" y="212" fill="#e6edf3" font-size="7">GP19</text><circle cx="170" cy="209" r="3" fill="#e6edf3" stroke="#ccc" stroke-width="0.5"/>' +
+            '<text x="55" y="228" fill="#888" font-size="7">GP15</text><circle cx="170" cy="225" r="3" fill="#888" stroke="#aaa" stroke-width="0.5"/>' +
+
+            '<!-- Button pins -->' +
+            '<text x="55" y="252" fill="#4ade80" font-size="7">GP32</text><circle cx="170" cy="249" r="3" fill="#4ade80" stroke="#86efac" stroke-width="0.5"/>' +
+            '<text x="55" y="266" fill="#4ade80" font-size="7">GP33</text><circle cx="170" cy="263" r="3" fill="#4ade80" stroke="#86efac" stroke-width="0.5"/>' +
+            '<text x="55" y="280" fill="#4ade80" font-size="7">GP25</text><circle cx="170" cy="277" r="3" fill="#4ade80" stroke="#86efac" stroke-width="0.5"/>' +
+            '<text x="55" y="294" fill="#4ade80" font-size="7">GP26</text><circle cx="170" cy="291" r="3" fill="#4ade80" stroke="#86efac" stroke-width="0.5"/>' +
+            '<text x="55" y="308" fill="#c084fc" font-size="7">GP27</text><circle cx="170" cy="305" r="3" fill="#c084fc" stroke="#d8b4fe" stroke-width="0.5"/>' +
+            '<text x="55" y="322" fill="#c084fc" font-size="7">GP14</text><circle cx="170" cy="319" r="3" fill="#c084fc" stroke="#d8b4fe" stroke-width="0.5"/>' +
+            '</g>' +
+
+            '<!-- TFT Display -->' +
+            '<g>' +
+            '<rect x="240" y="55" width="140" height="140" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="240" y="55" width="140" height="24" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<rect x="240" y="72" width="140" height="7" fill="rgba(249,115,22,0.12)"/>' +
+            '<text x="310" y="72" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="600">ILI9341 TFT</text>' +
+            '<rect x="260" y="90" width="100" height="65" rx="3" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+            '<text x="310" y="120" text-anchor="middle" fill="#fb923c" font-size="8" opacity="0.6">2.4" Display</text>' +
+            '<text x="310" y="133" text-anchor="middle" fill="#555" font-size="6">240 x 320</text>' +
+            '<!-- TFT pins -->' +
+            '<text x="255" y="172" fill="#8b949e" font-size="6">VCC SDA SCL CS DC RST</text>' +
+            '</g>' +
+
+            '<!-- SD Card Module -->' +
+            '<g>' +
+            '<rect x="240" y="210" width="140" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<rect x="240" y="210" width="140" height="22" rx="8" fill="rgba(234,179,8,0.1)"/>' +
+            '<rect x="240" y="226" width="140" height="6" fill="rgba(234,179,8,0.1)"/>' +
+            '<text x="310" y="226" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">SD Card Module</text>' +
+            '<rect x="270" y="245" width="60" height="28" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="300" y="262" text-anchor="middle" fill="#666" font-size="7">SD CARD</text>' +
+            '<text x="310" y="283" text-anchor="middle" fill="#555" font-size="6">Shared SPI bus</text>' +
+            '</g>' +
+
+            '<!-- Wires to TFT -->' +
+            '<line x1="173" y1="97" x2="240" y2="90" stroke="#ef4444" stroke-width="2" opacity="0.7"/>' +
+            '<line x1="173" y1="113" x2="240" y2="100" stroke="#666" stroke-width="2" opacity="0.7"/>' +
+            '<line x1="173" y1="129" x2="240" y2="110" stroke="#fb923c" stroke-width="2" opacity="0.7"/>' +
+            '<line x1="173" y1="145" x2="240" y2="120" stroke="#eab308" stroke-width="2" opacity="0.7"/>' +
+            '<line x1="173" y1="161" x2="240" y2="130" stroke="#22c55e" stroke-width="2" opacity="0.7"/>' +
+            '<line x1="173" y1="177" x2="240" y2="140" stroke="#3b82f6" stroke-width="2" opacity="0.7"/>' +
+            '<line x1="173" y1="193" x2="240" y2="150" stroke="#a855f7" stroke-width="2" opacity="0.7"/>' +
+
+            '<!-- Wires to SD -->' +
+            '<line x1="173" y1="209" x2="240" y2="240" stroke="#e6edf3" stroke-width="2" opacity="0.5"/>' +
+            '<line x1="173" y1="225" x2="240" y2="255" stroke="#888" stroke-width="2" opacity="0.5"/>' +
+
+            '<!-- Buttons section -->' +
+            '<g>' +
+            '<rect x="430" y="55" width="230" height="175" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+            '<text x="545" y="73" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.1em">6 BUTTONS + COMBOS</text>' +
+
+            '<!-- D-pad buttons -->' +
+            '<rect x="445" y="85" width="55" height="24" rx="4" fill="rgba(74,222,128,0.1)" stroke="rgba(74,222,128,0.3)" stroke-width="1"/>' +
+            '<text x="472" y="100" text-anchor="middle" fill="#4ade80" font-size="7">UP</text>' +
+            '<rect x="445" y="113" width="55" height="24" rx="4" fill="rgba(74,222,128,0.1)" stroke="rgba(74,222,128,0.3)" stroke-width="1"/>' +
+            '<text x="472" y="128" text-anchor="middle" fill="#4ade80" font-size="7">DOWN</text>' +
+            '<rect x="445" y="141" width="55" height="24" rx="4" fill="rgba(74,222,128,0.1)" stroke="rgba(74,222,128,0.3)" stroke-width="1"/>' +
+            '<text x="472" y="156" text-anchor="middle" fill="#4ade80" font-size="7">LEFT</text>' +
+            '<rect x="445" y="169" width="55" height="24" rx="4" fill="rgba(74,222,128,0.1)" stroke="rgba(74,222,128,0.3)" stroke-width="1"/>' +
+            '<text x="472" y="184" text-anchor="middle" fill="#4ade80" font-size="7">RIGHT</text>' +
+
+            '<!-- A/B buttons -->' +
+            '<rect x="560" y="85" width="55" height="24" rx="4" fill="rgba(192,132,252,0.1)" stroke="rgba(192,132,252,0.3)" stroke-width="1"/>' +
+            '<text x="587" y="100" text-anchor="middle" fill="#c084fc" font-size="7">A</text>' +
+            '<rect x="560" y="113" width="55" height="24" rx="4" fill="rgba(192,132,252,0.1)" stroke="rgba(192,132,252,0.3)" stroke-width="1"/>' +
+            '<text x="587" y="128" text-anchor="middle" fill="#c084fc" font-size="7">B</text>' +
+
+            '<!-- Combo labels -->' +
+            '<text x="545" y="210" text-anchor="middle" fill="#555" font-size="6">A+B+UP = Start</text>' +
+            '<text x="545" y="222" text-anchor="middle" fill="#555" font-size="6">A+B+DOWN = Select</text>' +
+            '</g>' +
+
+            '<!-- Wires to buttons -->' +
+            '<line x1="173" y1="249" x2="445" y2="97" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="173" y1="263" x2="445" y2="125" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="173" y1="277" x2="445" y2="153" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="173" y1="291" x2="445" y2="181" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="173" y1="305" x2="560" y2="97" stroke="#c084fc" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<line x1="173" y1="319" x2="560" y2="125" stroke="#c084fc" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+
+            '<!-- Battery + Speaker -->' +
+            '<g>' +
+            '<rect x="430" y="250" width="110" height="60" rx="6" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="485" y="268" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">LiPo + TP4056</text>' +
+            '<text x="485" y="283" text-anchor="middle" fill="#555" font-size="6">3.7V &rarr; VIN</text>' +
+            '<text x="485" y="295" text-anchor="middle" fill="#555" font-size="6">USB charging</text>' +
+            '</g>' +
+            '<g>' +
+            '<rect x="550" y="250" width="110" height="60" rx="6" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="605" y="268" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Speaker</text>' +
+            '<text x="605" y="283" text-anchor="middle" fill="#555" font-size="6">DAC on GP25</text>' +
+            '<text x="605" y="295" text-anchor="middle" fill="#555" font-size="6">8 ohm, 0.5W</text>' +
+            '</g>' +
+
+            '<!-- Legend -->' +
+            '<rect x="40" y="340" width="620" height="45" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>' +
+            '<text x="60" y="358" fill="#555" font-size="8" font-weight="600">WIRE COLORS:</text>' +
+            '<line x1="150" y1="355" x2="170" y2="355" stroke="#ef4444" stroke-width="2.5"/><text x="175" y="359" fill="#8b949e" font-size="7">3V3 Power</text>' +
+            '<line x1="235" y1="355" x2="255" y2="355" stroke="#666" stroke-width="2.5"/><text x="260" y="359" fill="#8b949e" font-size="7">Ground</text>' +
+            '<line x1="310" y1="355" x2="330" y2="355" stroke="#fb923c" stroke-width="2.5"/><text x="335" y="359" fill="#8b949e" font-size="7">MOSI</text>' +
+            '<line x1="375" y1="355" x2="395" y2="355" stroke="#eab308" stroke-width="2.5"/><text x="400" y="359" fill="#8b949e" font-size="7">SCK</text>' +
+            '<line x1="435" y1="355" x2="455" y2="355" stroke="#4ade80" stroke-width="2.5"/><text x="460" y="359" fill="#8b949e" font-size="7">D-pad</text>' +
+            '<line x1="505" y1="355" x2="525" y2="355" stroke="#c084fc" stroke-width="2.5"/><text x="530" y="359" fill="#8b949e" font-size="7">A/B Btns</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiring: '    ESP32 DevKit V1                  Components\n' +
                 '    +------------------+\n' +
@@ -266,6 +509,125 @@ window.SignalGuides = {
         intro: '<p>RetroPie turns a Raspberry Pi into a multi-system emulation powerhouse. Underneath the polished EmulationStation frontend sits RetroArch &mdash; a unified emulator framework that can run NES, SNES, Genesis, Game Boy, PlayStation, N64, and dozens more systems, all from a single SD card.</p>' +
                '<p>This is not just a "flash and play" project. You will learn how EmulationStation discovers systems and ROMs, how RetroArch cores work, how to configure per-system shaders and aspect ratios, and how to customize the frontend to your liking. These are real Linux administration skills: editing config files, managing services, and working with the file system over SSH.</p>' +
                '<p>No wiring, no soldering. Flash the image, plug in controllers, and configure. This is the foundation for the arcade cabinet build in SG-30.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs><pattern id="bg-grid-28" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#bg-grid-28)" rx="4"/>' +
+            '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-28 SETUP &mdash; RETROPIE EMULATION STATION</text>' +
+
+            '<!-- Raspberry Pi -->' +
+            '<g>' +
+            '<rect x="220" y="55" width="260" height="160" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="220" y="55" width="260" height="26" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<rect x="220" y="73" width="260" height="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="350" y="73" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="600">Raspberry Pi 4</text>' +
+
+            '<!-- Pi ports -->' +
+            '<rect x="235" y="95" width="70" height="30" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="270" y="107" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">HDMI x2</text>' +
+            '<text x="270" y="119" text-anchor="middle" fill="#555" font-size="5">micro-HDMI</text>' +
+
+            '<rect x="315" y="95" width="70" height="30" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="350" y="107" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">USB x4</text>' +
+            '<text x="350" y="119" text-anchor="middle" fill="#555" font-size="5">2x USB3, 2x USB2</text>' +
+
+            '<rect x="395" y="95" width="70" height="30" rx="4" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+            '<text x="430" y="107" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="600">Ethernet</text>' +
+            '<text x="430" y="119" text-anchor="middle" fill="#555" font-size="5">Gigabit</text>' +
+
+            '<!-- SD card slot -->' +
+            '<rect x="235" y="135" width="70" height="28" rx="4" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="270" y="148" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">microSD</text>' +
+            '<text x="270" y="158" text-anchor="middle" fill="#555" font-size="5">RetroPie OS</text>' +
+
+            '<!-- Power -->' +
+            '<rect x="315" y="135" width="70" height="28" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="350" y="148" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">USB-C PWR</text>' +
+            '<text x="350" y="158" text-anchor="middle" fill="#555" font-size="5">5V 3A</text>' +
+
+            '<!-- Audio + WiFi -->' +
+            '<rect x="395" y="135" width="70" height="28" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="430" y="148" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">3.5mm + BT</text>' +
+            '<text x="430" y="158" text-anchor="middle" fill="#555" font-size="5">Audio out</text>' +
+
+            '<!-- GPIO header -->' +
+            '<rect x="235" y="175" width="230" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+            '<text x="350" y="189" text-anchor="middle" fill="#555" font-size="7">40-pin GPIO header (unused in base build)</text>' +
+            '</g>' +
+
+            '<!-- Connected devices -->' +
+
+            '<!-- TV/Monitor -->' +
+            '<g>' +
+            '<rect x="40" y="55" width="140" height="85" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="55" width="140" height="22" rx="8" fill="rgba(59,130,246,0.1)"/>' +
+            '<rect x="40" y="70" width="140" height="7" fill="rgba(59,130,246,0.1)"/>' +
+            '<text x="110" y="70" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">TV / Monitor</text>' +
+            '<rect x="60" y="88" width="100" height="36" rx="3" fill="rgba(59,130,246,0.05)" stroke="rgba(59,130,246,0.1)" stroke-width="0.5"/>' +
+            '<text x="110" y="104" text-anchor="middle" fill="#3b82f6" font-size="7">HDMI input</text>' +
+            '<text x="110" y="117" text-anchor="middle" fill="#555" font-size="6">1080p recommended</text>' +
+            '</g>' +
+            '<line x1="180" y1="97" x2="220" y2="97" stroke="#3b82f6" stroke-width="2.5" opacity="0.7"/>' +
+            '<polygon points="218,93 224,97 218,101" fill="#3b82f6" opacity="0.7"/>' +
+            '<text x="200" y="90" text-anchor="middle" fill="#3b82f6" font-size="6">HDMI</text>' +
+
+            '<!-- USB Controller 1 -->' +
+            '<g>' +
+            '<rect x="520" y="55" width="140" height="70" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="520" y="55" width="140" height="22" rx="8" fill="rgba(168,85,247,0.1)"/>' +
+            '<rect x="520" y="70" width="140" height="7" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="590" y="70" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">USB Controller</text>' +
+            '<text x="590" y="93" text-anchor="middle" fill="#555" font-size="7">Xbox / PS / generic</text>' +
+            '<text x="590" y="106" text-anchor="middle" fill="#555" font-size="6">Plug and play</text>' +
+            '</g>' +
+            '<line x1="480" y1="107" x2="520" y2="90" stroke="#a855f7" stroke-width="2" opacity="0.7"/>' +
+            '<polygon points="518,86 524,90 518,94" fill="#a855f7" opacity="0.7"/>' +
+            '<text x="500" y="93" text-anchor="middle" fill="#a855f7" font-size="6">USB</text>' +
+
+            '<!-- USB Controller 2 -->' +
+            '<g>' +
+            '<rect x="520" y="135" width="140" height="50" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1" stroke-dasharray="4,3"/>' +
+            '<text x="590" y="158" text-anchor="middle" fill="#c084fc" font-size="8" opacity="0.6">Controller 2</text>' +
+            '<text x="590" y="172" text-anchor="middle" fill="#555" font-size="6">Optional P2</text>' +
+            '</g>' +
+            '<line x1="480" y1="120" x2="520" y2="155" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+
+            '<!-- Architecture layers -->' +
+            '<rect x="40" y="240" width="620" height="140" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+            '<text x="60" y="260" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">SOFTWARE ARCHITECTURE</text>' +
+
+            '<!-- Layer 1: EmulationStation -->' +
+            '<rect x="55" y="270" width="190" height="50" rx="6" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.25)" stroke-width="1"/>' +
+            '<text x="150" y="290" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">EmulationStation</text>' +
+            '<text x="150" y="306" text-anchor="middle" fill="#555" font-size="7">Frontend / UI / ROM browser</text>' +
+
+            '<!-- Layer 2: RetroArch -->' +
+            '<rect x="255" y="270" width="190" height="50" rx="6" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.25)" stroke-width="1"/>' +
+            '<text x="350" y="290" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">RetroArch</text>' +
+            '<text x="350" y="306" text-anchor="middle" fill="#555" font-size="7">Emulator framework</text>' +
+
+            '<!-- Layer 3: Cores -->' +
+            '<rect x="455" y="270" width="190" height="50" rx="6" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.25)" stroke-width="1"/>' +
+            '<text x="550" y="290" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="600">Cores</text>' +
+            '<text x="550" y="306" text-anchor="middle" fill="#555" font-size="7">nestopia, snes9x, mupen64</text>' +
+
+            '<!-- Flow arrows -->' +
+            '<line x1="245" y1="295" x2="253" y2="295" stroke="#555" stroke-width="1.5"/><polygon points="251,291 257,295 251,299" fill="#555"/>' +
+            '<line x1="445" y1="295" x2="453" y2="295" stroke="#555" stroke-width="1.5"/><polygon points="451,291 457,295 451,299" fill="#555"/>' +
+
+            '<!-- System badges -->' +
+            '<text x="150" y="345" text-anchor="middle" fill="#555" font-size="6">NES / SNES / Genesis / GB / GBA / PSX / N64</text>' +
+            '<text x="350" y="345" text-anchor="middle" fill="#555" font-size="6">Shaders / Save States / Rewind</text>' +
+            '<text x="550" y="345" text-anchor="middle" fill="#555" font-size="6">Kiosk Mode / Netplay</text>' +
+
+            '<!-- No soldering badge -->' +
+            '<rect x="255" y="360" width="190" height="20" rx="4" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="350" y="374" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">NO WIRING &mdash; SOFTWARE ONLY</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiring: null,
 

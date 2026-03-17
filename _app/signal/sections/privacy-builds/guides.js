@@ -17,6 +17,140 @@ window.SignalGuides['sg-16'] = {
         <p>This project sets up a Pi Zero 2 W as a covert file exchange station. Files stored on the attached USB drive are protected with LUKS full-disk encryption, so even if someone physically takes the drive, the contents are unreadable without the passphrase. On top of that, we build a minimal Flask web interface that lets users upload and download files — and optionally read self-destructing messages that delete themselves after being viewed once.</p>
         <p>This is a practical exercise in encryption at rest, secure key management, and the principle that physical access should not equal data access.</p>
     `,
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg16-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '<linearGradient id="sg16-pi-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg16-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">ENCRYPTED USB DEAD DROP — SYSTEM DIAGRAM</text>' +
+
+        '<!-- Pi Zero 2 W -->' +
+        '<g>' +
+        '<rect x="40" y="60" width="200" height="120" rx="8" fill="url(#sg16-pi-grad)" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<rect x="40" y="60" width="200" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="40" y="74" width="200" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="140" y="76" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">PI ZERO 2 W</text>' +
+        '<text x="140" y="100" text-anchor="middle" fill="#8b949e" font-size="8">Flask Web Server</text>' +
+        '<text x="140" y="115" text-anchor="middle" fill="#8b949e" font-size="8">LUKS Key Manager</text>' +
+        '<text x="140" y="130" text-anchor="middle" fill="#8b949e" font-size="8">Auto-mount Script</text>' +
+        '<rect x="56" y="142" width="56" height="16" rx="3" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
+        '<text x="84" y="153" text-anchor="middle" fill="#4ade80" font-size="6">WiFi AP</text>' +
+        '<rect x="124" y="142" width="56" height="16" rx="3" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
+        '<text x="152" y="153" text-anchor="middle" fill="#4ade80" font-size="6">SSH</text>' +
+        '<rect x="192" y="142" width="40" height="16" rx="3" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
+        '<text x="212" y="153" text-anchor="middle" fill="#4ade80" font-size="6">:5000</text>' +
+        '</g>' +
+
+        '<!-- OTG Adapter -->' +
+        '<rect x="270" y="95" width="70" height="35" rx="5" fill="#1a1f2b" stroke="#f59e0b" stroke-width="1"/>' +
+        '<text x="305" y="110" text-anchor="middle" fill="#f59e0b" font-size="7" font-weight="600">OTG</text>' +
+        '<text x="305" y="122" text-anchor="middle" fill="#fde68a" font-size="6" opacity="0.7">Adapter</text>' +
+
+        '<!-- USB connection line Pi to OTG -->' +
+        '<line x1="240" y1="112" x2="270" y2="112" stroke="#f59e0b" stroke-width="2"/>' +
+
+        '<!-- Encrypted USB Drive -->' +
+        '<g>' +
+        '<rect x="370" y="55" width="200" height="130" rx="8" fill="url(#sg16-pi-grad)" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="370" y="55" width="200" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="370" y="69" width="200" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="470" y="71" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">USB DRIVE (LUKS2)</text>' +
+        '<!-- USB connector -->' +
+        '<rect x="346" y="98" width="28" height="28" rx="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+        '<rect x="352" y="104" width="5" height="16" rx="1" fill="#3b82f6" opacity="0.4"/>' +
+        '<rect x="362" y="104" width="5" height="16" rx="1" fill="#3b82f6" opacity="0.4"/>' +
+        '<!-- LUKS layers -->' +
+        '<rect x="384" y="90" width="80" height="38" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+        '<text x="424" y="105" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">LUKS Header</text>' +
+        '<text x="424" y="118" text-anchor="middle" fill="#ef4444" font-size="5" opacity="0.7">AES-256-XTS</text>' +
+        '<rect x="474" y="90" width="86" height="38" rx="3" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+        '<text x="517" y="105" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Encrypted FS</text>' +
+        '<text x="517" y="118" text-anchor="middle" fill="#a855f7" font-size="5" opacity="0.7">ext4 inside</text>' +
+        '<!-- Directory structure -->' +
+        '<rect x="384" y="135" width="80" height="36" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="424" y="149" text-anchor="middle" fill="#22c55e" font-size="6">/drops/</text>' +
+        '<text x="424" y="162" text-anchor="middle" fill="#555" font-size="5">file exchange</text>' +
+        '<rect x="474" y="135" width="86" height="36" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+        '<text x="517" y="149" text-anchor="middle" fill="#eab308" font-size="6">/messages/</text>' +
+        '<text x="517" y="162" text-anchor="middle" fill="#555" font-size="5">self-destruct</text>' +
+        '</g>' +
+
+        '<!-- USB connection line OTG to drive -->' +
+        '<line x1="340" y1="112" x2="346" y2="112" stroke="#f59e0b" stroke-width="2"/>' +
+
+        '<!-- Data flow arrows -->' +
+        '<text x="350" y="210" text-anchor="middle" fill="#444" font-size="10" letter-spacing="0.15em">DATA FLOW</text>' +
+
+        '<!-- Client device -->' +
+        '<g>' +
+        '<rect x="40" y="230" width="150" height="70" rx="8" fill="#1e2736" stroke="#06b6d4" stroke-width="1.5"/>' +
+        '<rect x="40" y="230" width="150" height="20" rx="8" fill="rgba(6,182,212,0.1)"/>' +
+        '<rect x="40" y="243" width="150" height="7" fill="rgba(6,182,212,0.1)"/>' +
+        '<text x="115" y="245" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="600">CLIENT DEVICE</text>' +
+        '<text x="115" y="268" text-anchor="middle" fill="#8b949e" font-size="7">Phone / Laptop</text>' +
+        '<text x="115" y="282" text-anchor="middle" fill="#8b949e" font-size="7">Connects to Pi WiFi</text>' +
+        '</g>' +
+
+        '<!-- Arrow: client to Pi -->' +
+        '<line x1="190" y1="265" x2="246" y2="265" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>' +
+        '<polygon points="246,261 254,265 246,269" fill="#06b6d4" opacity="0.6"/>' +
+
+        '<!-- Flask server -->' +
+        '<g>' +
+        '<rect x="260" y="230" width="150" height="70" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<rect x="260" y="230" width="150" height="20" rx="8" fill="rgba(34,197,94,0.1)"/>' +
+        '<rect x="260" y="243" width="150" height="7" fill="rgba(34,197,94,0.1)"/>' +
+        '<text x="335" y="245" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">FLASK :5000</text>' +
+        '<text x="335" y="268" text-anchor="middle" fill="#8b949e" font-size="7">Upload / Download</text>' +
+        '<text x="335" y="282" text-anchor="middle" fill="#8b949e" font-size="7">Burn-after-read msgs</text>' +
+        '</g>' +
+
+        '<!-- Arrow: Flask to vault -->' +
+        '<line x1="410" y1="265" x2="466" y2="265" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>' +
+        '<polygon points="466,261 474,265 466,269" fill="#22c55e" opacity="0.6"/>' +
+
+        '<!-- Encrypted vault -->' +
+        '<g>' +
+        '<rect x="480" y="230" width="170" height="70" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+        '<rect x="480" y="230" width="170" height="20" rx="8" fill="rgba(168,85,247,0.1)"/>' +
+        '<rect x="480" y="243" width="170" height="7" fill="rgba(168,85,247,0.1)"/>' +
+        '<text x="565" y="245" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">ENCRYPTED VAULT</text>' +
+        '<text x="565" y="268" text-anchor="middle" fill="#8b949e" font-size="7">/mnt/vault</text>' +
+        '<text x="565" y="282" text-anchor="middle" fill="#8b949e" font-size="7">LUKS2 + ext4</text>' +
+        '</g>' +
+
+        '<!-- What you need -->' +
+        '<rect x="40" y="320" width="610" height="65" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="60" y="340" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">WHAT YOU NEED</text>' +
+        '<g>' +
+        '<rect x="55" y="350" width="110" height="28" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="110" y="368" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Pi Zero 2 W</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="175" y="350" width="110" height="28" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+        '<text x="230" y="368" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">USB Drive (8GB+)</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="295" y="350" width="110" height="28" rx="5" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+        '<text x="350" y="368" text-anchor="middle" fill="#f97316" font-size="7" font-weight="600">OTG Adapter</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="415" y="350" width="110" height="28" rx="5" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+        '<text x="470" y="368" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">microSD Card</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="535" y="350" width="110" height="28" rx="5" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+        '<text x="590" y="368" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">USB Power Supply</text>' +
+        '</g>' +
+
+        '</svg>' +
+        '</div>',
     wiring: null,
     steps: [
         {
@@ -405,6 +539,138 @@ window.SignalGuides['sg-17'] = {
         <p>But how well do they actually work? In this project, you will use an ESP32 to quantitatively measure WiFi and Bluetooth signal attenuation through different shielding materials. Instead of trusting marketing claims, you will generate real numbers: baseline RSSI outside the bag vs. attenuated RSSI inside, measured in decibels.</p>
         <p>This is a practical exercise in RF fundamentals, signal measurement, and healthy skepticism about security products.</p>
     `,
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg17-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '<linearGradient id="sg17-comp" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg17-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">FARADAY POUCH &amp; RF SHIELDING TEST — SETUP DIAGRAM</text>' +
+
+        '<!-- ESP32 Board -->' +
+        '<g>' +
+        '<rect x="40" y="55" width="180" height="140" rx="8" fill="url(#sg17-comp)" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="40" y="55" width="180" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="40" y="69" width="180" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="130" y="71" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 DEVKIT V1</text>' +
+        '<!-- Antenna icon -->' +
+        '<rect x="60" y="90" width="60" height="30" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.25)" stroke-width="0.5"/>' +
+        '<text x="90" y="100" text-anchor="middle" fill="#06b6d4" font-size="6" font-weight="600">WiFi 2.4GHz</text>' +
+        '<text x="90" y="112" text-anchor="middle" fill="#06b6d4" font-size="5" opacity="0.7">Built-in Antenna</text>' +
+        '<rect x="130" y="90" width="60" height="30" rx="3" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.25)" stroke-width="0.5"/>' +
+        '<text x="160" y="100" text-anchor="middle" fill="#a855f7" font-size="6" font-weight="600">BLE</text>' +
+        '<text x="160" y="112" text-anchor="middle" fill="#a855f7" font-size="5" opacity="0.7">Bluetooth LE</text>' +
+        '<!-- USB port -->' +
+        '<rect x="85" y="135" width="90" height="22" rx="3" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+        '<text x="130" y="150" text-anchor="middle" fill="#f97316" font-size="7" font-weight="600">USB (Power + Serial)</text>' +
+        '<text x="130" y="175" text-anchor="middle" fill="#8b949e" font-size="7">No external components</text>' +
+        '<text x="130" y="186" text-anchor="middle" fill="#8b949e" font-size="7">needed for this build</text>' +
+        '</g>' +
+
+        '<!-- USB cable to laptop -->' +
+        '<line x1="130" y1="195" x2="130" y2="230" stroke="#f97316" stroke-width="2"/>' +
+        '<rect x="60" y="230" width="140" height="40" rx="6" fill="#1e2736" stroke="#f97316" stroke-width="1"/>' +
+        '<text x="130" y="250" text-anchor="middle" fill="#f97316" font-size="8" font-weight="600">LAPTOP (Serial Monitor)</text>' +
+        '<text x="130" y="262" text-anchor="middle" fill="#555" font-size="6">Arduino IDE / PlatformIO</text>' +
+
+        '<!-- RF waves from ESP32 -->' +
+        '<path d="M220,100 Q240,95 250,100" stroke="#06b6d4" stroke-width="1" fill="none" opacity="0.4"/>' +
+        '<path d="M220,100 Q245,90 260,100" stroke="#06b6d4" stroke-width="1" fill="none" opacity="0.3"/>' +
+        '<path d="M220,100 Q250,85 270,100" stroke="#06b6d4" stroke-width="1" fill="none" opacity="0.2"/>' +
+
+        '<!-- Test Setup Area -->' +
+        '<text x="460" y="55" text-anchor="middle" fill="#444" font-size="10" letter-spacing="0.15em">SHIELDING MATERIALS TO TEST</text>' +
+
+        '<!-- Material 1: Aluminum Foil -->' +
+        '<g>' +
+        '<rect x="310" y="70" width="130" height="50" rx="6" fill="#1e2736" stroke="#94a3b8" stroke-width="1.5"/>' +
+        '<rect x="310" y="70" width="130" height="18" rx="6" fill="rgba(148,163,184,0.1)"/>' +
+        '<rect x="310" y="82" width="130" height="6" fill="rgba(148,163,184,0.1)"/>' +
+        '<text x="375" y="84" text-anchor="middle" fill="#94a3b8" font-size="8" font-weight="600">ALUMINUM FOIL</text>' +
+        '<text x="375" y="103" text-anchor="middle" fill="#8b949e" font-size="7">1x &amp; 2x layers</text>' +
+        '<text x="375" y="114" text-anchor="middle" fill="#555" font-size="6">~20-40 dB atten.</text>' +
+        '</g>' +
+
+        '<!-- Material 2: Anti-static Bag -->' +
+        '<g>' +
+        '<rect x="460" y="70" width="130" height="50" rx="6" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+        '<rect x="460" y="70" width="130" height="18" rx="6" fill="rgba(234,179,8,0.1)"/>' +
+        '<rect x="460" y="82" width="130" height="6" fill="rgba(234,179,8,0.1)"/>' +
+        '<text x="525" y="84" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">ANTI-STATIC BAG</text>' +
+        '<text x="525" y="103" text-anchor="middle" fill="#8b949e" font-size="7">ESD shielding bag</text>' +
+        '<text x="525" y="114" text-anchor="middle" fill="#555" font-size="6">~5-15 dB atten.</text>' +
+        '</g>' +
+
+        '<!-- Material 3: Faraday Pouch -->' +
+        '<g>' +
+        '<rect x="310" y="135" width="130" height="50" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<rect x="310" y="135" width="130" height="18" rx="6" fill="rgba(34,197,94,0.1)"/>' +
+        '<rect x="310" y="147" width="130" height="6" fill="rgba(34,197,94,0.1)"/>' +
+        '<text x="375" y="149" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">FARADAY POUCH</text>' +
+        '<text x="375" y="168" text-anchor="middle" fill="#8b949e" font-size="7">Commercial bag</text>' +
+        '<text x="375" y="179" text-anchor="middle" fill="#555" font-size="6">~40-80 dB atten.</text>' +
+        '</g>' +
+
+        '<!-- Material 4: Open Air Baseline -->' +
+        '<g>' +
+        '<rect x="460" y="135" width="130" height="50" rx="6" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+        '<rect x="460" y="135" width="130" height="18" rx="6" fill="rgba(239,68,68,0.1)"/>' +
+        '<rect x="460" y="147" width="130" height="6" fill="rgba(239,68,68,0.1)"/>' +
+        '<text x="525" y="149" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">OPEN AIR (BASELINE)</text>' +
+        '<text x="525" y="168" text-anchor="middle" fill="#8b949e" font-size="7">No shielding</text>' +
+        '<text x="525" y="179" text-anchor="middle" fill="#555" font-size="6">0 dB reference</text>' +
+        '</g>' +
+
+        '<!-- RSSI Measurement Scale -->' +
+        '<rect x="310" y="210" width="280" height="60" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="330" y="228" fill="#555" font-size="8" font-weight="600">RSSI SCALE (dBm)</text>' +
+        '<!-- Scale bar -->' +
+        '<rect x="330" y="238" width="240" height="8" rx="2" fill="none"/>' +
+        '<rect x="330" y="238" width="60" height="8" rx="2" fill="rgba(34,197,94,0.4)"/>' +
+        '<rect x="390" y="238" width="60" height="8" fill="rgba(234,179,8,0.4)"/>' +
+        '<rect x="450" y="238" width="60" height="8" fill="rgba(249,115,22,0.4)"/>' +
+        '<rect x="510" y="238" width="60" height="8" rx="2" fill="rgba(239,68,68,0.4)"/>' +
+        '<text x="360" y="258" text-anchor="middle" fill="#4ade80" font-size="6">-30 Excellent</text>' +
+        '<text x="420" y="258" text-anchor="middle" fill="#eab308" font-size="6">-50 Good</text>' +
+        '<text x="480" y="258" text-anchor="middle" fill="#f97316" font-size="6">-70 Fair</text>' +
+        '<text x="540" y="258" text-anchor="middle" fill="#ef4444" font-size="6">-90 Weak</text>' +
+
+        '<!-- What you need -->' +
+        '<rect x="40" y="300" width="610" height="85" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="60" y="320" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">WHAT YOU NEED</text>' +
+        '<g>' +
+        '<rect x="55" y="330" width="100" height="40" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+        '<text x="105" y="347" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">ESP32 DevKit</text>' +
+        '<text x="105" y="360" text-anchor="middle" fill="#555" font-size="5">Any variant</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="165" y="330" width="100" height="40" rx="5" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+        '<text x="215" y="347" text-anchor="middle" fill="#f97316" font-size="7" font-weight="600">USB Cable</text>' +
+        '<text x="215" y="360" text-anchor="middle" fill="#555" font-size="5">Micro USB</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="275" y="330" width="100" height="40" rx="5" fill="rgba(148,163,184,0.08)" stroke="rgba(148,163,184,0.2)" stroke-width="0.5"/>' +
+        '<text x="325" y="347" text-anchor="middle" fill="#94a3b8" font-size="7" font-weight="600">Aluminum Foil</text>' +
+        '<text x="325" y="360" text-anchor="middle" fill="#555" font-size="5">Kitchen variety</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="385" y="330" width="100" height="40" rx="5" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+        '<text x="435" y="347" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">Anti-Static Bag</text>' +
+        '<text x="435" y="360" text-anchor="middle" fill="#555" font-size="5">ESD bag</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="495" y="330" width="120" height="40" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="555" y="347" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Faraday Pouch</text>' +
+        '<text x="555" y="360" text-anchor="middle" fill="#555" font-size="5">Commercial RF bag</text>' +
+        '</g>' +
+
+        '</svg>' +
+        '</div>',
     wiring: `
   ESP32 DevKit V1
   +------------------+

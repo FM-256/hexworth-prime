@@ -45,6 +45,130 @@ window.SignalGuides['sg-11'] = {
 
     wiringNotes: `<p><strong>Important:</strong> The MFRC522 runs on <strong>3.3V only</strong>. Connecting VCC to 5V will damage the module. The Arduino Mega's SPI pins are 50-53 (not 11-13 like the Uno). The IRQ pin is not needed for polled reads.</p>`,
 
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg11-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg11-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-11 RFID ACCESS CONTROLLER WIRING</text>' +
+
+        '<!-- Arduino Mega -->' +
+        '<rect x="300" y="50" width="160" height="310" rx="8" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="300" y="50" width="160" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="300" y="64" width="160" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="380" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ARDUINO MEGA 2560</text>' +
+        '<!-- Arduino pins -->' +
+        '<text x="315" y="95" fill="#8b949e" font-size="7">3.3V</text>' +
+        '<text x="315" y="115" fill="#8b949e" font-size="7">5V</text>' +
+        '<text x="315" y="135" fill="#8b949e" font-size="7">GND</text>' +
+        '<text x="315" y="165" fill="#8b949e" font-size="7">Pin 50 (MISO)</text>' +
+        '<text x="315" y="185" fill="#8b949e" font-size="7">Pin 51 (MOSI)</text>' +
+        '<text x="315" y="205" fill="#8b949e" font-size="7">Pin 52 (SCK)</text>' +
+        '<text x="315" y="225" fill="#8b949e" font-size="7">Pin 53 (SS)</text>' +
+        '<text x="315" y="250" fill="#8b949e" font-size="7">Pin 5 (RST)</text>' +
+        '<text x="315" y="275" fill="#8b949e" font-size="7">Pin 3 (PWM)</text>' +
+        '<text x="315" y="300" fill="#8b949e" font-size="7">Pin 7</text>' +
+        '<text x="315" y="320" fill="#8b949e" font-size="7">Pin 6</text>' +
+        '<text x="315" y="340" fill="#8b949e" font-size="7">Pin 4</text>' +
+        '<!-- Pin dots -->' +
+        '<circle cx="308" cy="92" r="3" fill="#f97316"/>' +
+        '<circle cx="308" cy="112" r="3" fill="#ef4444"/>' +
+        '<circle cx="308" cy="132" r="3" fill="#333"/>' +
+        '<circle cx="308" cy="162" r="3" fill="#a855f7"/>' +
+        '<circle cx="308" cy="182" r="3" fill="#a855f7"/>' +
+        '<circle cx="308" cy="202" r="3" fill="#a855f7"/>' +
+        '<circle cx="308" cy="222" r="3" fill="#a855f7"/>' +
+        '<circle cx="308" cy="247" r="3" fill="#eab308"/>' +
+        '<circle cx="308" cy="272" r="3" fill="#22c55e"/>' +
+        '<circle cx="308" cy="297" r="3" fill="#22c55e"/>' +
+        '<circle cx="308" cy="317" r="3" fill="#ef4444"/>' +
+        '<circle cx="308" cy="337" r="3" fill="#60a5fa"/>' +
+
+        '<!-- MFRC522 RFID Reader -->' +
+        '<rect x="50" y="60" width="150" height="200" rx="8" fill="#1a1f2b" stroke="#a855f7" stroke-width="1.5"/>' +
+        '<rect x="50" y="60" width="150" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<rect x="50" y="74" width="150" height="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<text x="125" y="76" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="600">MFRC522 RFID</text>' +
+        '<!-- RFID coil icon -->' +
+        '<rect x="80" y="95" width="90" height="60" rx="6" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+        '<rect x="90" y="105" width="70" height="40" rx="4" fill="none" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+        '<text x="125" y="130" text-anchor="middle" fill="#c084fc" font-size="7" opacity="0.6">13.56 MHz</text>' +
+        '<!-- RFID pins -->' +
+        '<text x="65" y="175" fill="#8b949e" font-size="7">SDA (SS)</text>' +
+        '<text x="65" y="190" fill="#8b949e" font-size="7">SCK</text>' +
+        '<text x="65" y="205" fill="#8b949e" font-size="7">MOSI</text>' +
+        '<text x="65" y="220" fill="#8b949e" font-size="7">MISO</text>' +
+        '<text x="65" y="235" fill="#8b949e" font-size="7">RST</text>' +
+        '<text x="65" y="250" fill="#8b949e" font-size="7">3.3V</text>' +
+        '<!-- 3.3V warning -->' +
+        '<rect x="96" y="243" width="42" height="12" rx="3" fill="rgba(249,115,22,0.2)" stroke="rgba(249,115,22,0.4)" stroke-width="0.5"/>' +
+        '<text x="117" y="252" text-anchor="middle" fill="#f97316" font-size="6" font-weight="600">3.3V!</text>' +
+        '<text x="65" y="265" fill="#8b949e" font-size="7">GND</text>' +
+
+        '<!-- SPI wires RFID to Arduino -->' +
+        '<line x1="200" y1="172" x2="305" y2="222" stroke="#a855f7" stroke-width="1.2"/>' +
+        '<line x1="200" y1="187" x2="305" y2="202" stroke="#a855f7" stroke-width="1.2"/>' +
+        '<line x1="200" y1="202" x2="305" y2="182" stroke="#a855f7" stroke-width="1.2"/>' +
+        '<line x1="200" y1="217" x2="305" y2="162" stroke="#a855f7" stroke-width="1.2"/>' +
+        '<line x1="200" y1="232" x2="305" y2="247" stroke="#eab308" stroke-width="1.2"/>' +
+        '<line x1="200" y1="247" x2="305" y2="92" stroke="#f97316" stroke-width="1.2"/>' +
+        '<line x1="200" y1="262" x2="305" y2="132" stroke="#555" stroke-width="1.2"/>' +
+
+        '<!-- Servo Motor -->' +
+        '<rect x="515" y="60" width="140" height="80" rx="8" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<rect x="515" y="60" width="140" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="515" y="74" width="140" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="585" y="76" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">SERVO MOTOR</text>' +
+        '<text x="530" y="100" fill="#8b949e" font-size="7">Signal (Orange)</text>' +
+        '<text x="530" y="115" fill="#8b949e" font-size="7">VCC (Red)</text>' +
+        '<text x="530" y="130" fill="#8b949e" font-size="7">GND (Brown)</text>' +
+        '<!-- Servo wires -->' +
+        '<line x1="460" y1="272" x2="512" y2="97" stroke="#22c55e" stroke-width="1.2"/>' +
+        '<line x1="460" y1="112" x2="512" y2="112" stroke="#ef4444" stroke-width="1.2"/>' +
+        '<line x1="460" y1="132" x2="512" y2="127" stroke="#555" stroke-width="1.2"/>' +
+
+        '<!-- Green LED -->' +
+        '<rect x="515" y="165" width="140" height="50" rx="8" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+        '<circle cx="545" cy="190" r="10" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1"/>' +
+        '<circle cx="545" cy="190" r="5" fill="#22c55e" opacity="0.6"/>' +
+        '<text x="565" y="186" fill="#4ade80" font-size="8" font-weight="600">GREEN LED</text>' +
+        '<text x="565" y="200" fill="#8b949e" font-size="7">220 ohm</text>' +
+        '<line x1="460" y1="297" x2="512" y2="190" stroke="#22c55e" stroke-width="1.2"/>' +
+
+        '<!-- Red LED -->' +
+        '<rect x="515" y="225" width="140" height="50" rx="8" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+        '<circle cx="545" cy="250" r="10" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1"/>' +
+        '<circle cx="545" cy="250" r="5" fill="#ef4444" opacity="0.6"/>' +
+        '<text x="565" y="246" fill="#f87171" font-size="8" font-weight="600">RED LED</text>' +
+        '<text x="565" y="260" fill="#8b949e" font-size="7">220 ohm</text>' +
+        '<line x1="460" y1="317" x2="512" y2="250" stroke="#ef4444" stroke-width="1.2"/>' +
+
+        '<!-- Buzzer -->' +
+        '<rect x="515" y="285" width="140" height="50" rx="8" fill="#1a1f2b" stroke="#60a5fa" stroke-width="1"/>' +
+        '<circle cx="545" cy="310" r="10" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="1"/>' +
+        '<text x="542" y="314" text-anchor="middle" fill="#60a5fa" font-size="8">~</text>' +
+        '<text x="565" y="306" fill="#60a5fa" font-size="8" font-weight="600">BUZZER</text>' +
+        '<text x="565" y="320" fill="#8b949e" font-size="7">Pin 4 + GND</text>' +
+        '<line x1="460" y1="337" x2="512" y2="310" stroke="#60a5fa" stroke-width="1.2"/>' +
+
+        '<!-- Legend -->' +
+        '<rect x="50" y="310" width="195" height="70" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="65" y="326" fill="#555" font-size="8" font-weight="600" letter-spacing="0.1em">WIRE COLORS</text>' +
+        '<line x1="65" y1="336" x2="80" y2="336" stroke="#ef4444" stroke-width="2"/><text x="85" y="339" fill="#8b949e" font-size="7">5V Power</text>' +
+        '<line x1="65" y1="350" x2="80" y2="350" stroke="#f97316" stroke-width="2"/><text x="85" y="353" fill="#8b949e" font-size="7">3.3V Power</text>' +
+        '<line x1="65" y1="364" x2="80" y2="364" stroke="#555" stroke-width="2"/><text x="85" y="367" fill="#8b949e" font-size="7">Ground</text>' +
+        '<line x1="155" y1="336" x2="170" y2="336" stroke="#a855f7" stroke-width="2"/><text x="175" y="339" fill="#8b949e" font-size="7">SPI Bus</text>' +
+        '<line x1="155" y1="350" x2="170" y2="350" stroke="#22c55e" stroke-width="2"/><text x="175" y="353" fill="#8b949e" font-size="7">Signal</text>' +
+        '<line x1="155" y1="364" x2="170" y2="364" stroke="#eab308" stroke-width="2"/><text x="175" y="367" fill="#8b949e" font-size="7">Reset</text>' +
+
+        '</svg>' +
+        '</div>',
+
     steps: [
         {
             title: 'Install the MFRC522 Library',
@@ -467,6 +591,125 @@ window.SignalGuides['sg-12'] = {
 
     wiring: null,
     wiringNotes: null,
+
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg12-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg12-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-12 HARDWARE KEYLOGGER DETECTOR SETUP</text>' +
+
+        '<!-- Raspberry Pi -->' +
+        '<rect x="250" y="55" width="200" height="170" rx="8" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<rect x="250" y="55" width="200" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="250" y="69" width="200" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="350" y="71" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">RASPBERRY PI 4/5</text>' +
+        '<!-- Pi board elements -->' +
+        '<rect x="265" y="90" width="170" height="50" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+        '<text x="350" y="110" text-anchor="middle" fill="#4ade80" font-size="7" opacity="0.5">SoC / RAM</text>' +
+        '<text x="350" y="122" text-anchor="middle" fill="#4ade80" font-size="6" opacity="0.4">Raspberry Pi OS Lite (64-bit)</text>' +
+        '<!-- USB ports on Pi -->' +
+        '<rect x="432" y="145" width="18" height="20" rx="2" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>' +
+        '<rect x="432" y="170" width="18" height="20" rx="2" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>' +
+        '<text x="425" y="158" text-anchor="end" fill="#60a5fa" font-size="6">USB 3.0</text>' +
+        '<text x="425" y="183" text-anchor="end" fill="#60a5fa" font-size="6">USB 3.0</text>' +
+        '<rect x="432" y="195" width="18" height="15" rx="2" fill="#1e293b" stroke="#8b949e" stroke-width="1"/>' +
+        '<text x="425" y="206" text-anchor="end" fill="#8b949e" font-size="6">USB 2.0</text>' +
+        '<!-- Ethernet -->' +
+        '<rect x="250" y="190" width="18" height="20" rx="2" fill="#1e293b" stroke="#eab308" stroke-width="1"/>' +
+        '<text x="273" y="203" fill="#eab308" font-size="6">ETH</text>' +
+        '<!-- GPIO header -->' +
+        '<rect x="270" y="145" width="80" height="12" rx="2" fill="#333" stroke="#555" stroke-width="0.5"/>' +
+        '<text x="310" y="153" text-anchor="middle" fill="#8b949e" font-size="5">GPIO 40-pin</text>' +
+
+        '<!-- Keyboard (normal device) -->' +
+        '<rect x="520" y="50" width="140" height="70" rx="8" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="520" y="50" width="140" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="520" y="64" width="140" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="590" y="66" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">USB KEYBOARD</text>' +
+        '<!-- Keyboard icon -->' +
+        '<rect x="545" y="82" width="90" height="28" rx="3" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+        '<text x="590" y="100" text-anchor="middle" fill="#60a5fa" font-size="6" opacity="0.5">Normal HID Device</text>' +
+        '<!-- USB cable to Pi -->' +
+        '<line x1="520" y1="85" x2="452" y2="155" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<circle cx="452" cy="155" r="2" fill="#3b82f6"/>' +
+
+        '<!-- Keylogger device (suspicious) -->' +
+        '<rect x="520" y="140" width="140" height="80" rx="8" fill="#1a1f2b" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+        '<rect x="520" y="140" width="140" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+        '<rect x="520" y="154" width="140" height="8" fill="rgba(239,68,68,0.12)"/>' +
+        '<text x="590" y="156" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">KEYLOGGER?</text>' +
+        '<text x="590" y="178" text-anchor="middle" fill="#f87171" font-size="7" opacity="0.7">Inline USB device</text>' +
+        '<text x="590" y="192" text-anchor="middle" fill="#f87171" font-size="7" opacity="0.7">Unknown VID:PID</text>' +
+        '<text x="590" y="206" text-anchor="middle" fill="#f87171" font-size="7" opacity="0.7">No serial number</text>' +
+        '<!-- Suspicious USB cable to Pi -->' +
+        '<line x1="520" y1="180" x2="452" y2="180" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+        '<circle cx="452" cy="180" r="2" fill="#ef4444"/>' +
+        '<!-- Alert badge -->' +
+        '<rect x="555" y="125" width="70" height="14" rx="4" fill="rgba(239,68,68,0.2)" stroke="rgba(239,68,68,0.5)" stroke-width="0.5"/>' +
+        '<text x="590" y="135" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">SUSPICIOUS</text>' +
+
+        '<!-- Network / SSH -->' +
+        '<rect x="40" y="80" width="150" height="80" rx="8" fill="#1a1f2b" stroke="#eab308" stroke-width="1.5"/>' +
+        '<rect x="40" y="80" width="150" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+        '<rect x="40" y="94" width="150" height="8" fill="rgba(234,179,8,0.12)"/>' +
+        '<text x="115" y="96" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">SSH / NETWORK</text>' +
+        '<text x="115" y="118" text-anchor="middle" fill="#fde68a" font-size="7" opacity="0.7">Remote management</text>' +
+        '<text x="115" y="132" text-anchor="middle" fill="#fde68a" font-size="7" opacity="0.7">Alert delivery</text>' +
+        '<text x="115" y="146" text-anchor="middle" fill="#fde68a" font-size="7" opacity="0.7">Report export</text>' +
+        '<line x1="190" y1="120" x2="248" y2="200" stroke="#eab308" stroke-width="1.2"/>' +
+        '<circle cx="248" cy="200" r="2" fill="#eab308"/>' +
+
+        '<!-- Detection Pipeline -->' +
+        '<text x="350" y="250" text-anchor="middle" fill="#444" font-size="10" letter-spacing="0.15em">DETECTION PIPELINE</text>' +
+
+        '<!-- Pipeline stages -->' +
+        '<rect x="40" y="265" width="120" height="55" rx="6" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+        '<text x="100" y="284" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">1. BASELINE</text>' +
+        '<text x="100" y="298" text-anchor="middle" fill="#8b949e" font-size="7">Snapshot known</text>' +
+        '<text x="100" y="310" text-anchor="middle" fill="#8b949e" font-size="7">USB devices</text>' +
+
+        '<line x1="162" y1="292" x2="178" y2="292" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,2"/>' +
+        '<polygon points="178,289 184,292 178,295" fill="#3b82f6"/>' +
+
+        '<rect x="185" y="265" width="120" height="55" rx="6" fill="#1a1f2b" stroke="#a855f7" stroke-width="1"/>' +
+        '<text x="245" y="284" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">2. MONITOR</text>' +
+        '<text x="245" y="298" text-anchor="middle" fill="#8b949e" font-size="7">udev hotplug</text>' +
+        '<text x="245" y="310" text-anchor="middle" fill="#8b949e" font-size="7">event watcher</text>' +
+
+        '<line x1="307" y1="292" x2="323" y2="292" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,2"/>' +
+        '<polygon points="323,289 329,292 323,295" fill="#a855f7"/>' +
+
+        '<rect x="330" y="265" width="120" height="55" rx="6" fill="#1a1f2b" stroke="#eab308" stroke-width="1"/>' +
+        '<text x="390" y="284" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">3. SIGNATURES</text>' +
+        '<text x="390" y="298" text-anchor="middle" fill="#8b949e" font-size="7">Known keylogger</text>' +
+        '<text x="390" y="310" text-anchor="middle" fill="#8b949e" font-size="7">VID:PID database</text>' +
+
+        '<line x1="452" y1="292" x2="468" y2="292" stroke="#eab308" stroke-width="1" stroke-dasharray="3,2"/>' +
+        '<polygon points="468,289 474,292 468,295" fill="#eab308"/>' +
+
+        '<rect x="475" y="265" width="120" height="55" rx="6" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+        '<text x="535" y="284" text-anchor="middle" fill="#f87171" font-size="8" font-weight="600">4. ALERT</text>' +
+        '<text x="535" y="298" text-anchor="middle" fill="#8b949e" font-size="7">Log + notify</text>' +
+        '<text x="535" y="310" text-anchor="middle" fill="#8b949e" font-size="7">on suspicious</text>' +
+
+        '<!-- Requirements -->' +
+        '<rect x="40" y="340" width="620" height="45" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="55" y="356" fill="#555" font-size="8" font-weight="600" letter-spacing="0.1em">SOFTWARE</text>' +
+        '<rect x="120" y="347" width="70" height="16" rx="3" fill="rgba(34,197,94,0.08)"/><text x="155" y="358" text-anchor="middle" fill="#4ade80" font-size="7">Python 3</text>' +
+        '<rect x="198" y="347" width="60" height="16" rx="3" fill="rgba(168,85,247,0.08)"/><text x="228" y="358" text-anchor="middle" fill="#c084fc" font-size="7">pyudev</text>' +
+        '<rect x="266" y="347" width="60" height="16" rx="3" fill="rgba(59,130,246,0.08)"/><text x="296" y="358" text-anchor="middle" fill="#60a5fa" font-size="7">lsusb</text>' +
+        '<rect x="334" y="347" width="80" height="16" rx="3" fill="rgba(234,179,8,0.08)"/><text x="374" y="358" text-anchor="middle" fill="#eab308" font-size="7">Pi OS Lite</text>' +
+        '<text x="55" y="376" fill="#555" font-size="8" font-weight="600" letter-spacing="0.1em">NO WIRING</text>' +
+        '<text x="130" y="376" fill="#8b949e" font-size="7">Software-only build. Connect USB devices to the Pi and run detection scripts.</text>' +
+
+        '</svg>' +
+        '</div>',
 
     steps: [
         {
@@ -1004,6 +1247,130 @@ window.SignalGuides['sg-13'] = {
 
     wiringNotes: `<p>The Arduino Pro Micro has a native USB controller (ATmega32U4) which means it can present itself as a keyboard, mouse, or other HID device directly — no additional hardware needed. The only connection is the USB cable between the Pro Micro and your test machine.</p>
 <p><strong>Safety:</strong> Always program the Pro Micro while it is connected to your <em>development</em> machine. Only plug it into the isolated test target when you are ready to test a payload. Include a startup delay in every payload so you have time to unplug if needed.</p>`,
+
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg13-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg13-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-13 BAD USB ANALYSIS LAB SETUP</text>' +
+
+        '<!-- Arduino Pro Micro -->' +
+        '<rect x="40" y="55" width="180" height="160" rx="8" fill="#1a1f2b" stroke="#ef4444" stroke-width="1.5"/>' +
+        '<rect x="40" y="55" width="180" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+        '<rect x="40" y="69" width="180" height="8" fill="rgba(239,68,68,0.12)"/>' +
+        '<text x="130" y="71" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">ARDUINO PRO MICRO</text>' +
+        '<text x="130" y="90" text-anchor="middle" fill="#f87171" font-size="7" opacity="0.6">ATmega32U4 - Native USB</text>' +
+        '<!-- Chip icon -->' +
+        '<rect x="80" y="100" width="100" height="50" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+        '<text x="130" y="120" text-anchor="middle" fill="#f87171" font-size="7" opacity="0.5">ATmega32U4</text>' +
+        '<text x="130" y="135" text-anchor="middle" fill="#f87171" font-size="6" opacity="0.4">HID Keyboard Emulation</text>' +
+        '<!-- USB port on Pro Micro -->' +
+        '<rect x="115" y="155" width="30" height="18" rx="3" fill="#1e293b" stroke="#f87171" stroke-width="1"/>' +
+        '<text x="130" y="167" text-anchor="middle" fill="#f87171" font-size="5">USB</text>' +
+        '<!-- TX LED -->' +
+        '<circle cx="75" y="170" r="4" fill="rgba(239,68,68,0.4)" stroke="#ef4444" stroke-width="0.5"/>' +
+        '<text x="85" y="173" fill="#8b949e" font-size="6">TX LED (pin 17)</text>' +
+        '<!-- Safety badge -->' +
+        '<rect x="60" y="185" width="140" height="20" rx="4" fill="rgba(249,115,22,0.15)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+        '<text x="130" y="198" text-anchor="middle" fill="#f97316" font-size="7" font-weight="600">5s STARTUP DELAY</text>' +
+
+        '<!-- USB Cable -->' +
+        '<line x1="220" y1="165" x2="290" y2="165" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<line x1="250" y1="165" x2="250" y2="162" stroke="#ef4444" stroke-width="1" opacity="0.4"/>' +
+        '<line x1="260" y1="165" x2="260" y2="162" stroke="#ef4444" stroke-width="1" opacity="0.4"/>' +
+        '<text x="255" y="155" text-anchor="middle" fill="#f87171" font-size="7">USB Cable</text>' +
+
+        '<!-- Target Machine (Isolated VM) -->' +
+        '<rect x="290" y="55" width="200" height="160" rx="8" fill="#1a1f2b" stroke="#f97316" stroke-width="1.5"/>' +
+        '<rect x="290" y="55" width="200" height="22" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+        '<rect x="290" y="69" width="200" height="8" fill="rgba(249,115,22,0.12)"/>' +
+        '<text x="390" y="71" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="600">TARGET (ISOLATED VM)</text>' +
+        '<!-- Monitor icon -->' +
+        '<rect x="330" y="90" width="120" height="75" rx="4" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+        '<rect x="340" y="98" width="100" height="50" rx="2" fill="#0d1117"/>' +
+        '<text x="390" y="118" text-anchor="middle" fill="#fb923c" font-size="7" opacity="0.7">Windows VM</text>' +
+        '<text x="390" y="132" text-anchor="middle" fill="#fb923c" font-size="6" opacity="0.5">Notepad opens...</text>' +
+        '<text x="390" y="142" text-anchor="middle" fill="#fb923c" font-size="6" opacity="0.5">Text appears...</text>' +
+        '<!-- USB port -->' +
+        '<rect x="290" y="158" width="18" height="16" rx="2" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>' +
+        '<circle cx="299" cy="166" r="2" fill="#3b82f6"/>' +
+        '<!-- Warning -->' +
+        '<rect x="310" y="180" width="160" height="22" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+        '<text x="390" y="194" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">NEVER USE ON PRODUCTION</text>' +
+
+        '<!-- Dev Machine -->' +
+        '<rect x="520" y="55" width="140" height="100" rx="8" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<rect x="520" y="55" width="140" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="520" y="69" width="140" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="590" y="71" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">DEV MACHINE</text>' +
+        '<text x="590" y="95" text-anchor="middle" fill="#8b949e" font-size="7">Arduino IDE</text>' +
+        '<text x="590" y="110" text-anchor="middle" fill="#8b949e" font-size="7">Program Pro Micro</text>' +
+        '<text x="590" y="125" text-anchor="middle" fill="#8b949e" font-size="7">Upload payloads</text>' +
+        '<text x="590" y="140" text-anchor="middle" fill="#22c55e" font-size="6" opacity="0.6">Safe environment</text>' +
+        '<!-- USB cable to Pro Micro (programming) -->' +
+        '<path d="M520,105 L220,105 L220,155" stroke="#22c55e" stroke-width="1.2" fill="none" stroke-dasharray="4,3"/>' +
+        '<polygon points="217,155 220,163 223,155" fill="#22c55e" opacity="0.6"/>' +
+        '<text x="370" y="100" text-anchor="middle" fill="#22c55e" font-size="6" opacity="0.6">Programming connection</text>' +
+
+        '<!-- Attack Flow -->' +
+        '<text x="350" y="240" text-anchor="middle" fill="#444" font-size="10" letter-spacing="0.15em">HID ATTACK SEQUENCE</text>' +
+
+        '<!-- Flow steps -->' +
+        '<rect x="40" y="255" width="100" height="50" rx="6" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+        '<text x="90" y="274" text-anchor="middle" fill="#f87171" font-size="8" font-weight="600">1. PLUG IN</text>' +
+        '<text x="90" y="290" text-anchor="middle" fill="#8b949e" font-size="6">OS trusts HID</text>' +
+        '<text x="90" y="300" text-anchor="middle" fill="#8b949e" font-size="6">immediately</text>' +
+
+        '<line x1="142" y1="280" x2="158" y2="280" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2"/>' +
+        '<polygon points="158,277 164,280 158,283" fill="#ef4444"/>' +
+
+        '<rect x="165" y="255" width="100" height="50" rx="6" fill="#1a1f2b" stroke="#f97316" stroke-width="1"/>' +
+        '<text x="215" y="274" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">2. DELAY</text>' +
+        '<text x="215" y="290" text-anchor="middle" fill="#8b949e" font-size="6">5 second safety</text>' +
+        '<text x="215" y="300" text-anchor="middle" fill="#8b949e" font-size="6">window</text>' +
+
+        '<line x1="267" y1="280" x2="283" y2="280" stroke="#f97316" stroke-width="1" stroke-dasharray="3,2"/>' +
+        '<polygon points="283,277 289,280 283,283" fill="#f97316"/>' +
+
+        '<rect x="290" y="255" width="100" height="50" rx="6" fill="#1a1f2b" stroke="#eab308" stroke-width="1"/>' +
+        '<text x="340" y="274" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">3. INJECT</text>' +
+        '<text x="340" y="290" text-anchor="middle" fill="#8b949e" font-size="6">GUI+R, type</text>' +
+        '<text x="340" y="300" text-anchor="middle" fill="#8b949e" font-size="6">commands</text>' +
+
+        '<line x1="392" y1="280" x2="408" y2="280" stroke="#eab308" stroke-width="1" stroke-dasharray="3,2"/>' +
+        '<polygon points="408,277 414,280 408,283" fill="#eab308"/>' +
+
+        '<rect x="415" y="255" width="100" height="50" rx="6" fill="#1a1f2b" stroke="#a855f7" stroke-width="1"/>' +
+        '<text x="465" y="274" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">4. EXECUTE</text>' +
+        '<text x="465" y="290" text-anchor="middle" fill="#8b949e" font-size="6">Payload runs</text>' +
+        '<text x="465" y="300" text-anchor="middle" fill="#8b949e" font-size="6">in &lt; 3 seconds</text>' +
+
+        '<line x1="517" y1="280" x2="533" y2="280" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,2"/>' +
+        '<polygon points="533,277 539,280 533,283" fill="#a855f7"/>' +
+
+        '<rect x="540" y="255" width="120" height="50" rx="6" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+        '<text x="600" y="274" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">5. DEFEND</text>' +
+        '<text x="600" y="290" text-anchor="middle" fill="#8b949e" font-size="6">HID monitor +</text>' +
+        '<text x="600" y="300" text-anchor="middle" fill="#8b949e" font-size="6">udev whitelist</text>' +
+
+        '<!-- Legend / Notes -->' +
+        '<rect x="40" y="325" width="620" height="60" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="55" y="342" fill="#555" font-size="8" font-weight="600" letter-spacing="0.1em">REQUIREMENTS</text>' +
+        '<rect x="140" y="333" width="110" height="16" rx="3" fill="rgba(239,68,68,0.08)"/><text x="195" y="344" text-anchor="middle" fill="#f87171" font-size="7">Arduino Pro Micro</text>' +
+        '<rect x="258" y="333" width="80" height="16" rx="3" fill="rgba(249,115,22,0.08)"/><text x="298" y="344" text-anchor="middle" fill="#fb923c" font-size="7">USB Cable</text>' +
+        '<rect x="346" y="333" width="80" height="16" rx="3" fill="rgba(34,197,94,0.08)"/><text x="386" y="344" text-anchor="middle" fill="#4ade80" font-size="7">Test VM</text>' +
+        '<rect x="434" y="333" width="90" height="16" rx="3" fill="rgba(168,85,247,0.08)"/><text x="479" y="344" text-anchor="middle" fill="#c084fc" font-size="7">Arduino IDE</text>' +
+        '<text x="55" y="370" fill="#f97316" font-size="8" font-weight="600">NO EXTERNAL WIRING.</text>' +
+        '<text x="235" y="370" fill="#8b949e" font-size="7">The Pro Micro IS the USB device. Only connection is a USB cable to the target.</text>' +
+
+        '</svg>' +
+        '</div>',
 
     steps: [
         {

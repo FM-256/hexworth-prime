@@ -13,6 +13,85 @@ window.SignalGuides = {
                '<p>ESP-IDF gives you direct access to the RTOS task scheduler, partition tables, NVS (non-volatile storage), OTA updates, and fine-grained control over WiFi and BLE. This is how professional ESP32 products are built &mdash; from smart locks to industrial sensors.</p>' +
                '<p>You will set up a PlatformIO project from scratch, understand the ESP32 boot process, write firmware with WiFi connectivity, BLE, and OTA update capability, then flash and monitor it over serial.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+            '<defs>' +
+            '<pattern id="sg21-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#sg21-grid)" rx="4"/>' +
+
+            '<!-- Title -->' +
+            '<text x="350" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">ESP32 FIRMWARE DEVELOPMENT SETUP</text>' +
+
+            '<!-- ESP32 DevKit -->' +
+            '<g>' +
+            '<rect x="80" y="80" width="200" height="220" rx="10" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="80" y="80" width="200" height="28" rx="10" fill="rgba(59,130,246,0.15)"/>' +
+            '<rect x="80" y="100" width="200" height="8" fill="rgba(59,130,246,0.15)"/>' +
+            '<text x="180" y="98" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">ESP32 DevKit V1</text>' +
+            '<!-- Chip -->' +
+            '<rect x="130" y="130" width="100" height="60" rx="6" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="180" y="155" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">ESP32-WROOM</text>' +
+            '<text x="180" y="170" text-anchor="middle" fill="#4488cc" font-size="7">Dual-Core 240MHz</text>' +
+            '<text x="180" y="182" text-anchor="middle" fill="#4488cc" font-size="7">WiFi + BLE</text>' +
+            '<!-- Onboard LED -->' +
+            '<circle cx="140" cy="215" r="6" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="0.5"/>' +
+            '<text x="155" y="218" fill="#8b949e" font-size="7">LED (GPIO2)</text>' +
+            '<!-- Boot button -->' +
+            '<rect x="120" y="240" width="30" height="16" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>' +
+            '<text x="155" y="252" fill="#8b949e" font-size="7">BOOT</text>' +
+            '<!-- EN button -->' +
+            '<rect x="120" y="264" width="30" height="16" rx="3" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>' +
+            '<text x="155" y="276" fill="#8b949e" font-size="7">EN/RST</text>' +
+            '<!-- USB port -->' +
+            '<rect x="155" y="288" width="50" height="16" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="180" y="300" text-anchor="middle" fill="#888" font-size="7">USB</text>' +
+            '</g>' +
+
+            '<!-- USB Cable -->' +
+            '<line x1="205" y1="296" x2="420" y2="296" stroke="#eab308" stroke-width="3" stroke-linecap="round"/>' +
+            '<line x1="205" y1="296" x2="420" y2="296" stroke="#eab308" stroke-width="1" stroke-dasharray="6,4" opacity="0.5"/>' +
+            '<rect x="290" y="283" width="80" height="16" rx="3" fill="rgba(0,0,0,0.7)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+            '<text x="330" y="294" text-anchor="middle" fill="#fde68a" font-size="8">USB Cable</text>' +
+
+            '<!-- PC / Laptop -->' +
+            '<g>' +
+            '<rect x="420" y="80" width="230" height="220" rx="10" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="420" y="80" width="230" height="28" rx="10" fill="rgba(34,197,94,0.12)"/>' +
+            '<rect x="420" y="100" width="230" height="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="535" y="98" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="600">PC / LAPTOP</text>' +
+            '<!-- PlatformIO -->' +
+            '<rect x="445" y="125" width="180" height="50" rx="6" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.25)" stroke-width="0.5"/>' +
+            '<text x="535" y="145" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">PlatformIO + VS Code</text>' +
+            '<text x="535" y="160" text-anchor="middle" fill="#a78bfa" font-size="7">ESP-IDF Framework</text>' +
+            '<!-- Serial Monitor -->' +
+            '<rect x="445" y="185" width="85" height="35" rx="4" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="488" y="200" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">Serial Mon</text>' +
+            '<text x="488" y="212" text-anchor="middle" fill="#a3860f" font-size="6">115200 baud</text>' +
+            '<!-- Flash Tool -->' +
+            '<rect x="540" y="185" width="85" height="35" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="583" y="200" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">Flash Tool</text>' +
+            '<text x="583" y="212" text-anchor="middle" fill="#b03030" font-size="6">esptool.py</text>' +
+            '<!-- Firmware binary -->' +
+            '<rect x="445" y="232" width="180" height="30" rx="4" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="535" y="250" text-anchor="middle" fill="#60a5fa" font-size="7">.pio/build/esp32dev/firmware.bin</text>' +
+            '</g>' +
+
+            '<!-- Data flow arrows -->' +
+            '<text x="330" y="270" text-anchor="middle" fill="#eab308" font-size="7">Flash + Serial + OTA</text>' +
+            '<polygon points="280,296 270,290 270,302" fill="#eab308" opacity="0.6"/>' +
+            '<polygon points="380,296 390,290 390,302" fill="#eab308" opacity="0.6"/>' +
+
+            '<!-- Bottom info bar -->' +
+            '<rect x="40" y="330" width="620" height="50" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+            '<text x="60" y="348" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">NO EXTERNAL WIRING</text>' +
+            '<text x="60" y="366" fill="#8b949e" font-size="8">USB cable carries power, flash data, and serial debug. PlatformIO auto-detects the port.</text>' +
+
+            '</svg>' +
+            '</div>',
+
         wiring: '    ESP32 DevKit V1\n' +
                 '    +---------------------------+\n' +
                 '    |                           |\n' +
@@ -105,6 +184,122 @@ window.SignalGuides = {
         intro: '<p>At security conferences like DEF CON, BSides, and CCC, the electronic badge is a tradition. These badges are custom PCBs with microcontrollers, LEDs, displays, and wireless communication &mdash; and they often contain hidden challenges (CTF puzzles, secret messages, hidden features) that attendees race to solve.</p>' +
                '<p>In this project you build your own conference badge: an ESP32 with an OLED display, NeoPixel LEDs, and BLE communication. You will create interactive menus, LED animations, badge-to-badge discovery over BLE, and even embed a simple CTF challenge.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+            '<defs>' +
+            '<pattern id="sg22-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#sg22-grid)" rx="4"/>' +
+
+            '<!-- Title -->' +
+            '<text x="350" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">CONFERENCE BADGE WIRING</text>' +
+
+            '<!-- Breadboard -->' +
+            '<rect x="50" y="55" width="600" height="260" rx="6" fill="#1a1f2b" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+            '<text x="350" y="48" text-anchor="middle" fill="#444" font-size="9" letter-spacing="0.1em">BREADBOARD LAYOUT</text>' +
+
+            '<!-- ESP32 DevKit -->' +
+            '<g>' +
+            '<rect x="70" y="75" width="160" height="220" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="70" y="75" width="160" height="26" rx="8" fill="rgba(59,130,246,0.15)"/>' +
+            '<rect x="70" y="93" width="160" height="8" fill="rgba(59,130,246,0.15)"/>' +
+            '<text x="150" y="92" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 DevKit</text>' +
+            '<!-- Chip -->' +
+            '<rect x="100" y="115" width="100" height="40" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="150" y="135" text-anchor="middle" fill="#4488cc" font-size="7">ESP32-WROOM</text>' +
+            '<text x="150" y="147" text-anchor="middle" fill="#4488cc" font-size="6">WiFi + BLE</text>' +
+            '<!-- USB -->' +
+            '<rect x="125" y="280" width="50" height="16" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="150" y="291" text-anchor="middle" fill="#888" font-size="7">USB</text>' +
+            '</g>' +
+
+            '<!-- ESP32 Pins -->' +
+            '<circle cx="232" cy="170" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text x="218" y="170" text-anchor="end" fill="#8b949e" font-size="8" dominant-baseline="middle">3V3</text>' +
+            '<circle cx="232" cy="192" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="218" y="192" text-anchor="end" fill="#8b949e" font-size="8" dominant-baseline="middle">GND</text>' +
+            '<circle cx="232" cy="214" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/><text x="218" y="214" text-anchor="end" fill="#8b949e" font-size="8" dominant-baseline="middle">D21</text>' +
+            '<circle cx="232" cy="236" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="218" y="236" text-anchor="end" fill="#8b949e" font-size="8" dominant-baseline="middle">D22</text>' +
+            '<circle cx="232" cy="258" r="4" fill="#a855f7" stroke="#d8b4fe" stroke-width="0.5"/><text x="218" y="258" text-anchor="end" fill="#8b949e" font-size="8" dominant-baseline="middle">D5</text>' +
+            '<circle cx="232" cy="278" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text x="218" y="278" text-anchor="end" fill="#8b949e" font-size="8" dominant-baseline="middle">5V</text>' +
+
+            '<!-- OLED Display -->' +
+            '<g>' +
+            '<rect x="310" y="75" width="140" height="130" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<rect x="310" y="75" width="140" height="26" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+            '<rect x="310" y="93" width="140" height="8" fill="rgba(234,179,8,0.12)"/>' +
+            '<text x="380" y="92" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">OLED 0.96&quot;</text>' +
+            '<!-- Screen -->' +
+            '<rect x="325" y="112" width="110" height="55" rx="4" fill="#0a0a0a" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="380" y="135" text-anchor="middle" fill="#eab308" font-size="7" opacity="0.6">128 x 64</text>' +
+            '<text x="380" y="148" text-anchor="middle" fill="#eab308" font-size="7" opacity="0.6">SSD1306 I2C</text>' +
+            '</g>' +
+
+            '<!-- OLED Pins -->' +
+            '<circle cx="308" cy="170" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text x="322" y="170" fill="#8b949e" font-size="8" dominant-baseline="middle">VCC</text>' +
+            '<circle cx="308" cy="192" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="322" y="192" fill="#8b949e" font-size="8" dominant-baseline="middle">GND</text>' +
+
+            '<!-- OLED SDA/SCL pins -->' +
+            '<circle cx="452" cy="170" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/><text x="440" y="170" text-anchor="end" fill="#8b949e" font-size="8" dominant-baseline="middle">SDA</text>' +
+            '<circle cx="452" cy="192" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="440" y="192" text-anchor="end" fill="#8b949e" font-size="8" dominant-baseline="middle">SCL</text>' +
+
+            '<!-- NeoPixel Strip -->' +
+            '<g>' +
+            '<rect x="490" y="75" width="150" height="130" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="490" y="75" width="150" height="26" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<rect x="490" y="93" width="150" height="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="565" y="92" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="600">NeoPixel Strip</text>' +
+            '<!-- LEDs -->' +
+            '<circle cx="510" cy="130" r="8" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="0.5"/>' +
+            '<circle cx="530" cy="130" r="8" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="0.5"/>' +
+            '<circle cx="550" cy="130" r="8" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="0.5"/>' +
+            '<circle cx="570" cy="130" r="8" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="0.5"/>' +
+            '<circle cx="590" cy="130" r="8" fill="rgba(168,85,247,0.3)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<circle cx="610" cy="130" r="8" fill="rgba(236,72,153,0.3)" stroke="#ec4899" stroke-width="0.5"/>' +
+            '<circle cx="530" cy="155" r="8" fill="rgba(6,182,212,0.3)" stroke="#06b6d4" stroke-width="0.5"/>' +
+            '<circle cx="550" cy="155" r="8" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="0.5"/>' +
+            '<text x="565" y="180" text-anchor="middle" fill="#c084fc" font-size="7">WS2812B x 8</text>' +
+            '</g>' +
+
+            '<!-- NeoPixel Pins -->' +
+            '<circle cx="488" cy="170" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text x="502" y="170" fill="#8b949e" font-size="8" dominant-baseline="middle">VCC</text>' +
+            '<circle cx="488" cy="192" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="502" y="192" fill="#8b949e" font-size="8" dominant-baseline="middle">GND</text>' +
+            '<circle cx="488" cy="214" r="4" fill="#a855f7" stroke="#d8b4fe" stroke-width="0.5"/><text x="502" y="214" fill="#8b949e" font-size="8" dominant-baseline="middle">DIN</text>' +
+
+            '<!-- Wires: 3V3 to OLED VCC -->' +
+            '<line x1="236" y1="170" x2="304" y2="170" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>' +
+            '<!-- GND to OLED GND -->' +
+            '<line x1="236" y1="192" x2="304" y2="192" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>' +
+            '<!-- SDA wire (D21 to OLED SDA) -->' +
+            '<path d="M236,214 L260,214 L260,170 L452,170" stroke="#eab308" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>' +
+            '<!-- SCL wire (D22 to OLED SCL) -->' +
+            '<path d="M236,236 L268,236 L268,192 L452,192" stroke="#22c55e" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>' +
+            '<!-- Data wire (D5 to NeoPixel DIN) -->' +
+            '<path d="M236,258 L275,258 L275,214 L484,214" stroke="#a855f7" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>' +
+            '<!-- 5V to NeoPixel VCC -->' +
+            '<path d="M236,278 L283,278 L283,170 L484,170" stroke="#ef4444" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="6,3" opacity="0.7"/>' +
+            '<!-- GND to NeoPixel GND -->' +
+            '<path d="M236,192 L270,192 L270,230 L470,230 L470,192 L484,192" stroke="#555" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="6,3" opacity="0.6"/>' +
+
+            '<!-- Wire labels -->' +
+            '<rect x="250" y="158" width="40" height="14" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="270" y="168" text-anchor="middle" fill="#fca5a5" font-size="7">3V3</text>' +
+            '<rect x="250" y="182" width="40" height="14" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(136,136,136,0.3)" stroke-width="0.5"/>' +
+            '<text x="270" y="192" text-anchor="middle" fill="#aaa" font-size="7">GND</text>' +
+
+            '<!-- Pin legend -->' +
+            '<rect x="50" y="330" width="600" height="50" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+            '<text x="70" y="348" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">CONNECTIONS</text>' +
+            '<circle cx="70" cy="366" r="4" fill="#ef4444"/><text x="80" y="369" fill="#8b949e" font-size="7">3V3 / 5V (power)</text>' +
+            '<circle cx="170" cy="366" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="180" y="369" fill="#8b949e" font-size="7">GND</text>' +
+            '<circle cx="230" cy="366" r="4" fill="#eab308"/><text x="240" y="369" fill="#8b949e" font-size="7">SDA (D21)</text>' +
+            '<circle cx="320" cy="366" r="4" fill="#22c55e"/><text x="330" y="369" fill="#8b949e" font-size="7">SCL (D22)</text>' +
+            '<circle cx="410" cy="366" r="4" fill="#a855f7"/><text x="420" y="369" fill="#8b949e" font-size="7">Data (D5)</text>' +
+            '<text x="500" y="369" fill="#555" font-size="7">OLED addr: 0x3C</text>' +
+
+            '</svg>' +
+            '</div>',
+
         wiring: '    ESP32 DevKit V1              OLED 0.96" I2C    NeoPixel Strip\n' +
                 '    +--------------+             +----------+      +-----------+\n' +
                 '    |         3V3  |---red-------|VCC       |      |           |\n' +
@@ -190,6 +385,115 @@ window.SignalGuides = {
     'sg-23': {
         intro: '<p>This is the ultimate pocket-sized WiFi tool &mdash; a battery-powered ESP32 CYD running a multi-mode firmware that combines WiFi scanning, BLE scanning, deauth detection, and packet monitoring into a single touch-driven interface. It is the handheld equivalent of carrying a laptop with Kismet, Wireshark, and Bluetooth tools.</p>' +
                '<p>Building on SG-06 (WiFi scanner), SG-21 (custom firmware), and lessons from other projects, you will create a field-deployable security tool with SD card logging, battery monitoring, and a polished UI.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+            '<defs>' +
+            '<pattern id="sg23-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#sg23-grid)" rx="4"/>' +
+
+            '<!-- Title -->' +
+            '<text x="350" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">PORTABLE WIFI FIELD TERMINAL</text>' +
+
+            '<!-- ESP32 CYD (center) -->' +
+            '<g>' +
+            '<rect x="200" y="55" width="300" height="170" rx="10" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="200" y="55" width="300" height="26" rx="10" fill="rgba(59,130,246,0.15)"/>' +
+            '<rect x="200" y="73" width="300" height="8" fill="rgba(59,130,246,0.15)"/>' +
+            '<text x="350" y="72" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">ESP32 CYD (Cheap Yellow Display)</text>' +
+            '<!-- Screen -->' +
+            '<rect x="230" y="92" width="180" height="110" rx="6" fill="#0a0a0a" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="320" y="130" text-anchor="middle" fill="#3b82f6" font-size="8" opacity="0.5">2.8&quot; TFT 320x240</text>' +
+            '<text x="320" y="145" text-anchor="middle" fill="#3b82f6" font-size="7" opacity="0.4">Resistive Touch</text>' +
+            '<text x="320" y="165" text-anchor="middle" fill="#22c55e" font-size="8" opacity="0.4">FIELD TERMINAL v1.0</text>' +
+            '<text x="320" y="180" text-anchor="middle" fill="#8b949e" font-size="6" opacity="0.4">WiFi | BLE | Packet | Deauth</text>' +
+            '<!-- Built-in labels -->' +
+            '<text x="430" y="110" fill="#8b949e" font-size="6">WiFi built-in</text>' +
+            '<text x="430" y="122" fill="#8b949e" font-size="6">BT built-in</text>' +
+            '<text x="430" y="134" fill="#8b949e" font-size="6">Touch built-in</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="325" y="210" width="50" height="14" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="350" y="220" text-anchor="middle" fill="#888" font-size="6">USB-C</text>' +
+            '</g>' +
+
+            '<!-- CYD Pins (right side) -->' +
+            '<circle cx="502" cy="140" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text x="490" y="140" text-anchor="end" fill="#8b949e" font-size="7" dominant-baseline="middle">VIN</text>' +
+            '<circle cx="502" cy="160" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="490" y="160" text-anchor="end" fill="#8b949e" font-size="7" dominant-baseline="middle">GND</text>' +
+            '<circle cx="502" cy="180" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/><text x="490" y="180" text-anchor="end" fill="#8b949e" font-size="7" dominant-baseline="middle">D34</text>' +
+
+            '<!-- CYD SPI Pins (bottom) -->' +
+            '<circle cx="220" cy="228" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="220" y="245" text-anchor="middle" fill="#8b949e" font-size="6">D15</text>' +
+            '<circle cx="250" cy="228" r="4" fill="#3b82f6" stroke="#93c5fd" stroke-width="0.5"/><text x="250" y="245" text-anchor="middle" fill="#8b949e" font-size="6">D13</text>' +
+            '<circle cx="280" cy="228" r="4" fill="#f97316" stroke="#fdba74" stroke-width="0.5"/><text x="280" y="245" text-anchor="middle" fill="#8b949e" font-size="6">D12</text>' +
+            '<circle cx="310" cy="228" r="4" fill="#a855f7" stroke="#d8b4fe" stroke-width="0.5"/><text x="310" y="245" text-anchor="middle" fill="#8b949e" font-size="6">D14</text>' +
+
+            '<!-- TP4056 Battery Module (left) -->' +
+            '<g>' +
+            '<rect x="30" y="260" width="150" height="100" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="30" y="260" width="150" height="24" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<rect x="30" y="276" width="150" height="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="105" y="276" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">TP4056 Charger</text>' +
+            '<!-- LiPo battery -->' +
+            '<rect x="50" y="295" width="80" height="30" rx="4" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.25)" stroke-width="0.5"/>' +
+            '<text x="90" y="310" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">3.7V LiPo</text>' +
+            '<text x="90" y="322" text-anchor="middle" fill="#a3860f" font-size="6">1000mAh+</text>' +
+            '<!-- Labels -->' +
+            '<text x="145" y="300" fill="#fca5a5" font-size="6">OUT+</text>' +
+            '<text x="145" y="315" fill="#888" font-size="6">OUT-</text>' +
+            '</g>' +
+
+            '<!-- Wires: TP4056 to CYD -->' +
+            '<path d="M180,298 L190,298 L190,140 L498,140" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round"/>' +
+            '<path d="M180,313 L195,313 L195,160 L498,160" stroke="#555" stroke-width="2.5" fill="none" stroke-linecap="round"/>' +
+
+            '<!-- Voltage divider -->' +
+            '<g>' +
+            '<rect x="530" y="120" width="130" height="80" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="595" y="138" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">Voltage Divider</text>' +
+            '<!-- Resistors -->' +
+            '<rect x="555" y="148" width="35" height="12" rx="2" fill="rgba(234,179,8,0.12)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+            '<text x="573" y="157" text-anchor="middle" fill="#eab308" font-size="6">100K</text>' +
+            '<rect x="555" y="168" width="35" height="12" rx="2" fill="rgba(234,179,8,0.12)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+            '<text x="573" y="177" text-anchor="middle" fill="#eab308" font-size="6">100K</text>' +
+            '<text x="600" y="157" fill="#8b949e" font-size="6">BAT+</text>' +
+            '<text x="600" y="177" fill="#8b949e" font-size="6">GND</text>' +
+            '<line x1="573" y1="160" x2="520" y2="160" stroke="#eab308" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<text x="625" y="167" fill="#fde68a" font-size="6">--> D34</text>' +
+            '</g>' +
+
+            '<!-- SD Card Module (bottom right) -->' +
+            '<g>' +
+            '<rect x="390" y="260" width="150" height="100" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="390" y="260" width="150" height="24" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<rect x="390" y="276" width="150" height="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="465" y="276" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">SD Card Module</text>' +
+            '<!-- Card slot -->' +
+            '<rect x="420" y="300" width="80" height="25" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="0.5"/>' +
+            '<text x="460" y="316" text-anchor="middle" fill="#666" font-size="7">MicroSD</text>' +
+            '<!-- Pin labels -->' +
+            '<text x="410" y="345" fill="#22c55e" font-size="6">CS</text>' +
+            '<text x="435" y="345" fill="#3b82f6" font-size="6">MOSI</text>' +
+            '<text x="468" y="345" fill="#f97316" font-size="6">MISO</text>' +
+            '<text x="502" y="345" fill="#a855f7" font-size="6">CLK</text>' +
+            '</g>' +
+
+            '<!-- Wires: CYD SPI to SD -->' +
+            '<path d="M220,232 L220,310 L390,310" stroke="#22c55e" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>' +
+            '<path d="M250,232 L250,320 L395,320" stroke="#3b82f6" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>' +
+            '<path d="M280,232 L280,330 L400,330" stroke="#f97316" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>' +
+            '<path d="M310,232 L310,340 L405,340" stroke="#a855f7" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8"/>' +
+
+            '<!-- Wire labels -->' +
+            '<rect x="190" y="135" width="40" height="12" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="210" y="144" text-anchor="middle" fill="#fca5a5" font-size="6">VIN</text>' +
+            '<rect x="190" y="155" width="40" height="12" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(136,136,136,0.3)" stroke-width="0.5"/>' +
+            '<text x="210" y="164" text-anchor="middle" fill="#aaa" font-size="6">GND</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiring: '    ESP32 CYD + Battery\n' +
                 '    +---------------------------+\n' +

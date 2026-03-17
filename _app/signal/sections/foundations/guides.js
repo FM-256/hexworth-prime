@@ -36,6 +36,112 @@ window.SignalGuides = {
                      '<p><strong>Resistor value:</strong> 220&Omega; limits current to ~15mA at 5V, safe for standard LEDs. Never connect an LED directly to a pin without a resistor &mdash; you will burn it out.</p>' +
                      '<p><strong>Wire colors:</strong> Black = ground, other colors = signal. Pick a consistent scheme and stick with it.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg01-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="380" fill="url(#sg01-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-01 BLINK &amp; BREADBOARD</text>' +
+
+            '<!-- Arduino Mega -->' +
+            '<g>' +
+            '<rect x="40" y="80" width="180" height="260" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="80" width="180" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="96" width="180" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="130" y="96" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ARDUINO MEGA 2560</text>' +
+            '<!-- USB port -->' +
+            '<rect x="16" y="95" width="28" height="22" rx="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="30" y="109" text-anchor="middle" fill="#3b82f6" font-size="6">USB</text>' +
+            '<!-- Pin labels -->' +
+            '<text x="210" y="140" text-anchor="end" fill="#8b949e" font-size="8">GND</text>' +
+            '<circle cx="218" cy="137" r="3" fill="#1a1f2b" stroke="#8b949e" stroke-width="1"/>' +
+            '<text x="210" y="170" text-anchor="end" fill="#8b949e" font-size="8">D2</text>' +
+            '<circle cx="218" cy="167" r="3" fill="#1a1f2b" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="210" y="200" text-anchor="end" fill="#8b949e" font-size="8">D3</text>' +
+            '<circle cx="218" cy="197" r="3" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="210" y="230" text-anchor="end" fill="#8b949e" font-size="8">D4</text>' +
+            '<circle cx="218" cy="227" r="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="210" y="260" text-anchor="end" fill="#8b949e" font-size="8">D5</text>' +
+            '<circle cx="218" cy="257" r="3" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="210" y="290" text-anchor="end" fill="#8b949e" font-size="8">D6</text>' +
+            '<circle cx="218" cy="287" r="3" fill="#1a1f2b" stroke="#e2e8f0" stroke-width="1"/>' +
+            '</g>' +
+
+            '<!-- Breadboard -->' +
+            '<g>' +
+            '<rect x="380" y="80" width="300" height="260" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="380" y="80" width="300" height="24" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<rect x="380" y="96" width="300" height="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="530" y="96" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">BREADBOARD</text>' +
+            '<!-- Power rails -->' +
+            '<rect x="392" y="112" width="276" height="16" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="400" y="123" fill="#ef4444" font-size="7">+ 5V RAIL</text>' +
+            '<rect x="392" y="132" width="276" height="16" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="400" y="143" fill="#60a5fa" font-size="7">- GND RAIL</text>' +
+
+            '<!-- LED 1 (D2) -->' +
+            '<polygon points="430,175 440,195 420,195" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="430" y="210" text-anchor="middle" fill="#eab308" font-size="7">LED 1</text>' +
+            '<rect x="450" y="182" width="40" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="470" y="189" text-anchor="middle" fill="#c084fc" font-size="6">220R</text>' +
+
+            '<!-- LED 2 (D3) -->' +
+            '<polygon points="430,225 440,245 420,245" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="430" y="260" text-anchor="middle" fill="#22c55e" font-size="7">LED 2</text>' +
+            '<rect x="450" y="232" width="40" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="470" y="239" text-anchor="middle" fill="#c084fc" font-size="6">220R</text>' +
+
+            '<!-- LED 3 (D4) -->' +
+            '<polygon points="530,175 540,195 520,195" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="530" y="210" text-anchor="middle" fill="#3b82f6" font-size="7">LED 3</text>' +
+            '<rect x="550" y="182" width="40" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="570" y="189" text-anchor="middle" fill="#c084fc" font-size="6">220R</text>' +
+
+            '<!-- LED 4 (D5) -->' +
+            '<polygon points="530,225 540,245 520,245" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="530" y="260" text-anchor="middle" fill="#ef4444" font-size="7">LED 4</text>' +
+            '<rect x="550" y="232" width="40" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="570" y="239" text-anchor="middle" fill="#c084fc" font-size="6">220R</text>' +
+
+            '<!-- LED 5 (D6) -->' +
+            '<polygon points="630,175 640,195 620,195" fill="rgba(226,232,240,0.3)" stroke="#e2e8f0" stroke-width="1"/>' +
+            '<text x="630" y="210" text-anchor="middle" fill="#e2e8f0" font-size="7">LED 5</text>' +
+            '<rect x="550" y="282" width="40" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="570" y="289" text-anchor="middle" fill="#c084fc" font-size="6">220R</text>' +
+            '</g>' +
+
+            '<!-- Wires -->' +
+            '<!-- GND wire (black) -->' +
+            '<line x1="221" y1="137" x2="392" y2="140" stroke="#8b949e" stroke-width="2" stroke-dasharray="6,3"/>' +
+            '<!-- D2 wire (yellow) -->' +
+            '<line x1="221" y1="167" x2="430" y2="175" stroke="#eab308" stroke-width="1.5"/>' +
+            '<!-- D3 wire (green) -->' +
+            '<line x1="221" y1="197" x2="430" y2="225" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<!-- D4 wire (blue) -->' +
+            '<line x1="221" y1="227" x2="530" y2="175" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<!-- D5 wire (red) -->' +
+            '<line x1="221" y1="257" x2="530" y2="225" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<!-- D6 wire (white) -->' +
+            '<line x1="221" y1="287" x2="630" y2="175" stroke="#e2e8f0" stroke-width="1.5"/>' +
+
+            '<!-- Resistor to GND connections -->' +
+            '<line x1="490" y1="186" x2="530" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<line x1="490" y1="236" x2="530" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<line x1="590" y1="186" x2="600" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<line x1="590" y1="236" x2="600" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<line x1="590" y1="286" x2="640" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+
+            '<!-- LED detail callout -->' +
+            '<rect x="400" y="300" width="260" height="50" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="410" y="316" fill="#eab308" font-size="8" font-weight="600">LED ORIENTATION</text>' +
+            '<text x="410" y="332" fill="#8b949e" font-size="7">Long leg (anode +) &#8594; Arduino pin</text>' +
+            '<text x="410" y="344" fill="#8b949e" font-size="7">Short leg (cathode -) &#8594; 220&#937; resistor &#8594; GND</text>' +
+
+            '</svg>' +
+            '</div>',
+
         steps: [
             {
                 title: 'Install and Configure the Arduino IDE',
@@ -141,6 +247,140 @@ window.SignalGuides = {
                      '<p><strong>Photoresistor voltage divider:</strong> The photoresistor and 10K&Omega; resistor form a divider. The junction (where they meet) connects to A0. Bright light = high reading, dark = low reading.</p>' +
                      '<p><strong>HC-SR04:</strong> Trig sends the pulse, Echo receives it. Both are 5V logic, safe for the Mega. Keep the sensor facing away from the breadboard for clear readings.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 440" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg02-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="440" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="420" fill="url(#sg02-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-02 SENSOR I/O</text>' +
+
+            '<!-- Arduino Mega -->' +
+            '<g>' +
+            '<rect x="40" y="60" width="170" height="320" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="60" width="170" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="76" width="170" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="125" y="76" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ARDUINO MEGA</text>' +
+            '<!-- USB -->' +
+            '<rect x="16" y="75" width="28" height="22" rx="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="30" y="89" text-anchor="middle" fill="#3b82f6" font-size="6">USB</text>' +
+            '<!-- Pins -->' +
+            '<text x="200" y="115" text-anchor="end" fill="#8b949e" font-size="8">5V</text>' +
+            '<circle cx="208" cy="112" r="3" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="200" y="140" text-anchor="end" fill="#8b949e" font-size="8">GND</text>' +
+            '<circle cx="208" cy="137" r="3" fill="#1a1f2b" stroke="#8b949e" stroke-width="1"/>' +
+            '<text x="200" y="180" text-anchor="end" fill="#8b949e" font-size="8">D7</text>' +
+            '<circle cx="208" cy="177" r="3" fill="#1a1f2b" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="200" y="220" text-anchor="end" fill="#8b949e" font-size="8">A0</text>' +
+            '<circle cx="208" cy="217" r="3" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="200" y="275" text-anchor="end" fill="#8b949e" font-size="8">D8</text>' +
+            '<circle cx="208" cy="272" r="3" fill="#1a1f2b" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="200" y="300" text-anchor="end" fill="#8b949e" font-size="8">D9</text>' +
+            '<circle cx="208" cy="297" r="3" fill="#1a1f2b" stroke="#a855f7" stroke-width="1"/>' +
+            '</g>' +
+
+            '<!-- DHT11 Sensor -->' +
+            '<g>' +
+            '<rect x="320" y="60" width="130" height="100" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<rect x="320" y="60" width="130" height="20" rx="8" fill="rgba(234,179,8,0.1)"/>' +
+            '<rect x="320" y="73" width="130" height="7" fill="rgba(234,179,8,0.1)"/>' +
+            '<text x="385" y="75" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">DHT11</text>' +
+            '<text x="385" y="95" text-anchor="middle" fill="#8b949e" font-size="7">Temp + Humidity</text>' +
+            '<!-- Pins -->' +
+            '<rect x="340" y="120" width="30" height="14" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="355" y="130" text-anchor="middle" fill="#ef4444" font-size="6">VCC</text>' +
+            '<rect x="375" y="120" width="30" height="14" rx="2" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+            '<text x="390" y="130" text-anchor="middle" fill="#eab308" font-size="6">DATA</text>' +
+            '<rect x="410" y="120" width="30" height="14" rx="2" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+            '<text x="425" y="130" text-anchor="middle" fill="#60a5fa" font-size="6">GND</text>' +
+            '</g>' +
+
+            '<!-- Photoresistor -->' +
+            '<g>' +
+            '<rect x="320" y="190" width="130" height="100" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="320" y="190" width="130" height="20" rx="8" fill="rgba(34,197,94,0.1)"/>' +
+            '<rect x="320" y="203" width="130" height="7" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="385" y="205" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">PHOTORESISTOR</text>' +
+            '<text x="385" y="225" text-anchor="middle" fill="#8b949e" font-size="7">Voltage Divider</text>' +
+            '<!-- Divider diagram -->' +
+            '<line x1="360" y1="240" x2="360" y2="252" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<text x="370" y="248" fill="#ef4444" font-size="6">5V</text>' +
+            '<circle cx="360" cy="258" r="6" fill="none" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="372" y="261" fill="#22c55e" font-size="6">LDR</text>' +
+            '<circle cx="360" cy="258" r="2" fill="#22c55e"/>' +
+            '<line x1="360" y1="264" x2="360" y2="272" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<circle cx="360" cy="272" r="2" fill="#22c55e"/>' +
+            '<line x1="362" y1="272" x2="380" y2="272" stroke="#22c55e" stroke-width="1" stroke-dasharray="2,1"/>' +
+            '<text x="384" y="275" fill="#22c55e" font-size="6">&#8594; A0</text>' +
+            '<rect x="356" y="276" width="8" height="4" fill="rgba(168,85,247,0.3)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="370" y="282" fill="#c084fc" font-size="6">10K</text>' +
+            '<line x1="360" y1="280" x2="360" y2="288" stroke="#60a5fa" stroke-width="1.5"/>' +
+            '<text x="370" y="288" fill="#60a5fa" font-size="6">GND</text>' +
+            '</g>' +
+
+            '<!-- HC-SR04 -->' +
+            '<g>' +
+            '<rect x="510" y="60" width="170" height="130" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="510" y="60" width="170" height="20" rx="8" fill="rgba(249,115,22,0.1)"/>' +
+            '<rect x="510" y="73" width="170" height="7" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="595" y="75" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="600">HC-SR04</text>' +
+            '<text x="595" y="95" text-anchor="middle" fill="#8b949e" font-size="7">Ultrasonic Distance</text>' +
+            '<!-- Transducer eyes -->' +
+            '<circle cx="570" cy="115" r="14" fill="none" stroke="rgba(249,115,22,0.3)" stroke-width="1"/>' +
+            '<circle cx="570" cy="115" r="8" fill="rgba(249,115,22,0.08)"/>' +
+            '<circle cx="620" cy="115" r="14" fill="none" stroke="rgba(249,115,22,0.3)" stroke-width="1"/>' +
+            '<circle cx="620" cy="115" r="8" fill="rgba(249,115,22,0.08)"/>' +
+            '<text x="570" y="118" text-anchor="middle" fill="#fb923c" font-size="6">TX</text>' +
+            '<text x="620" y="118" text-anchor="middle" fill="#fb923c" font-size="6">RX</text>' +
+            '<!-- Pins -->' +
+            '<rect x="520" y="148" width="30" height="14" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="535" y="158" text-anchor="middle" fill="#ef4444" font-size="6">VCC</text>' +
+            '<rect x="555" y="148" width="30" height="14" rx="2" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="570" y="158" text-anchor="middle" fill="#fb923c" font-size="6">TRIG</text>' +
+            '<rect x="590" y="148" width="30" height="14" rx="2" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+            '<text x="605" y="158" text-anchor="middle" fill="#c084fc" font-size="6">ECHO</text>' +
+            '<rect x="625" y="148" width="30" height="14" rx="2" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+            '<text x="640" y="158" text-anchor="middle" fill="#60a5fa" font-size="6">GND</text>' +
+            '</g>' +
+
+            '<!-- Wires -->' +
+            '<!-- 5V (red) -->' +
+            '<path d="M211,112 C260,112 280,65 340,127" stroke="#ef4444" stroke-width="1.5" fill="none"/>' +
+            '<path d="M211,112 C260,100 380,55 535,155" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<!-- GND (dark) -->' +
+            '<path d="M211,137 C260,137 290,135 425,127" stroke="#8b949e" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>' +
+            '<path d="M211,137 C260,150 400,170 640,155" stroke="#8b949e" stroke-width="1.5" fill="none" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<!-- D7 to DHT11 Data (yellow) -->' +
+            '<path d="M211,177 C270,177 310,127 390,127" stroke="#eab308" stroke-width="1.5" fill="none"/>' +
+            '<!-- A0 to Photoresistor (green) -->' +
+            '<path d="M211,217 C270,217 300,240 320,240" stroke="#22c55e" stroke-width="1.5" fill="none"/>' +
+            '<!-- D8 to Trig (orange) -->' +
+            '<path d="M211,272 C350,272 400,200 570,155" stroke="#f97316" stroke-width="1.5" fill="none"/>' +
+            '<!-- D9 to Echo (purple) -->' +
+            '<path d="M211,297 C370,297 420,210 605,155" stroke="#a855f7" stroke-width="1.5" fill="none"/>' +
+
+            '<!-- Legend -->' +
+            '<rect x="510" y="220" width="170" height="100" rx="6" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="520" y="236" fill="#60a5fa" font-size="8" font-weight="600">WIRE LEGEND</text>' +
+            '<line x1="520" y1="250" x2="540" y2="250" stroke="#ef4444" stroke-width="2"/>' +
+            '<text x="546" y="253" fill="#8b949e" font-size="7">Red = 5V Power</text>' +
+            '<line x1="520" y1="265" x2="540" y2="265" stroke="#8b949e" stroke-width="2" stroke-dasharray="3,2"/>' +
+            '<text x="546" y="268" fill="#8b949e" font-size="7">Gray = GND</text>' +
+            '<line x1="520" y1="280" x2="540" y2="280" stroke="#eab308" stroke-width="2"/>' +
+            '<text x="546" y="283" fill="#8b949e" font-size="7">Yellow = D7 (DHT11)</text>' +
+            '<line x1="520" y1="295" x2="540" y2="295" stroke="#22c55e" stroke-width="2"/>' +
+            '<text x="546" y="298" fill="#8b949e" font-size="7">Green = A0 (Light)</text>' +
+            '<line x1="520" y1="310" x2="540" y2="310" stroke="#f97316" stroke-width="2"/>' +
+            '<text x="546" y="313" fill="#8b949e" font-size="7">Orange = D8 (Trig)</text>' +
+
+            '<!-- Signal flow arrows -->' +
+            '<text x="385" y="110" text-anchor="middle" fill="#eab308" font-size="7" opacity="0.6">temp + humidity</text>' +
+            '<text x="595" y="140" text-anchor="middle" fill="#fb923c" font-size="7" opacity="0.6">sound pulse</text>' +
+
+            '</svg>' +
+            '</div>',
+
         steps: [
             {
                 title: 'Install the DHT Library',
@@ -237,6 +477,81 @@ window.SignalGuides = {
 
         wiringNotes: '<p><strong>Important:</strong> Close the Arduino IDE Serial Monitor before running your Python script. Only one program can access the serial port at a time. If Python reports "Permission denied" or "Port busy", the Serial Monitor is likely still open.</p>' +
                      '<p><strong>Port detection:</strong> On Windows, check Device Manager &gt; Ports. On Linux, run <code>ls /dev/ttyACM*</code> or <code>ls /dev/ttyUSB*</code>. On macOS, run <code>ls /dev/cu.usb*</code>.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg03-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="380" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="360" fill="url(#sg03-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-03 SERIAL BRIDGE</text>' +
+
+            '<!-- Arduino Mega -->' +
+            '<g>' +
+            '<rect x="40" y="70" width="200" height="240" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="70" width="200" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="86" width="200" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="140" y="86" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ARDUINO MEGA 2560</text>' +
+            '<!-- Sensor references -->' +
+            '<rect x="55" y="110" width="170" height="80" rx="4" fill="rgba(234,179,8,0.05)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="65" y="125" fill="#eab308" font-size="8" font-weight="600">SENSORS (from SG-02)</text>' +
+            '<text x="65" y="142" fill="#8b949e" font-size="7">DHT11 on D7</text>' +
+            '<text x="65" y="155" fill="#8b949e" font-size="7">Photoresistor on A0</text>' +
+            '<text x="65" y="168" fill="#8b949e" font-size="7">HC-SR04 on D8/D9</text>' +
+            '<text x="65" y="183" fill="#555" font-size="6" font-style="italic">No new wiring needed</text>' +
+            '<!-- USB port -->' +
+            '<rect x="200" y="210" width="40" height="30" rx="4" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="208" y="216" width="8" height="18" rx="1" fill="#3b82f6" opacity="0.4"/>' +
+            '<rect x="222" y="216" width="8" height="18" rx="1" fill="#3b82f6" opacity="0.4"/>' +
+            '<text x="220" y="254" text-anchor="middle" fill="#60a5fa" font-size="7">USB-B</text>' +
+            '<!-- Serial data label -->' +
+            '<rect x="55" y="270" width="170" height="24" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="140" y="286" text-anchor="middle" fill="#4ade80" font-size="7">Serial.println("DATA,1,23.5,...")</text>' +
+            '</g>' +
+
+            '<!-- USB Cable -->' +
+            '<g>' +
+            '<rect x="245" y="200" width="230" height="50" rx="6" fill="rgba(59,130,246,0.04)"/>' +
+            '<line x1="240" y1="225" x2="480" y2="225" stroke="#3b82f6" stroke-width="3"/>' +
+            '<line x1="240" y1="225" x2="480" y2="225" stroke="#60a5fa" stroke-width="1" stroke-dasharray="8,4"/>' +
+            '<text x="360" y="218" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">USB CABLE</text>' +
+            '<!-- Data flow arrows -->' +
+            '<polygon points="350,233 358,237 350,241" fill="#22c55e" opacity="0.7"/>' +
+            '<polygon points="370,233 362,237 370,241" fill="#f97316" opacity="0.7"/>' +
+            '<text x="340" y="255" text-anchor="middle" fill="#22c55e" font-size="6">TX (Arduino &#8594; PC)</text>' +
+            '<text x="390" y="255" text-anchor="middle" fill="#f97316" font-size="6">RX (PC &#8594; Arduino)</text>' +
+            '</g>' +
+
+            '<!-- Computer -->' +
+            '<g>' +
+            '<rect x="480" y="70" width="200" height="240" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="480" y="70" width="200" height="24" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<rect x="480" y="86" width="200" height="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="580" y="86" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="600">COMPUTER</text>' +
+            '<!-- USB port on computer -->' +
+            '<rect x="480" y="210" width="40" height="30" rx="4" fill="#1a1f2b" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="486" y="216" width="28" height="18" rx="2" fill="rgba(168,85,247,0.15)"/>' +
+            '<text x="500" y="254" text-anchor="middle" fill="#c084fc" font-size="7">USB-A</text>' +
+            '<!-- Python stack -->' +
+            '<rect x="495" y="110" width="170" height="80" rx="4" fill="rgba(168,85,247,0.05)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="505" y="125" fill="#c084fc" font-size="8" font-weight="600">PYTHON SCRIPTS</text>' +
+            '<text x="505" y="142" fill="#8b949e" font-size="7">import serial (pyserial)</text>' +
+            '<text x="505" y="155" fill="#8b949e" font-size="7">Parse CSV data lines</text>' +
+            '<text x="505" y="168" fill="#8b949e" font-size="7">Live dashboard / CSV export</text>' +
+            '<text x="505" y="183" fill="#555" font-size="6" font-style="italic">pip install pyserial</text>' +
+            '<!-- Port info -->' +
+            '<rect x="495" y="270" width="170" height="24" rx="4" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+            '<text x="580" y="286" text-anchor="middle" fill="#fb923c" font-size="7">COM3 (Win) / /dev/ttyACM0 (Linux)</text>' +
+            '</g>' +
+
+            '<!-- Protocol info -->' +
+            '<rect x="240" y="320" width="240" height="40" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="360" y="336" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">SERIAL PROTOCOL</text>' +
+            '<text x="360" y="350" text-anchor="middle" fill="#8b949e" font-size="7">9600 baud | 8N1 | Line-terminated CSV</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
@@ -352,6 +667,117 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>I2C vs Parallel:</strong> If you have an I2C backpack soldered to your LCD (a small board on the back with 4 pins), use Option A. If your LCD has 16 bare pins, use Option B. I2C uses only 2 data wires and is much simpler.</p>' +
                      '<p><strong>Contrast:</strong> With parallel wiring, the potentiometer on pin V0 controls contrast. Turn it slowly until you see dark blocks appear on the LCD &mdash; that means it is working. I2C backpacks usually have a small blue potentiometer on the board itself.</p>' +
                      '<p><strong>Button wiring:</strong> We use <code>INPUT_PULLUP</code> mode, so the button connects pin D10 directly to GND. No external resistor needed. When pressed, the pin reads LOW.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 460" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg04-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="460" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="440" fill="url(#sg04-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-04 LCD DASHBOARD</text>' +
+
+            '<!-- Arduino Mega -->' +
+            '<g>' +
+            '<rect x="40" y="55" width="170" height="340" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="55" width="170" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="71" width="170" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="125" y="71" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ARDUINO MEGA</text>' +
+            '<!-- Pin column -->' +
+            '<text x="200" y="105" text-anchor="end" fill="#8b949e" font-size="8">5V</text>' +
+            '<circle cx="208" cy="102" r="3" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="200" y="125" text-anchor="end" fill="#8b949e" font-size="8">GND</text>' +
+            '<circle cx="208" cy="122" r="3" fill="#1a1f2b" stroke="#8b949e" stroke-width="1"/>' +
+            '<text x="200" y="160" text-anchor="end" fill="#8b949e" font-size="8">SDA 20</text>' +
+            '<circle cx="208" cy="157" r="3" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="200" y="180" text-anchor="end" fill="#8b949e" font-size="8">SCL 21</text>' +
+            '<circle cx="208" cy="177" r="3" fill="#1a1f2b" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="200" y="220" text-anchor="end" fill="#8b949e" font-size="8">D7</text>' +
+            '<circle cx="208" cy="217" r="3" fill="#1a1f2b" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="200" y="250" text-anchor="end" fill="#8b949e" font-size="8">A0</text>' +
+            '<circle cx="208" cy="247" r="3" fill="#1a1f2b" stroke="#06b6d4" stroke-width="1"/>' +
+            '<text x="200" y="290" text-anchor="end" fill="#8b949e" font-size="8">D10</text>' +
+            '<circle cx="208" cy="287" r="3" fill="#1a1f2b" stroke="#e2e8f0" stroke-width="1"/>' +
+            '</g>' +
+
+            '<!-- LCD 1602 (I2C) -->' +
+            '<g>' +
+            '<rect x="310" y="55" width="220" height="130" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="310" y="55" width="220" height="20" rx="8" fill="rgba(34,197,94,0.1)"/>' +
+            '<rect x="310" y="68" width="220" height="7" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="420" y="70" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">LCD 1602 (I2C)</text>' +
+            '<!-- LCD screen -->' +
+            '<rect x="330" y="85" width="180" height="50" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.4)" stroke-width="1"/>' +
+            '<text x="340" y="105" fill="#4ade80" font-size="9">Temp: 23.5 C</text>' +
+            '<text x="340" y="122" fill="#4ade80" font-size="9">Humid: 45.2 %</text>' +
+            '<!-- I2C Pins -->' +
+            '<rect x="325" y="145" width="30" height="14" rx="2" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+            '<text x="340" y="155" text-anchor="middle" fill="#4ade80" font-size="6">SDA</text>' +
+            '<rect x="360" y="145" width="30" height="14" rx="2" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+            '<text x="375" y="155" text-anchor="middle" fill="#eab308" font-size="6">SCL</text>' +
+            '<rect x="395" y="145" width="30" height="14" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="410" y="155" text-anchor="middle" fill="#ef4444" font-size="6">VCC</text>' +
+            '<rect x="430" y="145" width="30" height="14" rx="2" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+            '<text x="445" y="155" text-anchor="middle" fill="#60a5fa" font-size="6">GND</text>' +
+            '<!-- I2C address note -->' +
+            '<text x="490" y="155" fill="#555" font-size="6">addr: 0x27</text>' +
+            '</g>' +
+
+            '<!-- DHT11 Sensor -->' +
+            '<g>' +
+            '<rect x="310" y="210" width="120" height="70" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="310" y="210" width="120" height="20" rx="8" fill="rgba(249,115,22,0.1)"/>' +
+            '<rect x="310" y="223" width="120" height="7" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="370" y="225" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="600">DHT11</text>' +
+            '<text x="370" y="248" text-anchor="middle" fill="#8b949e" font-size="7">D7 = Data</text>' +
+            '<text x="370" y="262" text-anchor="middle" fill="#8b949e" font-size="7">5V + GND</text>' +
+            '</g>' +
+
+            '<!-- Photoresistor -->' +
+            '<g>' +
+            '<rect x="450" y="210" width="120" height="70" rx="8" fill="#1e2736" stroke="#06b6d4" stroke-width="1.5"/>' +
+            '<rect x="450" y="210" width="120" height="20" rx="8" fill="rgba(6,182,212,0.1)"/>' +
+            '<rect x="450" y="223" width="120" height="7" fill="rgba(6,182,212,0.1)"/>' +
+            '<text x="510" y="225" text-anchor="middle" fill="#22d3ee" font-size="9" font-weight="600">PHOTORESISTOR</text>' +
+            '<text x="510" y="248" text-anchor="middle" fill="#8b949e" font-size="7">A0 = Signal</text>' +
+            '<text x="510" y="262" text-anchor="middle" fill="#8b949e" font-size="7">Voltage divider</text>' +
+            '</g>' +
+
+            '<!-- Push Button -->' +
+            '<g>' +
+            '<rect x="310" y="310" width="120" height="70" rx="8" fill="#1e2736" stroke="#e2e8f0" stroke-width="1.5"/>' +
+            '<rect x="310" y="310" width="120" height="20" rx="8" fill="rgba(226,232,240,0.1)"/>' +
+            '<rect x="310" y="323" width="120" height="7" fill="rgba(226,232,240,0.1)"/>' +
+            '<text x="370" y="325" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">PUSH BUTTON</text>' +
+            '<text x="370" y="348" text-anchor="middle" fill="#8b949e" font-size="7">D10 &#8594; BTN &#8594; GND</text>' +
+            '<text x="370" y="362" text-anchor="middle" fill="#555" font-size="6">INPUT_PULLUP (no resistor)</text>' +
+            '</g>' +
+
+            '<!-- Wires -->' +
+            '<!-- SDA (green) -->' +
+            '<path d="M211,157 C260,157 290,152 340,152" stroke="#22c55e" stroke-width="1.5" fill="none"/>' +
+            '<!-- SCL (yellow) -->' +
+            '<path d="M211,177 C260,177 300,152 375,152" stroke="#eab308" stroke-width="1.5" fill="none"/>' +
+            '<!-- 5V (red) -->' +
+            '<path d="M211,102 C260,102 300,100 410,152" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>' +
+            '<!-- GND (gray) -->' +
+            '<path d="M211,122 C260,122 310,130 445,152" stroke="#8b949e" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>' +
+            '<!-- D7 to DHT11 (orange) -->' +
+            '<path d="M211,217 C260,217 280,240 310,240" stroke="#f97316" stroke-width="1.5" fill="none"/>' +
+            '<!-- A0 to Photoresistor (cyan) -->' +
+            '<path d="M211,247 C300,247 380,248 450,248" stroke="#06b6d4" stroke-width="1.5" fill="none"/>' +
+            '<!-- D10 to Button (white) -->' +
+            '<path d="M211,287 C260,287 280,340 310,340" stroke="#e2e8f0" stroke-width="1.5" fill="none"/>' +
+
+            '<!-- Page indicator -->' +
+            '<rect x="500" y="310" width="170" height="70" rx="6" fill="rgba(34,197,94,0.05)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="510" y="326" fill="#4ade80" font-size="8" font-weight="600">LCD PAGES</text>' +
+            '<text x="510" y="342" fill="#8b949e" font-size="7">P1: Temp + Humidity</text>' +
+            '<text x="510" y="356" fill="#8b949e" font-size="7">P2: Light level bar</text>' +
+            '<text x="510" y="370" fill="#8b949e" font-size="7">P3: System status</text>' +
+
+            '</svg>' +
+            '</div>',
 
         steps: [
             {
