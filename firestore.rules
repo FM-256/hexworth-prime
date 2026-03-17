@@ -152,6 +152,63 @@ service cloud.firestore {
       // Only Cloud Functions (admin SDK) can create
     }
 
+    // ─── F-23: Messaging System ──────────────────────────────────────
+
+    // Helper: check if current user is a handler for the given class
+    function isHandlerForClass(classId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/classes/$(classId)) &&
+        get(/databases/$(database)/documents/classes/$(classId)).data.handlerUid == request.auth.uid;
+    }
+
+    // Messages — read by participants or class handler; write only via Cloud Functions
+    match /messages/{messageId} {
+      allow read: if request.auth != null && (
+        resource.data.from == request.auth.uid ||
+        resource.data.to == request.auth.uid ||
+        isHandlerForClass(resource.data.classId)
+      );
+
+      // Direct writes blocked — all creates go through sendMessage CF
+      allow create: if false;
+
+      // Only recipient can mark as read
+      allow update: if request.auth != null &&
+        resource.data.to == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
+        request.resource.data.read == true;
+
+      // Soft-delete only by handler
+      allow update: if request.auth != null &&
+        isHandlerForClass(resource.data.classId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted']) &&
+        request.resource.data.deleted == true;
+
+      allow delete: if false; // Hard deletes only via purge CF
+    }
+
+    // Conversations — read by participants or class handler
+    match /conversations/{conversationId} {
+      allow read: if request.auth != null && (
+        request.auth.uid in resource.data.participants ||
+        isHandlerForClass(resource.data.classId)
+      );
+
+      // Writes only via Cloud Functions
+      allow write: if false;
+    }
+
+    // Messaging blocks — handler managed
+    match /messaging_blocks/{blockId} {
+      allow read: if request.auth != null && (
+        resource.data.blockedUid == request.auth.uid ||
+        isHandlerForClass(resource.data.classId)
+      );
+
+      // Write only via Cloud Functions
+      allow write: if false;
+    }
+
     // Classes collection — handlers create/manage, students join/leave
     match /classes/{classId} {
       // Any authenticated user can read (needed for code lookup)
