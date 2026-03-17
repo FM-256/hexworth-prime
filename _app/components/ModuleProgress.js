@@ -886,7 +886,8 @@ if (typeof window !== 'undefined') {
 
 // Auto-track page visit from URL pattern: /houses/{house}/.../{file}.html
 // or /signal/..., /arena/..., /dispatch/..., etc.
-(function autoTrackVisit() {
+// Deferred to DOMContentLoaded so document.title is available.
+document.addEventListener('DOMContentLoaded', function autoTrackVisit() {
     try {
         var p = location.pathname;
         // Match module/lab pages under /houses/{house}/
@@ -914,4 +915,4 @@ if (typeof window !== 'undefined') {
         }
         ModuleProgress.trackVisit(houseId, file, { section: section });
     } catch (e) { /* silent */ }
-})();
+});
