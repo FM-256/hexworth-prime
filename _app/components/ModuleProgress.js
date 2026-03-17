@@ -842,6 +842,30 @@ const ModuleProgress = (function() {
         return module?.completed || false;
     }
 
+    /**
+     * Track module visit for "Continue Learning" on the dashboard.
+     * Call from any module/lab page to record the user's last location.
+     *
+     * @param {string} houseId - House slug (e.g. 'script', 'shield')
+     * @param {string} moduleId - Module slug (e.g. 'db-12-inner-join')
+     * @param {object} [meta] - Optional: { section, returnUrl }
+     */
+    function trackVisit(houseId, moduleId, meta) {
+        try {
+            var title = document.title.split('|')[0].split(' — ')[0].trim();
+            var entry = {
+                houseId: houseId,
+                moduleId: moduleId,
+                title: title,
+                url: location.pathname,
+                section: (meta && meta.section) || '',
+                returnUrl: (meta && meta.returnUrl) || '',
+                timestamp: Date.now()
+            };
+            localStorage.setItem('hexworth_last_visited', JSON.stringify(entry));
+        } catch (e) { /* silent */ }
+    }
+
     // Public API
     return {
         complete,
@@ -850,6 +874,7 @@ const ModuleProgress = (function() {
         getModuleProgress,
         isCompleted,
         updateStreak,
+        trackVisit,
         _goToDashboard: navigateToDashboard
     };
 })();
@@ -858,3 +883,35 @@ const ModuleProgress = (function() {
 if (typeof window !== 'undefined') {
     window.ModuleProgress = ModuleProgress;
 }
+
+// Auto-track page visit from URL pattern: /houses/{house}/.../{file}.html
+// or /signal/..., /arena/..., /dispatch/..., etc.
+(function autoTrackVisit() {
+    try {
+        var p = location.pathname;
+        // Match module/lab pages under /houses/{house}/
+        var m = p.match(/\/houses\/([^/]+)\//);
+        var houseId = m ? m[1] : '';
+        // Fallback: detect from other top-level sections
+        if (!houseId) {
+            if (p.indexOf('/signal/') !== -1) houseId = 'signal';
+            else if (p.indexOf('/arena/') !== -1) houseId = 'arena';
+            else if (p.indexOf('/dispatch/') !== -1) houseId = 'dispatch';
+            else if (p.indexOf('/dark-arts/') !== -1) houseId = 'dark-arts';
+            else return; // Not a trackable page
+        }
+        // Extract module ID from filename
+        var file = p.split('/').pop().replace(/\.html$/, '');
+        if (!file || file === 'index') return;
+        // Derive section from path (e.g. "databases", "linux-mastery")
+        var parts = p.split('/');
+        var section = '';
+        for (var i = parts.length - 2; i >= 0; i--) {
+            if (parts[i] && parts[i] !== 'modules' && parts[i] !== 'houses' && parts[i] !== houseId) {
+                section = parts[i].replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+                break;
+            }
+        }
+        ModuleProgress.trackVisit(houseId, file, { section: section });
+    } catch (e) { /* silent */ }
+})();
