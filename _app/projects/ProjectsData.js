@@ -116,7 +116,7 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — 48 total (12 software + 16 hardware + 20 educative-inspired).
+    // Project definitions — 68 total (12 software + 16 hardware + 40 educative-inspired).
     // -------------------------------------------------------------------------
     projects: [
         {
@@ -560,6 +560,188 @@ const ProjectsData = {
             difficulty: 'journeyman',
             minutes: 90,
             xp: 500
+        },
+
+        // ── Wave 3: Educative-Inspired Projects (pages 21-40) ──────────────────
+        {
+            id: 'code-chat-app',
+            house: 'code',
+            title: 'Build a Real-Time Chat App',
+            description: 'Build a real-time chat application using WebSockets with Node.js, user authentication, chat rooms, message history in SQLite, and a responsive frontend.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'code-resume-builder',
+            house: 'code',
+            title: 'Build a Resume Builder',
+            description: 'Create a multi-step form resume builder in vanilla JavaScript with template selection, real-time preview, PDF export, and localStorage draft saving.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'web-online-portfolio',
+            house: 'web',
+            title: 'Build a Professional Portfolio',
+            description: 'Build a professional portfolio site with HTML5 and CSS3 featuring responsive grid layout, parallax hero, project showcase, contact form, and theme toggle.',
+            difficulty: 'beginner',
+            minutes: 45,
+            xp: 250
+        },
+        {
+            id: 'web-react-router',
+            house: 'web',
+            title: 'Build a Dynamic Product Site',
+            description: 'Build a dynamic product catalog using React Router with nested routes, URL parameters, search/filter, product detail pages, and shopping cart state.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'cloud-budget-fern',
+            house: 'cloud',
+            title: 'Build a Budget App with FERN Stack',
+            description: 'Build a real-time budget app using Firebase, Express, React, and Node.js with authentication, transaction CRUD, category budgets, and spending charts.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'cloud-django-eks',
+            house: 'cloud',
+            title: 'Deploy to Amazon EKS',
+            description: 'Deploy a Django application on Amazon EKS using Docker, Kubernetes manifests, AWS CLI, EKS cluster management, load balancers, and rolling deployments.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'ai-explainable-ml',
+            house: 'ai',
+            title: 'Explainable AI and Model Interpretation',
+            description: 'Use explainable AI to interpret ML models with SHAP values, LIME, and feature importance. Compare Logistic Regression, Random Forest, and Neural Networks.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'ai-reinforcement-taxi',
+            house: 'ai',
+            title: 'Train an Agent with Reinforcement Learning',
+            description: 'Train a reinforcement learning agent using Q-learning and SARSA. Implement reward shaping, epsilon-greedy exploration, and convergence analysis.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'ai-music-generation',
+            house: 'ai',
+            title: 'Generate Music with AI',
+            description: 'Generate original music using AudioCraft and neural audio synthesis. Customize genre, tempo, and instrumentation through prompt engineering.',
+            difficulty: 'beginner',
+            minutes: 45,
+            xp: 250
+        },
+        {
+            id: 'matrix-sentiment-nlp',
+            house: 'matrix',
+            title: 'Analyze Sentiment with NLP',
+            description: 'Apply NLP for sentiment analysis using VADER and Gensim. Process social media text, build word embeddings, classify polarity, and visualize trends.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'matrix-climate-analysis',
+            house: 'matrix',
+            title: 'Climate Data Analysis and Forecasting',
+            description: 'Explore climate change impacts through data analysis and weather forecasting. Apply prediction techniques, time-series decomposition, and interactive visualizations.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'matrix-customer-segmentation',
+            house: 'matrix',
+            title: 'Customer Segmentation with K-Means',
+            description: 'Implement k-means clustering for customer segmentation. Analyze purchase patterns, optimize cluster count with elbow method, and visualize segment profiles.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'darkarts-web-scraping',
+            house: 'dark-arts',
+            title: 'Web Scraping and Data Extraction',
+            description: 'Master web scraping with Python and Selenium for OSINT. Extract data from dynamic pages, handle pagination, bypass rate limits, and export to CSV.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'script-video-summarizer',
+            house: 'script',
+            title: 'Auto-Summarize Videos with Python',
+            description: 'Build a Python pipeline that extracts YouTube transcripts via API, tokenizes text with NLTK, applies extractive summarization, and generates concise summaries.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'script-web-crawler',
+            house: 'script',
+            title: 'Build a Web Crawler',
+            description: 'Build a Node.js web crawler using Cheerio for HTML parsing. Implement BFS URL discovery, respect robots.txt, extract structured data, and export results.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'key-nft-marketplace',
+            house: 'key',
+            title: 'Build a Smart Contract Marketplace',
+            description: 'Develop an Ethereum NFT marketplace using Solidity and Hardhat. Implement ERC-721 minting, listing, trading, and a React frontend with MetaMask integration.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'key-secure-doc-storage',
+            house: 'key',
+            title: 'Secure Document Storage with Blockchain',
+            description: 'Build a blockchain-based document storage system with hash verification, on-chain authenticity proofs, access control lists, and tamper-proof audit trails.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'shield-fake-news',
+            house: 'shield',
+            title: 'Detect Fake News with ML',
+            description: 'Build a fake news detector with Scikit-learn. Train on labeled datasets, implement TF-IDF features, compare Naive Bayes vs SVM classifiers, and evaluate accuracy.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'eye-playwright-testing',
+            house: 'eye',
+            title: 'Automate Testing with Playwright',
+            description: 'Build automated browser tests with Playwright. Write login flow tests, handle dynamic content, capture failure screenshots, and generate HTML reports.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'forge-crossword-puzzle',
+            house: 'forge',
+            title: 'Build a Crossword Puzzle Generator',
+            description: 'Create a crossword puzzle generator with Vite featuring automated grid layout, clue management, interactive solving, validation logic, and Vitest testing.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
         }
     ],
 

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Deploy to Amazon EKS | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        .cf-drafting-table { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px, 100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches: EKS cluster diagram, Docker layers, pod/service topology, CI/CD pipeline */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2338bdf8'%3E%3C!-- LEFT MARGIN: EKS cluster node group diagram --%3E%3Crect x='12' y='24' width='140' height='110' rx='4' stroke-width='2' opacity='0.14' stroke-dasharray='6 4'/%3E%3Ctext x='22' y='18' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.2'%3EEKS CLUSTER%3C/text%3E%3Crect x='18' y='32' width='60' height='28' rx='3' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='28' y='50' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.2'%3Enode-grp-1%3C/text%3E%3Crect x='86' y='32' width='60' height='28' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='96' y='50' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3Enode-grp-2%3C/text%3E%3Crect x='18' y='68' width='128' height='20' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='30' y='82' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EControl Plane (AWS)%3C/text%3E%3Crect x='18' y='96' width='60' height='16' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='24' y='108' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3Et3.medium%3C/text%3E%3Crect x='86' y='96' width='60' height='16' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='92' y='108' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3Et3.large%3C/text%3E%3C!-- Left margin: Docker layer stack --%3E%3Crect x='15' y='155' width='130' height='100' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='172' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.2'%3EDOCKER LAYERS%3C/text%3E%3Cline x1='15' y1='177' x2='145' y2='177' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='22' y='184' width='116' height='14' rx='1' stroke-width='1' opacity='0.16' fill='%2338bdf8' fill-opacity='0.05'/%3E%3Ctext x='30' y='195' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EAPP LAYER%3C/text%3E%3Crect x='22' y='200' width='116' height='14' rx='1' stroke-width='1' opacity='0.14' fill='%2338bdf8' fill-opacity='0.04'/%3E%3Ctext x='30' y='211' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3EDEPENDENCIES%3C/text%3E%3Crect x='22' y='216' width='116' height='14' rx='1' stroke-width='1' opacity='0.12' fill='%2338bdf8' fill-opacity='0.03'/%3E%3Ctext x='30' y='227' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EPYTHON 3.11%3C/text%3E%3Crect x='22' y='232' width='116' height='14' rx='1' stroke-width='1' opacity='0.1'/%3E%3Ctext x='30' y='243' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3Eubuntu:22.04%3C/text%3E%3C!-- Left margin vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='280' x2='8' y2='580'/%3E%3Cline x1='4' y1='280' x2='12' y2='280'/%3E%3Cline x1='4' y1='330' x2='12' y2='330'/%3E%3Cline x1='4' y1='380' x2='12' y2='380'/%3E%3Cline x1='4' y1='430' x2='12' y2='430'/%3E%3Cline x1='4' y1='480' x2='12' y2='480'/%3E%3Cline x1='4' y1='530' x2='12' y2='530'/%3E%3Cline x1='4' y1='580' x2='12' y2='580'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='305' x2='10' y2='305'/%3E%3Cline x1='6' y1='355' x2='10' y2='355'/%3E%3Cline x1='6' y1='405' x2='10' y2='405'/%3E%3Cline x1='6' y1='455' x2='10' y2='455'/%3E%3Cline x1='6' y1='505' x2='10' y2='505'/%3E%3Cline x1='6' y1='555' x2='10' y2='555'/%3E%3C/g%3E%3C!-- Left margin: AWS CLI commands --%3E%3Crect x='15' y='290' width='130' height='80' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='308' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.18'%3EAWS CLI%3C/text%3E%3Cline x1='15' y1='312' x2='145' y2='312' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='20' y='326' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3Eeksctl create%3C/text%3E%3Ctext x='20' y='338' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3Eaws ecr push%3C/text%3E%3Ctext x='20' y='350' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3Ekubectl apply%3C/text%3E%3Ctext x='20' y='362' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3Eaws elb list%3C/text%3E%3C!-- Left margin: circuit traces --%3E%3Cpath d='M5 610 L40 610 L40 590 L80 590 L80 610 L120 610' stroke-width='1.2' opacity='0.12' fill='none'/%3E%3Ccircle cx='40' cy='590' r='3' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Ccircle cx='80' cy='590' r='3' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3C!-- RIGHT MARGIN: Pod/service topology --%3E%3Crect x='878' y='28' width='118' height='180' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='894' y='46' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.22'%3ESERVICE MESH%3C/text%3E%3Cline x1='878' y1='52' x2='996' y2='52' stroke-width='1' opacity='0.14'/%3E%3Crect x='898' y='62' width='72' height='20' rx='2' stroke-width='1.2' opacity='0.16'/%3E%3Ctext x='910' y='76' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EALB Ingress%3C/text%3E%3Cline x1='934' y1='82' x2='934' y2='95' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='934,95 930,89 938,89' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Crect x='898' y='97' width='72' height='20' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='910' y='111' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3EService:80%3C/text%3E%3Cline x1='920' y1='117' x2='912' y2='130' stroke-width='1' opacity='0.12'/%3E%3Cline x1='948' y1='117' x2='956' y2='130' stroke-width='1' opacity='0.12'/%3E%3Crect x='884' y='132' width='44' height='18' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='892' y='145' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3Epod-1%3C/text%3E%3Crect x='934' y='132' width='44' height='18' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='942' y='145' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3Epod-2%3C/text%3E%3Ctext x='886' y='172' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3Ereplicas: 3%3C/text%3E%3Ctext x='886' y='184' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3EdjangoPod%3C/text%3E%3Ctext x='886' y='196' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.07'%3Eport: 8000%3C/text%3E%3C!-- Right margin: CI/CD pipeline --%3E%3Crect x='878' y='240' width='118' height='130' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='894' y='258' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3ECI/CD STAGES%3C/text%3E%3Cline x1='878' y1='264' x2='996' y2='264' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='892' y='272' width='84' height='14' rx='1' stroke-width='1' opacity='0.14'/%3E%3Ctext x='900' y='283' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3E1. git push%3C/text%3E%3Cline x1='934' y1='286' x2='934' y2='294' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='892' y='294' width='84' height='14' rx='1' stroke-width='1' opacity='0.12'/%3E%3Ctext x='900' y='305' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3E2. docker build%3C/text%3E%3Cline x1='934' y1='308' x2='934' y2='316' stroke-width='0.8' opacity='0.09'/%3E%3Crect x='892' y='316' width='84' height='14' rx='1' stroke-width='1' opacity='0.1'/%3E%3Ctext x='900' y='327' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3E3. ecr push%3C/text%3E%3Cline x1='934' y1='330' x2='934' y2='338' stroke-width='0.8' opacity='0.08'/%3E%3Crect x='892' y='338' width='84' height='14' rx='1' stroke-width='1' opacity='0.09'/%3E%3Ctext x='900' y='349' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3E4. kubectl apply%3C/text%3E%3Cline x1='934' y1='352' x2='934' y2='360' stroke-width='0.8' opacity='0.07'/%3E%3Crect x='892' y='360' width='84' height='14' rx='1' stroke-width='1' opacity='0.08'/%3E%3Ctext x='900' y='371' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.09'%3E5. verify/smoke%3C/text%3E%3C!-- Right margin dashed line --%3E%3Cline x1='873' y1='220' x2='873' y2='650' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- CENTER: EKS VPC topology --%3E%3Crect x='230' y='120' width='310' height='170' rx='5' stroke-width='2' opacity='0.16'/%3E%3Ctext x='330' y='138' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3EAVPC / EKS%3C/text%3E%3Cline x1='230' y1='144' x2='540' y2='144' stroke-width='1' opacity='0.1'/%3E%3Crect x='248' y='154' width='80' height='34' rx='3' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='260' y='175' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3Epub-subnet%3C/text%3E%3Crect x='345' y='154' width='80' height='34' rx='3' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='354' y='175' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3Epriv-subnet%3C/text%3E%3Crect x='442' y='154' width='80' height='34' rx='3' stroke-width='1' opacity='0.1'/%3E%3Ctext x='450' y='175' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3EALB%3C/text%3E%3Cline x1='288' y1='188' x2='385' y2='188' stroke-width='1' opacity='0.1'/%3E%3Cline x1='425' y1='188' x2='442' y2='188' stroke-width='1' opacity='0.08'/%3E%3Crect x='248' y='200' width='50' height='20' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='256' y='214' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3Edj-pod%3C/text%3E%3Crect x='310' y='200' width='50' height='20' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='318' y='214' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3Edj-pod%3C/text%3E%3Crect x='372' y='200' width='50' height='20' rx='2' stroke-width='1' opacity='0.09'/%3E%3Ctext x='380' y='214' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3Edb-pod%3C/text%3E%3Cline x1='273' y1='188' x2='273' y2='200' stroke-width='1' opacity='0.1'/%3E%3Cline x1='335' y1='188' x2='335' y2='200' stroke-width='1' opacity='0.09'/%3E%3Cline x1='397' y1='188' x2='397' y2='200' stroke-width='1' opacity='0.08'/%3E%3C!-- Center: crosshairs --%3E%3Cg opacity='0.22' stroke-width='1.8'%3E%3Cline x1='640' y1='130' x2='660' y2='130'/%3E%3Cline x1='650' y1='120' x2='650' y2='140'/%3E%3Ccircle cx='650' cy='130' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='250' y1='360' x2='270' y2='360'/%3E%3Cline x1='260' y1='350' x2='260' y2='370'/%3E%3Ccircle cx='260' cy='360' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='750' y1='460' x2='770' y2='460'/%3E%3Cline x1='760' y1='450' x2='760' y2='470'/%3E%3Ccircle cx='760' cy='460' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- DIAGONAL CONSTRUCTION LINES --%3E%3Cline x1='0' y1='500' x2='350' y2='300' stroke-width='1.2' opacity='0.06' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='180' stroke-width='1.2' opacity='0.05' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='180' x2='200' y2='380' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='820' y1='380' x2='1000' y2='520' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3C!-- RULER edges --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- SCATTERED ANNOTATIONS --%3E%3Ctext x='40' y='460' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.1' transform='rotate(-12 40 460)'%3Eeksctl create%3C/text%3E%3Ctext x='570' y='460' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.08'%3ErollingUpdate%3C/text%3E%3Ctext x='310' y='420' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.08' transform='rotate(4 310 420)'%3Edocker push ecr%3C/text%3E%3Ctext x='130' y='560' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.07' transform='rotate(7 130 560)'%3Eiam-role%3C/text%3E%3Ctext x='490' y='510' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.07'%3ELoadBalancer%3C/text%3E%3C!-- DIAMOND MARKERS --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        body::after { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px); pointer-events: none; z-index: 9000; }
+
+        .cf-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #0e1018; border-bottom: 1px solid rgba(56, 189, 248, 0.12); height: 48px; position: sticky; top: 0; z-index: 200; }
+        .cf-header a { font-size: 0.8rem; color: rgba(255,255,255,0.4); text-decoration: none; letter-spacing: 0.08em; transition: color 0.2s; }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title { font-size: 0.75rem; letter-spacing: 0.2em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-header-ref { font-size: 0.65rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); }
+
+        .cf-content { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; position: relative; z-index: 1; }
+
+        .cf-cover { position: relative; background: linear-gradient(170deg, #121a1e 0%, #12191c 100%); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 2px; padding: 48px 40px 40px; margin-bottom: 32px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 60px rgba(56, 189, 248, 0.06); }
+        .cf-stamp { position: absolute; top: 24px; right: 28px; font-size: 1.1rem; font-weight: 900; letter-spacing: 0.2em; color: rgba(220, 38, 38, 0.5); border: 3px solid rgba(220, 38, 38, 0.4); padding: 4px 14px; transform: rotate(3deg); text-transform: uppercase; border-radius: 2px; pointer-events: none; }
+        .cf-cover::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent 100%); }
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal { width: 68px; height: 68px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.25) 0%, rgba(56, 189, 248, 0.12) 60%, rgba(56, 189, 248, 0.06) 100%); border: 3px solid rgba(56, 189, 248, 0.5); box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; }
+        .cf-house-seal::after { content: ''; position: absolute; top: 3px; left: 6px; width: 18px; height: 10px; background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%); border-radius: 50%; pointer-events: none; }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); }
+
+        .cf-paper { background: linear-gradient(175deg, #131a1e 0%, #11161b 100%); border: 1px solid rgba(56, 189, 248, 0.08); border-left: 3px solid rgba(56, 189, 248, 0.2); border-radius: 2px; padding: 32px 36px; margin-bottom: 24px; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+        .cf-paper.has-clip::before { content: ''; position: absolute; top: -6px; left: 36px; width: 20px; height: 32px; border: 2px solid rgba(255,255,255,0.1); border-radius: 0 0 10px 10px; border-top: none; }
+        .cf-paper.has-tape::after { content: ''; position: absolute; top: -4px; right: 40px; width: 60px; height: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg); }
+        .cf-section-stamp { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #38bdf8; font-weight: 700; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.15); display: flex; align-items: center; gap: 8px; }
+        .cf-section-stamp::before { content: ''; width: 8px; height: 8px; background: #38bdf8; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6; }
+
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(56, 189, 248, 0.06); }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card { display: flex; gap: 18px; padding: 20px 22px; background: rgba(56, 189, 248, 0.02); border: 1px solid rgba(56, 189, 248, 0.08); border-radius: 2px; position: relative; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+        .cf-evidence-card:hover { border-color: rgba(56, 189, 248, 0.25); background: rgba(56, 189, 248, 0.04); box-shadow: 0 0 20px rgba(56, 189, 248, 0.06); }
+        .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
+        .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #38bdf8; }
+
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #38bdf8; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CL-EKS-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CL-EKS-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-cloud.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Cloud House</span>
+                    <span class="cf-house-domain">Cloud Infrastructure Division</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Deploy to Amazon EKS</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Advanced</span>
+                <span class="cf-badge cf-badge-time">120 min</span>
+                <span class="cf-badge cf-badge-xp">1000 XP</span>
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Your assignment is to containerize a Django e-library application and deploy it on
+                    <strong>Amazon Elastic Kubernetes Service (EKS)</strong> — the production-grade managed
+                    Kubernetes platform used across enterprise and government cloud environments. This
+                    operation covers the full deployment pipeline from local Docker build to a live,
+                    load-balanced application running in an AWS VPC.
+                </p>
+                <p>
+                    You will write a <code>Dockerfile</code> for the Django application, push the image
+                    to Amazon ECR, provision an EKS cluster using <code>eksctl</code>, author Kubernetes
+                    manifest files for the Deployment and Service resources, and configure an AWS Load
+                    Balancer Controller to expose the application externally. IAM roles for service
+                    accounts (IRSA) will gate pod-level AWS access following least-privilege principles.
+                </p>
+                <p>
+                    The final phase covers <strong>rolling deployments</strong>: updating the image tag,
+                    watching the rollout proceed with zero downtime, and executing a rollback if health
+                    checks fail. By mission end you will understand how AWS-managed control planes,
+                    node groups, ECR, and the Kubernetes object model interlock to serve production traffic.
+                </p>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>AWS account with IAM permissions for EKS, ECR, EC2, and IAM</li>
+                <li>AWS CLI configured with access keys (<code>aws configure</code>)</li>
+                <li><code>eksctl</code> and <code>kubectl</code> installed and on PATH</li>
+                <li>Docker installed; understanding of multi-stage builds and image layers</li>
+                <li>Basic Django project structure and <code>requirements.txt</code> management</li>
+                <li>Comfort reading YAML and understanding networking concepts (VPC, subnets, ports)</li>
+            </ul>
+        </div>
+
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Containerize the Django Application</div>
+                        <div class="cf-evidence-desc">
+                            Write a multi-stage <code>Dockerfile</code> using a Python 3.11 slim base image.
+                            Install dependencies from <code>requirements.txt</code>, collect static files,
+                            and run Gunicorn on port 8000. Build with <code>docker build -t django-lib:v1 .</code>
+                            and validate locally with <code>docker run -p 8000:8000</code>. Confirm
+                            <code>/health/</code> returns 200 OK before moving on.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Push to Amazon ECR</div>
+                        <div class="cf-evidence-desc">
+                            Create a private ECR repository with <code>aws ecr create-repository</code>.
+                            Authenticate Docker to the registry using the ECR credential helper. Tag the
+                            image with the full ECR URI and push with <code>docker push</code>. Verify
+                            the image appears in the AWS Console under ECR with the correct digest and size.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Provision the EKS Cluster</div>
+                        <div class="cf-evidence-desc">
+                            Write an <code>eksctl</code> cluster config YAML specifying the region, VPC CIDR,
+                            two availability zones, and a managed node group of <code>t3.medium</code> instances
+                            (min 2, max 4). Run <code>eksctl create cluster -f cluster.yaml</code> and wait
+                            for the CloudFormation stacks to complete. Confirm cluster access with
+                            <code>kubectl get nodes</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Deploy Manifests and Load Balancer</div>
+                        <div class="cf-evidence-desc">
+                            Author <code>deployment.yaml</code> referencing the ECR image URI, setting 3
+                            replicas, resource requests and limits, and liveness/readiness probes against
+                            <code>/health/</code>. Create a <code>service.yaml</code> of type LoadBalancer
+                            to trigger the AWS Load Balancer Controller. Verify the external DNS hostname
+                            appears in <code>kubectl get svc</code> within two minutes.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Configure IAM Roles for Service Accounts</div>
+                        <div class="cf-evidence-desc">
+                            Enable OIDC on the cluster with <code>eksctl utils associate-iam-oidc-provider</code>.
+                            Create an IAM policy granting the Django pod read access to an S3 bucket holding
+                            e-library assets. Bind the policy to a Kubernetes service account using IRSA.
+                            Annotate the pod spec and verify AWS credential injection with
+                            <code>aws s3 ls</code> from inside the pod.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Rolling Deployment and Rollback</div>
+                        <div class="cf-evidence-desc">
+                            Build and push <code>django-lib:v2</code> with a visible change to the home
+                            page. Update the Deployment image tag and apply. Watch the rolling update
+                            with <code>kubectl rollout status deployment/django-lib</code>. Simulate a
+                            broken build by referencing a non-existent image tag, observe pods stuck in
+                            ImagePullBackOff, then execute <code>kubectl rollout undo</code> to restore
+                            the previous version.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Docker</div>
+                <div class="cf-manifest-item">Amazon ECR</div>
+                <div class="cf-manifest-item">eksctl</div>
+                <div class="cf-manifest-item">kubectl</div>
+                <div class="cf-manifest-item">AWS CLI</div>
+                <div class="cf-manifest-item">Django / Gunicorn</div>
+                <div class="cf-manifest-item">IAM / IRSA</div>
+                <div class="cf-manifest-item">AWS Load Balancer Controller</div>
+                <div class="cf-manifest-item">CloudFormation</div>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Multi-stage Docker builds for Python web applications</li>
+                <li>ECR image lifecycle: tag, push, pull in cluster context</li>
+                <li>EKS cluster provisioning with eksctl config files</li>
+                <li>Kubernetes manifests for Deployment, Service, and probes</li>
+                <li>IAM Roles for Service Accounts (IRSA) least-privilege pattern</li>
+                <li>AWS Load Balancer Controller for external traffic ingress</li>
+                <li>Zero-downtime rolling updates and automated rollback</li>
+                <li>Pod-level AWS credential injection via OIDC federation</li>
+            </ul>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>

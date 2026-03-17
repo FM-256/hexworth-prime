@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Customer Segmentation with K-Means | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(0, 255, 65, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(0, 255, 65, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(0, 255, 65, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2300ff41'%3E%3C!-- LEFT MARGIN: Scatter plot with cluster centroids --%3E%3Crect x='15' y='30' width='130' height='140' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='20' y='46' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.22'%3ECLUSTERS%3C/text%3E%3Cline x1='15' y1='52' x2='145' y2='52' stroke-width='1' opacity='0.14'/%3E%3Cline x1='28' y1='62' x2='28' y2='160' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='28' y1='160' x2='138' y2='160' stroke-width='0.8' opacity='0.1'/%3E%3C!-- cluster A points --%3E%3Ccircle cx='48' cy='90' r='3' fill='%2300ff41' stroke='none' opacity='0.22'/%3E%3Ccircle cx='55' cy='98' r='3' fill='%2300ff41' stroke='none' opacity='0.20'/%3E%3Ccircle cx='44' cy='104' r='3' fill='%2300ff41' stroke='none' opacity='0.18'/%3E%3Ccircle cx='58' cy='88' r='3' fill='%2300ff41' stroke='none' opacity='0.16'/%3E%3Ccircle cx='51' cy='110' r='3' fill='%2300ff41' stroke='none' opacity='0.14'/%3E%3C!-- centroid A --%3E%3Ccircle cx='51' cy='98' r='6' stroke-width='2' opacity='0.30'/%3E%3Cline x1='47' y1='94' x2='55' y2='102' stroke-width='1.5' opacity='0.28'/%3E%3Cline x1='55' y1='94' x2='47' y2='102' stroke-width='1.5' opacity='0.28'/%3E%3C!-- cluster B points --%3E%3Ccircle cx='95' cy='75' r='3' fill='%2300ff41' stroke='none' opacity='0.18'/%3E%3Ccircle cx='105' cy='82' r='3' fill='%2300ff41' stroke='none' opacity='0.16'/%3E%3Ccircle cx='100' cy='70' r='3' fill='%2300ff41' stroke='none' opacity='0.14'/%3E%3Ccircle cx='112' cy='78' r='3' fill='%2300ff41' stroke='none' opacity='0.12'/%3E%3C!-- centroid B --%3E%3Ccircle cx='103' cy='76' r='6' stroke-width='2' opacity='0.24'/%3E%3Cline x1='99' y1='72' x2='107' y2='80' stroke-width='1.5' opacity='0.22'/%3E%3Cline x1='107' y1='72' x2='99' y2='80' stroke-width='1.5' opacity='0.22'/%3E%3C!-- cluster C points --%3E%3Ccircle cx='72' cy='140' r='3' fill='%2300ff41' stroke='none' opacity='0.16'/%3E%3Ccircle cx='80' cy='132' r='3' fill='%2300ff41' stroke='none' opacity='0.14'/%3E%3Ccircle cx='65' cy='136' r='3' fill='%2300ff41' stroke='none' opacity='0.12'/%3E%3Ccircle cx='78' cy='145' r='3' fill='%2300ff41' stroke='none' opacity='0.1'/%3E%3C!-- centroid C --%3E%3Ccircle cx='74' cy='138' r='6' stroke-width='2' opacity='0.20'/%3E%3Cline x1='70' y1='134' x2='78' y2='142' stroke-width='1.5' opacity='0.18'/%3E%3Cline x1='78' y1='134' x2='70' y2='142' stroke-width='1.5' opacity='0.18'/%3E%3C!-- LEFT MARGIN: Elbow curve --%3E%3Crect x='15' y='195' width='130' height='100' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='20' y='211' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.18'%3EELBOW METHOD%3C/text%3E%3Cline x1='15' y1='217' x2='145' y2='217' stroke-width='1' opacity='0.12'/%3E%3Cline x1='28' y1='226' x2='28' y2='285' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='28' y1='285' x2='138' y2='285' stroke-width='0.8' opacity='0.1'/%3E%3Cpath d='M35 240 L52 252 L69 262 L86 270 L103 275 L120 278 L135 280' stroke-width='1.8' opacity='0.20' fill='none'/%3E%3Cline x1='69' y1='220' x2='69' y2='285' stroke-width='1' opacity='0.12' stroke-dasharray='3 4'/%3E%3Ccircle cx='69' cy='262' r='4' fill='%2300ff41' stroke='none' opacity='0.24'/%3E%3Ctext x='72' y='280' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3Ek=3%3C/text%3E%3C!-- Left margin: silhouette score bar --%3E%3Crect x='15' y='320' width='130' height='100' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='20' y='336' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.18'%3ESILHOUETTE%3C/text%3E%3Cline x1='15' y1='342' x2='145' y2='342' stroke-width='1' opacity='0.12'/%3E%3Crect x='30' y='350' width='60' height='12' rx='1' fill='%2300ff41' stroke='none' opacity='0.16'/%3E%3Ctext x='95' y='361' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3Ek=2: 0.61%3C/text%3E%3Crect x='30' y='368' width='88' height='12' rx='1' fill='%2300ff41' stroke='none' opacity='0.20'/%3E%3Ctext x='122' y='379' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3Ek=3: 0.74%3C/text%3E%3Crect x='30' y='386' width='72' height='12' rx='1' fill='%2300ff41' stroke='none' opacity='0.14'/%3E%3Ctext x='106' y='397' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3Ek=4: 0.68%3C/text%3E%3Crect x='30' y='404' width='55' height='12' rx='1' fill='%2300ff41' stroke='none' opacity='0.10'/%3E%3Ctext x='89' y='415' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3Ek=5: 0.59%3C/text%3E%3C!-- Left margin: customer profile cards --%3E%3Crect x='20' y='450' width='110' height='36' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='28' y='464' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3ESEG A: High Value%3C/text%3E%3Ctext x='28' y='476' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3Efreq: high, spend: high%3C/text%3E%3Crect x='20' y='494' width='110' height='36' rx='2' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='28' y='508' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3ESEG B: Occasional%3C/text%3E%3Ctext x='28' y='520' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3Efreq: low, spend: med%3C/text%3E%3Crect x='20' y='538' width='110' height='36' rx='2' stroke-width='1.2' opacity='0.10'/%3E%3Ctext x='28' y='552' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3ESEG C: Dormant%3C/text%3E%3Ctext x='28' y='564' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3Efreq: none, spend: low%3C/text%3E%3C!-- RIGHT MARGIN: k-means iteration trace --%3E%3Crect x='878' y='40' width='112' height='150' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='888' y='58' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.22'%3EKMeans%3C/text%3E%3Cline x1='878' y1='64' x2='990' y2='64' stroke-width='1' opacity='0.14'/%3E%3Ctext x='886' y='80' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.18'%3En_clusters=3%3C/text%3E%3Ctext x='886' y='94' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.16'%3Einit=k-means++%3C/text%3E%3Ctext x='886' y='108' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.14'%3En_init=10%3C/text%3E%3Ctext x='886' y='122' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3Emax_iter=300%3C/text%3E%3Ctext x='886' y='136' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3Einertia: 4821%3C/text%3E%3Ctext x='886' y='150' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3Eiters: 12%3C/text%3E%3Ctext x='886' y='164' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.07'%3Esilhouette: 0.74%3C/text%3E%3C!-- Right margin: feature importance bars --%3E%3Crect x='878' y='222' width='112' height='100' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='886' y='240' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.16'%3EFEATURES%3C/text%3E%3Cline x1='878' y1='246' x2='990' y2='246' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='886' y='262' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3Erecency%3C/text%3E%3Crect x='928' y='254' width='48' height='8' rx='1' fill='%2300ff41' stroke='none' opacity='0.18'/%3E%3Ctext x='886' y='278' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3Efrequency%3C/text%3E%3Crect x='928' y='270' width='36' height='8' rx='1' fill='%2300ff41' stroke='none' opacity='0.14'/%3E%3Ctext x='886' y='294' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3Emonetary%3C/text%3E%3Crect x='928' y='286' width='52' height='8' rx='1' fill='%2300ff41' stroke='none' opacity='0.20'/%3E%3Ctext x='886' y='310' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1'%3Etenure%3C/text%3E%3Crect x='928' y='302' width='24' height='8' rx='1' fill='%2300ff41' stroke='none' opacity='0.10'/%3E%3Cline x1='875' y1='200' x2='875' y2='650' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- Right margin: PCA axes --%3E%3Ccircle cx='935' cy='420' r='44' stroke-width='1.5' opacity='0.14'/%3E%3Cline x1='891' y1='420' x2='979' y2='420' stroke-width='1' opacity='0.12'/%3E%3Cline x1='935' y1='376' x2='935' y2='464' stroke-width='1' opacity='0.12'/%3E%3Cline x1='891' y1='420' x2='895' y2='416' stroke-width='1' opacity='0.1'/%3E%3Cline x1='979' y1='420' x2='975' y2='416' stroke-width='1' opacity='0.1'/%3E%3Ctext x='912' y='474' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3EPC1 (58%25)%3C/text%3E%3Ctext x='945' y='418' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.1' transform='rotate(-90 945 418)'%3EPC2 (24%25)%3C/text%3E%3Ccircle cx='918' cy='404' r='3' fill='%2300ff41' stroke='none' opacity='0.18'/%3E%3Ccircle cx='924' cy='412' r='3' fill='%2300ff41' stroke='none' opacity='0.16'/%3E%3Ccircle cx='910' cy='410' r='3' fill='%2300ff41' stroke='none' opacity='0.14'/%3E%3Ccircle cx='955' cy='430' r='3' fill='%2300ff41' stroke='none' opacity='0.14'/%3E%3Ccircle cx='948' cy='438' r='3' fill='%2300ff41' stroke='none' opacity='0.12'/%3E%3Ccircle cx='935' cy='443' r='3' fill='%2300ff41' stroke='none' opacity='0.10'/%3E%3C!-- CENTER: k-means convergence diagram --%3E%3Crect x='340' y='90' width='320' height='200' rx='3' stroke-width='2' opacity='0.18'/%3E%3Cline x1='340' y1='112' x2='660' y2='112' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='400' y='106' font-family='monospace' font-size='10' fill='%2300ff41' stroke='none' opacity='0.2'%3EK-MEANS CONVERGENCE%3C/text%3E%3Ccircle cx='420' cy='175' r='30' stroke-width='1.5' opacity='0.14' stroke-dasharray='4 4'/%3E%3Ccircle cx='500' cy='155' r='26' stroke-width='1.5' opacity='0.12' stroke-dasharray='4 4'/%3E%3Ccircle cx='580' cy='195' r='28' stroke-width='1.5' opacity='0.12' stroke-dasharray='4 4'/%3E%3Ccircle cx='422' cy='173' r='5' stroke-width='2' opacity='0.30'/%3E%3Cline x1='418' y1='169' x2='426' y2='177' stroke-width='1.5' opacity='0.28'/%3E%3Cline x1='426' y1='169' x2='418' y2='177' stroke-width='1.5' opacity='0.28'/%3E%3Ccircle cx='500' cy='155' r='5' stroke-width='2' opacity='0.26'/%3E%3Cline x1='496' y1='151' x2='504' y2='159' stroke-width='1.5' opacity='0.24'/%3E%3Cline x1='504' y1='151' x2='496' y2='159' stroke-width='1.5' opacity='0.24'/%3E%3Ccircle cx='582' cy='196' r='5' stroke-width='2' opacity='0.24'/%3E%3Cline x1='578' y1='192' x2='586' y2='200' stroke-width='1.5' opacity='0.22'/%3E%3Cline x1='586' y1='192' x2='578' y2='200' stroke-width='1.5' opacity='0.22'/%3E%3C!-- Center: RFM table --%3E%3Crect x='340' y='330' width='320' height='140' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='340' y1='350' x2='660' y2='350' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='410' y='345' font-family='monospace' font-size='10' fill='%2300ff41' stroke='none' opacity='0.18'%3ERFM ANALYSIS%3C/text%3E%3Cline x1='420' y1='350' x2='420' y2='470' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='500' y1='350' x2='500' y2='470' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='580' y1='350' x2='580' y2='470' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='354' y='368' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.14'%3ESegment%3C/text%3E%3Ctext x='428' y='368' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.12'%3ERecency%3C/text%3E%3Ctext x='508' y='368' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.12'%3EFreq%3C/text%3E%3Ctext x='588' y='368' font-family='monospace' font-size='8' fill='%2300ff41' stroke='none' opacity='0.12'%3EMonetary%3C/text%3E%3Cline x1='340' y1='375' x2='660' y2='375' stroke-width='0.6' opacity='0.08'/%3E%3Ctext x='354' y='391' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.12'%3EA: Premium%3C/text%3E%3Ctext x='430' y='391' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.10'%3E7 days%3C/text%3E%3Ctext x='510' y='391' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.10'%3E18/mo%3C/text%3E%3Ctext x='588' y='391' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.10'%3E$420%3C/text%3E%3Ctext x='354' y='407' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.10'%3EB: Regular%3C/text%3E%3Ctext x='430' y='407' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3E42 days%3C/text%3E%3Ctext x='510' y='407' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3E4/mo%3C/text%3E%3Ctext x='588' y='407' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3E$85%3C/text%3E%3Ctext x='354' y='423' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.08'%3EC: Dormant%3C/text%3E%3Ctext x='430' y='423' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.06'%3E180 days%3C/text%3E%3Ctext x='510' y='423' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.06'%3E1/mo%3C/text%3E%3Ctext x='588' y='423' font-family='monospace' font-size='7' fill='%2300ff41' stroke='none' opacity='0.06'%3E$12%3C/text%3E%3C!-- CROSSHAIRS --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='235' y1='380' x2='255' y2='380'/%3E%3Cline x1='245' y1='370' x2='245' y2='390'/%3E%3Ccircle cx='245' cy='380' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='730' y1='310' x2='750' y2='310'/%3E%3Cline x1='740' y1='300' x2='740' y2='320'/%3E%3Ccircle cx='740' cy='310' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- DIAGONAL LINES --%3E%3Cline x1='0' y1='560' x2='400' y2='300' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='180' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3C!-- PROTRACTOR --%3E%3Cpath d='M780 640 A120 120 0 0 1 960 640' stroke-width='2' opacity='0.14'/%3E%3Cpath d='M800 640 A100 100 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cline x1='870' y1='640' x2='870' y2='530' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3C!-- RULER --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3C!-- ANNOTATIONS --%3E%3Ctext x='42' y='620' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.12' transform='rotate(-12 42 620)'%3Efit_predict()%3C/text%3E%3Ctext x='575' y='560' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.1'%3EStandardScaler%3C/text%3E%3Ctext x='290' y='375' font-family='monospace' font-size='9' fill='%2300ff41' stroke='none' opacity='0.08' transform='rotate(5 290 375)'%3Epca.fit()%3C/text%3E%3C!-- DIAMOND MARKERS --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2300ff41' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2300ff41' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2300ff41' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%2300ff41' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        .cf-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #0e1018; border-bottom: 1px solid rgba(0, 255, 65, 0.12); height: 48px; position: sticky; top: 0; z-index: 200; }
+        .cf-header a { font-size: 0.8rem; color: rgba(255,255,255,0.4); text-decoration: none; letter-spacing: 0.08em; transition: color 0.2s; }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title { font-size: 0.75rem; letter-spacing: 0.2em; color: #00ff41; text-transform: uppercase; font-weight: 700; }
+        .cf-header-ref { font-size: 0.65rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); }
+
+        .cf-content { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; position: relative; z-index: 1; }
+
+        .cf-cover { position: relative; background: linear-gradient(170deg, #0f1a14 0%, #111a16 100%); border: 1px solid rgba(0, 255, 65, 0.15); border-radius: 2px; padding: 48px 40px 40px; margin-bottom: 32px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 60px rgba(0, 255, 65, 0.06); }
+        .cf-stamp { position: absolute; top: 24px; right: 28px; font-size: 1.1rem; font-weight: 900; letter-spacing: 0.2em; color: rgba(220, 38, 38, 0.5); border: 3px solid rgba(220, 38, 38, 0.4); padding: 4px 14px; transform: rotate(3deg); text-transform: uppercase; border-radius: 2px; pointer-events: none; }
+        .cf-cover::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent 100%); }
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal { width: 68px; height: 68px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, rgba(0, 255, 65, 0.25) 0%, rgba(0, 255, 65, 0.12) 60%, rgba(0, 255, 65, 0.06) 100%); border: 3px solid rgba(0, 255, 65, 0.5); box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(0, 255, 65, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; }
+        .cf-house-seal::after { content: ''; position: absolute; top: 3px; left: 6px; width: 18px; height: 10px; background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%); border-radius: 50%; pointer-events: none; }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #00ff41; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #4ade80; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #00ff41; background: rgba(0, 255, 65, 0.1); border: 1px solid rgba(0, 255, 65, 0.25); }
+
+        .cf-paper { background: linear-gradient(175deg, #111a14 0%, #101610 100%); border: 1px solid rgba(0, 255, 65, 0.08); border-left: 3px solid rgba(0, 255, 65, 0.2); border-radius: 2px; padding: 32px 36px; margin-bottom: 24px; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+        .cf-paper.has-clip::before { content: ''; position: absolute; top: -6px; left: 36px; width: 20px; height: 32px; border: 2px solid rgba(255,255,255,0.1); border-radius: 0 0 10px 10px; border-top: none; }
+        .cf-paper.has-tape::after { content: ''; position: absolute; top: -4px; right: 40px; width: 60px; height: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg); }
+        .cf-section-stamp { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #00ff41; font-weight: 700; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(0, 255, 65, 0.15); display: flex; align-items: center; gap: 8px; }
+        .cf-section-stamp::before { content: ''; width: 8px; height: 8px; background: #00ff41; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6; }
+
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #00ff41; background: rgba(0, 255, 65, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(0, 255, 65, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(0, 255, 65, 0.06); }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card { display: flex; gap: 18px; padding: 20px 22px; background: rgba(0, 255, 65, 0.02); border: 1px solid rgba(0, 255, 65, 0.08); border-radius: 2px; position: relative; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+        .cf-evidence-card:hover { border-color: rgba(0, 255, 65, 0.25); background: rgba(0, 255, 65, 0.04); box-shadow: 0 0 20px rgba(0, 255, 65, 0.06); }
+        .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
+        .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #00ff41; background: rgba(0, 255, 65, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(0, 255, 65, 0.04); border: 1px solid rgba(0, 255, 65, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(0, 255, 65, 0.08); border-color: rgba(0, 255, 65, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #00ff41; }
+
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #00ff41; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(0, 255, 65, 0.3) 0%, rgba(0, 255, 65, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+
+        .cf-training-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+        .cf-training-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(0, 255, 65, 0.3); border-radius: 8px; padding: 16px; text-decoration: none; color: #e2e8f0; transition: border-color 0.2s, transform 0.2s; display: flex; flex-direction: column; gap: 8px; }
+        .cf-training-card:hover { border-color: #00ff41; transform: translateY(-2px); }
+        .cf-training-card .tc-district { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #00ff41; opacity: 0.8; }
+        .cf-training-card .tc-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
+        .cf-training-card .tc-type { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">MX-CSG-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">MX-CSG-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-matrix.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Matrix House</span>
+                    <span class="cf-house-domain">Data Science &amp; Analytics Division</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Customer Segmentation with K-Means</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">60 min</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- Mission Brief -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Every marketing team is sitting on behavioral data that tells them exactly who their customers
+                    are &mdash; if they know how to read it. This operation implements k-means clustering on a real
+                    retail transaction dataset to partition the customer base into distinct behavioral segments
+                    based on RFM features: Recency, Frequency, and Monetary value. The result is an actionable
+                    segmentation profile that maps directly to targeted campaign strategies.
+                </p>
+                <p>
+                    Before any model runs, you will engineer the RFM feature matrix from raw transaction logs
+                    using <code>pandas.groupby()</code> aggregations, then normalize the features with
+                    <code>sklearn.preprocessing.StandardScaler</code> to prevent high-magnitude monetary values
+                    from dominating the distance metric. The elbow method and silhouette analysis then determine
+                    the optimal cluster count objectively, replacing the guesswork of manual segmentation.
+                </p>
+                <p>
+                    Once the segments are identified, the analysis phase profiles each cluster by computing
+                    centroid values in original scale, building a radar chart for visual comparison across
+                    RFM dimensions, and projecting the 3D feature space into 2D using PCA for a scatter
+                    plot that makes the cluster separation visually obvious. The final deliverable is a
+                    segment report ready to hand directly to a marketing team.
+                </p>
+            </div>
+        </div>
+
+        <!-- Agent Requirements -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Comfortable with Python and pandas &mdash; groupby, merge, and aggregation functions</li>
+                <li>Understand what a distance metric is and why feature scaling matters for clustering</li>
+                <li>Familiar with matplotlib for basic chart construction</li>
+                <li>No prior machine learning or clustering experience required &mdash; k-means theory is covered step by step</li>
+                <li>Python 3.9+ with pip; scikit-learn installed or pip-installable</li>
+            </ul>
+        </div>
+
+        <!-- Operation Phases -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">RFM Feature Engineering</div>
+                        <div class="cf-evidence-desc">
+                            Load the UCI Online Retail dataset and compute RFM features per customer using
+                            <code>df.groupby('CustomerID')</code> aggregations: recency as days since last
+                            purchase, frequency as total transaction count, and monetary as sum of invoice
+                            line totals. Handle returns (negative quantities) and missing customer IDs before
+                            any feature computation.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Feature Scaling &amp; Outlier Treatment</div>
+                        <div class="cf-evidence-desc">
+                            Apply log transformation to monetary and frequency distributions to reduce right-skew,
+                            then standardize all three features with <code>StandardScaler</code> to zero mean and
+                            unit variance. Cap extreme outliers at the 99th percentile before scaling to prevent
+                            a single high-value customer from distorting every centroid.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Optimal Cluster Count &mdash; Elbow and Silhouette</div>
+                        <div class="cf-evidence-desc">
+                            Fit <code>KMeans</code> for k = 2 through 10, recording inertia (within-cluster SSE)
+                            at each step. Plot the elbow curve and annotate the inflection point. Confirm the
+                            choice by computing <code>silhouette_score()</code> for each k and selecting the
+                            value that maximizes the silhouette coefficient. Document the trade-off between
+                            interpretability and statistical fit.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Cluster Profiling &amp; Visualization</div>
+                        <div class="cf-evidence-desc">
+                            Assign cluster labels to each customer row and inverse-transform centroids back to
+                            original feature scale for interpretability. Build a radar chart with
+                            <code>matplotlib</code> polar axes comparing RFM centroid values across segments.
+                            Project features to 2D with <code>PCA(n_components=2)</code> and render a
+                            color-coded scatter plot showing cluster separation.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Segment Report &amp; Business Translation</div>
+                        <div class="cf-evidence-desc">
+                            Name each segment based on its centroid profile (e.g., Champions, At-Risk, Hibernating)
+                            using a lookup table keyed on relative recency and frequency ranks. Compute
+                            segment size and revenue contribution percentages. Export the labeled customer
+                            CSV and a one-page Markdown summary with actionable recommendations per segment
+                            ready for a marketing stakeholder.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Asset Manifest -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Python 3.9+</div>
+                <div class="cf-manifest-item">pandas</div>
+                <div class="cf-manifest-item">numpy</div>
+                <div class="cf-manifest-item">scikit-learn</div>
+                <div class="cf-manifest-item">matplotlib</div>
+                <div class="cf-manifest-item">seaborn</div>
+                <div class="cf-manifest-item">scipy</div>
+                <div class="cf-manifest-item">UCI Online Retail Dataset</div>
+                <div class="cf-manifest-item">Jupyter Notebook</div>
+            </div>
+        </div>
+
+        <!-- Expected Outcomes -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Engineering RFM features from raw transaction logs</li>
+                <li>Applying log transforms to reduce distribution skew</li>
+                <li>Scaling features with StandardScaler for clustering</li>
+                <li>Using the elbow method to select cluster count</li>
+                <li>Interpreting silhouette scores for cluster quality</li>
+                <li>Fitting and labeling k-means cluster assignments</li>
+                <li>Projecting high-dimensional data to 2D with PCA</li>
+                <li>Building polar radar charts for segment comparison</li>
+                <li>Translating statistical clusters to business language</li>
+                <li>Exporting labeled datasets for downstream teams</li>
+            </ul>
+        </div>
+
+        <!-- Related Training -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p style="font-size: 0.9rem; color: rgba(255,255,255,0.4); margin-bottom: 12px;">Complete these modules to build the skills needed for this project.</p>
+            <div class="cf-training-grid">
+                <a href="../arctic/districts/data-science/index.html" class="cf-training-card">
+                    <span class="tc-district">Data Science</span>
+                    <span class="tc-title">Introduction to pandas</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/data-science/index.html" class="cf-training-card">
+                    <span class="tc-district">Data Science</span>
+                    <span class="tc-title">Machine Learning with scikit-learn</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/data-science/index.html" class="cf-training-card">
+                    <span class="tc-district">Data Science</span>
+                    <span class="tc-title">Unsupervised Learning Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/data-science/index.html" class="cf-training-card">
+                    <span class="tc-district">Data Science</span>
+                    <span class="tc-title">Data Cleaning Techniques</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../arctic/districts/data-science/index.html" class="cf-training-card">
+                    <span class="tc-district">Data Science</span>
+                    <span class="tc-title">Statistical Analysis with Python</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/python/index.html" class="cf-training-card">
+                    <span class="tc-district">Python</span>
+                    <span class="tc-title">Python Data Structures</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>

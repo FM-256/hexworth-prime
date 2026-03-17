@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Secure Document Storage with Blockchain | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(244, 114, 182, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(244, 114, 182, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(244, 114, 182, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(244, 114, 182, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(244, 114, 182, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — document storage / hash chain themed */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%23f472b6'%3E%3C!-- LEFT MARGIN: Hash chain diagram --%3E%3Ctext x='15' y='24' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.16'%3EHASH CHAIN%3C/text%3E%3Crect x='18' y='32' width='110' height='30' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='26' y='51' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.2'%3EDOC[0] sha256%3C/text%3E%3Cline x1='73' y1='62' x2='73' y2='76' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='69,72 73,80 77,72' fill='%23f472b6' stroke='none' opacity='0.14'/%3E%3Crect x='18' y='80' width='110' height='30' rx='2' stroke-width='1.4' opacity='0.16' fill='%23f472b6' fill-opacity='0.02'/%3E%3Ctext x='26' y='99' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.18'%3EDOC[1] sha256%3C/text%3E%3Cline x1='73' y1='110' x2='73' y2='124' stroke-width='1.2' opacity='0.12'/%3E%3Cpolygon points='69,120 73,128 77,120' fill='%23f472b6' stroke='none' opacity='0.12'/%3E%3Crect x='18' y='128' width='110' height='30' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='26' y='147' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.16'%3EDOC[2] sha256%3C/text%3E%3C!-- Document fingerprint --%3E%3Ctext x='15' y='185' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.16'%3EFINGERPRINT%3C/text%3E%3Crect x='18' y='192' width='120' height='60' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='24' y='208' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.16'%3Ename: contract.pdf%3C/text%3E%3Ctext x='24' y='220' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3Esize: 204800%3C/text%3E%3Ctext x='24' y='232' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3Ehash: a3f2c1..%3C/text%3E%3Ctext x='24' y='244' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.1'%3Etime: 1710000000%3C/text%3E%3C!-- Vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='300' x2='8' y2='700'/%3E%3Cline x1='4' y1='300' x2='12' y2='300'/%3E%3Cline x1='4' y1='380' x2='12' y2='380'/%3E%3Cline x1='4' y1='460' x2='12' y2='460'/%3E%3Cline x1='4' y1='540' x2='12' y2='540'/%3E%3Cline x1='4' y1='620' x2='12' y2='620'/%3E%3C/g%3E%3C!-- CENTER: Merkle tree --%3E%3Ctext x='380' y='50' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.18'%3EMERKLE TREE%3C/text%3E%3Crect x='450' y='58' width='100' height='24' rx='2' stroke-width='1.5' opacity='0.2' fill='%23f472b6' fill-opacity='0.04'/%3E%3Ctext x='468' y='74' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.22'%3EROOT%3C/text%3E%3Cline x1='480' y1='82' x2='430' y2='102' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='520' y1='82' x2='570' y2='102' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='390' y='102' width='80' height='22' rx='1' stroke-width='1.2' opacity='0.16'/%3E%3Ctext x='407' y='117' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.16'%3EH(A+B)%3C/text%3E%3Crect x='530' y='102' width='80' height='22' rx='1' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='547' y='117' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.14'%3EH(C+D)%3C/text%3E%3Cline x1='410' y1='124' x2='385' y2='142' stroke-width='1' opacity='0.1'/%3E%3Cline x1='460' y1='124' x2='485' y2='142' stroke-width='1' opacity='0.1'/%3E%3Cline x1='550' y1='124' x2='525' y2='142' stroke-width='1' opacity='0.1'/%3E%3Cline x1='600' y1='124' x2='625' y2='142' stroke-width='1' opacity='0.1'/%3E%3Crect x='362' y='142' width='48' height='18' rx='1' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='369' y='154' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3EHA%3C/text%3E%3Crect x='466' y='142' width='48' height='18' rx='1' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='472' y='154' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3EHB%3C/text%3E%3Crect x='504' y='142' width='48' height='18' rx='1' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='510' y='154' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3EHC%3C/text%3E%3Crect x='608' y='142' width='48' height='18' rx='1' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='614' y='154' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.1'%3EHD%3C/text%3E%3C!-- Access control matrix --%3E%3Ctext x='340' y='196' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.16'%3EACCESS MATRIX%3C/text%3E%3Crect x='340' y='204' width='340' height='110' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='340' y1='222' x2='680' y2='222' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='400' y1='204' x2='400' y2='314' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='480' y1='204' x2='480' y2='314' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='560' y1='204' x2='560' y2='314' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='340' y1='248' x2='680' y2='248' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='340' y1='274' x2='680' y2='274' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='340' y1='300' x2='680' y2='300' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='348' y='216' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3ESubject%3C/text%3E%3Ctext x='408' y='216' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3ERead%3C/text%3E%3Ctext x='488' y='216' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3EWrite%3C/text%3E%3Ctext x='566' y='216' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3EDelete%3C/text%3E%3Ctext x='348' y='240' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3EAlice%3C/text%3E%3Ctext x='412' y='240' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.16'%3E+%3C/text%3E%3Ctext x='492' y='240' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.16'%3E+%3C/text%3E%3Ctext x='570' y='240' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.1'%3E-%3C/text%3E%3Ctext x='348' y='266' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3EBob%3C/text%3E%3Ctext x='412' y='266' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.14'%3E+%3C/text%3E%3Ctext x='492' y='266' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.1'%3E-%3C/text%3E%3Ctext x='570' y='266' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.1'%3E-%3C/text%3E%3C!-- Scattered annotations --%3E%3Ctext x='300' y='440' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.09' transform='rotate(3 300 440)'%3EkeccxEak256(doc)%3C/text%3E%3Ctext x='480' y='470' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.08'%3EonlyOwner modifier%3C/text%3E%3Ctext x='340' y='510' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.07' transform='rotate(-2 340 510)'%3EIPFS.add(file)%3C/text%3E%3C!-- RIGHT MARGIN: Audit trail --%3E%3Ctext x='878' y='48' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.2'%3EAUDIT LOG%3C/text%3E%3Ctext x='882' y='64' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.16'%3E[10:14] UPLOAD%3C/text%3E%3Ctext x='882' y='76' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3E alice doc.pdf%3C/text%3E%3Ctext x='882' y='90' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3E[10:31] ACCESS%3C/text%3E%3Ctext x='882' y='102' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3E bob doc.pdf%3C/text%3E%3Ctext x='882' y='116' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3E[11:02] VERIFY%3C/text%3E%3Ctext x='882' y='128' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.1'%3E alice doc.pdf%3C/text%3E%3Ctext x='882' y='142' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.1'%3E[11:45] SHARE%3C/text%3E%3Ctext x='882' y='154' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.08'%3E alice -&gt; carol%3C/text%3E%3Cline x1='878' y1='162' x2='990' y2='162' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='878' y='180' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.16'%3EHASH VERIFY%3C/text%3E%3Ctext x='882' y='196' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3Estored:%3C/text%3E%3Ctext x='882' y='208' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3Ea3f2c1d8..%3C/text%3E%3Ctext x='882' y='224' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3Ecomputed:%3C/text%3E%3Ctext x='882' y='236' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.16'%3Ea3f2c1d8..%3C/text%3E%3Ctext x='882' y='250' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.22'%3E[VALID]%3C/text%3E%3Cline x1='867' y1='40' x2='867' y2='760' stroke-width='1' opacity='0.07' stroke-dasharray='6 8'/%3E%3C!-- CROSSHAIR MARKS --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='260' y1='540' x2='280' y2='540'/%3E%3Cline x1='270' y1='530' x2='270' y2='550'/%3E%3Ccircle cx='270' cy='540' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='740' y1='300' x2='760' y2='300'/%3E%3Cline x1='750' y1='290' x2='750' y2='310'/%3E%3Ccircle cx='750' cy='300' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- DIAGONAL LINES --%3E%3Cline x1='0' y1='540' x2='360' y2='280' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3C!-- PROTRACTOR --%3E%3Cpath d='M760 640 A130 130 0 0 1 960 640' stroke-width='2' opacity='0.13'/%3E%3Cpath d='M780 640 A110 110 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cline x1='860' y1='640' x2='860' y2='524' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3C!-- RULER --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%23f472b6' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%23f472b6' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%23f472b6' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(244, 114, 182, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #f472b6;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(244, 114, 182, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(244, 114, 182, 0.06);
+        }
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal {
+            width: 68px; height: 68px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(244, 114, 182, 0.25) 0%,
+                rgba(244, 114, 182, 0.12) 60%,
+                rgba(244, 114, 182, 0.06) 100%);
+            border: 3px solid rgba(244, 114, 182, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(244, 114, 182, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; overflow: hidden; position: relative;
+        }
+        .cf-house-seal::after {
+            content: ''; position: absolute; top: 3px; left: 6px;
+            width: 18px; height: 10px;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%; pointer-events: none;
+        }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #f472b6; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #f87171; background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #f472b6; background: rgba(244, 114, 182, 0.1); border: 1px solid rgba(244, 114, 182, 0.25); }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(244, 114, 182, 0.08);
+            border-left: 3px solid rgba(244, 114, 182, 0.2);
+            border-radius: 2px; padding: 32px 36px; margin-bottom: 24px;
+            position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .cf-paper.has-clip::before {
+            content: ''; position: absolute; top: -6px; left: 36px;
+            width: 20px; height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px; border-top: none;
+        }
+        .cf-paper.has-tape::after {
+            content: ''; position: absolute; top: -4px; right: 40px;
+            width: 60px; height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg);
+        }
+        .cf-section-stamp {
+            font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+            color: #f472b6; font-weight: 700; padding-bottom: 10px; margin-bottom: 16px;
+            border-bottom: 1px solid rgba(244, 114, 182, 0.15);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: ''; width: 8px; height: 8px; background: #f472b6;
+            border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6;
+        }
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #f472b6; background: rgba(244, 114, 182, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(244, 114, 182, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(244, 114, 182, 0.06); }
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card {
+            display: flex; gap: 18px; padding: 20px 22px;
+            background: rgba(244, 114, 182, 0.02);
+            border: 1px solid rgba(244, 114, 182, 0.08);
+            border-radius: 2px; position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover { border-color: rgba(244, 114, 182, 0.25); background: rgba(244, 114, 182, 0.04); box-shadow: 0 0 20px rgba(244, 114, 182, 0.06); }
+        .cf-evidence-marker {
+            flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; font-weight: 900; color: #facc15;
+        }
+        .cf-evidence-card::before {
+            content: ''; position: absolute; top: -5px; left: 34px;
+            width: 10px; height: 10px; border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #f472b6; background: rgba(244, 114, 182, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(244, 114, 182, 0.04); border: 1px solid rgba(244, 114, 182, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(244, 114, 182, 0.08); border-color: rgba(244, 114, 182, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #f472b6; }
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #f472b6; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(244, 114, 182, 0.3) 0%, rgba(244, 114, 182, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+        .cf-training-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+        .cf-training-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(244, 114, 182, 0.3); border-radius: 8px; padding: 16px; text-decoration: none; color: #e2e8f0; transition: border-color 0.2s, transform 0.2s; display: flex; flex-direction: column; gap: 8px; }
+        .cf-training-card:hover { border-color: #f472b6; transform: translateY(-2px); }
+        .cf-training-card .tc-district { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #f472b6; opacity: 0.8; }
+        .cf-training-card .tc-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
+        .cf-training-card .tc-type { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">KY-SDS-004</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- Dossier Cover -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">KY-SDS-004</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-key.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Key House</span>
+                    <span class="cf-house-domain">Cryptography &amp; Identity</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Secure Document Storage with Blockchain</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Advanced</span>
+                <span class="cf-badge cf-badge-time">120 MIN</span>
+                <span class="cf-badge cf-badge-xp">1000 XP</span>
+            </div>
+        </div>
+
+        <!-- Mission Brief -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation constructs a <strong>blockchain-backed document storage system</strong>
+                    that guarantees authenticity, tamper-evidence, and auditable access control without
+                    relying on any trusted central authority. Documents are hashed with SHA-256 before
+                    storage, and only the cryptographic fingerprint &mdash; never the document itself &mdash;
+                    is written to the blockchain, creating an immutable record that proves a document's
+                    exact contents existed at a specific point in time.
+                </p>
+                <p>
+                    On-chain access control lists (ACLs) govern who may read each document. Permissions
+                    are granted and revoked through signed transactions, and every permission change
+                    is permanently recorded in the contract's event log. A Merkle tree over all stored
+                    document hashes enables batch verification proofs, letting any party verify a document's
+                    inclusion in the registry by providing only a logarithmic-length proof rather than the
+                    full dataset. The tamper-proof audit trail records every upload, access grant, revocation,
+                    and verification check with block timestamp and caller address.
+                </p>
+                <p>
+                    The system separates concerns cleanly: the Solidity contract handles on-chain state
+                    and access enforcement, an IPFS layer stores encrypted document bytes, and an Express
+                    API bridges the browser client to both layers. You will implement client-side AES-256
+                    encryption before IPFS upload so that even the storage layer cannot read document
+                    contents without the decryption key held only by authorized users.
+                </p>
+            </div>
+        </div>
+
+        <!-- Agent Requirements -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Understanding of cryptographic hash functions: SHA-256 properties and collision resistance</li>
+                <li>Familiarity with Solidity basics: mappings, events, modifiers, and payable functions</li>
+                <li>Comfortable with Node.js and Express for REST API development</li>
+                <li>Basic understanding of public-key cryptography and digital signatures</li>
+                <li>No prior IPFS experience required &mdash; the project covers IPFS content addressing from scratch</li>
+            </ul>
+        </div>
+
+        <!-- Operation Phases -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Document Registry Contract</div>
+                        <div class="cf-evidence-desc">
+                            Author the <code>DocumentRegistry</code> Solidity contract. Define a
+                            <code>Document</code> struct with <code>docHash</code>, <code>ipfsCID</code>,
+                            <code>owner</code>, <code>timestamp</code>, and <code>exists</code> fields.
+                            Implement <code>registerDocument(bytes32 docHash, string ipfsCID)</code> that
+                            maps the hash to its metadata, rejects duplicate registrations, and emits a
+                            <code>DocumentRegistered</code> event. Add a <code>verifyDocument(bytes32 hash)</code>
+                            view function that returns the registration record or reverts if not found.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">On-Chain Access Control Lists</div>
+                        <div class="cf-evidence-desc">
+                            Add permission management to the registry. Implement a
+                            <code>mapping(bytes32 =&gt; mapping(address =&gt; bool)) accessList</code>
+                            scoped per document hash. The document owner may call
+                            <code>grantAccess(bytes32 hash, address grantee)</code> and
+                            <code>revokeAccess(bytes32 hash, address grantee)</code>. Guard sensitive
+                            read functions with an <code>onlyAuthorized(bytes32 hash)</code> modifier.
+                            Emit <code>AccessGranted</code> and <code>AccessRevoked</code> events with
+                            block-level timestamps for the audit trail.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Client-Side Encryption &amp; IPFS Upload</div>
+                        <div class="cf-evidence-desc">
+                            Implement browser-side document processing using the Web Crypto API.
+                            Generate a random AES-256-GCM key for each document upload, encrypt the
+                            file bytes before sending to IPFS via Pinata's API, and compute the
+                            SHA-256 hash of the original plaintext for on-chain registration.
+                            Store the encryption key encrypted with the owner's public key so only
+                            they can recover it. Build the Express middleware that proxies authenticated
+                            IPFS requests and returns the IPFS CID to the frontend.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Merkle Proof Verification</div>
+                        <div class="cf-evidence-desc">
+                            Build a Merkle tree over all registered document hashes using the
+                            <code>merkletreejs</code> library with SHA-256 as the leaf hash function.
+                            Implement <code>generateProof(docHash)</code> that returns the sibling hashes
+                            needed to reconstruct the path to the Merkle root. Add a
+                            <code>verifyInclusion(proof, root, leaf)</code> function that validates the
+                            proof without requiring access to the full tree. Store the current Merkle root
+                            on-chain and update it whenever new documents are registered.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Tamper-Proof Audit Trail</div>
+                        <div class="cf-evidence-desc">
+                            Build an audit log viewer that reconstructs the complete history of any
+                            document by querying all relevant contract events from genesis using
+                            <code>ethers.queryFilter</code>. Events to surface: <code>DocumentRegistered</code>,
+                            <code>AccessGranted</code>, <code>AccessRevoked</code>, and
+                            <code>DocumentVerified</code>. Display the timeline with block number,
+                            timestamp, action type, and actor address. Add a tamper detection mode that
+                            re-hashes the current IPFS content and compares it against the on-chain hash,
+                            flagging any discrepancy as a tampering alert.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">React Dashboard &amp; Test Suite</div>
+                        <div class="cf-evidence-desc">
+                            Build a React dashboard with four views: document upload with drag-and-drop,
+                            my documents list with access management controls, document verification
+                            tool accepting a file or hash input, and the audit log viewer. Write Hardhat
+                            tests covering registration uniqueness enforcement, ACL grant/revoke correctness,
+                            Merkle proof validity, and unauthorized access rejection. Include a fuzz test
+                            that generates random document hashes and verifies they cannot be registered
+                            twice.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Asset Manifest -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Solidity 0.8.x</div>
+                <div class="cf-manifest-item">Hardhat</div>
+                <div class="cf-manifest-item">OpenZeppelin Contracts</div>
+                <div class="cf-manifest-item">ethers.js</div>
+                <div class="cf-manifest-item">merkletreejs</div>
+                <div class="cf-manifest-item">Web Crypto API</div>
+                <div class="cf-manifest-item">IPFS / Pinata</div>
+                <div class="cf-manifest-item">Express.js</div>
+                <div class="cf-manifest-item">React 18</div>
+                <div class="cf-manifest-item">TypeScript</div>
+            </div>
+        </div>
+
+        <!-- Expected Outcomes -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>SHA-256 document fingerprinting and on-chain registration</li>
+                <li>Solidity mapping-based access control list patterns</li>
+                <li>Merkle tree construction and inclusion proof generation</li>
+                <li>Client-side AES-256-GCM encryption with Web Crypto API</li>
+                <li>IPFS content addressing and CID-based retrieval</li>
+                <li>On-chain event log as immutable audit trail</li>
+                <li>Tamper detection via hash comparison</li>
+                <li>ethers.js event querying and historical log reconstruction</li>
+                <li>Role-based access patterns in Solidity contracts</li>
+                <li>Separation of on-chain state from off-chain encrypted storage</li>
+            </ul>
+        </div>
+
+        <!-- Related Training -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../houses/key/index.html" class="cf-training-card">
+                    <span class="tc-district">Key House</span>
+                    <span class="tc-title">Hashing and Integrity Verification</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/key/index.html" class="cf-training-card">
+                    <span class="tc-district">Key House</span>
+                    <span class="tc-title">Symmetric Encryption with AES</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../houses/shield/index.html" class="cf-training-card">
+                    <span class="tc-district">Shield House</span>
+                    <span class="tc-title">Access Control Design Patterns</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/code/index.html" class="cf-training-card">
+                    <span class="tc-district">Code House</span>
+                    <span class="tc-title">Node.js REST API Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

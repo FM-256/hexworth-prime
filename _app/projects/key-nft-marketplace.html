@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build a Smart Contract Marketplace | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(244, 114, 182, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(244, 114, 182, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(244, 114, 182, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(244, 114, 182, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(244, 114, 182, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — NFT marketplace themed */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%23f472b6'%3E%3C!-- LEFT MARGIN: Smart contract state machine --%3E%3Ctext x='15' y='24' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.16'%3ECONTRACT FSM%3C/text%3E%3Ccircle cx='75' cy='60' r='22' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='60' y='58' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.2'%3EIDLE%3C/text%3E%3Ccircle cx='75' cy='130' r='22' stroke-width='1.5' opacity='0.16' fill='%23f472b6' fill-opacity='0.03'/%3E%3Ctext x='54' y='128' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.18'%3ELISTED%3C/text%3E%3Ccircle cx='75' cy='200' r='22' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='55' y='198' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.16'%3ESOLD%3C/text%3E%3Cline x1='75' y1='82' x2='75' y2='108' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='71,104 75,112 79,104' fill='%23f472b6' stroke='none' opacity='0.14'/%3E%3Cline x1='75' y1='152' x2='75' y2='178' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='71,174 75,182 79,174' fill='%23f472b6' stroke='none' opacity='0.12'/%3E%3Ctext x='15' y='255' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.14'%3Elist(tokenId,%3C/text%3E%3Ctext x='15' y='267' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.12'%3E  price)%3C/text%3E%3Ctext x='15' y='285' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.1'%3Ebuyer.call%7Bvalue:%3C/text%3E%3Ctext x='15' y='297' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.08'%3E  price%7D(%22%22)%3C/text%3E%3C!-- Vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='340' x2='8' y2='700'/%3E%3Cline x1='4' y1='340' x2='12' y2='340'/%3E%3Cline x1='4' y1='400' x2='12' y2='400'/%3E%3Cline x1='4' y1='460' x2='12' y2='460'/%3E%3Cline x1='4' y1='520' x2='12' y2='520'/%3E%3Cline x1='4' y1='580' x2='12' y2='580'/%3E%3Cline x1='4' y1='640' x2='12' y2='640'/%3E%3C/g%3E%3C!-- Circuit traces --%3E%3Cpath d='M5 420 L40 420 L40 400 L80 400 L80 420 L120 420' stroke-width='1.2' opacity='0.13' fill='none'/%3E%3Ccircle cx='40' cy='400' r='3' fill='%23f472b6' stroke='none' opacity='0.15'/%3E%3Ccircle cx='80' cy='400' r='3' fill='%23f472b6' stroke='none' opacity='0.13'/%3E%3C!-- CENTER: Blockchain blocks --%3E%3Crect x='320' y='50' width='110' height='60' rx='3' stroke-width='1.8' opacity='0.2'/%3E%3Ctext x='348' y='72' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.22'%3EBLOCK N%3C/text%3E%3Ctext x='328' y='88' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.14'%3EtokenId: 42%3C/text%3E%3Ctext x='328' y='100' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.12'%3Eowner: 0xab..%3C/text%3E%3Cline x1='430' y1='80' x2='458' y2='80' stroke-width='1.5' opacity='0.18'/%3E%3Cpolygon points='454,76 462,80 454,84' fill='%23f472b6' stroke='none' opacity='0.18'/%3E%3Crect x='462' y='50' width='110' height='60' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='490' y='72' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.18'%3EBLOCK N+1%3C/text%3E%3Ctext x='470' y='88' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.12'%3EtokenId: 43%3C/text%3E%3Cline x1='572' y1='80' x2='600' y2='80' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='596,76 604,80 596,84' fill='%23f472b6' stroke='none' opacity='0.14'/%3E%3Crect x='604' y='50' width='110' height='60' rx='3' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='632' y='72' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.14'%3EBLOCK N+2%3C/text%3E%3C!-- Wallet address flow --%3E%3Ctext x='340' y='160' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.18'%3EWALLET FLOW%3C/text%3E%3Crect x='340' y='168' width='130' height='28' rx='2' stroke-width='1.2' opacity='0.16'/%3E%3Ctext x='352' y='186' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.18'%3EMetaMask: 0x4a2f..%3C/text%3E%3Cline x1='470' y1='182' x2='496' y2='182' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='492,178 500,182 492,186' fill='%23f472b6' stroke='none' opacity='0.14'/%3E%3Crect x='500' y='168' width='120' height='28' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='512' y='186' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.16'%3EContract: 0xf812..%3C/text%3E%3Cline x1='560' y1='196' x2='560' y2='216' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='556,212 560,220 564,212' fill='%23f472b6' stroke='none' opacity='0.12'/%3E%3Crect x='490' y='220' width='140' height='28' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='502' y='238' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.14'%3EERC-721 Transfer Event%3C/text%3E%3C!-- Token transfer sequence --%3E%3Ctext x='320' y='280' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.16'%3ETRANSFER SEQ%3C/text%3E%3Cline x1='340' y1='295' x2='340' y2='380' stroke-width='1' opacity='0.1'/%3E%3Cline x1='560' y1='295' x2='560' y2='380' stroke-width='1' opacity='0.1'/%3E%3Cline x1='760' y1='295' x2='760' y2='380' stroke-width='1' opacity='0.1'/%3E%3Ctext x='316' y='292' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.12'%3EBuyer%3C/text%3E%3Ctext x='537' y='292' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.12'%3EMarket%3C/text%3E%3Ctext x='737' y='292' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.12'%3EContract%3C/text%3E%3Cline x1='340' y1='312' x2='556' y2='312' stroke-width='0.8' opacity='0.1'/%3E%3Cpolygon points='552,308 560,312 552,316' fill='%23f472b6' stroke='none' opacity='0.1'/%3E%3Ctext x='390' y='309' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.1'%3EbuyNFT(42)%3C/text%3E%3Cline x1='560' y1='330' x2='756' y2='330' stroke-width='0.8' opacity='0.09'/%3E%3Cpolygon points='752,326 760,330 752,334' fill='%23f472b6' stroke='none' opacity='0.09'/%3E%3Ctext x='610' y='327' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.09'%3EsafeTransferFrom%3C/text%3E%3Cline x1='760' y1='348' x2='564' y2='348' stroke-width='0.8' opacity='0.08'/%3E%3Cpolygon points='568,344 560,348 568,352' fill='%23f472b6' stroke='none' opacity='0.08'/%3E%3Ctext x='620' y='345' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.08'%3ETransfer%3C/text%3E%3C!-- Scattered annotations --%3E%3Ctext x='300' y='440' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.09' transform='rotate(4 300 440)'%3EERC721.sol%3C/text%3E%3Ctext x='480' y='460' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.08'%3Ehardhat compile%3C/text%3E%3Ctext x='340' y='500' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.07' transform='rotate(-3 340 500)'%3Eethers.getContractAt%3C/text%3E%3Ctext x='520' y='540' font-family='monospace' font-size='8' fill='%23f472b6' stroke='none' opacity='0.07'%3Eapprove(market, id)%3C/text%3E%3C!-- RIGHT MARGIN: Solidity snippets --%3E%3Ctext x='878' y='48' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.2'%3ESOLIDITY%3C/text%3E%3Ctext x='882' y='65' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.18'%3Emapping(uint256%3C/text%3E%3Ctext x='882' y='77' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.16'%3E  =&gt; address)%3C/text%3E%3Ctext x='882' y='89' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.14'%3E  tokenOwner%3C/text%3E%3Cline x1='878' y1='96' x2='990' y2='96' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='882' y='112' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.14'%3Eevent Transfer(%3C/text%3E%3Ctext x='882' y='124' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.12'%3E  address from,%3C/text%3E%3Ctext x='882' y='136' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.1'%3E  address to,%3C/text%3E%3Ctext x='882' y='148' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.09'%3E  uint256 id)%3C/text%3E%3Ctext x='878' y='175' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.16'%3EGAS METER%3C/text%3E%3Crect x='878' y='182' width='112' height='14' rx='2' stroke-width='1.2' opacity='0.12'/%3E%3Crect x='880' y='184' width='72' height='10' rx='1' stroke='none' fill='%23f472b6' fill-opacity='0.1'/%3E%3Ctext x='882' y='194' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.14'%3Emint: 68k gas%3C/text%3E%3Crect x='878' y='200' width='112' height='14' rx='2' stroke-width='1' opacity='0.1'/%3E%3Crect x='880' y='202' width='44' height='10' rx='1' stroke='none' fill='%23f472b6' fill-opacity='0.07'/%3E%3Ctext x='882' y='212' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3Elist: 42k gas%3C/text%3E%3Crect x='878' y='218' width='112' height='14' rx='2' stroke-width='1' opacity='0.1'/%3E%3Crect x='880' y='220' width='88' height='10' rx='1' stroke='none' fill='%23f472b6' fill-opacity='0.09'/%3E%3Ctext x='882' y='230' font-family='monospace' font-size='6' fill='%23f472b6' stroke='none' opacity='0.12'%3Ebuy: 84k gas%3C/text%3E%3Ctext x='878' y='260' font-family='monospace' font-size='9' fill='%23f472b6' stroke='none' opacity='0.16'%3ETEST NET%3C/text%3E%3Ctext x='882' y='276' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.14'%3ELocalhost:8545%3C/text%3E%3Ctext x='882' y='290' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.12'%3EchainId: 31337%3C/text%3E%3Ctext x='882' y='304' font-family='monospace' font-size='7' fill='%23f472b6' stroke='none' opacity='0.1'%3EHardhat Network%3C/text%3E%3Cline x1='867' y1='40' x2='867' y2='760' stroke-width='1' opacity='0.07' stroke-dasharray='6 8'/%3E%3C!-- CROSSHAIR MARKS --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='280' y1='520' x2='300' y2='520'/%3E%3Cline x1='290' y1='510' x2='290' y2='530'/%3E%3Ccircle cx='290' cy='520' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='720' y1='280' x2='740' y2='280'/%3E%3Cline x1='730' y1='270' x2='730' y2='290'/%3E%3Ccircle cx='730' cy='280' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- DIAGONAL CONSTRUCTION LINES --%3E%3Cline x1='0' y1='520' x2='380' y2='260' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='680' y1='0' x2='1000' y2='180' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3C!-- PROTRACTOR --%3E%3Cpath d='M760 640 A130 130 0 0 1 960 640' stroke-width='2' opacity='0.13'/%3E%3Cpath d='M780 640 A110 110 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cline x1='860' y1='640' x2='860' y2='524' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3C!-- RULER bottom edge --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%23f472b6' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%23f472b6' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%23f472b6' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(244, 114, 182, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #f472b6;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(244, 114, 182, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(244, 114, 182, 0.06);
+        }
+
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(244, 114, 182, 0.25) 0%,
+                rgba(244, 114, 182, 0.12) 60%,
+                rgba(244, 114, 182, 0.06) 100%);
+            border: 3px solid rgba(244, 114, 182, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(244, 114, 182, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #f472b6;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #f472b6;
+            background: rgba(244, 114, 182, 0.1);
+            border: 1px solid rgba(244, 114, 182, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(244, 114, 182, 0.08);
+            border-left: 3px solid rgba(244, 114, 182, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #f472b6;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(244, 114, 182, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #f472b6;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #f472b6;
+            background: rgba(244, 114, 182, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites ────────────────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(244, 114, 182, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(244, 114, 182, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(244, 114, 182, 0.02);
+            border: 1px solid rgba(244, 114, 182, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(244, 114, 182, 0.25);
+            background: rgba(244, 114, 182, 0.04);
+            box-shadow: 0 0 20px rgba(244, 114, 182, 0.06);
+        }
+
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #f472b6;
+            background: rgba(244, 114, 182, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest ────────────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(244, 114, 182, 0.04);
+            border: 1px solid rgba(244, 114, 182, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(244, 114, 182, 0.08);
+            border-color: rgba(244, 114, 182, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #f472b6;
+        }
+
+        /* ── Debrief ───────────────────────────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #f472b6;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(244, 114, 182, 0.3) 0%,
+                rgba(244, 114, 182, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Training cards ───────────────────────────────── */
+        .cf-training-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .cf-training-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(244, 114, 182, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .cf-training-card:hover {
+            border-color: #f472b6;
+            transform: translateY(-2px);
+        }
+        .cf-training-card .tc-district {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #f472b6;
+            opacity: 0.8;
+        }
+        .cf-training-card .tc-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .cf-training-card .tc-type {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">KY-NFT-003</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- Dossier Cover -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">KY-NFT-003</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-key.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Key House</span>
+                    <span class="cf-house-domain">Cryptography &amp; Identity</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a Smart Contract Marketplace</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Advanced</span>
+                <span class="cf-badge cf-badge-time">120 MIN</span>
+                <span class="cf-badge cf-badge-xp">1000 XP</span>
+            </div>
+        </div>
+
+        <!-- Mission Brief -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation deploys a fully functional <strong>NFT marketplace on the Ethereum blockchain</strong>
+                    using Solidity smart contracts and the Hardhat development framework. You will author
+                    ERC-721 token contracts that allow creators to mint unique digital assets, then build
+                    the marketplace layer on top &mdash; enabling listing, buying, and peer-to-peer trading
+                    with on-chain ownership guarantees. A React frontend integrated with MetaMask bridges
+                    the browser wallet to the deployed contracts.
+                </p>
+                <p>
+                    Every marketplace transaction executes as an immutable smart contract call. Listings
+                    lock the NFT inside the contract escrow until a buyer sends the exact asking price in
+                    ETH, at which point the contract atomically transfers the token to the buyer and
+                    forwards payment to the seller &mdash; no intermediary, no trust required. You will
+                    implement royalty logic using the EIP-2981 standard, charging the original creator a
+                    percentage on every secondary sale automatically enforced at the contract level.
+                </p>
+                <p>
+                    The full development cycle runs against a local Hardhat Network node before deploying
+                    to a public testnet. You will write comprehensive Hardhat tests using <code>ethers.js</code>
+                    to verify every contract path, measure gas costs across all operations, and use Hardhat's
+                    built-in console to debug contract state during development. The React frontend uses
+                    <code>wagmi</code> hooks for wallet connection and contract interaction, giving you
+                    exposure to the modern Web3 frontend stack.
+                </p>
+            </div>
+        </div>
+
+        <!-- Agent Requirements -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Solid JavaScript/TypeScript fundamentals including async/await and promise handling</li>
+                <li>Basic understanding of Ethereum concepts: accounts, transactions, gas, and the EVM</li>
+                <li>Comfortable with React and component-based UI patterns</li>
+                <li>Familiarity with npm and Node.js tooling for dependency management</li>
+                <li>Prior exposure to Solidity syntax is helpful but the project teaches the key constructs from scratch</li>
+            </ul>
+        </div>
+
+        <!-- Operation Phases -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">ERC-721 Token Contract</div>
+                        <div class="cf-evidence-desc">
+                            Author an ERC-721 NFT contract that extends OpenZeppelin's
+                            <code>ERC721URIStorage</code>. Implement <code>mintNFT(address recipient, string tokenURI)</code>
+                            that increments a token counter, mints the token to the recipient, and stores
+                            the IPFS metadata URI. Add a <code>_mintPrice</code> payable requirement so minting
+                            costs ETH. Emit a <code>Minted</code> event with <code>tokenId</code> and
+                            <code>owner</code> fields. Deploy to Hardhat's local network and verify state
+                            with <code>hardhat console</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Marketplace Listing Logic</div>
+                        <div class="cf-evidence-desc">
+                            Build the <code>NFTMarketplace</code> contract with a <code>MarketItem</code>
+                            struct containing <code>tokenId</code>, <code>seller</code>, <code>owner</code>,
+                            <code>price</code>, and <code>sold</code> fields. Implement
+                            <code>createMarketItem(nftContract, tokenId, price)</code> that calls
+                            <code>transferFrom</code> to escrow the NFT inside the marketplace contract
+                            and records the listing. Charge a configurable listing fee collected by the
+                            contract owner on each sale. Emit <code>MarketItemCreated</code> events
+                            indexable by The Graph.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Purchase &amp; Transfer Execution</div>
+                        <div class="cf-evidence-desc">
+                            Implement <code>createMarketSale(nftContract, itemId)</code> as a payable
+                            function that validates <code>msg.value == item.price</code>, transfers
+                            the NFT from escrow to <code>msg.sender</code> using
+                            <code>IERC721.safeTransferFrom</code>, and forwards payment to the seller
+                            minus the listing fee. Mark the item as sold and update owner to the buyer.
+                            Implement reentrancy protection using OpenZeppelin's <code>ReentrancyGuard</code>
+                            modifier on all payable functions to prevent attack vectors.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">EIP-2981 Royalty Standard</div>
+                        <div class="cf-evidence-desc">
+                            Implement the <code>EIP2981</code> royalty interface in the NFT contract.
+                            Store a <code>royaltyInfo</code> mapping from <code>tokenId</code> to
+                            <code>(receiver, royaltyFraction)</code>. The marketplace's sale function
+                            queries <code>royaltyInfo(tokenId, salePrice)</code> and automatically
+                            deducts the royalty from proceeds, forwarding it to the original creator
+                            before paying the seller. Write tests that verify royalty amounts are correct
+                            across multiple resale transactions.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">React Frontend &amp; MetaMask Integration</div>
+                        <div class="cf-evidence-desc">
+                            Build the React frontend using <code>wagmi</code> and <code>viem</code> for
+                            wallet connection and contract calls. Display all active marketplace listings
+                            fetched via <code>fetchMarketItems()</code> as a grid of NFT cards showing
+                            the token image, name, price in ETH, and a buy button. Implement wallet
+                            connection with MetaMask, showing the connected address and ETH balance in
+                            the header. Wire the mint and buy flows through contract write hooks with
+                            transaction confirmation toasts on success.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Testing Suite &amp; Testnet Deploy</div>
+                        <div class="cf-evidence-desc">
+                            Write a complete Hardhat test suite covering: successful mint, listing at
+                            various prices, purchase execution and fund distribution, royalty deduction,
+                            reentrancy rejection, and access control on admin functions. Measure and log
+                            gas costs for each operation. Configure <code>hardhat.config.ts</code> for
+                            Sepolia testnet deployment via Alchemy, fund a test wallet from the Sepolia
+                            faucet, and execute <code>npx hardhat run scripts/deploy.ts --network sepolia</code>
+                            to ship live contracts.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Asset Manifest -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Solidity 0.8.x</div>
+                <div class="cf-manifest-item">Hardhat</div>
+                <div class="cf-manifest-item">OpenZeppelin Contracts</div>
+                <div class="cf-manifest-item">ethers.js</div>
+                <div class="cf-manifest-item">React 18</div>
+                <div class="cf-manifest-item">wagmi</div>
+                <div class="cf-manifest-item">viem</div>
+                <div class="cf-manifest-item">MetaMask</div>
+                <div class="cf-manifest-item">IPFS / Pinata</div>
+                <div class="cf-manifest-item">Alchemy RPC</div>
+                <div class="cf-manifest-item">TypeScript</div>
+            </div>
+        </div>
+
+        <!-- Expected Outcomes -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>ERC-721 token minting and URI storage patterns</li>
+                <li>Smart contract escrow and atomic swap mechanics</li>
+                <li>EIP-2981 royalty standard implementation</li>
+                <li>Reentrancy attack vectors and guard patterns</li>
+                <li>MetaMask wallet connection and transaction signing</li>
+                <li>Gas measurement and optimization strategies</li>
+                <li>Hardhat local network and testnet deployment workflow</li>
+                <li>wagmi / viem frontend contract integration</li>
+                <li>IPFS metadata storage for NFT assets</li>
+                <li>On-chain event indexing and frontend querying</li>
+            </ul>
+        </div>
+
+        <!-- Related Training -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../houses/key/index.html" class="cf-training-card">
+                    <span class="tc-district">Key House</span>
+                    <span class="tc-title">Public Key Cryptography Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/key/index.html" class="cf-training-card">
+                    <span class="tc-district">Key House</span>
+                    <span class="tc-title">Digital Signatures and Verification</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../houses/code/index.html" class="cf-training-card">
+                    <span class="tc-district">Code House</span>
+                    <span class="tc-title">JavaScript Async Patterns</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/web/index.html" class="cf-training-card">
+                    <span class="tc-district">Web House</span>
+                    <span class="tc-title">React Component Architecture</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- End of File -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

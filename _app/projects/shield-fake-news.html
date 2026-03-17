@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Detect Fake News with ML | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — Shield House red (#f87171) */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(248, 113, 113, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(248, 113, 113, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(248, 113, 113, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(248, 113, 113, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(248, 113, 113, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches — ML pipeline / TF-IDF / confusion matrix themed */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%23f87171'%3E%3C!-- LEFT MARGIN: Text classification pipeline --%3E%3Ctext x='15' y='24' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.16'%3ETF-IDF PIPE%3C/text%3E%3Crect x='15' y='32' width='120' height='22' rx='2' stroke-width='1.4' opacity='0.18'/%3E%3Ctext x='22' y='47' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.2'%3ERaw Text Corpus%3C/text%3E%3Cline x1='75' y1='54' x2='75' y2='68' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='71,64 75,72 79,64' fill='%23f87171' stroke='none' opacity='0.14'/%3E%3Crect x='15' y='72' width='120' height='22' rx='2' stroke-width='1.3' opacity='0.16'/%3E%3Ctext x='22' y='87' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.18'%3ETF-IDF Vectorizer%3C/text%3E%3Cline x1='75' y1='94' x2='75' y2='108' stroke-width='1.2' opacity='0.12'/%3E%3Cpolygon points='71,104 75,112 79,104' fill='%23f87171' stroke='none' opacity='0.12'/%3E%3Crect x='15' y='112' width='120' height='22' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='22' y='127' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.16'%3EFeature Matrix%3C/text%3E%3Cline x1='75' y1='134' x2='75' y2='148' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='71,144 75,152 79,144' fill='%23f87171' stroke='none' opacity='0.1'/%3E%3Crect x='15' y='152' width='120' height='22' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='22' y='167' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.16'%3EClassifier%3C/text%3E%3Cline x1='75' y1='174' x2='75' y2='188' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='71,184 75,192 79,184' fill='%23f87171' stroke='none' opacity='0.1'/%3E%3Crect x='15' y='192' width='120' height='22' rx='2' stroke-width='1.4' opacity='0.18' fill='%23f87171' fill-opacity='0.04'/%3E%3Ctext x='22' y='207' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.2'%3EPrediction%3C/text%3E%3C!-- Vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='260' x2='8' y2='700'/%3E%3Cline x1='4' y1='260' x2='12' y2='260'/%3E%3Cline x1='4' y1='340' x2='12' y2='340'/%3E%3Cline x1='4' y1='420' x2='12' y2='420'/%3E%3Cline x1='4' y1='500' x2='12' y2='500'/%3E%3Cline x1='4' y1='580' x2='12' y2='580'/%3E%3Cline x1='4' y1='660' x2='12' y2='660'/%3E%3C/g%3E%3C!-- CENTER: Confusion matrix grid --%3E%3Ctext x='360' y='50' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.18'%3ECONFUSION MATRIX%3C/text%3E%3Crect x='340' y='58' width='240' height='200' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Cline x1='340' y1='108' x2='580' y2='108' stroke-width='1' opacity='0.12'/%3E%3Cline x1='340' y1='158' x2='580' y2='158' stroke-width='1' opacity='0.12'/%3E%3Cline x1='340' y1='208' x2='580' y2='208' stroke-width='1' opacity='0.12'/%3E%3Cline x1='420' y1='58' x2='420' y2='258' stroke-width='1' opacity='0.12'/%3E%3Cline x1='500' y1='58' x2='500' y2='258' stroke-width='1' opacity='0.12'/%3E%3Ctext x='440' y='80' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3EPred:R%3C/text%3E%3Ctext x='520' y='80' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3EPred:F%3C/text%3E%3Ctext x='348' y='136' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.12'%3EAct:R%3C/text%3E%3Ctext x='444' y='140' font-family='monospace' font-size='11' fill='%23f87171' stroke='none' opacity='0.28'%3E4821%3C/text%3E%3Ctext x='524' y='140' font-family='monospace' font-size='11' fill='%23f87171' stroke='none' opacity='0.12'%3E179%3C/text%3E%3Ctext x='348' y='186' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.12'%3EAct:F%3C/text%3E%3Ctext x='444' y='190' font-family='monospace' font-size='11' fill='%23f87171' stroke='none' opacity='0.12'%3E212%3C/text%3E%3Ctext x='524' y='190' font-family='monospace' font-size='11' fill='%23f87171' stroke='none' opacity='0.28'%3E4788%3C/text%3E%3Ctext x='350' y='242' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3Eacc: 0.961 f1: 0.960%3C/text%3E%3C!-- TF-IDF vector space (CENTER, lower) --%3E%3Ctext x='360' y='288' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.16'%3ETF-IDF VECTORS%3C/text%3E%3Cline x1='340' y1='310' x2='340' y2='390' stroke-width='1.2' opacity='0.12'/%3E%3Cline x1='340' y1='390' x2='600' y2='390' stroke-width='1.2' opacity='0.12'/%3E%3Ccircle cx='370' cy='340' r='5' fill='%23f87171' stroke='none' opacity='0.24'/%3E%3Ccircle cx='390' cy='360' r='4' fill='%23f87171' stroke='none' opacity='0.2'/%3E%3Ccircle cx='430' cy='320' r='5' fill='%23f87171' stroke='none' opacity='0.22'/%3E%3Ccircle cx='460' cy='350' r='4' fill='%23f87171' stroke='none' opacity='0.18'/%3E%3Ccircle cx='510' cy='315' r='6' fill='%23f87171' stroke='none' opacity='0.2'/%3E%3Ccircle cx='545' cy='345' r='4' fill='%23f87171' stroke='none' opacity='0.16'/%3E%3Ccircle cx='375' cy='375' r='4' fill='%23f87171' stroke='none' opacity='0.14' stroke='%23f87171' stroke-width='1'/%3E%3Ccircle cx='560' cy='325' r='5' fill='%23f87171' stroke='none' opacity='0.14'/%3E%3Ctext x='355' y='384' font-family='monospace' font-size='6' fill='%23f87171' stroke='none' opacity='0.12'%3E0%3C/text%3E%3Ctext x='348' y='316' font-family='monospace' font-size='6' fill='%23f87171' stroke='none' opacity='0.12'%3E1%3C/text%3E%3C!-- Scattered annotations --%3E%3Ctext x='290' y='450' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.09' transform='rotate(3 290 450)'%3ENaiveBayes.fit(X)%3C/text%3E%3Ctext x='460' y='470' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.08'%3Etrain_test_split%3C/text%3E%3Ctext x='330' y='510' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.07' transform='rotate(-2 330 510)'%3Eprecision_score()%3C/text%3E%3Ctext x='510' y='540' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.07'%3ESVM(kernel='linear')%3C/text%3E%3C!-- RIGHT MARGIN: ROC curve sketch --%3E%3Ctext x='878' y='48' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.2'%3EROC CURVE%3C/text%3E%3Cline x1='878' y1='60' x2='878' y2='200' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='878' y1='200' x2='990' y2='200' stroke-width='1.2' opacity='0.14'/%3E%3Cpath d='M878 200 Q890 160 920 120 Q950 80 990 60' stroke-width='1.5' opacity='0.2' fill='none'/%3E%3Cpath d='M878 200 L990 60' stroke-width='0.8' opacity='0.08' stroke-dasharray='4 4'/%3E%3Ctext x='882' y='195' font-family='monospace' font-size='6' fill='%23f87171' stroke='none' opacity='0.12'%3EFPR%3C/text%3E%3Ctext x='876' y='80' font-family='monospace' font-size='6' fill='%23f87171' stroke='none' opacity='0.12'%3ETPR%3C/text%3E%3Ctext x='910' y='140' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.16'%3EAUC=0.97%3C/text%3E%3Ctext x='878' y='226' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.16'%3EACCURACY%3C/text%3E%3Ctext x='882' y='242' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.18'%3ENaive Bayes: 92.4%25%3C/text%3E%3Ctext x='882' y='256' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.16'%3ESVM Linear: 96.1%25%3C/text%3E%3Ctext x='882' y='270' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3EPassive-Agg: 94.7%25%3C/text%3E%3Cline x1='867' y1='40' x2='867' y2='760' stroke-width='1' opacity='0.07' stroke-dasharray='6 8'/%3E%3C!-- CROSSHAIRS --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='260' y1='540' x2='280' y2='540'/%3E%3Cline x1='270' y1='530' x2='270' y2='550'/%3E%3Ccircle cx='270' cy='540' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='720' y1='290' x2='740' y2='290'/%3E%3Cline x1='730' y1='280' x2='730' y2='300'/%3E%3Ccircle cx='730' cy='290' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- DIAGONAL LINES --%3E%3Cline x1='0' y1='530' x2='370' y2='270' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='690' y1='0' x2='1000' y2='190' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3C!-- PROTRACTOR --%3E%3Cpath d='M760 640 A130 130 0 0 1 960 640' stroke-width='2' opacity='0.13'/%3E%3Cpath d='M780 640 A110 110 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cline x1='860' y1='640' x2='860' y2='524' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3C!-- RULER --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%23f87171' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%23f87171' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%23f87171' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ─────────────────────── Shield red ─────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(248, 113, 113, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #f87171;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(248, 113, 113, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(248, 113, 113, 0.06);
+        }
+        .cf-stamp {
+            position: absolute; top: 24px; right: 28px;
+            font-size: 1.1rem; font-weight: 900; letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5); border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px; transform: rotate(3deg);
+            text-transform: uppercase; border-radius: 2px; pointer-events: none;
+        }
+        .cf-cover::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal {
+            width: 68px; height: 68px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, rgba(248, 113, 113, 0.25) 0%, rgba(248, 113, 113, 0.12) 60%, rgba(248, 113, 113, 0.06) 100%);
+            border: 3px solid rgba(248, 113, 113, 0.5);
+            box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(248, 113, 113, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; overflow: hidden; position: relative;
+        }
+        .cf-house-seal::after {
+            content: ''; position: absolute; top: 3px; left: 6px; width: 18px; height: 10px;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%; pointer-events: none;
+        }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #f87171; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #fbbf24; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #f87171; background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.25); }
+
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(248, 113, 113, 0.08);
+            border-left: 3px solid rgba(248, 113, 113, 0.2);
+            border-radius: 2px; padding: 32px 36px; margin-bottom: 24px;
+            position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .cf-paper.has-clip::before {
+            content: ''; position: absolute; top: -6px; left: 36px;
+            width: 20px; height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px; border-top: none;
+        }
+        .cf-paper.has-tape::after {
+            content: ''; position: absolute; top: -4px; right: 40px;
+            width: 60px; height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg);
+        }
+        .cf-section-stamp {
+            font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+            color: #f87171; font-weight: 700; padding-bottom: 10px; margin-bottom: 16px;
+            border-bottom: 1px solid rgba(248, 113, 113, 0.15);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: ''; width: 8px; height: 8px; background: #f87171;
+            border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6;
+        }
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #f87171; background: rgba(248, 113, 113, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(248, 113, 113, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(248, 113, 113, 0.06); }
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card {
+            display: flex; gap: 18px; padding: 20px 22px;
+            background: rgba(248, 113, 113, 0.02);
+            border: 1px solid rgba(248, 113, 113, 0.08);
+            border-radius: 2px; position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover { border-color: rgba(248, 113, 113, 0.25); background: rgba(248, 113, 113, 0.04); box-shadow: 0 0 20px rgba(248, 113, 113, 0.06); }
+        .cf-evidence-marker {
+            flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; font-weight: 900; color: #facc15;
+        }
+        .cf-evidence-card::before {
+            content: ''; position: absolute; top: -5px; left: 34px;
+            width: 10px; height: 10px; border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #f87171; background: rgba(248, 113, 113, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(248, 113, 113, 0.04); border: 1px solid rgba(248, 113, 113, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(248, 113, 113, 0.08); border-color: rgba(248, 113, 113, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #f87171; }
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #f87171; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(248, 113, 113, 0.3) 0%, rgba(248, 113, 113, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+        .cf-training-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+        .cf-training-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 8px; padding: 16px; text-decoration: none; color: #e2e8f0; transition: border-color 0.2s, transform 0.2s; display: flex; flex-direction: column; gap: 8px; }
+        .cf-training-card:hover { border-color: #f87171; transform: translateY(-2px); }
+        .cf-training-card .tc-district { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #f87171; opacity: 0.8; }
+        .cf-training-card .tc-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
+        .cf-training-card .tc-type { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">SH-FKN-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- Dossier Cover -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">SH-FKN-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-shield.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Shield House</span>
+                    <span class="cf-house-domain">Defense &amp; Threat Intelligence</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Detect Fake News with ML</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">60 MIN</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- Mission Brief -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation builds a <strong>fake news detection system</strong> using classical
+                    machine learning with Scikit-learn. You will train multiple text classifiers on labeled
+                    news datasets, implement TF-IDF feature extraction to convert raw article text into
+                    numerical feature vectors, and systematically compare three classifier architectures
+                    &mdash; Naive Bayes, Linear SVM, and Passive-Aggressive &mdash; across accuracy,
+                    precision, recall, and F1 score metrics.
+                </p>
+                <p>
+                    TF-IDF (Term Frequency-Inverse Document Frequency) transforms text into sparse numerical
+                    vectors where each dimension represents a unique word and the value reflects how
+                    diagnostic that word is for distinguishing real from fabricated news. Words like
+                    "breaking" and "exclusive" score differently across legitimate versus sensationalist
+                    sources, and these statistical patterns become the signal your classifiers learn to
+                    exploit. You will build pipelines using Scikit-learn's <code>Pipeline</code> class
+                    that chain vectorization and classification into a single fitted estimator.
+                </p>
+                <p>
+                    Evaluation goes beyond raw accuracy. Confusion matrices reveal the distribution of
+                    true/false positives and negatives, while ROC curves and AUC scores quantify each
+                    model's discrimination power across all possible decision thresholds. The project
+                    concludes with a command-line tool that classifies any article URL or text blob
+                    in real time and explains which terms most strongly influenced the prediction.
+                </p>
+            </div>
+        </div>
+
+        <!-- Agent Requirements -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Python fundamentals: lists, dictionaries, loops, and function definitions</li>
+                <li>Basic understanding of what classification means in a supervised learning context</li>
+                <li>Comfortable running pip installs and working with Jupyter notebooks or .py scripts</li>
+                <li>No prior NLP or machine learning experience required &mdash; all concepts are introduced progressively</li>
+                <li>Willingness to interpret confusion matrices and understand what precision vs recall means in practice</li>
+            </ul>
+        </div>
+
+        <!-- Operation Phases -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Dataset Acquisition &amp; Exploration</div>
+                        <div class="cf-evidence-desc">
+                            Download the WELFake or LIAR labeled news dataset using Pandas.
+                            Load both real and fake news CSVs, inspect column distributions with
+                            <code>df.describe()</code> and <code>df.value_counts()</code>, and visualize
+                            class balance with a bar chart. Merge title and body text into a single
+                            <code>content</code> column. Profile article lengths with a histogram and
+                            identify the top 30 most frequent words per class using
+                            <code>collections.Counter</code>. Check for and handle null values and
+                            duplicate rows before proceeding to feature extraction.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">TF-IDF Feature Extraction</div>
+                        <div class="cf-evidence-desc">
+                            Build a <code>TfidfVectorizer</code> with <code>max_features=50000</code>,
+                            <code>ngram_range=(1,2)</code> to capture bigrams, and
+                            <code>stop_words='english'</code>. Fit only on the training split to
+                            prevent data leakage. Examine the resulting sparse matrix shape and
+                            non-zero density. Extract the top 20 most discriminative features
+                            per class by sorting feature weights learned from a fitted Logistic
+                            Regression. Visualize the TF-IDF score distribution as a word cloud
+                            separately for real and fake articles.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Classifier Training &amp; Comparison</div>
+                        <div class="cf-evidence-desc">
+                            Wrap each classifier in a Scikit-learn <code>Pipeline</code> combining
+                            the vectorizer and the model. Train three pipelines:
+                            <code>MultinomialNB(alpha=0.1)</code>,
+                            <code>LinearSVC(C=1.0, max_iter=2000)</code>, and
+                            <code>PassiveAggressiveClassifier(C=0.5, max_iter=50)</code>.
+                            Use 80/20 stratified train-test split with a fixed random seed for
+                            reproducibility. Log training time for each classifier. Compare
+                            accuracy scores on the held-out test set and print Scikit-learn's
+                            <code>classification_report</code> for all three.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Confusion Matrix Visualization</div>
+                        <div class="cf-evidence-desc">
+                            Plot a heatmap confusion matrix for each classifier using
+                            <code>ConfusionMatrixDisplay</code> from Scikit-learn with a Seaborn
+                            color scheme. Annotate each cell with the raw count and percentage of
+                            total samples. Calculate and display derived metrics: false positive rate
+                            (legitimate news flagged as fake), false negative rate (fake news that
+                            slips through), and the Matthew's Correlation Coefficient which handles
+                            class imbalance better than accuracy alone. Export all plots as PNG files.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">ROC Curves &amp; Model Selection</div>
+                        <div class="cf-evidence-desc">
+                            For classifiers that support <code>predict_proba</code> or
+                            <code>decision_function</code>, plot ROC curves using
+                            <code>RocCurveDisplay.from_estimator</code> and overlay all three
+                            models on a single axes for direct visual comparison. Calculate AUC
+                            for each. Implement 5-fold cross-validation with
+                            <code>cross_val_score</code> to validate that the test-set results
+                            are not lucky splits. Select the best model and serialize it with
+                            <code>joblib.dump</code> for use in the prediction tool.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Live Prediction CLI Tool</div>
+                        <div class="cf-evidence-desc">
+                            Build a command-line interface using <code>argparse</code> that accepts
+                            either raw article text via <code>--text</code> or a URL via
+                            <code>--url</code> (fetching and parsing with <code>requests</code>
+                            and <code>BeautifulSoup</code>). Load the serialized best model, transform
+                            the input through the fitted vectorizer, and output the prediction with
+                            confidence score. Use <code>eli5</code> to display the top 10 words that
+                            most contributed to the fake or real classification decision, making the
+                            prediction interpretable and auditable.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Asset Manifest -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Python 3.10+</div>
+                <div class="cf-manifest-item">Scikit-learn</div>
+                <div class="cf-manifest-item">Pandas</div>
+                <div class="cf-manifest-item">NumPy</div>
+                <div class="cf-manifest-item">Matplotlib</div>
+                <div class="cf-manifest-item">Seaborn</div>
+                <div class="cf-manifest-item">joblib</div>
+                <div class="cf-manifest-item">requests</div>
+                <div class="cf-manifest-item">BeautifulSoup4</div>
+                <div class="cf-manifest-item">eli5</div>
+                <div class="cf-manifest-item">wordcloud</div>
+            </div>
+        </div>
+
+        <!-- Expected Outcomes -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>TF-IDF vectorization and sparse matrix mechanics</li>
+                <li>Scikit-learn Pipeline construction and fitting</li>
+                <li>Naive Bayes, SVM, and Passive-Aggressive classifier behavior</li>
+                <li>Stratified train-test splitting to prevent label leakage</li>
+                <li>Confusion matrix interpretation and derived metrics</li>
+                <li>ROC curve plotting and AUC score comparison</li>
+                <li>Cross-validation for robust model evaluation</li>
+                <li>Model serialization and loading with joblib</li>
+                <li>Interpretable ML with feature importance explanations</li>
+                <li>Web scraping for live article classification</li>
+            </ul>
+        </div>
+
+        <!-- Related Training -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../houses/shield/index.html" class="cf-training-card">
+                    <span class="tc-district">Shield House</span>
+                    <span class="tc-title">Threat Classification with ML</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../houses/shield/index.html" class="cf-training-card">
+                    <span class="tc-district">Shield House</span>
+                    <span class="tc-title">Log Analysis and Pattern Detection</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/code/index.html" class="cf-training-card">
+                    <span class="tc-district">Code House</span>
+                    <span class="tc-title">Python Data Structures and Pandas</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/code/index.html" class="cf-training-card">
+                    <span class="tc-district">Code House</span>
+                    <span class="tc-title">Data Visualization with Matplotlib</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

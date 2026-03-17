@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Real-Time Chat App | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(74, 222, 128, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 222, 128, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(74, 222, 128, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 222, 128, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(74, 222, 128, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — chat bubbles, WebSocket handshake, message queue */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%234ade80'%3E%3C!-- LEFT MARGIN: Chat bubble sketches --%3E%3Crect x='18' y='30' width='110' height='28' rx='10' stroke-width='1.5' opacity='0.18'/%3E%3Cpolygon points='28,58 22,70 40,58' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Ctext x='28' y='48' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.18'%3Ehello world%3C/text%3E%3Crect x='30' y='82' width='100' height='26' rx='10' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='118,108 128,118 112,108' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3Ctext x='40' y='99' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Ehi there!%3C/text%3E%3Crect x='18' y='122' width='95' height='24' rx='10' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='24,146 18,158 36,146' fill='%234ade80' stroke='none' opacity='0.08'/%3E%3Ctext x='28' y='138' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Egot it...%3C/text%3E%3C!-- LEFT MARGIN: WebSocket handshake diagram --%3E%3Crect x='15' y='185' width='130' height='110' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='24' y='200' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3EWS HANDSHAKE%3C/text%3E%3Cline x1='15' y1='205' x2='145' y2='205' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='20' y='220' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3ECLIENT%3C/text%3E%3Ctext x='104' y='220' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3ESERVER%3C/text%3E%3Cline x1='30' y1='225' x2='30' y2='290' stroke-width='1' opacity='0.12'/%3E%3Cline x1='130' y1='225' x2='130' y2='290' stroke-width='1' opacity='0.12'/%3E%3Cline x1='30' y1='235' x2='125' y2='245' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='125,245 117,241 119,249' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Ctext x='52' y='243' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.14'%3EUPGRADE%3C/text%3E%3Cline x1='130' y1='258' x2='35' y2='268' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='35,268 43,264 41,272' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Ctext x='52' y='266' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.12'%3E101 OK%3C/text%3E%3Cline x1='30' y1='278' x2='125' y2='288' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='125,288 117,284 119,292' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3Ctext x='52' y='287' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.1'%3Emessage%3C/text%3E%3C!-- LEFT MARGIN: User connection flow --%3E%3Crect x='15' y='320' width='130' height='80' rx='2' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='24' y='336' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.16'%3EROOM STATE%3C/text%3E%3Cline x1='15' y1='341' x2='145' y2='341' stroke-width='0.8' opacity='0.08'/%3E%3Ccircle cx='30' cy='358' r='5' stroke-width='1' fill='%234ade80' fill-opacity='0.2' opacity='0.2'/%3E%3Ctext x='40' y='362' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Ealice%3C/text%3E%3Ccircle cx='30' cy='374' r='5' stroke-width='1' fill='%234ade80' fill-opacity='0.15' opacity='0.16'/%3E%3Ctext x='40' y='378' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3Ebob%3C/text%3E%3Ccircle cx='30' cy='390' r='5' stroke-width='1' fill='%234ade80' fill-opacity='0.1' opacity='0.12'/%3E%3Ctext x='40' y='394' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Echarlie%3C/text%3E%3C!-- LEFT MARGIN: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='430' x2='8' y2='680'/%3E%3Cline x1='4' y1='430' x2='12' y2='430'/%3E%3Cline x1='4' y1='490' x2='12' y2='490'/%3E%3Cline x1='4' y1='550' x2='12' y2='550'/%3E%3Cline x1='4' y1='610' x2='12' y2='610'/%3E%3Cline x1='4' y1='670' x2='12' y2='670'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='460' x2='10' y2='460'/%3E%3Cline x1='6' y1='520' x2='10' y2='520'/%3E%3Cline x1='6' y1='580' x2='10' y2='580'/%3E%3Cline x1='6' y1='640' x2='10' y2='640'/%3E%3C/g%3E%3C!-- LEFT MARGIN: message queue --%3E%3Crect x='15' y='450' width='130' height='100' rx='2' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='24' y='466' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.16'%3EMSG QUEUE%3C/text%3E%3Cline x1='15' y1='471' x2='145' y2='471' stroke-width='0.8' opacity='0.08'/%3E%3Crect x='22' y='478' width='116' height='14' rx='1' fill='%234ade80' fill-opacity='0.06' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='28' y='489' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.14'%3E%7B user: alice, msg%3E%3C/text%3E%3Crect x='22' y='496' width='116' height='14' rx='1' fill='%234ade80' fill-opacity='0.04' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='28' y='507' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.12'%3E%7B user: bob, msg %3E%3C/text%3E%3Crect x='22' y='514' width='116' height='14' rx='1' fill='%234ade80' fill-opacity='0.02' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='28' y='525' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.1'%3E%7B user: char...%3C/text%3E%3Cline x1='80' y1='540' x2='80' y2='548' stroke-width='1.5' opacity='0.12'/%3E%3Cpolygon points='80,548 76,542 84,542' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Ctext x='28' y='546' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3ESQLITE%3C/text%3E%3C!-- RIGHT MARGIN: Socket.IO event flow --%3E%3Crect x='882' y='30' width='113' height='200' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='896' y='48' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.2'%3ESOCKET.IO%3C/text%3E%3Cline x1='882' y1='54' x2='995' y2='54' stroke-width='1' opacity='0.12'/%3E%3Crect x='894' y='64' width='88' height='20' rx='2' stroke-width='1' opacity='0.16'/%3E%3Ctext x='900' y='78' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.18'%3Econnection%3C/text%3E%3Cline x1='938' y1='84' x2='938' y2='96' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='938,96 934,90 942,90' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='894' y='98' width='88' height='20' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='900' y='112' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.16'%3Ejoin-room%3C/text%3E%3Cline x1='938' y1='118' x2='938' y2='130' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='938,130 934,124 942,124' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Crect x='894' y='132' width='88' height='20' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='900' y='146' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Esend-message%3C/text%3E%3Cline x1='938' y1='152' x2='938' y2='164' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='938,164 934,158 942,158' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3Crect x='894' y='166' width='88' height='20' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='900' y='180' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3Ebroadcast%3C/text%3E%3Cline x1='938' y1='186' x2='938' y2='198' stroke-width='1' opacity='0.08'/%3E%3Cpolygon points='938,198 934,192 942,192' fill='%234ade80' stroke='none' opacity='0.08'/%3E%3Crect x='894' y='200' width='88' height='20' rx='2' stroke-width='1' opacity='0.08'/%3E%3Ctext x='900' y='214' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Edisconnect%3C/text%3E%3C!-- RIGHT MARGIN: DB schema sketch --%3E%3Crect x='882' y='255' width='113' height='110' rx='2' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='896' y='272' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3ESQLITE SCHEMA%3C/text%3E%3Cline x1='882' y1='278' x2='995' y2='278' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='888' y='294' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3EUSERS%3C/text%3E%3Ctext x='896' y='308' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.12'%3Eid, username%3C/text%3E%3Ctext x='896' y='320' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.1'%3Epassword_hash%3C/text%3E%3Ctext x='888' y='336' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3EMESSAGES%3C/text%3E%3Ctext x='896' y='350' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.12'%3Eid, room, user%3C/text%3E%3Ctext x='896' y='362' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.1'%3Econtent, ts%3C/text%3E%3C!-- RIGHT MARGIN: code snippet --%3E%3Crect x='887' y='392' width='108' height='70' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='894' y='408' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Eio.on('conn',%3C/text%3E%3Ctext x='900' y='422' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3E(socket) =%3E %7B%3C/text%3E%3Ctext x='906' y='436' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Esocket.on(%3C/text%3E%3Ctext x='912' y='450' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.08'%3E'message'%3C/text%3E%3C!-- CENTER: data flow pipeline --%3E%3Crect x='280' y='150' width='70' height='32' rx='3' stroke-width='1.8' opacity='0.18'/%3E%3Ctext x='288' y='170' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3ECLIENT%3C/text%3E%3Cline x1='350' y1='166' x2='382' y2='166' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='382,166 376,162 376,170' fill='%234ade80' stroke='none' opacity='0.16'/%3E%3Crect x='388' y='150' width='70' height='32' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='396' y='170' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.16'%3ESOCKET%3C/text%3E%3Cline x1='458' y1='166' x2='490' y2='166' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='490,166 484,162 484,170' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='496' y='150' width='70' height='32' rx='3' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='504' y='170' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.14'%3ESERVER%3C/text%3E%3Cline x1='566' y1='166' x2='598' y2='166' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='598,166 592,162 592,170' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Crect x='604' y='150' width='70' height='32' rx='3' stroke-width='1' opacity='0.12'/%3E%3Ctext x='612' y='170' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.12'%3EDB%3C/text%3E%3C!-- CENTER: broadcast fan-out --%3E%3Crect x='380' y='260' width='90' height='30' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='390' y='278' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.16'%3Ebroadcast%3C/text%3E%3Cline x1='425' y1='290' x2='360' y2='318' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='360,318 364,310 368,318' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cline x1='425' y1='290' x2='425' y2='318' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='425,318 421,310 429,310' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cline x1='425' y1='290' x2='490' y2='318' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='490,318 486,310 494,310' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Ccircle cx='360' cy='330' r='14' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='350' y='334' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Ealice%3C/text%3E%3Ccircle cx='425' cy='330' r='14' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='416' y='334' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Ebob%3C/text%3E%3Ccircle cx='490' cy='330' r='14' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='478' y='334' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Echarlie%3C/text%3E%3C!-- crosshair marks --%3E%3Cg opacity='0.22' stroke-width='1.8'%3E%3Cline x1='390' y1='460' x2='410' y2='460'/%3E%3Cline x1='400' y1='450' x2='400' y2='470'/%3E%3Ccircle cx='400' cy='460' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='660' y1='420' x2='680' y2='420'/%3E%3Cline x1='670' y1='410' x2='670' y2='430'/%3E%3Ccircle cx='670' cy='420' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- DIAGONAL CONSTRUCTION LINES --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.08' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.07' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.06' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.06' stroke-dasharray='8 10'/%3E%3C!-- RULER bottom edge --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- SCATTERED ANNOTATIONS --%3E%3Ctext x='280' y='440' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1' transform='rotate(-8 280 440)'%3Esocket.emit%3C/text%3E%3Ctext x='580' y='480' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1'%3Eio.to(room)%3C/text%3E%3Ctext x='340' y='360' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.08' transform='rotate(4 340 360)'%3Ebroadcast%3C/text%3E%3Ctext x='620' y='400' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.1' transform='rotate(-3 620 400)'%3Esession.user%3C/text%3E%3C!-- DIAMOND MARKERS at corners --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%234ade80' stroke='none' opacity='0.08'/%3E%3C!-- RIGHT MARGIN: vertical dashed line --%3E%3Cline x1='875' y1='250' x2='875' y2='650' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #4ade80;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #121e16 0%, #12191c 100%);
+            border: 1px solid rgba(74, 222, 128, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(74, 222, 128, 0.06);
+        }
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(74, 222, 128, 0.25) 0%,
+                rgba(74, 222, 128, 0.12) 60%,
+                rgba(74, 222, 128, 0.06) 100%);
+            border: 3px solid rgba(74, 222, 128, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(74, 222, 128, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #4ade80;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131a16 0%, #11161b 100%);
+            border: 1px solid rgba(74, 222, 128, 0.08);
+            border-left: 3px solid rgba(74, 222, 128, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #4ade80;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites ────────────────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(74, 222, 128, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(74, 222, 128, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(74, 222, 128, 0.02);
+            border: 1px solid rgba(74, 222, 128, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(74, 222, 128, 0.25);
+            background: rgba(74, 222, 128, 0.04);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.06);
+        }
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest ──────────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(74, 222, 128, 0.04);
+            border: 1px solid rgba(74, 222, 128, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(74, 222, 128, 0.08);
+            border-color: rgba(74, 222, 128, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #4ade80;
+        }
+
+        /* ── Debrief ─────────────────────────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #4ade80;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(74, 222, 128, 0.3) 0%,
+                rgba(74, 222, 128, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CD-CHT-002</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CD-CHT-002</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-laptop.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Code House</span>
+                    <span class="cf-house-domain">Software Development Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a Real-Time Chat App</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">90 min</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Your assignment is to build a <strong>real-time chat application</strong> using
+                    WebSockets via Socket.IO, a Node.js backend powered by Express, and a responsive
+                    frontend served from the same server. Users can register, authenticate, join named
+                    chat rooms, and exchange messages that appear on all connected clients within
+                    milliseconds &mdash; no page refresh required.
+                </p>
+                <p>
+                    Message history is persisted in <strong>SQLite</strong> via the <code>better-sqlite3</code>
+                    driver. When a new user joins a room, the server replays the last 50 messages so
+                    they have context before they start typing. User sessions are managed with
+                    <code>express-session</code> and bcrypt-hashed passwords are stored alongside
+                    usernames in the database.
+                </p>
+                <p>
+                    This project builds fluency with the <strong>WebSocket protocol</strong>, the
+                    Socket.IO event model, server-side session management, and the architectural
+                    separation between HTTP (auth, page delivery) and the persistent WebSocket channel
+                    (real-time messaging). It mirrors the stack behind production chat systems at scale.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Working knowledge of Node.js: modules, npm, and the event loop</li>
+                <li>Express routing: <code>app.get</code>, <code>app.post</code>, middleware, and <code>req.session</code></li>
+                <li>Basic understanding of the HTTP request/response cycle and status codes</li>
+                <li>Familiarity with HTML forms, fetch API, and DOM manipulation</li>
+                <li>Comfort with asynchronous JavaScript: callbacks, Promises, or async/await</li>
+                <li>Basic SQL: <code>CREATE TABLE</code>, <code>INSERT</code>, <code>SELECT</code>, <code>WHERE</code></li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Project Scaffold and Express Server</div>
+                        <div class="cf-evidence-desc">
+                            Initialize the project with <code>npm init</code> and install
+                            <code>express</code>, <code>socket.io</code>, <code>better-sqlite3</code>,
+                            <code>express-session</code>, and <code>bcrypt</code>. Create
+                            <code>server.js</code> as the entry point. Configure Express to serve
+                            static files from a <code>public/</code> directory, attach the Socket.IO
+                            server to the same HTTP instance, and listen on port 3000.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">SQLite Schema and Authentication Routes</div>
+                        <div class="cf-evidence-desc">
+                            Define two tables: <code>users(id, username, password_hash)</code> and
+                            <code>messages(id, room, user_id, content, created_at)</code>. Write
+                            <code>POST /register</code> and <code>POST /login</code> routes that
+                            hash passwords with <code>bcrypt.hash()</code> and verify them with
+                            <code>bcrypt.compare()</code>. Store the authenticated user in
+                            <code>req.session.user</code> on success.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Socket.IO Room Logic and Message Broadcast</div>
+                        <div class="cf-evidence-desc">
+                            Inside the <code>io.on('connection')</code> handler, listen for a
+                            <code>join-room</code> event that places the socket in the named room
+                            via <code>socket.join(room)</code> and replays the 50 most recent messages
+                            from SQLite. On <code>send-message</code>, validate the payload, persist
+                            it to the database, then broadcast to all room members with
+                            <code>io.to(room).emit('new-message', payload)</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Responsive Frontend with Rooms and Message Display</div>
+                        <div class="cf-evidence-desc">
+                            Build a single-page layout in <code>public/index.html</code> with a
+                            sidebar listing available rooms and an online-users count, a scrollable
+                            message feed, and a fixed input bar. Use the Socket.IO client library
+                            from the CDN. On login success, emit <code>join-room</code> and append
+                            incoming <code>new-message</code> events to the feed, auto-scrolling to
+                            the latest message.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Typing Indicators and Presence Events</div>
+                        <div class="cf-evidence-desc">
+                            Emit a <code>typing-start</code> event when the user begins typing and
+                            <code>typing-stop</code> after a 1-second debounce. Relay these to room
+                            members with <code>socket.to(room).emit()</code> and render a live
+                            &ldquo;alice is typing...&rdquo; indicator in the message feed. Broadcast
+                            a <code>user-joined</code> and <code>user-left</code> system message on
+                            socket connect and disconnect events.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Polish: Input Sanitization and Error Handling</div>
+                        <div class="cf-evidence-desc">
+                            Sanitize all message content server-side before persisting: strip HTML
+                            tags, trim whitespace, and enforce a 500-character maximum. Add a
+                            character counter to the input bar. Handle socket disconnection gracefully
+                            with a reconnection toast. Add an auth middleware to Express routes so
+                            unauthenticated clients receive a <code>401</code> redirect rather than
+                            raw data.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Node.js</div>
+                <div class="cf-manifest-item">Express</div>
+                <div class="cf-manifest-item">Socket.IO</div>
+                <div class="cf-manifest-item">WebSocket Protocol</div>
+                <div class="cf-manifest-item">SQLite (better-sqlite3)</div>
+                <div class="cf-manifest-item">bcrypt</div>
+                <div class="cf-manifest-item">express-session</div>
+                <div class="cf-manifest-item">Vanilla JavaScript</div>
+                <div class="cf-manifest-item">HTML5 / CSS3</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>WebSocket lifecycle: connect, emit, broadcast, disconnect</li>
+                <li>Socket.IO rooms for scoped message delivery</li>
+                <li>Session-based authentication with bcrypt password hashing</li>
+                <li>SQLite persistence with parameterized queries</li>
+                <li>Real-time UI updates without polling or page reload</li>
+                <li>Debounced typing indicators and presence events</li>
+                <li>Server-side input validation and sanitization</li>
+                <li>Node.js HTTP + WebSocket server architecture</li>
+            </ul>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>
