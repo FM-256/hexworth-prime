@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: AWS Networking and VPC Security | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        .cf-drafting-table { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px, 100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches -- VPC architecture, subnet layout, security group matrix, route table flow */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2338bdf8'%3E%3C!-- LEFT MARGIN: VPC outer boundary --%3E%3Crect x='10' y='20' width='148' height='200' rx='4' stroke-width='2' opacity='0.16' stroke-dasharray='8 4'/%3E%3Ctext x='20' y='38' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.22'%3EVPC 10.0.0.0/16%3C/text%3E%3Cline x1='10' y1='44' x2='158' y2='44' stroke-width='0.8' opacity='0.12'/%3E%3C!-- Public subnet box --%3E%3Crect x='18' y='52' width='62' height='60' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='24' y='68' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.2'%3EPUBLIC%3C/text%3E%3Ctext x='24' y='80' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3E10.0.1.0%3C/text%3E%3Ctext x='24' y='91' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3E/24%3C/text%3E%3Crect x='26' y='96' width='46' height='10' rx='1' stroke-width='1' opacity='0.14' fill='%2338bdf8' fill-opacity='0.06'/%3E%3Ctext x='30' y='104' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3EEC2 Bastion%3C/text%3E%3C!-- Private subnet box --%3E%3Crect x='88' y='52' width='62' height='60' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='94' y='68' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EPRIVATE%3C/text%3E%3Ctext x='94' y='80' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3E10.0.2.0%3C/text%3E%3Ctext x='94' y='91' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3E/24%3C/text%3E%3Crect x='96' y='96' width='46' height='10' rx='1' stroke-width='1' opacity='0.12' fill='%2338bdf8' fill-opacity='0.04'/%3E%3Ctext x='100' y='104' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3EApp Server%3C/text%3E%3C!-- IGW label --%3E%3Crect x='50' y='130' width='58' height='18' rx='2' stroke-width='1.2' opacity='0.2' fill='%2338bdf8' fill-opacity='0.06'/%3E%3Ctext x='58' y='143' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.22'%3EIGW%3C/text%3E%3Cline x1='79' y1='130' x2='79' y2='112' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='79,112 75,118 83,118' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3C!-- NAT GW --%3E%3Crect x='18' y='160' width='130' height='18' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='44' y='173' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3ENAT GATEWAY%3C/text%3E%3C!-- Left margin: security group rules --%3E%3Crect x='14' y='240' width='140' height='90' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='258' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.2'%3ESG RULES%3C/text%3E%3Cline x1='14' y1='264' x2='154' y2='264' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='18' y='278' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EINBOUND%3C/text%3E%3Ctext x='18' y='290' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3EHTTP  80  0.0.0.0/0%3C/text%3E%3Ctext x='18' y='302' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3EHTTPS 443 0.0.0.0/0%3C/text%3E%3Ctext x='18' y='314' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3ESSH   22  10.0.0.0%3C/text%3E%3Ctext x='18' y='322' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.08'%3EOUTBOUND ALL%3C/text%3E%3C!-- Left ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='360' x2='8' y2='620'/%3E%3Cline x1='4' y1='360' x2='12' y2='360'/%3E%3Cline x1='4' y1='410' x2='12' y2='410'/%3E%3Cline x1='4' y1='460' x2='12' y2='460'/%3E%3Cline x1='4' y1='510' x2='12' y2='510'/%3E%3Cline x1='4' y1='560' x2='12' y2='560'/%3E%3Cline x1='4' y1='610' x2='12' y2='610'/%3E%3C/g%3E%3C!-- Left: route table --%3E%3Crect x='14' y='360' width='140' height='80' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='378' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3EROUTE TABLE%3C/text%3E%3Cline x1='14' y1='384' x2='154' y2='384' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='18' y='398' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3E0.0.0.0/0  IGW%3C/text%3E%3Ctext x='18' y='410' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3E10.0.0.0/16 local%3C/text%3E%3Ctext x='18' y='422' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3E10.0.2.0/24 NAT%3C/text%3E%3C!-- Left: circuit traces --%3E%3Cpath d='M5 640 L45 640 L45 618 L85 618 L85 640 L125 640' stroke-width='1.2' opacity='0.1' fill='none'/%3E%3Ccircle cx='45' cy='618' r='3' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Ccircle cx='85' cy='618' r='3' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3C!-- RIGHT MARGIN: NACL diagram --%3E%3Crect x='878' y='28' width='118' height='220' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='892' y='46' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.22'%3ENACL RULES%3C/text%3E%3Cline x1='878' y1='52' x2='996' y2='52' stroke-width='1' opacity='0.14'/%3E%3Ctext x='884' y='68' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EINBOUND%3C/text%3E%3Ctext x='884' y='82' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3E100 HTTP  ALLOW%3C/text%3E%3Ctext x='884' y='94' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3E110 HTTPS ALLOW%3C/text%3E%3Ctext x='884' y='106' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3E120 SSH   ALLOW%3C/text%3E%3Ctext x='884' y='118' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3E*   ALL   DENY%3C/text%3E%3Cline x1='878' y1='126' x2='996' y2='126' stroke-width='0.6' opacity='0.08'/%3E%3Ctext x='884' y='142' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3EOUTBOUND%3C/text%3E%3Ctext x='884' y='156' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3E100 EPHEMERAL%3C/text%3E%3Ctext x='884' y='168' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3E    1024-65535%3C/text%3E%3Ctext x='884' y='180' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3E110 HTTP  ALLOW%3C/text%3E%3Ctext x='884' y='192' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.08'%3E*   ALL   DENY%3C/text%3E%3Ctext x='884' y='210' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3EStateless!%3C/text%3E%3C!-- Right: endpoint diagram --%3E%3Crect x='878' y='268' width='118' height='100' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='892' y='286' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3EVPC ENDPOINTS%3C/text%3E%3Cline x1='878' y1='292' x2='996' y2='292' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='884' y='308' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3ES3 Gateway%3C/text%3E%3Ctext x='884' y='322' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3EDynamo Gateway%3C/text%3E%3Ctext x='884' y='336' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3Eno NAT needed%3C/text%3E%3Ctext x='884' y='350' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.08'%3Eprivate path%3C/text%3E%3C!-- Right dashed separator --%3E%3Cline x1='874' y1='260' x2='874' y2='660' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- CENTER: Full VPC architecture flow --%3E%3Crect x='230' y='120' width='520' height='220' rx='6' stroke-width='2' opacity='0.16' stroke-dasharray='10 5'/%3E%3Ctext x='444' y='140' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.2'%3EVPC: 10.0.0.0/16%3C/text%3E%3Cline x1='230' y1='148' x2='750' y2='148' stroke-width='0.8' opacity='0.1'/%3E%3C!-- Public subnet center --%3E%3Crect x='248' y='158' width='200' height='130' rx='4' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='298' y='176' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.2'%3EPUBLIC SUBNET%3C/text%3E%3Crect x='268' y='186' width='60' height='28' rx='2' stroke-width='1.2' opacity='0.16' fill='%2338bdf8' fill-opacity='0.06'/%3E%3Ctext x='276' y='204' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EBastion%3C/text%3E%3Crect x='348' y='186' width='60' height='28' rx='2' stroke-width='1.2' opacity='0.14' fill='%2338bdf8' fill-opacity='0.04'/%3E%3Ctext x='356' y='204' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3ENAT GW%3C/text%3E%3Crect x='268' y='226' width='140' height='20' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='298' y='239' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3ERoute: 0.0.0.0/0 -&gt; IGW%3C/text%3E%3C!-- Private subnet center --%3E%3Crect x='500' y='158' width='200' height='130' rx='4' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='550' y='176' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.18'%3EPRIVATE SUBNET%3C/text%3E%3Crect x='520' y='186' width='60' height='28' rx='2' stroke-width='1.2' opacity='0.14' fill='%2338bdf8' fill-opacity='0.05'/%3E%3Ctext x='530' y='204' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3EApp:8080%3C/text%3E%3Crect x='598' y='186' width='60' height='28' rx='2' stroke-width='1.2' opacity='0.12' fill='%2338bdf8' fill-opacity='0.03'/%3E%3Ctext x='610' y='204' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3ERDS%3C/text%3E%3Crect x='520' y='226' width='140' height='20' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='540' y='239' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3ERoute: 0.0.0.0/0 -&gt; NAT%3C/text%3E%3C!-- Arrow between subnets --%3E%3Cline x1='448' y1='210' x2='500' y2='210' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='500,210 494,206 494,214' fill='%2338bdf8' stroke='none' opacity='0.16'/%3E%3C!-- IGW above --%3E%3Crect x='368' y='70' width='100' height='32' rx='3' stroke-width='1.8' opacity='0.2' fill='%2338bdf8' fill-opacity='0.06'/%3E%3Ctext x='386' y='91' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.22'%3EINTERNET GW%3C/text%3E%3Cline x1='418' y1='102' x2='418' y2='120' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='418,120 414,114 422,114' fill='%2338bdf8' stroke='none' opacity='0.16'/%3E%3C!-- Internet cloud hint --%3E%3Ctext x='366' y='52' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.12'%3E~~ INTERNET ~~%3C/text%3E%3Cline x1='418' y1='56' x2='418' y2='70' stroke-width='1.2' opacity='0.12'/%3E%3C!-- Center: crosshairs --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='240' y1='420' x2='260' y2='420'/%3E%3Cline x1='250' y1='410' x2='250' y2='430'/%3E%3Ccircle cx='250' cy='420' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='750' y1='380' x2='770' y2='380'/%3E%3Cline x1='760' y1='370' x2='760' y2='390'/%3E%3Ccircle cx='760' cy='380' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- Diagonal construction lines --%3E%3Cline x1='0' y1='560' x2='380' y2='300' stroke-width='1.2' opacity='0.05' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='180' stroke-width='1' opacity='0.05' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='220' x2='180' y2='420' stroke-width='1' opacity='0.04' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='420' x2='1000' y2='560' stroke-width='1' opacity='0.04' stroke-dasharray='8 10'/%3E%3C!-- Ruler edges --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- Annotations --%3E%3Ctext x='50' y='470' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.1' transform='rotate(-10 50 470)'%3Eaws ec2 create-vpc%3C/text%3E%3Ctext x='560' y='480' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.09'%3Ecidr-block%3C/text%3E%3Ctext x='300' y='430' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.08' transform='rotate(4 300 430)'%3Eassociate-route-table%3C/text%3E%3Ctext x='640' y='460' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.08'%3Eallow-reassociation%3C/text%3E%3C!-- Diamond markers --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        body::after { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px); pointer-events: none; z-index: 9000; }
+
+        .cf-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #0e1018; border-bottom: 1px solid rgba(56, 189, 248, 0.12); height: 48px; position: sticky; top: 0; z-index: 200; }
+        .cf-header a { font-size: 0.8rem; color: rgba(255,255,255,0.4); text-decoration: none; letter-spacing: 0.08em; transition: color 0.2s; }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title { font-size: 0.75rem; letter-spacing: 0.2em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-header-ref { font-size: 0.65rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); }
+
+        .cf-content { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; position: relative; z-index: 1; }
+
+        .cf-cover { position: relative; background: linear-gradient(170deg, #121a1e 0%, #12191c 100%); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 2px; padding: 48px 40px 40px; margin-bottom: 32px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 60px rgba(56, 189, 248, 0.06); }
+        .cf-stamp { position: absolute; top: 24px; right: 28px; font-size: 1.1rem; font-weight: 900; letter-spacing: 0.2em; color: rgba(220, 38, 38, 0.5); border: 3px solid rgba(220, 38, 38, 0.4); padding: 4px 14px; transform: rotate(3deg); text-transform: uppercase; border-radius: 2px; pointer-events: none; }
+        .cf-cover::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent 100%); }
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal { width: 68px; height: 68px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.25) 0%, rgba(56, 189, 248, 0.12) 60%, rgba(56, 189, 248, 0.06) 100%); border: 3px solid rgba(56, 189, 248, 0.5); box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; }
+        .cf-house-seal::after { content: ''; position: absolute; top: 3px; left: 6px; width: 18px; height: 10px; background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%); border-radius: 50%; pointer-events: none; }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); }
+
+        .cf-paper { background: linear-gradient(175deg, #131a1e 0%, #11161b 100%); border: 1px solid rgba(56, 189, 248, 0.08); border-left: 3px solid rgba(56, 189, 248, 0.2); border-radius: 2px; padding: 32px 36px; margin-bottom: 24px; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+        .cf-paper.has-clip::before { content: ''; position: absolute; top: -6px; left: 36px; width: 20px; height: 32px; border: 2px solid rgba(255,255,255,0.1); border-radius: 0 0 10px 10px; border-top: none; }
+        .cf-paper.has-tape::after { content: ''; position: absolute; top: -4px; right: 40px; width: 60px; height: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg); }
+        .cf-section-stamp { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #38bdf8; font-weight: 700; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.15); display: flex; align-items: center; gap: 8px; }
+        .cf-section-stamp::before { content: ''; width: 8px; height: 8px; background: #38bdf8; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6; }
+
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(56, 189, 248, 0.06); }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card { display: flex; gap: 18px; padding: 20px 22px; background: rgba(56, 189, 248, 0.02); border: 1px solid rgba(56, 189, 248, 0.08); border-radius: 2px; position: relative; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+        .cf-evidence-card:hover { border-color: rgba(56, 189, 248, 0.25); background: rgba(56, 189, 248, 0.04); box-shadow: 0 0 20px rgba(56, 189, 248, 0.06); }
+        .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
+        .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #38bdf8; }
+
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #38bdf8; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CL-VPC-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CL-VPC-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-17</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-cloud.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Cloud House</span>
+                    <span class="cf-house-domain">Cloud Infrastructure Division</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">AWS Networking and VPC Security</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">60 min</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Your assignment is to build a secure, production-grade AWS network from scratch
+                    by creating a custom <strong>Virtual Private Cloud</strong> and launching an EC2
+                    instance into it with precisely controlled access paths. This is the foundational
+                    network architecture pattern used in every serious AWS deployment.
+                </p>
+                <p>
+                    You will design a dual-subnet layout separating public-facing and private resources,
+                    configure an Internet Gateway for outbound public access, and deploy a NAT Gateway
+                    so private instances can reach the internet without being directly reachable.
+                    Security Groups will act as instance-level firewalls while Network ACLs enforce
+                    subnet-level stateless filtering. Route tables will steer traffic through the
+                    correct egress path depending on subnet classification.
+                </p>
+                <p>
+                    By the end of this operation you will understand the difference between stateful
+                    Security Groups and stateless NACLs, how <code>0.0.0.0/0</code> routes interact
+                    with gateways, and how to verify connectivity using <code>aws ec2 describe-vpcs</code>
+                    and instance reachability checks.
+                </p>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>AWS account with IAM permissions for VPC, EC2, and networking resources</li>
+                <li>AWS CLI installed and configured with access key and secret (<code>aws configure</code>)</li>
+                <li>Basic understanding of IPv4 CIDR notation and subnetting</li>
+                <li>Familiarity with SSH key pairs for EC2 instance access</li>
+                <li>Understanding of TCP/IP ports and protocol concepts (HTTP, HTTPS, SSH)</li>
+            </ul>
+        </div>
+
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">VPC Creation and CIDR Planning</div>
+                        <div class="cf-evidence-desc">
+                            Create a VPC with CIDR block <code>10.0.0.0/16</code> using the AWS Console
+                            or CLI with <code>aws ec2 create-vpc --cidr-block 10.0.0.0/16</code>. Enable
+                            DNS hostnames and DNS resolution on the VPC. Plan your subnet layout: a public
+                            subnet at <code>10.0.1.0/24</code> and a private subnet at <code>10.0.2.0/24</code>
+                            in the same Availability Zone. Create both subnets and tag them appropriately.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Internet Gateway and Route Tables</div>
+                        <div class="cf-evidence-desc">
+                            Create and attach an Internet Gateway to your VPC with
+                            <code>aws ec2 create-internet-gateway</code> followed by
+                            <code>aws ec2 attach-internet-gateway</code>. Create a public route table
+                            with a default route <code>0.0.0.0/0</code> pointing to the IGW. Associate
+                            it with the public subnet. Create a separate private route table and associate
+                            it with the private subnet. Enable auto-assign public IPs on the public subnet.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">NAT Gateway for Private Subnet Egress</div>
+                        <div class="cf-evidence-desc">
+                            Allocate an Elastic IP address for the NAT Gateway with
+                            <code>aws ec2 allocate-address --domain vpc</code>. Create the NAT Gateway
+                            in the public subnet using the allocated EIP. Update the private route table
+                            to route <code>0.0.0.0/0</code> through the NAT Gateway. Verify that instances
+                            in the private subnet can reach the internet while remaining unreachable from
+                            external sources. Note the cost implications of a running NAT Gateway.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Security Groups and Network ACLs</div>
+                        <div class="cf-evidence-desc">
+                            Create a Security Group for the public EC2 instance allowing inbound SSH
+                            on port 22 from your IP only, and HTTP/HTTPS from <code>0.0.0.0/0</code>.
+                            Create a private SG allowing only traffic from the public SG on your application
+                            port. Configure Network ACLs for each subnet with explicit inbound and outbound
+                            rules, remembering that NACLs are stateless and require rules for both directions
+                            including ephemeral ports <code>1024-65535</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">EC2 Launch and Connectivity Verification</div>
+                        <div class="cf-evidence-desc">
+                            Launch a bastion EC2 instance into the public subnet with your public SG.
+                            Launch a second instance into the private subnet with the private SG.
+                            SSH into the bastion using its public IP, then hop to the private instance
+                            using its private IP. Verify the private instance can reach the internet
+                            through NAT by running <code>curl https://checkip.amazonaws.com</code>.
+                            Confirm it appears with the NAT Gateway's EIP, not its own IP.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">VPC Flow Logs and Cleanup</div>
+                        <div class="cf-evidence-desc">
+                            Enable VPC Flow Logs to capture accepted and rejected traffic to CloudWatch
+                            Logs. Generate some traffic, then query the logs to verify your Security Group
+                            and NACL rules are behaving as expected. Attempt a blocked connection and
+                            confirm the rejection appears in flow log records with the REJECT action.
+                            After verification, terminate instances and delete NAT Gateway to stop
+                            charges, then release the Elastic IP.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">AWS Console / CLI</div>
+                <div class="cf-manifest-item">VPC + Subnets</div>
+                <div class="cf-manifest-item">Internet Gateway</div>
+                <div class="cf-manifest-item">NAT Gateway</div>
+                <div class="cf-manifest-item">Security Groups</div>
+                <div class="cf-manifest-item">Network ACLs</div>
+                <div class="cf-manifest-item">Route Tables</div>
+                <div class="cf-manifest-item">Elastic IP</div>
+                <div class="cf-manifest-item">EC2 Instances</div>
+                <div class="cf-manifest-item">VPC Flow Logs</div>
+                <div class="cf-manifest-item">CloudWatch Logs</div>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Design and build a multi-tier VPC network from scratch</li>
+                <li>Configure stateful Security Groups vs stateless NACLs</li>
+                <li>Implement NAT Gateway for private subnet internet egress</li>
+                <li>Route traffic correctly through Internet and NAT gateways</li>
+                <li>SSH bastion pattern for secure private instance access</li>
+                <li>Analyze network traffic with VPC Flow Logs in CloudWatch</li>
+            </ul>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>

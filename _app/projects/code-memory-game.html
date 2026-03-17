@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build a Memory Card Game | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(74, 222, 128, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 222, 128, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(74, 222, 128, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 222, 128, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(74, 222, 128, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches — card grid layout, flip animation states, game state machine, score display */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%234ade80'%3E%3C!-- LEFT MARGIN: Card grid layout 4x4 --%3E%3Crect x='15' y='30' width='130' height='130' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='22' y='48' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.2'%3ECARD GRID 4x4%3C/text%3E%3Cline x1='15' y1='52' x2='145' y2='52' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='22' y='58' width='24' height='24' rx='2' stroke-width='1' opacity='0.16'/%3E%3Crect x='50' y='58' width='24' height='24' rx='2' stroke-width='1' opacity='0.14'/%3E%3Crect x='78' y='58' width='24' height='24' rx='2' stroke-width='1' opacity='0.12'/%3E%3Crect x='106' y='58' width='24' height='24' rx='2' stroke-width='1' opacity='0.1'/%3E%3Crect x='22' y='86' width='24' height='24' rx='2' stroke-width='1' opacity='0.14'/%3E%3Crect x='50' y='86' width='24' height='24' rx='2' stroke-width='1' opacity='0.12'/%3E%3Crect x='78' y='86' width='24' height='24' rx='2' stroke-width='1' opacity='0.1'/%3E%3Crect x='106' y='86' width='24' height='24' rx='2' stroke-width='1' opacity='0.08'/%3E%3Crect x='22' y='114' width='24' height='24' rx='2' stroke-width='1' opacity='0.12'/%3E%3Crect x='50' y='114' width='24' height='24' rx='2' stroke-width='1' fill='%234ade80' fill-opacity='0.08' opacity='0.14'/%3E%3Crect x='78' y='114' width='24' height='24' rx='2' stroke-width='1' fill='%234ade80' fill-opacity='0.08' opacity='0.14'/%3E%3Crect x='106' y='114' width='24' height='24' rx='2' stroke-width='1' opacity='0.08'/%3E%3Crect x='22' y='142' width='24' height='24' rx='2' stroke-width='1' opacity='0.1'/%3E%3Crect x='50' y='142' width='24' height='24' rx='2' stroke-width='1' opacity='0.08'/%3E%3Crect x='78' y='142' width='24' height='24' rx='2' stroke-width='1' opacity='0.08'/%3E%3Crect x='106' y='142' width='24' height='24' rx='2' stroke-width='1' opacity='0.06'/%3E%3C!-- LEFT MARGIN: Flip animation states --%3E%3Crect x='15' y='192' width='130' height='80' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='210' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3EFLIP STATES%3C/text%3E%3Cline x1='15' y1='214' x2='145' y2='214' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='22' y='220' width='22' height='36' rx='2' stroke-width='1' opacity='0.16'/%3E%3Ctext x='26' y='242' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.16'%3E?%3C/text%3E%3Ctext x='20' y='264' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.12'%3Eface-dn%3C/text%3E%3Crect x='62' y='220' width='22' height='36' rx='2' stroke-width='1' opacity='0.14' transform='skewY(-8)'/%3E%3Ctext x='56' y='264' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.1'%3Eflipping%3C/text%3E%3Crect x='106' y='220' width='22' height='36' rx='2' stroke-width='1' fill='%234ade80' fill-opacity='0.08' opacity='0.14'/%3E%3Ctext x='100' y='264' font-family='monospace' font-size='6' fill='%234ade80' stroke='none' opacity='0.12'%3Eface-up%3C/text%3E%3Cline x1='44' y1='238' x2='62' y2='238' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='84' y1='238' x2='106' y2='238' stroke-width='0.8' opacity='0.1'/%3E%3C!-- LEFT MARGIN: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='310' x2='8' y2='580'/%3E%3Cline x1='4' y1='310' x2='12' y2='310'/%3E%3Cline x1='4' y1='360' x2='12' y2='360'/%3E%3Cline x1='4' y1='410' x2='12' y2='410'/%3E%3Cline x1='4' y1='460' x2='12' y2='460'/%3E%3Cline x1='4' y1='510' x2='12' y2='510'/%3E%3Cline x1='4' y1='560' x2='12' y2='560'/%3E%3C/g%3E%3C!-- LEFT MARGIN: circuit traces --%3E%3Cpath d='M5 620 L40 620 L40 600 L80 600 L80 620 L120 620' stroke-width='1.2' opacity='0.12' fill='none'/%3E%3Ccircle cx='40' cy='600' r='3' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Ccircle cx='80' cy='600' r='3' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3C!-- RIGHT MARGIN: Game state machine --%3E%3Crect x='878' y='30' width='117' height='190' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='886' y='48' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.2'%3EGAME STATE FSM%3C/text%3E%3Cline x1='878' y1='54' x2='995' y2='54' stroke-width='1' opacity='0.12'/%3E%3Crect x='896' y='62' width='70' height='18' rx='2' stroke-width='1' opacity='0.16'/%3E%3Ctext x='904' y='75' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.16'%3EIDLE%3C/text%3E%3Cline x1='931' y1='80' x2='931' y2='94' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='931,94 927,88 935,88' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='888' y='96' width='86' height='18' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='896' y='109' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.14'%3EONE_FLIPPED%3C/text%3E%3Cline x1='931' y1='114' x2='931' y2='128' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='931,128 927,122 935,122' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Crect x='888' y='130' width='86' height='18' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='892' y='143' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.12'%3ETWO_FLIPPED%3C/text%3E%3Cline x1='931' y1='148' x2='931' y2='162' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='931,162 927,156 935,156' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3Crect x='896' y='164' width='70' height='18' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='904' y='177' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.1'%3ECHECKING%3C/text%3E%3Cline x1='931' y1='182' x2='931' y2='196' stroke-width='1' opacity='0.08'/%3E%3Cpolygon points='931,196 927,190 935,190' fill='%234ade80' stroke='none' opacity='0.08'/%3E%3Crect x='896' y='198' width='70' height='18' rx='2' stroke-width='1' opacity='0.08'/%3E%3Ctext x='900' y='211' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.08'%3EWON / RESET%3C/text%3E%3C!-- RIGHT MARGIN: Score display panel --%3E%3Crect x='878' y='250' width='117' height='100' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='890' y='268' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.18'%3ESCORE PANEL%3C/text%3E%3Cline x1='878' y1='274' x2='995' y2='274' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='886' y='292' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.14'%3EMoves: 24%3C/text%3E%3Ctext x='886' y='308' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.12'%3ETime: 01:42%3C/text%3E%3Ctext x='886' y='324' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.1'%3EBest: 18 moves%3C/text%3E%3Ctext x='886' y='340' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.08'%3EPairs: 8 / 8%3C/text%3E%3C!-- RIGHT MARGIN: code snippet --%3E%3Crect x='883' y='380' width='112' height='80' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='890' y='396' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3EuseState%3C/text%3E%3Ctext x='890' y='410' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3E(flipped: [])%3C/text%3E%3Ctext x='890' y='424' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3EuseEffect%3C/text%3E%3Ctext x='890' y='438' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.08'%3E([flipped])%3C/text%3E%3C!-- RIGHT MARGIN: vertical dashed line --%3E%3Cline x1='873' y1='250' x2='873' y2='650' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- CENTER: Data flow --%3E%3Crect x='260' y='130' width='80' height='32' rx='3' stroke-width='1.8' opacity='0.18'/%3E%3Ctext x='270' y='151' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.18'%3EshuffleCards%3C/text%3E%3Cline x1='340' y1='146' x2='375' y2='146' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='375,146 369,142 369,150' fill='%234ade80' stroke='none' opacity='0.16'/%3E%3Crect x='380' y='130' width='80' height='32' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='390' y='151' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.16'%3EonCardClick%3C/text%3E%3Cline x1='460' y1='146' x2='495' y2='146' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='495,146 489,142 489,150' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='500' y='130' width='80' height='32' rx='3' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='510' y='151' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.14'%3EcheckMatch%3C/text%3E%3Cline x1='580' y1='146' x2='615' y2='146' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='615,146 609,142 609,150' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Crect x='620' y='130' width='80' height='32' rx='3' stroke-width='1' opacity='0.12'/%3E%3Ctext x='626' y='151' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.12'%3EupdateScore%3C/text%3E%3C!-- Center: difficulty selector --%3E%3Crect x='320' y='220' width='130' height='44' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='334' y='238' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.16'%3EDIFFICULTY%3C/text%3E%3Ctext x='328' y='254' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.12'%3E4x4 | 6x6 | 8x8%3C/text%3E%3C!-- Center: crosshair marks --%3E%3Cg opacity='0.22' stroke-width='1.8'%3E%3Cline x1='390' y1='460' x2='410' y2='460'/%3E%3Cline x1='400' y1='450' x2='400' y2='470'/%3E%3Ccircle cx='400' cy='460' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='650' y1='420' x2='670' y2='420'/%3E%3Cline x1='660' y1='410' x2='660' y2='430'/%3E%3Ccircle cx='660' cy='420' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='50' y1='560' x2='70' y2='560'/%3E%3Cline x1='60' y1='550' x2='60' y2='570'/%3E%3Ccircle cx='60' cy='560' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- Diagonal construction lines --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.08' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.07' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.06' stroke-dasharray='6 10'/%3E%3C!-- Ruler bottom edge --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3C/g%3E%3C!-- Annotations --%3E%3Ctext x='40' y='480' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.12' transform='rotate(-12 40 480)'%3EuseRef()%3C/text%3E%3Ctext x='560' y='480' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1'%3EsetTimeout%3C/text%3E%3Ctext x='300' y='340' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.08' transform='rotate(5 300 340)'%3Eshuffle(arr)%3C/text%3E%3C!-- Diamond markers --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #4ade80;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #121e16 0%, #12191c 100%);
+            border: 1px solid rgba(74, 222, 128, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(74, 222, 128, 0.06);
+        }
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px; height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(74, 222, 128, 0.25) 0%,
+                rgba(74, 222, 128, 0.12) 60%,
+                rgba(74, 222, 128, 0.06) 100%);
+            border: 3px solid rgba(74, 222, 128, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(74, 222, 128, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px; left: 6px;
+            width: 18px; height: 10px;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px; height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #4ade80;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff { color: #4ade80; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #4ade80; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.25); }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131a16 0%, #11161b 100%);
+            border: 1px solid rgba(74, 222, 128, 0.08);
+            border-left: 3px solid rgba(74, 222, 128, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px; left: 36px;
+            width: 20px; height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px; right: 40px;
+            width: 60px; height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #4ade80;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px; height: 8px;
+            background: #4ade80;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px; height: 16px;
+            border: 1.5px solid rgba(74, 222, 128, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(74, 222, 128, 0.06);
+        }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(74, 222, 128, 0.02);
+            border: 1px solid rgba(74, 222, 128, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(74, 222, 128, 0.25);
+            background: rgba(74, 222, 128, 0.04);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.06);
+        }
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px; left: 34px;
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(74, 222, 128, 0.04);
+            border: 1px solid rgba(74, 222, 128, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover { background: rgba(74, 222, 128, 0.08); border-color: rgba(74, 222, 128, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #4ade80; }
+
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #4ade80;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(74, 222, 128, 0.3) 0%,
+                rgba(74, 222, 128, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CD-MEM-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CD-MEM-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-17</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-laptop.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Code House</span>
+                    <span class="cf-house-domain">Software Development Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a Memory Card Game</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Beginner</span>
+                <span class="cf-badge cf-badge-time">60 min</span>
+                <span class="cf-badge cf-badge-xp">250 XP</span>
+            </div>
+        </div>
+
+        <!-- Mission Brief -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Your assignment is to build an interactive <strong>memory card matching game</strong>
+                    using React. The board displays a grid of face-down cards containing emoji pairs.
+                    The player flips two cards per turn &mdash; a match keeps both cards face-up and
+                    a mismatch flips them back after a brief delay. The game ends when all pairs are
+                    found.
+                </p>
+                <p>
+                    Card flip animations are driven by CSS 3D transforms with a
+                    <strong>rotateY perspective flip</strong>. Game state lives in React hooks:
+                    <code>useState</code> manages the card array, the two currently flipped cards,
+                    and the matched pair set. A <code>useEffect</code> watches the flipped pair and
+                    triggers the match check, using <code>setTimeout</code> for the flip-back delay
+                    that gives the player time to register mismatches.
+                </p>
+                <p>
+                    A <strong>move counter</strong> increments on every second flip, and a
+                    <strong>timer</strong> runs from the first card click. At game over, a results
+                    modal displays both metrics alongside the personal best loaded from
+                    <code>localStorage</code>, with the option to replay at a higher difficulty.
+                </p>
+            </div>
+        </div>
+
+        <!-- Agent Requirements -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>React fundamentals: functional components, JSX syntax</li>
+                <li>Core hooks: <code>useState</code> for state, <code>useEffect</code> for side effects</li>
+                <li>CSS basics: flexbox/grid for layout, transitions for animations</li>
+                <li>Array methods: <code>map</code>, <code>filter</code>, <code>sort</code> for card manipulation</li>
+                <li>Familiarity with <code>localStorage.getItem</code> and <code>setItem</code></li>
+            </ul>
+        </div>
+
+        <!-- Operation Phases -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Card Data and Fisher-Yates Shuffle</div>
+                        <div class="cf-evidence-desc">
+                            Define an array of emoji pairs (e.g., 8 unique symbols duplicated to
+                            16 cards). Each card object has <code>id</code>, <code>symbol</code>,
+                            <code>isFlipped</code>, and <code>isMatched</code> fields. Implement a
+                            <code>shuffleCards()</code> function using the Fisher-Yates algorithm to
+                            randomize order on every new game. This function returns a fresh array
+                            with all cards face-down.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Card Component with 3D Flip Animation</div>
+                        <div class="cf-evidence-desc">
+                            Build a <code>Card</code> component that renders two faces: a face-down
+                            back and a face-up front. Use CSS <code>transform-style: preserve-3d</code>
+                            and <code>rotateY(180deg)</code> toggled by the <code>isFlipped</code>
+                            prop. The <code>backface-visibility: hidden</code> property ensures only
+                            one face is visible at a time. The component fires an <code>onFlip(id)</code>
+                            callback and must ignore clicks when already flipped or matched.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Game Logic: Pair Matching and Lock-Out</div>
+                        <div class="cf-evidence-desc">
+                            In the parent <code>Game</code> component, track <code>flippedCards</code>
+                            as an array of up to two card ids. A <code>useEffect</code> on
+                            <code>flippedCards</code> fires when length equals two: if the symbols
+                            match, mark both as <code>isMatched</code> and clear the flipped array.
+                            If they do not match, set a <code>isLocked</code> flag to block further
+                            clicks, then use a 900ms <code>setTimeout</code> to flip both back and
+                            clear the lock.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Move Counter, Timer, and Difficulty Levels</div>
+                        <div class="cf-evidence-desc">
+                            Increment a <code>moves</code> counter each time a second card is
+                            flipped. Start a <code>useRef</code>-based interval timer on the first
+                            card click, storing elapsed seconds in state. Add a difficulty selector
+                            above the board: Easy (4x4 / 8 pairs), Medium (4x6 / 12 pairs), Hard
+                            (4x8 / 16 pairs). Changing difficulty calls <code>shuffleCards(n)</code>
+                            with the appropriate count and resets all state.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Win Detection and High Score Storage</div>
+                        <div class="cf-evidence-desc">
+                            When all pairs are matched, stop the timer and display a win modal
+                            showing moves taken and time elapsed. Load the previous best score from
+                            <code>localStorage</code> keyed by difficulty (e.g.,
+                            <code>memgame_best_easy</code>). If the current score beats the record,
+                            write the new best and show a "New Record" banner in the modal. The modal
+                            offers Play Again (same difficulty) and Change Difficulty options.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Asset Manifest -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">React 18</div>
+                <div class="cf-manifest-item">useState / useEffect / useRef</div>
+                <div class="cf-manifest-item">CSS 3D Transforms</div>
+                <div class="cf-manifest-item">Fisher-Yates Shuffle</div>
+                <div class="cf-manifest-item">localStorage</div>
+                <div class="cf-manifest-item">Vite (dev server)</div>
+                <div class="cf-manifest-item">CSS Modules</div>
+            </div>
+        </div>
+
+        <!-- Expected Outcomes -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>React hook composition &mdash; coordinating state across multiple concerns</li>
+                <li>CSS 3D flip animation with backface visibility control</li>
+                <li>Side-effect timing with useEffect and setTimeout in tandem</li>
+                <li>Click-lock pattern to prevent invalid state during transitions</li>
+                <li>Conditional rendering for win modal and difficulty selection</li>
+                <li>localStorage persistence keyed by game variant</li>
+            </ul>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>

@@ -116,7 +116,7 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — 68 total (12 software + 16 hardware + 40 educative-inspired).
+    // Project definitions — 88 total (12 software + 16 hardware + 60 educative-inspired).
     // -------------------------------------------------------------------------
     projects: [
         {
@@ -739,6 +739,188 @@ const ProjectsData = {
             house: 'forge',
             title: 'Build a Crossword Puzzle Generator',
             description: 'Create a crossword puzzle generator with Vite featuring automated grid layout, clue management, interactive solving, validation logic, and Vitest testing.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+
+        // ── Wave 4: Educative-Inspired Projects (pages 41-51) ──────────────────
+        {
+            id: 'code-ecommerce-stripe',
+            house: 'code',
+            title: 'Build an E-Commerce Store with Stripe',
+            description: 'Build an e-commerce store with Node.js, Express, and Stripe API. Implement product catalog, shopping cart, checkout flow, and webhook payment handling.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'code-memory-game',
+            house: 'code',
+            title: 'Build a Memory Card Game',
+            description: 'Build an interactive memory matching game with React featuring card flip animations, pair matching logic, move counter, timer, and difficulty levels.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'code-wordle-clone',
+            house: 'code',
+            title: 'Build a Wordle Clone',
+            description: 'Build a Wordle word-guessing game with React. Implement letter-by-letter input, color-coded feedback, virtual keyboard, and streak tracking.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'web-elearning-flask',
+            house: 'web',
+            title: 'Build an E-Learning Platform',
+            description: 'Build an e-learning website with Flask and SQLAlchemy featuring course catalog, search, user enrollment, progress tracking, and responsive Bootstrap design.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'cloud-helm-charts',
+            house: 'cloud',
+            title: 'Create Custom Helm Charts for K8s',
+            description: 'Create and publish Helm charts for Kubernetes. Write templates with values.yaml, implement dependencies, test with helm lint, and publish to Artifact Hub.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'cloud-aws-vpc',
+            house: 'cloud',
+            title: 'AWS Networking and VPC Security',
+            description: 'Learn AWS networking by building a VPC with subnets, security groups, NACLs, route tables, internet gateway, and NAT gateway for secure architecture.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'cloud-serverless-django',
+            house: 'cloud',
+            title: 'Deploy Serverless Django on AWS',
+            description: 'Deploy serverless Django on AWS using Zappa and SAM. Configure API Gateway, Lambda, RDS, S3 static files, and CloudWatch monitoring.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'ai-rasa-chatbot',
+            house: 'ai',
+            title: 'Build a Conversational AI with Rasa',
+            description: 'Build an AI chatbot with Rasa. Create training data, define intents and entities, build conversation flows, train the NLU pipeline, and deploy with Flask.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'ai-face-detection',
+            house: 'ai',
+            title: 'Face Detection with OpenCV',
+            description: 'Implement face detection using Dlib and DNN in OpenCV. Build HOG and SSD detectors, benchmark accuracy and speed, and visualize bounding boxes.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'ai-data-augmentation',
+            house: 'ai',
+            title: 'Data Augmentation for ML Datasets',
+            description: 'Enhance ML model performance with data augmentation using OpenCV, TensorFlow, and imgaug. Apply rotation, flipping, color jitter, noise, and cutout transforms.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'matrix-plotly-viz',
+            house: 'matrix',
+            title: 'Interactive Visualization with Plotly',
+            description: 'Build interactive visualizations with Plotly.js featuring histograms, pie charts, scatter plots, 3D surfaces, animated transitions, and drill-down tooltips.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'matrix-stock-analysis',
+            house: 'matrix',
+            title: 'Stock Market Data Visualization',
+            description: 'Explore stock market trends with Python using candlestick charts, moving averages, volume analysis, correlation heatmaps, and predictive modeling.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'matrix-kafka-streaming',
+            house: 'matrix',
+            title: 'Build a Streaming Data Pipeline',
+            description: 'Build a real-time streaming pipeline with Apache Kafka. Implement producers, consumers, topic partitioning, event processing, and live visualization.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'key-brownie-contracts',
+            house: 'key',
+            title: 'Deploy Smart Contracts with Brownie',
+            description: 'Develop and deploy Ethereum smart contracts using Brownie with Solidity. Write tests, deployment scripts, and interact via Python console on testnet.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'shield-aws-cognito',
+            house: 'shield',
+            title: 'User Auth with AWS Cognito',
+            description: 'Implement user authentication with AWS Cognito. Configure user pools, identity pools, MFA, OAuth flows, JWT validation, and role-based access control.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'darkarts-puppeteer',
+            house: 'dark-arts',
+            title: 'Headless Scraping with Puppeteer',
+            description: 'Master headless web scraping with Puppeteer and Node.js. Automate browser interactions, handle dynamic JS content, bypass bot detection, and extract data.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'script-data-pipeline',
+            house: 'script',
+            title: 'Build a Data Pipeline with Dashboard',
+            description: 'Create a data pipeline with Python using Kedro and hvPlot. Implement ingestion, transformation nodes, DAG execution, and an interactive dashboard.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'eye-pytorch-onnx',
+            house: 'eye',
+            title: 'Run PyTorch Models in the Browser',
+            description: 'Convert PyTorch ResNet-18 to ONNX and run inference in JavaScript with ONNX Runtime Web. Implement preprocessing, classification, and benchmarking.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'forge-spring-fullstack',
+            house: 'forge',
+            title: 'Build a Full-Stack App with Spring Boot',
+            description: 'Build a full-stack app with Spring Boot and Thymeleaf. Implement MVC architecture, JPA database config, form handling, and CRUD operations.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'divergent-manim',
+            house: 'divergent',
+            title: 'Create Math Animations with Manim',
+            description: 'Create mathematical animations with the Manim Python library. Render geometric transformations, function plots, 3D surfaces, and LaTeX equations.',
             difficulty: 'beginner',
             minutes: 60,
             xp: 250

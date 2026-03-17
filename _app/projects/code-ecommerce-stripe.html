@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build an E-Commerce Store with Stripe | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(74, 222, 128, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 222, 128, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(74, 222, 128, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 222, 128, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(74, 222, 128, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — shopping cart, Stripe flow, payment state machine, product grid */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%234ade80'%3E%3C!-- LEFT MARGIN: Shopping cart wireframe --%3E%3Crect x='15' y='30' width='130' height='100' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='22' y='48' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.2'%3ECART WIREFRAME%3C/text%3E%3Cline x1='15' y1='52' x2='145' y2='52' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='22' y='58' width='90' height='12' rx='1' stroke-width='1' opacity='0.14'/%3E%3Ctext x='26' y='68' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3EProduct A x1%3C/text%3E%3Ctext x='112' y='68' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3E$20%3C/text%3E%3Crect x='22' y='74' width='90' height='12' rx='1' stroke-width='1' opacity='0.12'/%3E%3Ctext x='26' y='84' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3EProduct B x2%3C/text%3E%3Ctext x='112' y='84' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3E$48%3C/text%3E%3Cline x1='22' y1='90' x2='135' y2='90' stroke-width='0.8' opacity='0.1' stroke-dasharray='3 3'/%3E%3Ctext x='26' y='102' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.16'%3ETotal: $68.00%3C/text%3E%3Crect x='60' y='108' width='72' height='14' rx='2' stroke-width='1.2' opacity='0.18'/%3E%3Ctext x='72' y='119' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.18'%3ECHECKOUT%3C/text%3E%3C!-- LEFT MARGIN: Payment state machine --%3E%3Crect x='15' y='160' width='130' height='140' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='178' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3EPAYMENT FSM%3C/text%3E%3Cline x1='15' y1='182' x2='145' y2='182' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='40' y='188' width='72' height='18' rx='2' stroke-width='1' opacity='0.16'/%3E%3Ctext x='52' y='201' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.16'%3Eidle%3C/text%3E%3Cline x1='76' y1='206' x2='76' y2='218' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='76,218 72,212 80,212' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='30' y='220' width='90' height='18' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='38' y='233' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.14'%3Eprocessing%3C/text%3E%3Cline x1='76' y1='238' x2='76' y2='250' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='76,250 72,244 80,244' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Crect x='32' y='252' width='44' height='18' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='38' y='265' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.12'%3Epaid%3C/text%3E%3Cline x1='80' y1='261' x2='95' y2='261' stroke-width='1' opacity='0.1'/%3E%3Crect x='96' y='252' width='44' height='18' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='100' y='265' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Efailed%3C/text%3E%3C!-- LEFT MARGIN: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='340' x2='8' y2='600'/%3E%3Cline x1='4' y1='340' x2='12' y2='340'/%3E%3Cline x1='4' y1='390' x2='12' y2='390'/%3E%3Cline x1='4' y1='440' x2='12' y2='440'/%3E%3Cline x1='4' y1='490' x2='12' y2='490'/%3E%3Cline x1='4' y1='540' x2='12' y2='540'/%3E%3Cline x1='4' y1='590' x2='12' y2='590'/%3E%3C/g%3E%3C!-- LEFT MARGIN: circuit traces --%3E%3Cpath d='M5 640 L40 640 L40 620 L80 620 L80 640 L120 640' stroke-width='1.2' opacity='0.12' fill='none'/%3E%3Cpath d='M5 660 L25 660 L25 678 L60 678 L60 660 L90 660 L90 680 L120 680' stroke-width='1' opacity='0.08' fill='none'/%3E%3Ccircle cx='40' cy='620' r='3' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Ccircle cx='80' cy='620' r='3' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3C!-- RIGHT MARGIN: Stripe checkout flow --%3E%3Crect x='878' y='30' width='117' height='200' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='890' y='48' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.2'%3ESTRIPE FLOW%3C/text%3E%3Cline x1='878' y1='54' x2='995' y2='54' stroke-width='1' opacity='0.12'/%3E%3Crect x='890' y='62' width='90' height='22' rx='2' stroke-width='1' opacity='0.16'/%3E%3Ctext x='898' y='77' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.18'%3EcreateIntent%3C/text%3E%3Cline x1='935' y1='84' x2='935' y2='98' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='935,98 931,92 939,92' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='890' y='100' width='90' height='22' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='898' y='115' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.16'%3EclientSecret%3C/text%3E%3Cline x1='935' y1='122' x2='935' y2='136' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='935,136 931,130 939,130' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Crect x='890' y='138' width='90' height='22' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='898' y='153' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.14'%3EconfirmCard%3C/text%3E%3Cline x1='935' y1='160' x2='935' y2='174' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='935,174 931,168 939,168' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3Crect x='890' y='176' width='90' height='22' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='898' y='191' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3Ewebhook event%3C/text%3E%3Cline x1='935' y1='198' x2='935' y2='212' stroke-width='1' opacity='0.08'/%3E%3Cpolygon points='935,212 931,206 939,206' fill='%234ade80' stroke='none' opacity='0.08'/%3E%3Crect x='890' y='214' width='90' height='14' rx='2' stroke-width='1' opacity='0.08'/%3E%3Ctext x='898' y='225' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Eorder confirm%3C/text%3E%3C!-- RIGHT MARGIN: product grid layout --%3E%3Crect x='878' y='260' width='117' height='100' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='890' y='278' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.18'%3EPRODUCT GRID%3C/text%3E%3Cline x1='878' y1='284' x2='995' y2='284' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='888' y='290' width='42' height='32' rx='1' stroke-width='1' opacity='0.14'/%3E%3Crect x='934' y='290' width='42' height='32' rx='1' stroke-width='1' opacity='0.12'/%3E%3Crect x='888' y='326' width='42' height='32' rx='1' stroke-width='1' opacity='0.1'/%3E%3Crect x='934' y='326' width='42' height='32' rx='1' stroke-width='1' opacity='0.08'/%3E%3Ctext x='895' y='310' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Eitem%3C/text%3E%3Ctext x='941' y='310' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3Eitem%3C/text%3E%3C!-- RIGHT MARGIN: code snippet --%3E%3Crect x='883' y='390' width='112' height='80' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='890' y='406' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.14'%3Estripe.create%3C/text%3E%3Ctext x='890' y='420' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.12'%3EPaymentIntent(%3C/text%3E%3Ctext x='896' y='434' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.1'%3Eamount,%3C/text%3E%3Ctext x='896' y='448' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.08'%3Ecurrency%3C/text%3E%3Ctext x='890' y='462' font-family='monospace' font-size='7' fill='%234ade80' stroke='none' opacity='0.07'%3E);%3C/text%3E%3C!-- RIGHT MARGIN: vertical dashed line --%3E%3Cline x1='873' y1='250' x2='873' y2='650' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- CENTER: Architecture flow boxes --%3E%3Crect x='240' y='130' width='80' height='32' rx='3' stroke-width='1.8' opacity='0.18'/%3E%3Ctext x='252' y='151' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.18'%3ECATALOG%3C/text%3E%3Cline x1='320' y1='146' x2='355' y2='146' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='355,146 349,142 349,150' fill='%234ade80' stroke='none' opacity='0.16'/%3E%3Crect x='360' y='130' width='80' height='32' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='376' y='151' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.16'%3ECART%3C/text%3E%3Cline x1='440' y1='146' x2='475' y2='146' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='475,146 469,142 469,150' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='480' y='130' width='80' height='32' rx='3' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='490' y='151' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.14'%3ECHECKOUT%3C/text%3E%3Cline x1='560' y1='146' x2='595' y2='146' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='595,146 589,142 589,150' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Crect x='600' y='130' width='80' height='32' rx='3' stroke-width='1' opacity='0.12'/%3E%3Ctext x='612' y='151' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.12'%3ESTRIPE%3C/text%3E%3C!-- Center: webhook flow --%3E%3Crect x='340' y='220' width='110' height='44' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='356' y='238' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.16'%3Ewebhook%3C/text%3E%3Ctext x='352' y='254' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.12'%3Ehandler.js%3C/text%3E%3Cline x1='450' y1='242' x2='510' y2='242' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='510,242 504,238 504,246' fill='%234ade80' stroke='none' opacity='0.14'/%3E%3Crect x='515' y='220' width='110' height='44' rx='3' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='528' y='238' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.14'%3EorderDB%3C/text%3E%3Ctext x='528' y='254' font-family='monospace' font-size='8' fill='%234ade80' stroke='none' opacity='0.1'%3Eupdate()%3C/text%3E%3C!-- Center: crosshair marks --%3E%3Cg opacity='0.22' stroke-width='1.8'%3E%3Cline x1='390' y1='460' x2='410' y2='460'/%3E%3Cline x1='400' y1='450' x2='400' y2='470'/%3E%3Ccircle cx='400' cy='460' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='650' y1='420' x2='670' y2='420'/%3E%3Cline x1='660' y1='410' x2='660' y2='430'/%3E%3Ccircle cx='660' cy='420' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='50' y1='560' x2='70' y2='560'/%3E%3Cline x1='60' y1='550' x2='60' y2='570'/%3E%3Ccircle cx='60' cy='560' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='940' y1='730' x2='960' y2='730'/%3E%3Cline x1='950' y1='720' x2='950' y2='740'/%3E%3Ccircle cx='950' cy='730' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- Diagonal construction lines --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.08' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.07' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.06' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.06' stroke-dasharray='8 10'/%3E%3C!-- Ruler bottom edge --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- Scattered annotations --%3E%3Ctext x='40' y='480' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.12' transform='rotate(-12 40 480)'%3Ereq.body%3C/text%3E%3Ctext x='560' y='480' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1'%3Eres.json()%3C/text%3E%3Ctext x='300' y='340' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.08' transform='rotate(5 300 340)'%3Ecart.push()%3C/text%3E%3Ctext x='620' y='400' font-family='monospace' font-size='9' fill='%234ade80' stroke='none' opacity='0.1' transform='rotate(-3 620 400)'%3Esession.cart%3C/text%3E%3C!-- Diamond markers --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%234ade80' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%234ade80' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #4ade80;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #121e16 0%, #12191c 100%);
+            border: 1px solid rgba(74, 222, 128, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(74, 222, 128, 0.06);
+        }
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(74, 222, 128, 0.25) 0%,
+                rgba(74, 222, 128, 0.12) 60%,
+                rgba(74, 222, 128, 0.06) 100%);
+            border: 3px solid rgba(74, 222, 128, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(74, 222, 128, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #4ade80;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131a16 0%, #11161b 100%);
+            border: 1px solid rgba(74, 222, 128, 0.08);
+            border-left: 3px solid rgba(74, 222, 128, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #4ade80;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites ────────────────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(74, 222, 128, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(74, 222, 128, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(74, 222, 128, 0.02);
+            border: 1px solid rgba(74, 222, 128, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(74, 222, 128, 0.25);
+            background: rgba(74, 222, 128, 0.04);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.06);
+        }
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest ──────────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(74, 222, 128, 0.04);
+            border: 1px solid rgba(74, 222, 128, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(74, 222, 128, 0.08);
+            border-color: rgba(74, 222, 128, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #4ade80;
+        }
+
+        /* ── Debrief ─────────────────────────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #4ade80;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(74, 222, 128, 0.3) 0%,
+                rgba(74, 222, 128, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CD-ECS-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- Dossier Cover -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CD-ECS-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-17</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-laptop.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Code House</span>
+                    <span class="cf-house-domain">Software Development Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build an E-Commerce Store with Stripe</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">90 min</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- Mission Brief -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Your assignment is to build a fully functional <strong>e-commerce storefront</strong>
+                    using Node.js and Express on the backend with the Stripe API handling all payment
+                    processing. The store will serve a static product catalog, manage a server-side
+                    shopping cart via sessions, and guide customers through a complete checkout experience
+                    ending in order confirmation.
+                </p>
+                <p>
+                    Stripe integration goes beyond a simple charge call. You will implement
+                    <strong>PaymentIntents</strong> for PCI-compliant card collection, use Stripe
+                    Elements on the frontend to render a hosted card form, and set up a
+                    <strong>webhook endpoint</strong> to receive asynchronous payment events such as
+                    <code>payment_intent.succeeded</code> and <code>payment_intent.payment_failed</code>.
+                    Webhook signatures must be verified using your endpoint secret.
+                </p>
+                <p>
+                    This project drills server-side routing, session management, third-party API
+                    integration, and the critical distinction between client-side and server-side trust.
+                    Real payment amounts must always be calculated server-side &mdash; never trust
+                    a price submitted from the browser.
+                </p>
+            </div>
+        </div>
+
+        <!-- Agent Requirements -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Node.js installed; comfortable with <code>npm init</code> and installing packages</li>
+                <li>Basic Express routing: <code>app.get</code>, <code>app.post</code>, middleware</li>
+                <li>Understanding of HTTP request/response cycle and JSON APIs</li>
+                <li>Familiarity with environment variables and <code>.env</code> files via <code>dotenv</code></li>
+                <li>Basic HTML and JavaScript for rendering the product catalog and card form</li>
+                <li>A free Stripe test account with publishable and secret keys available</li>
+            </ul>
+        </div>
+
+        <!-- Operation Phases -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Project Setup and Product Catalog</div>
+                        <div class="cf-evidence-desc">
+                            Initialize a Node.js project and install <code>express</code>,
+                            <code>stripe</code>, <code>dotenv</code>, and <code>express-session</code>.
+                            Define a product catalog as a JavaScript array with id, name, price in
+                            cents, and description. Build a <code>GET /products</code> route that
+                            returns the catalog as JSON and a static HTML frontend that fetches and
+                            renders it as a product grid with "Add to Cart" buttons.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Shopping Cart with Server-Side Sessions</div>
+                        <div class="cf-evidence-desc">
+                            Implement cart routes: <code>POST /cart/add</code> accepts a product id
+                            and quantity, looks up the price server-side, and stores the line item in
+                            <code>req.session.cart</code>. Build <code>GET /cart</code> to return
+                            current cart contents with computed totals, and <code>DELETE /cart/:id</code>
+                            to remove items. Never accept a client-submitted price &mdash; always
+                            derive it from your server-side catalog.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Stripe PaymentIntent and Checkout Page</div>
+                        <div class="cf-evidence-desc">
+                            Create a <code>POST /checkout/create-intent</code> route that calculates
+                            the cart total server-side and calls <code>stripe.paymentIntents.create</code>
+                            with the amount and <code>currency: 'usd'</code>. Return the
+                            <code>client_secret</code> to the frontend. On the checkout page, load
+                            Stripe.js, mount a <strong>Card Element</strong> into a div, and call
+                            <code>stripe.confirmCardPayment(clientSecret, ...)</code> on form submit.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Webhook Handler for Payment Events</div>
+                        <div class="cf-evidence-desc">
+                            Register a <code>POST /webhook</code> route using Express raw body
+                            middleware (<code>express.raw</code>). Verify the event signature with
+                            <code>stripe.webhooks.constructEvent(payload, sig, endpointSecret)</code>
+                            &mdash; reject any request that fails verification with a 400 response.
+                            Handle <code>payment_intent.succeeded</code> to mark the order fulfilled
+                            and log the event. Use the Stripe CLI (<code>stripe listen</code>) to
+                            forward webhook events during local development.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Order Confirmation and Error Handling</div>
+                        <div class="cf-evidence-desc">
+                            On successful payment, redirect to a <code>/order-confirmation</code>
+                            page that displays the order summary and a confirmation number. Clear the
+                            cart from the session after confirmation. Add client-side error handling
+                            for declined cards &mdash; display the error message returned by Stripe
+                            directly in the UI. Test with Stripe's built-in test card numbers
+                            (<code>4242 4242 4242 4242</code> for success, <code>4000 0000 0000 9995</code>
+                            for decline).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Polish: Cart Persistence and UX Refinement</div>
+                        <div class="cf-evidence-desc">
+                            Add a persistent cart badge in the navigation that updates on every
+                            cart change via a <code>GET /cart/count</code> endpoint. Implement a
+                            loading state on the checkout button while the PaymentIntent is being
+                            created and while <code>confirmCardPayment</code> is processing. Add
+                            quantity controls (increment/decrement) on the cart page that call the
+                            cart update route and re-render totals without a full page reload.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Asset Manifest -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Node.js</div>
+                <div class="cf-manifest-item">Express</div>
+                <div class="cf-manifest-item">Stripe API</div>
+                <div class="cf-manifest-item">Stripe Elements</div>
+                <div class="cf-manifest-item">express-session</div>
+                <div class="cf-manifest-item">dotenv</div>
+                <div class="cf-manifest-item">Stripe CLI</div>
+                <div class="cf-manifest-item">HTML5 / CSS3</div>
+                <div class="cf-manifest-item">Fetch API</div>
+            </div>
+        </div>
+
+        <!-- Expected Outcomes -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Server-side price calculation &mdash; never trusting client-submitted amounts</li>
+                <li>Stripe PaymentIntent lifecycle from creation to confirmation</li>
+                <li>Webhook signature verification for secure event handling</li>
+                <li>Session-based cart management across multiple requests</li>
+                <li>Environment variable discipline with test vs. live key separation</li>
+                <li>Client-side error handling for declined and failed payments</li>
+            </ul>
+        </div>
+
+        <!-- End of File -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Deploy Serverless Django on AWS | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        .cf-drafting-table { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px, 100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches -- serverless architecture flow, Lambda cold start, API Gateway routing, CloudWatch metrics */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2338bdf8'%3E%3C!-- LEFT MARGIN: Serverless architecture stack --%3E%3Crect x='10' y='20' width='148' height='170' rx='3' stroke-width='2' opacity='0.16'/%3E%3Ctext x='22' y='38' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.22'%3ESERVERLESS STACK%3C/text%3E%3Cline x1='10' y1='44' x2='158' y2='44' stroke-width='0.8' opacity='0.12'/%3E%3C!-- Stack layers --%3E%3Crect x='18' y='52' width='132' height='20' rx='2' stroke-width='1.5' opacity='0.2' fill='%2338bdf8' fill-opacity='0.06'/%3E%3Ctext x='50' y='66' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.22'%3EAPI Gateway%3C/text%3E%3Cline x1='84' y1='72' x2='84' y2='80' stroke-width='1' opacity='0.16'/%3E%3Cpolygon points='84,80 80,76 88,76' fill='%2338bdf8' stroke='none' opacity='0.16'/%3E%3Crect x='18' y='82' width='132' height='20' rx='2' stroke-width='1.5' opacity='0.18' fill='%2338bdf8' fill-opacity='0.05'/%3E%3Ctext x='52' y='96' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.2'%3ELambda Fn%3C/text%3E%3Cline x1='84' y1='102' x2='84' y2='110' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='84,110 80,106 88,106' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Crect x='18' y='112' width='132' height='20' rx='2' stroke-width='1.5' opacity='0.16' fill='%2338bdf8' fill-opacity='0.04'/%3E%3Ctext x='58' y='126' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EDjango%3C/text%3E%3Cline x1='84' y1='132' x2='84' y2='140' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='84,140 80,136 88,136' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Crect x='18' y='142' width='62' height='20' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='26' y='156' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3ERDS Postgres%3C/text%3E%3Crect x='88' y='142' width='62' height='20' rx='2' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='96' y='156' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3ES3 Static%3C/text%3E%3C!-- Lambda cold start diagram --%3E%3Crect x='14' y='210' width='140' height='100' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='228' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3ECOLD START%3C/text%3E%3Cline x1='14' y1='234' x2='154' y2='234' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='18' y='248' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3E1. Init runtime%3C/text%3E%3Ctext x='18' y='260' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3E2. Load package%3C/text%3E%3Ctext x='18' y='272' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3E3. Import Django%3C/text%3E%3Ctext x='18' y='284' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3E4. Handle req%3C/text%3E%3Crect x='18' y='290' width='130' height='8' rx='1' stroke-width='0' fill='%2338bdf8' fill-opacity='0.08'/%3E%3Crect x='18' y='290' width='90' height='8' rx='1' stroke-width='0' fill='%2338bdf8' fill-opacity='0.12'/%3E%3Ctext x='112' y='298' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3E~800ms%3C/text%3E%3C!-- Left ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='340' x2='8' y2='620'/%3E%3Cline x1='4' y1='340' x2='12' y2='340'/%3E%3Cline x1='4' y1='390' x2='12' y2='390'/%3E%3Cline x1='4' y1='440' x2='12' y2='440'/%3E%3Cline x1='4' y1='490' x2='12' y2='490'/%3E%3Cline x1='4' y1='540' x2='12' y2='540'/%3E%3Cline x1='4' y1='590' x2='12' y2='590'/%3E%3C/g%3E%3C!-- Left: Zappa config snippet --%3E%3Crect x='14' y='340' width='140' height='80' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='358' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3EZAPPA CONFIG%3C/text%3E%3Cline x1='14' y1='364' x2='154' y2='364' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='18' y='378' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3E"dev": %7B%3C/text%3E%3Ctext x='24' y='390' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3E"app_fn": "wsgi"%3C/text%3E%3Ctext x='24' y='402' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3E"s3_bucket": ..%3C/text%3E%3Ctext x='18' y='414' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3E%7D%3C/text%3E%3C!-- Left: circuit traces --%3E%3Cpath d='M5 640 L40 640 L40 622 L80 622 L80 640 L120 640' stroke-width='1.2' opacity='0.1' fill='none'/%3E%3Ccircle cx='40' cy='622' r='3' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Ccircle cx='80' cy='622' r='3' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3C!-- RIGHT MARGIN: API Gateway routing --%3E%3Crect x='878' y='28' width='118' height='200' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='886' y='46' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.22'%3EAPI ROUTES%3C/text%3E%3Cline x1='878' y1='52' x2='996' y2='52' stroke-width='1' opacity='0.14'/%3E%3Ctext x='884' y='68' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EGET  /%3C/text%3E%3Cline x1='914' y1='70' x2='930' y2='70' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='932' y='74' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3ELambda%3C/text%3E%3Ctext x='884' y='86' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3EPOST /api%3C/text%3E%3Cline x1='914' y1='88' x2='930' y2='88' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='932' y='92' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3ELambda%3C/text%3E%3Ctext x='884' y='104' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EGET  /static%3C/text%3E%3Cline x1='934' y1='106' x2='950' y2='106' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='952' y='110' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3ES3%3C/text%3E%3Ctext x='884' y='122' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3EANY /%7Bproxy%7D%3C/text%3E%3Cline x1='934' y1='124' x2='950' y2='124' stroke-width='0.8' opacity='0.07'/%3E%3Ctext x='952' y='128' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.09'%3ELambda%3C/text%3E%3Cline x1='878' y1='138' x2='996' y2='138' stroke-width='0.6' opacity='0.08'/%3E%3Ctext x='884' y='154' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EAUTHORIZER%3C/text%3E%3Ctext x='884' y='168' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3EJWT Token%3C/text%3E%3Ctext x='884' y='180' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3ECognito Pool%3C/text%3E%3Ctext x='884' y='192' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.08'%3ECORS: enabled%3C/text%3E%3C!-- Right: CloudWatch metrics sketch --%3E%3Crect x='878' y='250' width='118' height='120' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='886' y='268' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3ECLOUDWATCH%3C/text%3E%3Cline x1='878' y1='274' x2='996' y2='274' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='884' y='290' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.16'%3EDuration: 324ms%3C/text%3E%3Ctext x='884' y='304' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3EInvocations: 142%3C/text%3E%3Ctext x='884' y='318' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3EErrors: 0%3C/text%3E%3Ctext x='884' y='332' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3EThrottles: 0%3C/text%3E%3Ctext x='884' y='346' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.08'%3EConcurrent: 12%3C/text%3E%3C!-- Right dashed separator --%3E%3Cline x1='874' y1='260' x2='874' y2='660' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- CENTER: full serverless request flow --%3E%3Crect x='240' y='100' width='80' height='36' rx='3' stroke-width='1.8' opacity='0.2' fill='%2338bdf8' fill-opacity='0.04'/%3E%3Ctext x='254' y='122' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.2'%3EClient%3C/text%3E%3Cline x1='320' y1='118' x2='360' y2='118' stroke-width='1.5' opacity='0.18'/%3E%3Cpolygon points='360,118 354,114 354,122' fill='%2338bdf8' stroke='none' opacity='0.18'/%3E%3Crect x='362' y='100' width='100' height='36' rx='3' stroke-width='1.5' opacity='0.18' fill='%2338bdf8' fill-opacity='0.05'/%3E%3Ctext x='372' y='122' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.2'%3EAPI Gateway%3C/text%3E%3Cline x1='462' y1='118' x2='500' y2='118' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='500,118 494,114 494,122' fill='%2338bdf8' stroke='none' opacity='0.16'/%3E%3Crect x='502' y='100' width='90' height='36' rx='3' stroke-width='1.5' opacity='0.16' fill='%2338bdf8' fill-opacity='0.04'/%3E%3Ctext x='516' y='122' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.18'%3ELambda%3C/text%3E%3Cline x1='592' y1='118' x2='630' y2='118' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='630,118 624,114 624,122' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Crect x='632' y='100' width='80' height='36' rx='3' stroke-width='1.2' opacity='0.14' fill='%2338bdf8' fill-opacity='0.03'/%3E%3Ctext x='644' y='122' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.16'%3EDjango%3C/text%3E%3C!-- Data stores below Lambda --%3E%3Cline x1='547' y1='136' x2='547' y2='170' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='480' y='172' width='80' height='28' rx='2' stroke-width='1.2' opacity='0.16' fill='%2338bdf8' fill-opacity='0.04'/%3E%3Ctext x='492' y='190' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3ERDS/Postgres%3C/text%3E%3Crect x='578' y='172' width='60' height='28' rx='2' stroke-width='1.2' opacity='0.14' fill='%2338bdf8' fill-opacity='0.03'/%3E%3Ctext x='590' y='190' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3ES3 Assets%3C/text%3E%3Cline x1='520' y1='170' x2='520' y2='172' stroke-width='1' opacity='0.12'/%3E%3Cline x1='600' y1='170' x2='600' y2='172' stroke-width='1' opacity='0.1'/%3E%3C!-- CloudWatch link --%3E%3Cline x1='547' y1='136' x2='730' y2='160' stroke-width='1' opacity='0.08' stroke-dasharray='5 5'/%3E%3Crect x='722' y='162' width='80' height='20' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='728' y='176' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3ECloudWatch Logs%3C/text%3E%3C!-- Center crosshairs --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='240' y1='440' x2='260' y2='440'/%3E%3Cline x1='250' y1='430' x2='250' y2='450'/%3E%3Ccircle cx='250' cy='440' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='750' y1='400' x2='770' y2='400'/%3E%3Cline x1='760' y1='390' x2='760' y2='410'/%3E%3Ccircle cx='760' cy='400' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- Diagonal construction lines --%3E%3Cline x1='0' y1='560' x2='380' y2='300' stroke-width='1.2' opacity='0.05' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='180' stroke-width='1' opacity='0.05' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='220' x2='180' y2='420' stroke-width='1' opacity='0.04' stroke-dasharray='6 10'/%3E%3C!-- Ruler edges --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- Annotations --%3E%3Ctext x='50' y='470' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.1' transform='rotate(-10 50 470)'%3Ezappa deploy dev%3C/text%3E%3Ctext x='560' y='490' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.09'%3Ecollectstatic%3C/text%3E%3Ctext x='300' y='440' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.08' transform='rotate(4 300 440)'%3Eaws-wsgi%3C/text%3E%3Ctext x='640' y='460' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.08'%3EKEEP_WARM%3C/text%3E%3C!-- Diamond markers --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        body::after { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px); pointer-events: none; z-index: 9000; }
+
+        .cf-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #0e1018; border-bottom: 1px solid rgba(56, 189, 248, 0.12); height: 48px; position: sticky; top: 0; z-index: 200; }
+        .cf-header a { font-size: 0.8rem; color: rgba(255,255,255,0.4); text-decoration: none; letter-spacing: 0.08em; transition: color 0.2s; }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title { font-size: 0.75rem; letter-spacing: 0.2em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-header-ref { font-size: 0.65rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); }
+
+        .cf-content { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; position: relative; z-index: 1; }
+
+        .cf-cover { position: relative; background: linear-gradient(170deg, #121a1e 0%, #12191c 100%); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 2px; padding: 48px 40px 40px; margin-bottom: 32px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 60px rgba(56, 189, 248, 0.06); }
+        .cf-stamp { position: absolute; top: 24px; right: 28px; font-size: 1.1rem; font-weight: 900; letter-spacing: 0.2em; color: rgba(220, 38, 38, 0.5); border: 3px solid rgba(220, 38, 38, 0.4); padding: 4px 14px; transform: rotate(3deg); text-transform: uppercase; border-radius: 2px; pointer-events: none; }
+        .cf-cover::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent 100%); }
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal { width: 68px; height: 68px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.25) 0%, rgba(56, 189, 248, 0.12) 60%, rgba(56, 189, 248, 0.06) 100%); border: 3px solid rgba(56, 189, 248, 0.5); box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; }
+        .cf-house-seal::after { content: ''; position: absolute; top: 3px; left: 6px; width: 18px; height: 10px; background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%); border-radius: 50%; pointer-events: none; }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); }
+
+        .cf-paper { background: linear-gradient(175deg, #131a1e 0%, #11161b 100%); border: 1px solid rgba(56, 189, 248, 0.08); border-left: 3px solid rgba(56, 189, 248, 0.2); border-radius: 2px; padding: 32px 36px; margin-bottom: 24px; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+        .cf-paper.has-clip::before { content: ''; position: absolute; top: -6px; left: 36px; width: 20px; height: 32px; border: 2px solid rgba(255,255,255,0.1); border-radius: 0 0 10px 10px; border-top: none; }
+        .cf-paper.has-tape::after { content: ''; position: absolute; top: -4px; right: 40px; width: 60px; height: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg); }
+        .cf-section-stamp { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #38bdf8; font-weight: 700; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.15); display: flex; align-items: center; gap: 8px; }
+        .cf-section-stamp::before { content: ''; width: 8px; height: 8px; background: #38bdf8; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6; }
+
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(56, 189, 248, 0.06); }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card { display: flex; gap: 18px; padding: 20px 22px; background: rgba(56, 189, 248, 0.02); border: 1px solid rgba(56, 189, 248, 0.08); border-radius: 2px; position: relative; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+        .cf-evidence-card:hover { border-color: rgba(56, 189, 248, 0.25); background: rgba(56, 189, 248, 0.04); box-shadow: 0 0 20px rgba(56, 189, 248, 0.06); }
+        .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
+        .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #38bdf8; }
+
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #38bdf8; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CL-SLS-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CL-SLS-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-17</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-cloud.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Cloud House</span>
+                    <span class="cf-house-domain">Cloud Infrastructure Division</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Deploy Serverless Django on AWS</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Advanced</span>
+                <span class="cf-badge cf-badge-time">120 min</span>
+                <span class="cf-badge cf-badge-xp">1000 XP</span>
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Your assignment is to take a Django web application and deploy it as a
+                    <strong>fully serverless, highly available</strong> system on AWS — eliminating
+                    EC2 instance management entirely. Using Zappa and the AWS Serverless Application
+                    Model, you will wrap Django in a Lambda function and expose it through API Gateway,
+                    achieving pay-per-request billing with automatic scaling to thousands of concurrent users.
+                </p>
+                <p>
+                    The operation covers the complete stack: API Gateway handles incoming HTTP traffic,
+                    Lambda executes your Django WSGI application using <code>aws-wsgi</code>, RDS Postgres
+                    provides persistent relational storage with connection pooling via RDS Proxy,
+                    and S3 hosts static and media files served through CloudFront. Environment secrets
+                    are managed through AWS Secrets Manager and injected at runtime.
+                </p>
+                <p>
+                    By the end of this operation you will understand Lambda cold starts and their
+                    mitigation strategies, how to configure <code>zappa_settings.json</code> for multiple
+                    stages, how to run Django management commands on Lambda, and how to monitor
+                    performance with CloudWatch metrics and X-Ray distributed tracing.
+                </p>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Working Django project with a virtual environment and <code>requirements.txt</code></li>
+                <li>AWS CLI configured with sufficient IAM permissions (Lambda, API Gateway, S3, RDS, IAM)</li>
+                <li>Python 3.10 or 3.11 — must match the Lambda runtime version</li>
+                <li>Familiarity with Django settings, <code>DATABASES</code>, and <code>STATIC_ROOT</code> configuration</li>
+                <li>Basic understanding of serverless concepts and AWS billing model</li>
+            </ul>
+        </div>
+
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Django Preparation and Zappa Installation</div>
+                        <div class="cf-evidence-desc">
+                            Install Zappa and aws-wsgi into your virtual environment with
+                            <code>pip install zappa django-s3-storage aws-wsgi</code>. Run
+                            <code>zappa init</code> to generate <code>zappa_settings.json</code> and
+                            configure the S3 bucket for deployment packages, AWS region, and Django
+                            settings module. Update <code>settings.py</code> to use environment variables
+                            for <code>SECRET_KEY</code>, <code>DEBUG</code>, and <code>ALLOWED_HOSTS</code>.
+                            Add <code>django-environ</code> or <code>python-decouple</code> for clean
+                            environment variable management.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">RDS Postgres and Database Configuration</div>
+                        <div class="cf-evidence-desc">
+                            Provision an RDS Postgres instance in a private VPC subnet using the AWS
+                            Console or <code>aws rds create-db-instance</code>. Configure the Django
+                            <code>DATABASES</code> setting to use the RDS endpoint. Since Lambda functions
+                            are stateless, install <code>django-db-geventpool</code> or limit
+                            <code>CONN_MAX_AGE</code> to prevent connection exhaustion. Run
+                            <code>zappa manage dev migrate</code> to execute database migrations directly
+                            on the Lambda function, and <code>zappa manage dev createsuperuser</code>
+                            to create an admin account.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">S3 Static Files and CloudFront CDN</div>
+                        <div class="cf-evidence-desc">
+                            Configure <code>django-s3-storage</code> to serve static files from S3.
+                            Set <code>STATICFILES_STORAGE</code> and <code>DEFAULT_FILE_STORAGE</code>
+                            in settings to the S3 backend classes. Run <code>python manage.py collectstatic</code>
+                            to upload all static assets to the designated S3 bucket. Create a CloudFront
+                            distribution pointing to the S3 bucket origin with appropriate cache headers.
+                            Update <code>STATIC_URL</code> and <code>MEDIA_URL</code> to use the CloudFront
+                            domain for low-latency asset delivery globally.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Lambda Deployment and API Gateway</div>
+                        <div class="cf-evidence-desc">
+                            Deploy to AWS with <code>zappa deploy dev</code>. Zappa packages your
+                            virtualenv, uploads it to S3, creates the Lambda function, and wires up
+                            API Gateway automatically. Inspect the generated API Gateway in the console
+                            to understand the ANY <code>/{proxy+}</code> route that forwards all paths
+                            to Lambda. Configure a custom domain in API Gateway with an ACM certificate
+                            for HTTPS. Test the live URL with <code>curl</code> and verify the Django
+                            admin panel loads correctly with static assets from CloudFront.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">CloudWatch Monitoring and Alarm Setup</div>
+                        <div class="cf-evidence-desc">
+                            Enable AWS X-Ray tracing on the Lambda function to get distributed
+                            request traces through API Gateway and into Lambda. Create CloudWatch
+                            alarms for Lambda error rate exceeding 1%, duration exceeding 10 seconds,
+                            and throttle count greater than zero. Configure a CloudWatch Dashboard
+                            to display invocation count, duration p50/p95/p99, and error rate on
+                            a single pane. Enable Lambda Insights for enhanced metrics including
+                            memory utilization and initialization duration.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Cold Start Mitigation and Production Hardening</div>
+                        <div class="cf-evidence-desc">
+                            Measure cold start latency by forcing Lambda initialization and checking
+                            CloudWatch Init Duration. Add a CloudWatch Events rule to ping your endpoint
+                            every 5 minutes to keep the Lambda warm. Configure Lambda Provisioned
+                            Concurrency for guaranteed warm instances under production load. Set
+                            <code>keep_warm: true</code> in <code>zappa_settings.json</code>. Deploy a
+                            staging update with <code>zappa update dev</code> and verify zero-downtime
+                            updates. Review total AWS costs for the serverless stack and compare
+                            against equivalent EC2 pricing.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Django</div>
+                <div class="cf-manifest-item">Zappa</div>
+                <div class="cf-manifest-item">AWS Lambda</div>
+                <div class="cf-manifest-item">API Gateway</div>
+                <div class="cf-manifest-item">RDS Postgres</div>
+                <div class="cf-manifest-item">S3 Buckets</div>
+                <div class="cf-manifest-item">CloudFront</div>
+                <div class="cf-manifest-item">CloudWatch</div>
+                <div class="cf-manifest-item">AWS X-Ray</div>
+                <div class="cf-manifest-item">Secrets Manager</div>
+                <div class="cf-manifest-item">ACM / HTTPS</div>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Deploy Django as a serverless Lambda function via Zappa</li>
+                <li>Configure API Gateway proxy routes for Django WSGI</li>
+                <li>Serve static files from S3 and CloudFront globally</li>
+                <li>Run Django management commands against RDS from Lambda</li>
+                <li>Monitor Lambda performance with CloudWatch and X-Ray</li>
+                <li>Mitigate cold starts with warm-up strategies and provisioned concurrency</li>
+            </ul>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>

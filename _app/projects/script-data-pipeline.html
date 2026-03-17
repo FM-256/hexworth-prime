@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build a Data Pipeline with Dashboard | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(167, 139, 250, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(167, 139, 250, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(167, 139, 250, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(167, 139, 250, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(167, 139, 250, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches — data pipeline / DAG themed */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%23a78bfa'%3E%3C!-- ═══ LEFT MARGIN: DAG pipeline flow ═══ --%3E%3Ctext x='15' y='24' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.16'%3EPIPELINE DAG%3C/text%3E%3Crect x='30' y='32' width='90' height='22' rx='2' stroke-width='1.4' opacity='0.18'/%3E%3Ctext x='42' y='47' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.2'%3Eraw_data%3C/text%3E%3Cline x1='75' y1='54' x2='75' y2='70' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='71,66 75,74 79,66' fill='%23a78bfa' stroke='none' opacity='0.14'/%3E%3Crect x='30' y='74' width='90' height='22' rx='2' stroke-width='1.2' opacity='0.16'/%3E%3Ctext x='38' y='89' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.18'%3Eclean_node%3C/text%3E%3Cline x1='55' y1='96' x2='40' y2='112' stroke-width='1' opacity='0.12'/%3E%3Cline x1='95' y1='96' x2='110' y2='112' stroke-width='1' opacity='0.12'/%3E%3Crect x='15' y='112' width='60' height='20' rx='1' stroke-width='1' opacity='0.14'/%3E%3Ctext x='22' y='126' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.16'%3Efilter_na%3C/text%3E%3Crect x='80' y='112' width='60' height='20' rx='1' stroke-width='1' opacity='0.14'/%3E%3Ctext x='87' y='126' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.16'%3Enormalize%3C/text%3E%3Cline x1='45' y1='132' x2='75' y2='148' stroke-width='1' opacity='0.1'/%3E%3Cline x1='110' y1='132' x2='75' y2='148' stroke-width='1' opacity='0.1'/%3E%3Crect x='30' y='148' width='90' height='22' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='38' y='163' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.16'%3Efeature_eng%3C/text%3E%3Cline x1='75' y1='170' x2='75' y2='186' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='71,182 75,190 79,182' fill='%23a78bfa' stroke='none' opacity='0.1'/%3E%3Crect x='30' y='190' width='90' height='22' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='48' y='205' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.14'%3Eoutput%3C/text%3E%3C!-- Kedro catalog --%3E%3Ctext x='15' y='240' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.16'%3EDATA CATALOG%3C/text%3E%3Crect x='15' y='248' width='130' height='12' rx='1' stroke-width='1' opacity='0.14'/%3E%3Ctext x='20' y='258' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.16'%3Ecompanies: CSV%3C/text%3E%3Crect x='15' y='263' width='130' height='12' rx='1' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='20' y='273' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3Ereviews: Parquet%3C/text%3E%3Crect x='15' y='278' width='130' height='12' rx='1' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='20' y='288' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3Emodel_input: MemDS%3C/text%3E%3Crect x='15' y='293' width='130' height='12' rx='1' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='20' y='303' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.1'%3Ereport: JSON%3C/text%3E%3C!-- Dashboard chart wireframe --%3E%3Ctext x='15' y='336' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.16'%3EDASHBOARD%3C/text%3E%3Crect x='15' y='344' width='130' height='70' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='15' y1='380' x2='145' y2='380' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='35' y1='344' x2='35' y2='414' stroke-width='0.8' opacity='0.06'/%3E%3Cpolyline points='20,408 40,390 60,395 80,370 100,375 120,355 140,360' stroke-width='1.4' opacity='0.18' fill='none'/%3E%3C!-- Vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='440' x2='8' y2='700'/%3E%3Cline x1='4' y1='440' x2='12' y2='440'/%3E%3Cline x1='4' y1='490' x2='12' y2='490'/%3E%3Cline x1='4' y1='540' x2='12' y2='540'/%3E%3Cline x1='4' y1='590' x2='12' y2='590'/%3E%3Cline x1='4' y1='640' x2='12' y2='640'/%3E%3C/g%3E%3C!-- ═══ CENTER: Kedro node graph ═══ --%3E%3Ctext x='360' y='48' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.2'%3EKEDRO NODE GRAPH%3C/text%3E%3Cellipse cx='500' cy='90' rx='55' ry='22' stroke-width='1.8' opacity='0.2' fill='%23a78bfa' fill-opacity='0.02'/%3E%3Ctext x='464' y='95' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.22'%3Epreprocess_co%3C/text%3E%3Cline x1='500' y1='112' x2='440' y2='142' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='500' y1='112' x2='560' y2='142' stroke-width='1.2' opacity='0.14'/%3E%3Cellipse cx='420' cy='164' rx='50' ry='20' stroke-width='1.4' opacity='0.16'/%3E%3Ctext x='386' y='169' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.18'%3Ecreate_model_in%3C/text%3E%3Cellipse cx='580' cy='164' rx='50' ry='20' stroke-width='1.4' opacity='0.16'/%3E%3Ctext x='546' y='169' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.18'%3Epreprocess_sh%3C/text%3E%3Cline x1='420' y1='184' x2='500' y2='210' stroke-width='1' opacity='0.12'/%3E%3Cline x1='580' y1='184' x2='500' y2='210' stroke-width='1' opacity='0.12'/%3E%3Cellipse cx='500' cy='230' rx='45' ry='20' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='468' y='235' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.16'%3Etrain_model%3C/text%3E%3Cline x1='500' y1='250' x2='500' y2='272' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='496,268 500,276 504,268' fill='%23a78bfa' stroke='none' opacity='0.1'/%3E%3Cellipse cx='500' cy='292' rx='45' ry='20' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='464' y='297' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.14'%3Ereport_accuracy%3C/text%3E%3C!-- hvPlot chart wireframes --%3E%3Ctext x='330' y='338' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.16'%3EhvPLOT CHARTS%3C/text%3E%3Crect x='330' y='348' width='155' height='80' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='336' y='362' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3Edf.hvplot.line()%3C/text%3E%3Cpolyline points='336,420 360,400 385,408 410,385 435,392 460,372 480,378' stroke-width='1.4' opacity='0.16' fill='none'/%3E%3Crect x='494' y='348' width='155' height='80' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='500' y='362' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3Edf.hvplot.bar()%3C/text%3E%3Crect x='500' y='390' width='20' height='38' rx='1' stroke='none' fill='%23a78bfa' fill-opacity='0.1'/%3E%3Crect x='526' y='378' width='20' height='50' rx='1' stroke='none' fill='%23a78bfa' fill-opacity='0.14'/%3E%3Crect x='552' y='398' width='20' height='30' rx='1' stroke='none' fill='%23a78bfa' fill-opacity='0.1'/%3E%3Crect x='578' y='385' width='20' height='43' rx='1' stroke='none' fill='%23a78bfa' fill-opacity='0.12'/%3E%3Crect x='604' y='406' width='20' height='22' rx='1' stroke='none' fill='%23a78bfa' fill-opacity='0.08'/%3E%3Crect x='630' y='370' width='14' height='58' rx='1' stroke='none' fill='%23a78bfa' fill-opacity='0.16'/%3E%3C!-- Scattered annotations --%3E%3Ctext x='300' y='480' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.1' transform='rotate(3 300 480)'%3Ekedro run%3C/text%3E%3Ctext x='480' y='500' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.09'%3Econf/base/catalog.yml%3C/text%3E%3Ctext x='340' y='540' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.08' transform='rotate(-3 340 540)'%3Epanel.serve()%3C/text%3E%3Ctext x='540' y='570' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.07'%3EDataCatalog.load()%3C/text%3E%3C!-- ═══ RIGHT MARGIN: Node types ═══ --%3E%3Ctext x='878' y='48' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.2'%3ENODE TYPES%3C/text%3E%3Crect x='878' y='56' width='112' height='22' rx='2' stroke-width='1.2' opacity='0.18'/%3E%3Ctext x='886' y='71' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.2'%3EInputNode%3C/text%3E%3Crect x='878' y='82' width='112' height='22' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='886' y='97' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.16'%3ETransformNode%3C/text%3E%3Crect x='878' y='108' width='112' height='22' rx='2' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='886' y='123' font-family='monospace' font-size='8' fill='%23a78bfa' stroke='none' opacity='0.14'%3EOutputNode%3C/text%3E%3C!-- Params --%3E%3Ctext x='878' y='158' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.18'%3EPARAMETERS%3C/text%3E%3Ctext x='882' y='174' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.16'%3Etest_size: 0.2%3C/text%3E%3Ctext x='882' y='188' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3Erandom_state: 3%3C/text%3E%3Ctext x='882' y='202' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.12'%3Efeatures: [...]%3C/text%3E%3Ctext x='882' y='216' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.1'%3Etarget: price%3C/text%3E%3C!-- Pipeline runner --%3E%3Ctext x='878' y='250' font-family='monospace' font-size='9' fill='%23a78bfa' stroke='none' opacity='0.18'%3ERUNNER%3C/text%3E%3Crect x='878' y='258' width='112' height='18' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='880' y='260' width='28' height='14' rx='1' stroke='none' fill='%23a78bfa' fill-opacity='0.08'/%3E%3Ctext x='882' y='271' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.14'%3ESequential%3C/text%3E%3Crect x='878' y='280' width='112' height='18' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Crect x='880' y='282' width='80' height='14' rx='1' stroke='none' fill='%23a78bfa' fill-opacity='0.14'/%3E%3Ctext x='882' y='293' font-family='monospace' font-size='7' fill='%23a78bfa' stroke='none' opacity='0.18'%3EParallel%3C/text%3E%3C!-- Right margin separator --%3E%3Cline x1='867' y1='40' x2='867' y2='760' stroke-width='1' opacity='0.07' stroke-dasharray='6 8'/%3E%3C!-- CROSSHAIR MARKS --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='280' y1='520' x2='300' y2='520'/%3E%3Cline x1='290' y1='510' x2='290' y2='530'/%3E%3Ccircle cx='290' cy='520' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='720' y1='280' x2='740' y2='280'/%3E%3Cline x1='730' y1='270' x2='730' y2='290'/%3E%3Ccircle cx='730' cy='280' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- DIAGONAL LINES --%3E%3Cline x1='0' y1='520' x2='380' y2='260' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='680' y1='0' x2='1000' y2='180' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3C!-- PROTRACTOR --%3E%3Cpath d='M760 640 A130 130 0 0 1 960 640' stroke-width='2' opacity='0.13'/%3E%3Cpath d='M780 640 A110 110 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cline x1='860' y1='640' x2='860' y2='524' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3C!-- RULER --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%23a78bfa' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%23a78bfa' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%23a78bfa' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(167, 139, 250, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #a78bfa;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(167, 139, 250, 0.06);
+        }
+
+        .cf-stamp {
+            position: absolute;
+            top: 24px; right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal {
+            width: 68px; height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(167, 139, 250, 0.25) 0%,
+                rgba(167, 139, 250, 0.12) 60%,
+                rgba(167, 139, 250, 0.06) 100%);
+            border: 3px solid rgba(167, 139, 250, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(167, 139, 250, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; overflow: hidden; position: relative;
+        }
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px; left: 6px;
+            width: 18px; height: 10px;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #a78bfa; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #fbbf24; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #a78bfa; background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.25); }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(167, 139, 250, 0.08);
+            border-left: 3px solid rgba(167, 139, 250, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px; left: 36px;
+            width: 20px; height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px; right: 40px;
+            width: 60px; height: 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #a78bfa;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px; height: 8px;
+            background: #a78bfa;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #a78bfa; background: rgba(167, 139, 250, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(167, 139, 250, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(167, 139, 250, 0.06); }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card {
+            display: flex; gap: 18px; padding: 20px 22px;
+            background: rgba(167, 139, 250, 0.02);
+            border: 1px solid rgba(167, 139, 250, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover { border-color: rgba(167, 139, 250, 0.25); background: rgba(167, 139, 250, 0.04); box-shadow: 0 0 20px rgba(167, 139, 250, 0.06); }
+        .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
+        .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #a78bfa; background: rgba(167, 139, 250, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(167, 139, 250, 0.04); border: 1px solid rgba(167, 139, 250, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #a78bfa; }
+
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #a78bfa; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(167, 139, 250, 0.3) 0%, rgba(167, 139, 250, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+
+        .cf-training-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+        .cf-training-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 8px; padding: 16px; text-decoration: none; color: #e2e8f0; transition: border-color 0.2s, transform 0.2s; display: flex; flex-direction: column; gap: 8px; }
+        .cf-training-card:hover { border-color: #a78bfa; transform: translateY(-2px); }
+        .cf-training-card .tc-district { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #a78bfa; opacity: 0.8; }
+        .cf-training-card .tc-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
+        .cf-training-card .tc-type { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">SC-DP-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">SC-DP-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-17</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-script.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Script House</span>
+                    <span class="cf-house-domain">Automation &amp; Pipeline Engineering</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a Data Pipeline with Dashboard</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">60 MIN</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation builds a <strong>production-grade data pipeline</strong> using the Kedro
+                    framework and visualizes the output through an interactive hvPlot dashboard. You will
+                    model data flow as a directed acyclic graph (DAG) of discrete transformation nodes,
+                    each with clearly typed inputs and outputs registered in a central Data Catalog. The
+                    pipeline handles ingestion, cleaning, feature engineering, and reporting as independent,
+                    testable stages that Kedro orchestrates end-to-end with a single command.
+                </p>
+                <p>
+                    Kedro enforces software engineering discipline on data science work: configuration lives
+                    in YAML, data references are catalog entries rather than hardcoded paths, and nodes are
+                    pure functions that compose into pipelines. You will define a <code>catalog.yml</code>
+                    with datasets backed by CSV, Parquet, and MemoryDataSet, then write transformation
+                    nodes in <code>nodes.py</code> and wire them into a pipeline in <code>pipeline.py</code>.
+                    The <code>kedro run</code> command executes the full graph, resolving dependencies
+                    automatically and logging each step.
+                </p>
+                <p>
+                    The dashboard layer uses hvPlot on top of pandas DataFrames to produce interactive
+                    Bokeh charts &mdash; line plots, bar charts, and scatter plots &mdash; served through
+                    Panel as a live web application. The result is a self-contained analytics product:
+                    run the pipeline to refresh data, then launch the dashboard to explore it interactively
+                    in a browser without writing a single line of JavaScript.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Comfortable with Python fundamentals: functions, dictionaries, and importing modules</li>
+                <li>Working knowledge of pandas DataFrames &mdash; reading CSVs, filtering rows, and groupby operations</li>
+                <li>Familiar with virtual environments and installing packages via pip</li>
+                <li>No prior Kedro or hvPlot experience required &mdash; the framework is introduced from project scaffolding</li>
+                <li>Basic command-line comfort: running Python scripts and navigating directories in a terminal</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Project Scaffolding with Kedro</div>
+                        <div class="cf-evidence-desc">
+                            Install Kedro via pip and run <code>kedro new</code> to generate the standard
+                            project directory tree: <code>conf/</code> for configuration, <code>data/</code>
+                            with raw, intermediate, and primary layers, and <code>src/</code> for pipeline
+                            code. Explore the generated structure, understand the role of each directory,
+                            and run <code>kedro info</code> and <code>kedro viz</code> to confirm the
+                            toolchain is operational. Ingest a sample CSV dataset into the
+                            <code>data/01_raw/</code> layer to use throughout the remaining phases.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Data Catalog Configuration</div>
+                        <div class="cf-evidence-desc">
+                            Define all dataset references in <code>conf/base/catalog.yml</code> using
+                            Kedro's dataset types: <code>pandas.CSVDataSet</code> for raw input,
+                            <code>pandas.ParquetDataSet</code> for intermediate processed data, and
+                            <code>MemoryDataSet</code> for ephemeral pipeline artifacts. Add a
+                            <code>parameters.yml</code> file with configurable values such as
+                            <code>test_size</code>, <code>target_column</code>, and feature lists.
+                            Reference parameters in node functions using the <code>params:</code> prefix
+                            in pipeline wiring rather than hardcoding values.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Transformation Nodes</div>
+                        <div class="cf-evidence-desc">
+                            Write pure Python functions in <code>nodes.py</code> that accept pandas
+                            DataFrames and parameters as arguments and return transformed DataFrames.
+                            Implement a <code>preprocess</code> node that drops nulls, casts types,
+                            and renames columns; a <code>feature_engineer</code> node that creates
+                            derived columns and encodes categoricals; and a <code>generate_report</code>
+                            node that computes summary statistics and saves a JSON report. Each function
+                            must be stateless and have no side effects beyond its return value.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Pipeline DAG Wiring &amp; Execution</div>
+                        <div class="cf-evidence-desc">
+                            Define the pipeline in <code>pipeline.py</code> using Kedro's
+                            <code>node()</code> and <code>pipeline()</code> constructors. Specify
+                            input and output catalog keys for each node, creating the dependency
+                            graph that Kedro resolves automatically. Run the full pipeline with
+                            <code>kedro run</code> and inspect the execution log to confirm correct
+                            node ordering. Use <code>kedro run --node preprocess_node</code> to
+                            execute individual nodes during development. Visualize the DAG with
+                            <code>kedro viz</code> in a browser.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Interactive Dashboard with hvPlot &amp; Panel</div>
+                        <div class="cf-evidence-desc">
+                            Install <code>hvplot</code> and <code>panel</code>. Load the pipeline
+                            output from the catalog and create interactive charts using the
+                            <code>df.hvplot.line()</code>, <code>df.hvplot.bar()</code>, and
+                            <code>df.hvplot.scatter()</code> APIs. Compose the plots into a Panel
+                            layout with a sidebar containing widget controls: a date range slider,
+                            a category dropdown, and a toggle for logarithmic scale. Serve the
+                            dashboard with <code>panel.serve(dashboard.py)</code> and verify
+                            interactivity in the browser at <code>localhost:5006</code>.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Python 3.10+</div>
+                <div class="cf-manifest-item">kedro</div>
+                <div class="cf-manifest-item">kedro-viz</div>
+                <div class="cf-manifest-item">pandas</div>
+                <div class="cf-manifest-item">hvplot</div>
+                <div class="cf-manifest-item">panel</div>
+                <div class="cf-manifest-item">bokeh</div>
+                <div class="cf-manifest-item">pyarrow (Parquet)</div>
+                <div class="cf-manifest-item">pytest</div>
+            </div>
+        </div>
+
+        <!-- ═══ Expected Outcomes ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Kedro project structure and directory conventions</li>
+                <li>Data Catalog configuration with typed dataset entries</li>
+                <li>Pure-function node authoring and parameter injection</li>
+                <li>DAG dependency resolution and pipeline execution</li>
+                <li>Multi-layer data storage (raw, intermediate, primary)</li>
+                <li>Interactive hvPlot chart generation from DataFrames</li>
+                <li>Panel dashboard composition with reactive widgets</li>
+                <li>Pipeline visualization with kedro-viz</li>
+                <li>Configuration-driven parameterization with YAML</li>
+                <li>Node-level unit testing for pipeline functions</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Related Training ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../houses/script/index.html" class="cf-training-card">
+                    <span class="tc-district">Script House</span>
+                    <span class="tc-title">Python ETL Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/script/index.html" class="cf-training-card">
+                    <span class="tc-district">Script House</span>
+                    <span class="tc-title">pandas Data Wrangling</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../houses/matrix/index.html" class="cf-training-card">
+                    <span class="tc-district">Matrix House</span>
+                    <span class="tc-title">Data Visualization Patterns</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/script/index.html" class="cf-training-card">
+                    <span class="tc-district">Script House</span>
+                    <span class="tc-title">YAML Configuration Management</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

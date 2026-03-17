@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Headless Scraping with Puppeteer | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(147, 51, 234, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(147, 51, 234, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(147, 51, 234, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(147, 51, 234, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(147, 51, 234, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — SVG overlay (puppeteer/headless themed) */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%239333ea'%3E%3C!-- ═══ LEFT MARGIN: Headless browser flow ═══ --%3E%3Ctext x='15' y='24' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.16'%3EHEADLESS FLOW%3C/text%3E%3Crect x='15' y='30' width='120' height='28' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='24' y='49' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.2'%3Epuppeteer.launch()%3C/text%3E%3Cline x1='75' y1='58' x2='75' y2='74' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='71,70 75,78 79,70' fill='%239333ea' stroke='none' opacity='0.14'/%3E%3Crect x='15' y='78' width='120' height='28' rx='2' stroke-width='1.2' opacity='0.16'/%3E%3Ctext x='24' y='97' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.18'%3Ebrowser.newPage()%3C/text%3E%3Cline x1='75' y1='106' x2='75' y2='122' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='71,118 75,126 79,118' fill='%239333ea' stroke='none' opacity='0.12'/%3E%3Crect x='15' y='126' width='120' height='28' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='30' y='145' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.16'%3Epage.goto(url)%3C/text%3E%3Cline x1='75' y1='154' x2='75' y2='170' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='71,166 75,174 79,166' fill='%239333ea' stroke='none' opacity='0.1'/%3E%3Crect x='15' y='174' width='120' height='28' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='24' y='193' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.14'%3Epage.waitForSelector%3C/text%3E%3Cline x1='75' y1='202' x2='75' y2='218' stroke-width='1' opacity='0.08'/%3E%3Cpolygon points='71,214 75,222 79,214' fill='%239333ea' stroke='none' opacity='0.08'/%3E%3Crect x='15' y='222' width='120' height='28' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='30' y='241' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.12'%3Epage.evaluate()%3C/text%3E%3C!-- DOM selector diagram --%3E%3Ctext x='15' y='278' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.16'%3EDOM TARGET%3C/text%3E%3Crect x='15' y='286' width='120' height='14' rx='1' stroke-width='1.2' opacity='0.16'/%3E%3Ctext x='20' y='297' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.18'%3E.product-list%3C/text%3E%3Crect x='25' y='302' width='105' height='12' rx='1' stroke-width='1' opacity='0.12'/%3E%3Ctext x='30' y='312' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.14'%3E.item%3C/text%3E%3Crect x='35' y='316' width='92' height='10' rx='1' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='40' y='325' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.12'%3Espan.price%3C/text%3E%3Crect x='35' y='328' width='92' height='10' rx='1' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='40' y='337' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.1'%3Ea.title%3C/text%3E%3C!-- Request interception --%3E%3Ctext x='15' y='365' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.16'%3EREQ INTERCEPT%3C/text%3E%3Ctext x='15' y='380' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.14'%3Epage.on('request')%3C/text%3E%3Ctext x='15' y='392' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.12'%3E--&gt; block images%3C/text%3E%3Ctext x='15' y='404' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.1'%3E--&gt; block css%3C/text%3E%3Ctext x='15' y='416' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.08'%3E--&gt; allow html%3C/text%3E%3C!-- Vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='440' x2='8' y2='700'/%3E%3Cline x1='4' y1='440' x2='12' y2='440'/%3E%3Cline x1='4' y1='490' x2='12' y2='490'/%3E%3Cline x1='4' y1='540' x2='12' y2='540'/%3E%3Cline x1='4' y1='590' x2='12' y2='590'/%3E%3Cline x1='4' y1='640' x2='12' y2='640'/%3E%3Cline x1='4' y1='690' x2='12' y2='690'/%3E%3C/g%3E%3C!-- ═══ CENTER: Browser architecture wireframe ═══ --%3E%3Crect x='320' y='50' width='180' height='100' rx='3' stroke-width='1.8' opacity='0.2'/%3E%3Ctext x='360' y='72' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.22'%3EChromium Browser%3C/text%3E%3Crect x='334' y='80' width='152' height='60' rx='2' stroke-width='1.2' opacity='0.14' fill='%239333ea' fill-opacity='0.02'/%3E%3Ctext x='346' y='98' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.16'%3EDOM Engine%3C/text%3E%3Ctext x='346' y='112' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.14'%3EJS Runtime (V8)%3C/text%3E%3Ctext x='346' y='126' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.12'%3ENetwork Stack%3C/text%3E%3C!-- CDP protocol arrow --%3E%3Cline x1='500' y1='100' x2='560' y2='100' stroke-width='1.4' opacity='0.18' stroke-dasharray='5 4'/%3E%3Cpolygon points='556,96 564,100 556,104' fill='%239333ea' stroke='none' opacity='0.18'/%3E%3Crect x='564' y='70' width='120' height='60' rx='3' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='578' y='92' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.2'%3ENode.js%3C/text%3E%3Ctext x='572' y='106' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.16'%3EPuppeteer API%3C/text%3E%3Ctext x='572' y='120' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.14'%3Escript.js%3C/text%3E%3Ctext x='488' y='94' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.12'%3ECDP%3C/text%3E%3C!-- Data extraction pipeline --%3E%3Ctext x='330' y='196' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.18'%3EEXTRACTION PIPELINE%3C/text%3E%3Crect x='330' y='208' width='80' height='24' rx='2' stroke-width='1.2' opacity='0.18'/%3E%3Ctext x='340' y='224' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.2'%3ETarget URL%3C/text%3E%3Cline x1='410' y1='220' x2='434' y2='220' stroke-width='1.2' opacity='0.16'/%3E%3Cpolygon points='430,216 438,220 430,224' fill='%239333ea' stroke='none' opacity='0.16'/%3E%3Crect x='438' y='208' width='80' height='24' rx='2' stroke-width='1.2' opacity='0.16'/%3E%3Ctext x='448' y='224' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.18'%3EPage.evaluate%3C/text%3E%3Cline x1='518' y1='220' x2='542' y2='220' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='538,216 546,220 538,224' fill='%239333ea' stroke='none' opacity='0.14'/%3E%3Crect x='546' y='208' width='80' height='24' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='554' y='224' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.16'%3EJSON Export%3C/text%3E%3Cline x1='626' y1='220' x2='650' y2='220' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='646,216 654,220 646,224' fill='%239333ea' stroke='none' opacity='0.12'/%3E%3Crect x='654' y='208' width='80' height='24' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='664' y='224' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.14'%3ECSV / DB%3C/text%3E%3C!-- Page navigation sequence --%3E%3Ctext x='330' y='272' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.16'%3ENAV SEQUENCE%3C/text%3E%3Ccircle cx='370' cy='304' r='22' stroke-width='1.4' opacity='0.18'/%3E%3Ctext x='355' y='302' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.18'%3ELAND%3C/text%3E%3Ctext x='355' y='312' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.14'%3EPAGE%3C/text%3E%3Cpath d='M392 296 Q430 276 468 296' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3Cpolygon points='464,290 472,296 464,302' fill='%239333ea' stroke='none' opacity='0.14'/%3E%3Ctext x='404' y='284' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.1'%3Eclick%3C/text%3E%3Ccircle cx='490' cy='304' r='22' stroke-width='1.4' opacity='0.16'/%3E%3Ctext x='476' y='302' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.16'%3EITEM%3C/text%3E%3Ctext x='474' y='312' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.12'%3EPAGE%3C/text%3E%3Cpath d='M512 296 Q550 276 588 296' stroke-width='1.2' opacity='0.12' fill='none'/%3E%3Cpolygon points='584,290 592,296 584,302' fill='%239333ea' stroke='none' opacity='0.12'/%3E%3Ctext x='524' y='284' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.08'%3Escroll%3C/text%3E%3Ccircle cx='610' cy='304' r='22' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='596' y='302' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.14'%3ENEXT%3C/text%3E%3Ctext x='598' y='312' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.1'%3EPAGE%3C/text%3E%3C!-- Scattered annotations --%3E%3Ctext x='300' y='400' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.1' transform='rotate(3 300 400)'%3Eawait page.type()%3C/text%3E%3Ctext x='480' y='440' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.09'%3Epage.screenshot()%3C/text%3E%3Ctext x='340' y='480' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.08' transform='rotate(-3 340 480)'%3EstealhPlugin%3C/text%3E%3Ctext x='540' y='520' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.07'%3Euser-agent spoof%3C/text%3E%3Ctext x='280' y='560' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.08' transform='rotate(3 280 560)'%3Erate limiter%3C/text%3E%3Ctext x='560' y='580' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.09' transform='rotate(-2 560 580)'%3EcheerioLoad()%3C/text%3E%3C!-- ═══ RIGHT MARGIN: Export formats ═══ --%3E%3Ctext x='878' y='48' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.2'%3EEXPORT%3C/text%3E%3Crect x='878' y='54' width='112' height='22' rx='2' stroke-width='1.2' opacity='0.18'/%3E%3Ctext x='886' y='69' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.2'%3Eresults.json%3C/text%3E%3Crect x='878' y='80' width='112' height='22' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='886' y='95' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.16'%3Edata.csv%3C/text%3E%3Crect x='878' y='106' width='112' height='22' rx='2' stroke-width='0.8' opacity='0.12'/%3E%3Ctext x='886' y='121' font-family='monospace' font-size='8' fill='%239333ea' stroke='none' opacity='0.14'%3Esqlite.db%3C/text%3E%3C!-- Bot detection signals --%3E%3Ctext x='878' y='152' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.18'%3EBOT SIGNALS%3C/text%3E%3Ctext x='882' y='168' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.16'%3EwebDriver flag%3C/text%3E%3Ctext x='882' y='182' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.14'%3Enavigator.plugins%3C/text%3E%3Ctext x='882' y='196' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.12'%3Ecanvas fingerprint%3C/text%3E%3Ctext x='882' y='210' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.1'%3EheadlessChrome%3C/text%3E%3Ctext x='882' y='224' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.08'%3Etiming patterns%3C/text%3E%3C!-- Concurrency model --%3E%3Ctext x='878' y='258' font-family='monospace' font-size='9' fill='%239333ea' stroke='none' opacity='0.18'%3ECONCURRENCY%3C/text%3E%3Crect x='878' y='266' width='112' height='18' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='880' y='268' width='30' height='14' rx='1' stroke='none' fill='%239333ea' fill-opacity='0.08'/%3E%3Ctext x='882' y='279' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.14'%3Ew=1%3C/text%3E%3Crect x='878' y='288' width='112' height='18' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='880' y='290' width='55' height='14' rx='1' stroke='none' fill='%239333ea' fill-opacity='0.1'/%3E%3Ctext x='882' y='301' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.14'%3Ew=3%3C/text%3E%3Crect x='878' y='310' width='112' height='18' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Crect x='880' y='312' width='100' height='14' rx='1' stroke='none' fill='%239333ea' fill-opacity='0.14'/%3E%3Ctext x='882' y='323' font-family='monospace' font-size='7' fill='%239333ea' stroke='none' opacity='0.18'%3Ew=8%3C/text%3E%3C!-- Right margin: vertical dashed separator --%3E%3Cline x1='867' y1='40' x2='867' y2='760' stroke-width='1' opacity='0.07' stroke-dasharray='6 8'/%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='280' y1='520' x2='300' y2='520'/%3E%3Cline x1='290' y1='510' x2='290' y2='530'/%3E%3Ccircle cx='290' cy='520' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='720' y1='280' x2='740' y2='280'/%3E%3Cline x1='730' y1='270' x2='730' y2='290'/%3E%3Ccircle cx='730' cy='280' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='520' x2='380' y2='260' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='680' y1='0' x2='1000' y2='180' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M760 640 A130 130 0 0 1 960 640' stroke-width='2' opacity='0.13'/%3E%3Cpath d='M780 640 A110 110 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cline x1='860' y1='640' x2='860' y2='524' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3C!-- ═══ DIAMOND MARKERS ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%239333ea' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%239333ea' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%239333ea' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #9333ea;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(147, 51, 234, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(147, 51, 234, 0.06);
+        }
+
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(147, 51, 234, 0.25) 0%,
+                rgba(147, 51, 234, 0.12) 60%,
+                rgba(147, 51, 234, 0.06) 100%);
+            border: 3px solid rgba(147, 51, 234, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(147, 51, 234, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px; left: 6px;
+            width: 18px; height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px; height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #9333ea;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #9333ea;
+            background: rgba(147, 51, 234, 0.1);
+            border: 1px solid rgba(147, 51, 234, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(147, 51, 234, 0.08);
+            border-left: 3px solid rgba(147, 51, 234, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px; left: 36px;
+            width: 20px; height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px; right: 40px;
+            width: 60px; height: 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #9333ea;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px; height: 8px;
+            background: #9333ea;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #9333ea;
+            background: rgba(147, 51, 234, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites ────────────────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px; height: 16px;
+            border: 1.5px solid rgba(147, 51, 234, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(147, 51, 234, 0.02);
+            border: 1px solid rgba(147, 51, 234, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(147, 51, 234, 0.25);
+            background: rgba(147, 51, 234, 0.04);
+            box-shadow: 0 0 20px rgba(147, 51, 234, 0.06);
+        }
+
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px; left: 34px;
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #9333ea;
+            background: rgba(147, 51, 234, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest ────────────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(147, 51, 234, 0.04);
+            border: 1px solid rgba(147, 51, 234, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(147, 51, 234, 0.08);
+            border-color: rgba(147, 51, 234, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #9333ea;
+        }
+
+        /* ── Debrief ───────────────────────────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #9333ea;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(147, 51, 234, 0.3) 0%,
+                rgba(147, 51, 234, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Training cards ───────────────────────────────── */
+        .cf-training-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .cf-training-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .cf-training-card:hover {
+            border-color: #9333ea;
+            transform: translateY(-2px);
+        }
+        .cf-training-card .tc-district {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #9333ea;
+            opacity: 0.8;
+        }
+        .cf-training-card .tc-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .cf-training-card .tc-type {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">DA-PP-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">DA-PP-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-17</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-dark-arts.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Dark Arts House</span>
+                    <span class="cf-house-domain">Offensive &amp; Adversarial Techniques</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Headless Scraping with Puppeteer</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">60 MIN</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation deploys a <strong>headless Chromium browser</strong> under programmatic
+                    control to extract intelligence from JavaScript-rendered web targets. Using Puppeteer
+                    and Node.js, you will automate full browser sessions &mdash; navigating pages, interacting
+                    with dynamic elements, intercepting network requests, and pulling structured data that
+                    traditional HTTP scrapers cannot reach. The finished tool handles pagination, form
+                    submission, and infinite scroll without a visible browser window.
+                </p>
+                <p>
+                    Modern web applications render their data exclusively in JavaScript, making static HTML
+                    scraping obsolete for many OSINT collection scenarios. Puppeteer gives you direct access
+                    to the Chrome DevTools Protocol (CDP), enabling fine-grained control over every browser
+                    subsystem: the DOM, network stack, JavaScript runtime, and input simulation. You will
+                    learn to intercept and modify network requests to block resource-heavy assets, reducing
+                    page load times and improving crawl efficiency.
+                </p>
+                <p>
+                    The second half of the operation focuses on counter-detection. You will study the
+                    fingerprinting signals that bot-detection services key on &mdash; the <code>webdriver</code>
+                    flag, plugin enumeration, canvas rendering, and behavioral timing patterns &mdash; then
+                    apply the <code>puppeteer-extra-plugin-stealth</code> library to mask all of them. Data
+                    is exported to both JSON and CSV using structured schemas suitable for downstream
+                    analysis pipelines.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Comfortable writing asynchronous JavaScript with <code>async/await</code> and Promises</li>
+                <li>Node.js and npm installed; familiar with <code>package.json</code> and dependency management</li>
+                <li>Basic understanding of the browser DOM &mdash; selectors, elements, and attributes</li>
+                <li>General awareness of HTTP requests, response codes, and browser developer tools</li>
+                <li>No prior Puppeteer or web scraping experience required &mdash; every API is introduced from scratch</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Environment Setup &amp; First Launch</div>
+                        <div class="cf-evidence-desc">
+                            Initialize a Node.js project and install <code>puppeteer</code> via npm.
+                            Write a minimal script that calls <code>puppeteer.launch()</code> with
+                            <code>headless: true</code>, opens a new page with <code>browser.newPage()</code>,
+                            navigates to a target URL using <code>page.goto()</code>, and captures a
+                            full-page screenshot with <code>page.screenshot()</code>. Confirm the
+                            Chromium binary downloaded correctly and verify the screenshot matches the
+                            expected rendered output. Run in both headless and headed mode to compare behavior.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">DOM Interaction &amp; Element Targeting</div>
+                        <div class="cf-evidence-desc">
+                            Use <code>page.waitForSelector()</code> to block execution until dynamic
+                            elements render, then extract data with <code>page.evaluate()</code> passing
+                            a callback into the browser context. Target elements using CSS selectors and
+                            <code>querySelectorAll()</code> inside the evaluate callback. Extract text
+                            content, href attributes, and data attributes from lists of items. Implement
+                            <code>page.click()</code> and <code>page.type()</code> to interact with search
+                            forms and filters before extracting results.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Pagination &amp; Infinite Scroll</div>
+                        <div class="cf-evidence-desc">
+                            Build a loop that detects the presence of a "Next Page" button using
+                            <code>page.$('.next-btn')</code>, clicks it, and waits for navigation to
+                            complete with <code>page.waitForNavigation()</code>. For infinite-scroll
+                            targets, implement scroll automation using <code>page.evaluate()</code> to
+                            call <code>window.scrollBy()</code> repeatedly, pausing between scrolls
+                            with a configurable delay and detecting when no new content loads by
+                            comparing DOM node counts before and after each scroll action.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Network Request Interception</div>
+                        <div class="cf-evidence-desc">
+                            Enable request interception with <code>page.setRequestInterception(true)</code>
+                            and attach a handler via <code>page.on('request')</code>. Block resource types
+                            that slow scraping &mdash; images, stylesheets, fonts, and media &mdash; by
+                            calling <code>request.abort()</code> for matching resource types while passing
+                            all others through with <code>request.continue()</code>. Measure page load
+                            time with and without interception to quantify the speed improvement.
+                            Also capture API responses with <code>page.on('response')</code> to extract
+                            JSON directly from XHR calls.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Bot Detection Evasion</div>
+                        <div class="cf-evidence-desc">
+                            Install <code>puppeteer-extra</code> and <code>puppeteer-extra-plugin-stealth</code>.
+                            Understand each evasion the plugin applies: patching <code>navigator.webdriver</code>
+                            to <code>undefined</code>, spoofing <code>navigator.plugins</code> with a
+                            realistic list, randomizing canvas fingerprints, and masking Chrome-specific
+                            runtime properties. Add a realistic user-agent string via
+                            <code>page.setUserAgent()</code>. Implement randomized delays between actions
+                            using a Gaussian distribution to simulate human interaction timing.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">6</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Structured Export &amp; Pipeline Integration</div>
+                        <div class="cf-evidence-desc">
+                            Define a data schema with TypeScript-style JSDoc annotations for the
+                            extracted records. Write the collected array to <code>results.json</code>
+                            using <code>fs.writeFileSync()</code> with pretty-print formatting. Generate
+                            a <code>data.csv</code> export by mapping each record to a delimited row
+                            and writing with a header line. Add error handling that catches navigation
+                            timeouts and selector failures, logs them to a separate error file, and
+                            continues the crawl rather than crashing the entire run.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Node.js 20+</div>
+                <div class="cf-manifest-item">puppeteer</div>
+                <div class="cf-manifest-item">puppeteer-extra</div>
+                <div class="cf-manifest-item">puppeteer-extra-plugin-stealth</div>
+                <div class="cf-manifest-item">Chrome DevTools Protocol</div>
+                <div class="cf-manifest-item">fs (Node built-in)</div>
+                <div class="cf-manifest-item">path (Node built-in)</div>
+                <div class="cf-manifest-item">cheerio (optional parse)</div>
+            </div>
+        </div>
+
+        <!-- ═══ Expected Outcomes ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Headless browser lifecycle management in Node.js</li>
+                <li>DOM traversal and data extraction via <code>page.evaluate()</code></li>
+                <li>Paginated and infinite-scroll crawling patterns</li>
+                <li>Network request interception and resource blocking</li>
+                <li>XHR/fetch response capture for hidden API data</li>
+                <li>Bot detection fingerprinting and stealth evasion</li>
+                <li>Human behavioral simulation with randomized timing</li>
+                <li>Structured JSON and CSV export with error resilience</li>
+                <li>Parallel page concurrency for throughput scaling</li>
+                <li>OSINT collection methodology with headless tooling</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Related Training ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../houses/dark-arts/index.html" class="cf-training-card">
+                    <span class="tc-district">Dark Arts House</span>
+                    <span class="tc-title">OSINT Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/dark-arts/index.html" class="cf-training-card">
+                    <span class="tc-district">Dark Arts House</span>
+                    <span class="tc-title">Web Recon Automation</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../houses/script/index.html" class="cf-training-card">
+                    <span class="tc-district">Script House</span>
+                    <span class="tc-title">Async JavaScript Patterns</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/web/index.html" class="cf-training-card">
+                    <span class="tc-district">Web House</span>
+                    <span class="tc-title">Browser Internals &amp; the DOM</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>
