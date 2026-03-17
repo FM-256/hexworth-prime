@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build a ML-Powered Network IDS | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(248, 113, 113, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(248, 113, 113, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(248, 113, 113, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(248, 113, 113, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(248, 113, 113, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches — network IDS themed */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%23f87171'%3E%3C!-- ═══ LEFT MARGIN: Packet capture pipeline ═══ --%3E%3Ctext x='15' y='24' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.16'%3EPCAP PIPELINE%3C/text%3E%3Crect x='15' y='30' width='100' height='26' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='22' y='47' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.2'%3Eeth0 (raw)%3C/text%3E%3Cline x1='65' y1='56' x2='65' y2='72' stroke-width='1.2' opacity='0.16'/%3E%3Cpolygon points='61,70 69,70 65,78' fill='%23f87171' stroke='none' opacity='0.16'/%3E%3Crect x='15' y='78' width='100' height='26' rx='2' stroke-width='1.2' opacity='0.16' fill='%23f87171' fill-opacity='0.04'/%3E%3Ctext x='22' y='95' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.2'%3Efeature ext%3C/text%3E%3Cline x1='65' y1='104' x2='65' y2='120' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='61,118 69,118 65,126' fill='%23f87171' stroke='none' opacity='0.14'/%3E%3Crect x='15' y='126' width='100' height='26' rx='2' stroke-width='1.2' opacity='0.14' fill='%23f87171' fill-opacity='0.06'/%3E%3Ctext x='22' y='143' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.22'%3EML classify%3C/text%3E%3Cline x1='65' y1='152' x2='65' y2='168' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='61,166 69,166 65,174' fill='%23f87171' stroke='none' opacity='0.12'/%3E%3Crect x='15' y='174' width='100' height='26' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='22' y='191' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.18'%3Ealert engine%3C/text%3E%3C!-- Feature vector --%3E%3Ctext x='15' y='224' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.16'%3EFEATURE VEC%3C/text%3E%3Ctext x='15' y='240' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3Eduration: 0.42s%3C/text%3E%3Ctext x='15' y='252' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.12'%3Eprotocol: TCP%3C/text%3E%3Ctext x='15' y='264' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.12'%3Esrc_bytes: 491%3C/text%3E%3Ctext x='15' y='276' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.1'%3Edst_bytes: 0%3C/text%3E%3Ctext x='15' y='288' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.1'%3Eflag: SF%3C/text%3E%3Ctext x='15' y='300' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.08'%3Ecount: 2%3C/text%3E%3Cline x1='15' y1='306' x2='120' y2='306' stroke-width='0.8' opacity='0.1'/%3E%3C!-- Confusion matrix sketch --%3E%3Ctext x='15' y='336' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.16'%3ECONFUSION MTX%3C/text%3E%3Crect x='50' y='342' width='40' height='24' rx='1' stroke-width='1' opacity='0.16' fill='%23f87171' fill-opacity='0.06'/%3E%3Ctext x='62' y='358' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.2'%3ETP%3C/text%3E%3Crect x='90' y='342' width='40' height='24' rx='1' stroke-width='1' opacity='0.12'/%3E%3Ctext x='102' y='358' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.14'%3EFP%3C/text%3E%3Crect x='50' y='366' width='40' height='24' rx='1' stroke-width='1' opacity='0.12'/%3E%3Ctext x='62' y='382' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.14'%3EFN%3C/text%3E%3Crect x='90' y='366' width='40' height='24' rx='1' stroke-width='1' opacity='0.16' fill='%23f87171' fill-opacity='0.04'/%3E%3Ctext x='102' y='382' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.18'%3ETN%3C/text%3E%3C!-- Vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='420' x2='8' y2='700'/%3E%3Cline x1='4' y1='420' x2='12' y2='420'/%3E%3Cline x1='4' y1='470' x2='12' y2='470'/%3E%3Cline x1='4' y1='520' x2='12' y2='520'/%3E%3Cline x1='4' y1='570' x2='12' y2='570'/%3E%3Cline x1='4' y1='620' x2='12' y2='620'/%3E%3Cline x1='4' y1='670' x2='12' y2='670'/%3E%3C/g%3E%3C!-- Circuit traces --%3E%3Cpath d='M5 480 L35 480 L35 460 L80 460 L80 480 L115 480' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3Ccircle cx='35' cy='460' r='3' fill='%23f87171' stroke='none' opacity='0.16'/%3E%3Ccircle cx='80' cy='460' r='3' fill='%23f87171' stroke='none' opacity='0.14'/%3E%3C!-- ═══ CENTER: Neural network / decision tree ═══ --%3E%3Ctext x='380' y='70' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.18'%3EML CLASSIFIER%3C/text%3E%3C!-- Input layer --%3E%3Ccircle cx='420' cy='120' r='10' stroke-width='1.2' opacity='0.18'/%3E%3Ccircle cx='420' cy='160' r='10' stroke-width='1.2' opacity='0.16'/%3E%3Ccircle cx='420' cy='200' r='10' stroke-width='1.2' opacity='0.14'/%3E%3Ccircle cx='420' cy='240' r='10' stroke-width='1.2' opacity='0.12'/%3E%3C!-- Hidden layer --%3E%3Ccircle cx='540' cy='140' r='10' stroke-width='1.2' opacity='0.16' fill='%23f87171' fill-opacity='0.04'/%3E%3Ccircle cx='540' cy='180' r='10' stroke-width='1.2' opacity='0.14' fill='%23f87171' fill-opacity='0.03'/%3E%3Ccircle cx='540' cy='220' r='10' stroke-width='1.2' opacity='0.12' fill='%23f87171' fill-opacity='0.02'/%3E%3C!-- Output layer --%3E%3Ccircle cx='660' cy='150' r='12' stroke-width='1.5' opacity='0.2' fill='%23f87171' fill-opacity='0.06'/%3E%3Ctext x='650' y='154' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.22'%3EMAL%3C/text%3E%3Ccircle cx='660' cy='210' r='12' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='650' y='214' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.18'%3EOK%3C/text%3E%3C!-- Connections --%3E%3Cline x1='430' y1='120' x2='530' y2='140' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='430' y1='120' x2='530' y2='180' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='430' y1='160' x2='530' y2='140' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='430' y1='160' x2='530' y2='180' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='430' y1='200' x2='530' y2='180' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='430' y1='200' x2='530' y2='220' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='430' y1='240' x2='530' y2='220' stroke-width='0.8' opacity='0.06'/%3E%3Cline x1='550' y1='140' x2='648' y2='150' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='550' y1='180' x2='648' y2='150' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='550' y1='180' x2='648' y2='210' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='550' y1='220' x2='648' y2='210' stroke-width='0.8' opacity='0.06'/%3E%3C!-- Network topology diagram --%3E%3Ctext x='380' y='290' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.16'%3ENETWORK TAP%3C/text%3E%3Crect x='480' y='300' width='80' height='30' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='495' y='319' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.2'%3ESWITCH%3C/text%3E%3Cline x1='520' y1='330' x2='520' y2='350' stroke-width='1' opacity='0.14'/%3E%3Cline x1='520' y1='350' x2='440' y2='370' stroke-width='1' opacity='0.12'/%3E%3Cline x1='520' y1='350' x2='600' y2='370' stroke-width='1' opacity='0.12'/%3E%3Crect x='400' y='370' width='80' height='24' rx='2' stroke-width='1.2' opacity='0.14' fill='%23f87171' fill-opacity='0.04'/%3E%3Ctext x='412' y='386' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.18'%3EIDS SPAN%3C/text%3E%3Crect x='560' y='370' width='80' height='24' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='572' y='386' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.14'%3ECLIENTS%3C/text%3E%3C!-- Scattered annotations --%3E%3Ctext x='300' y='440' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.1' transform='rotate(4 300 440)'%3Esklearn.tree%3C/text%3E%3Ctext x='480' y='460' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.09'%3Etrain_test_split%3C/text%3E%3Ctext x='340' y='500' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.08' transform='rotate(-3 340 500)'%3Ef1_score: 0.97%3C/text%3E%3Ctext x='520' y='540' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.07'%3Escaler.transform()%3C/text%3E%3Ctext x='280' y='570' font-family='monospace' font-size='8' fill='%23f87171' stroke='none' opacity='0.08' transform='rotate(3 280 570)'%3Epcap.sniff(iface)%3C/text%3E%3C!-- ═══ RIGHT MARGIN: Alert severity gauge ═══ --%3E%3Ctext x='878' y='48' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.2'%3ESEVERITY%3C/text%3E%3Crect x='878' y='54' width='112' height='18' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='880' y='56' width='22' height='14' rx='1' stroke='none' fill='%23f87171' fill-opacity='0.06'/%3E%3Ctext x='882' y='68' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3EINFO%3C/text%3E%3Crect x='878' y='78' width='112' height='18' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='880' y='80' width='50' height='14' rx='1' stroke='none' fill='%23f87171' fill-opacity='0.1'/%3E%3Ctext x='882' y='92' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3EWARN%3C/text%3E%3Crect x='878' y='102' width='112' height='18' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='880' y='104' width='80' height='14' rx='1' stroke='none' fill='%23f87171' fill-opacity='0.14'/%3E%3Ctext x='882' y='116' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.18'%3EHIGH%3C/text%3E%3Crect x='878' y='126' width='112' height='18' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Crect x='880' y='128' width='108' height='14' rx='1' stroke='none' fill='%23f87171' fill-opacity='0.2'/%3E%3Ctext x='882' y='140' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.22'%3ECRITICAL%3C/text%3E%3C!-- Attack categories --%3E%3Ctext x='878' y='176' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.18'%3EATTACK TYPES%3C/text%3E%3Ctext x='882' y='194' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.16'%3EDoS / DDoS%3C/text%3E%3Ctext x='882' y='208' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3EPort Scan%3C/text%3E%3Ctext x='882' y='222' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.12'%3ER2L (remote)%3C/text%3E%3Ctext x='882' y='236' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.1'%3EU2R (priv esc)%3C/text%3E%3Ctext x='882' y='250' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.08'%3ENormal%3C/text%3E%3C!-- Model metrics --%3E%3Ctext x='878' y='286' font-family='monospace' font-size='9' fill='%23f87171' stroke='none' opacity='0.16'%3EMETRICS%3C/text%3E%3Ctext x='882' y='302' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.14'%3Eaccuracy: 0.964%3C/text%3E%3Ctext x='882' y='316' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.12'%3Eprecision: 0.971%3C/text%3E%3Ctext x='882' y='330' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.1'%3Erecall: 0.958%3C/text%3E%3Ctext x='882' y='344' font-family='monospace' font-size='7' fill='%23f87171' stroke='none' opacity='0.08'%3Ef1: 0.964%3C/text%3E%3C!-- Right margin separator --%3E%3Cline x1='867' y1='40' x2='867' y2='760' stroke-width='1' opacity='0.07' stroke-dasharray='6 8'/%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='280' y1='520' x2='300' y2='520'/%3E%3Cline x1='290' y1='510' x2='290' y2='530'/%3E%3Ccircle cx='290' cy='520' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='720' y1='280' x2='740' y2='280'/%3E%3Cline x1='730' y1='270' x2='730' y2='290'/%3E%3Ccircle cx='730' cy='280' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='520' x2='380' y2='260' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='680' y1='0' x2='1000' y2='180' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M760 640 A130 130 0 0 1 960 640' stroke-width='2' opacity='0.13'/%3E%3Cpath d='M780 640 A110 110 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3C!-- ═══ DIAMOND MARKERS ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%23f87171' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%23f87171' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%23f87171' stroke='none' opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(248, 113, 113, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #f87171;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(248, 113, 113, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(248, 113, 113, 0.06);
+        }
+
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal {
+            width: 68px; height: 68px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, rgba(248, 113, 113, 0.25) 0%, rgba(248, 113, 113, 0.12) 60%, rgba(248, 113, 113, 0.06) 100%);
+            border: 3px solid rgba(248, 113, 113, 0.5);
+            box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(248, 113, 113, 0.15);
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative;
+        }
+        .cf-house-seal::after {
+            content: ''; position: absolute; top: 3px; left: 6px; width: 18px; height: 10px;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%; pointer-events: none;
+        }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #f87171; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #f87171; background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #f87171; background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.25); }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(248, 113, 113, 0.08); border-left: 3px solid rgba(248, 113, 113, 0.2);
+            border-radius: 2px; padding: 32px 36px; margin-bottom: 24px; position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .cf-paper.has-clip::before { content: ''; position: absolute; top: -6px; left: 36px; width: 20px; height: 32px; border: 2px solid rgba(255,255,255,0.1); border-radius: 0 0 10px 10px; border-top: none; }
+        .cf-paper.has-tape::after { content: ''; position: absolute; top: -4px; right: 40px; width: 60px; height: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg); }
+
+        .cf-section-stamp {
+            font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #f87171;
+            font-weight: 700; padding-bottom: 10px; margin-bottom: 16px;
+            border-bottom: 1px solid rgba(248, 113, 113, 0.15);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .cf-section-stamp::before { content: ''; width: 8px; height: 8px; background: #f87171; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6; }
+
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #f87171; background: rgba(248, 113, 113, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(248, 113, 113, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(248, 113, 113, 0.06); }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card { display: flex; gap: 18px; padding: 20px 22px; background: rgba(248, 113, 113, 0.02); border: 1px solid rgba(248, 113, 113, 0.08); border-radius: 2px; position: relative; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+        .cf-evidence-card:hover { border-color: rgba(248, 113, 113, 0.25); background: rgba(248, 113, 113, 0.04); box-shadow: 0 0 20px rgba(248, 113, 113, 0.06); }
+        .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
+        .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #f87171; background: rgba(248, 113, 113, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(248, 113, 113, 0.04); border: 1px solid rgba(248, 113, 113, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(248, 113, 113, 0.08); border-color: rgba(248, 113, 113, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #f87171; }
+
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #f87171; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(248, 113, 113, 0.3) 0%, rgba(248, 113, 113, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+
+        .cf-training-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+        .cf-training-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 8px; padding: 16px; text-decoration: none; color: #e2e8f0; transition: border-color 0.2s, transform 0.2s; display: flex; flex-direction: column; gap: 8px; }
+        .cf-training-card:hover { border-color: #f87171; transform: translateY(-2px); }
+        .cf-training-card .tc-district { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #f87171; opacity: 0.8; }
+        .cf-training-card .tc-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
+        .cf-training-card .tc-type { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">SH-IDS-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">SH-IDS-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-shield.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Shield House</span>
+                    <span class="cf-house-domain">Security &amp; Defense</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a ML-Powered Network IDS</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Advanced</span>
+                <span class="cf-badge cf-badge-time">3H</span>
+                <span class="cf-badge cf-badge-xp">1200 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation requires the construction of a <strong>machine-learning-powered intrusion
+                    detection system</strong> that classifies network traffic in real time as normal or malicious.
+                    You will build the full pipeline from raw packet capture through feature extraction,
+                    model training with scikit-learn, and a live classification engine that raises alerts
+                    when anomalous traffic is detected. The system processes network flows rather than
+                    individual packets, extracting statistical features like duration, byte counts, protocol
+                    flags, and connection rates that feed directly into the ML classifier.
+                </p>
+                <p>
+                    The model is trained on labeled network traffic data using supervised learning algorithms
+                    &mdash; decision trees, random forests, and gradient boosting &mdash; with
+                    cross-validation to measure generalization. Feature engineering is the core skill:
+                    transforming raw packet metadata into a numeric feature vector that captures the
+                    behavioral signature of different attack types including DoS floods, port scans,
+                    brute-force attempts, and privilege escalation exploits. The trained model is serialized
+                    with <code>joblib</code> and loaded by the detection engine, which processes live
+                    traffic from a network interface or PCAP replay.
+                </p>
+                <p>
+                    This project bridges the gap between security operations and data science &mdash; two
+                    disciplines that increasingly overlap in modern SOC environments. You will understand
+                    why signature-based detection alone is insufficient, how ML models generalize to
+                    previously unseen attack variants, and why metrics like precision and recall matter
+                    far more than raw accuracy when false positives can overwhelm an analyst team.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Solid Python fundamentals: functions, classes, and working with tabular data in pandas</li>
+                <li>Basic understanding of networking concepts &mdash; TCP/IP, ports, protocols, and packet structure</li>
+                <li>Conceptual familiarity with machine learning: what training, testing, and classification mean</li>
+                <li>Comfortable with pip, virtual environments, and running scripts from the command line</li>
+                <li>No prior ML implementation or data science experience required &mdash; all techniques are taught step by step</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Packet Capture &amp; Data Ingestion</div>
+                        <div class="cf-evidence-desc">
+                            Set up packet capture using <code>scapy</code> or <code>pyshark</code> to read
+                            live traffic from a network interface or replay from PCAP files. Parse raw packets
+                            into structured flow records containing source/destination IP, ports, protocol,
+                            flags, timestamps, and byte counts. Load the NSL-KDD or CICIDS dataset as the
+                            labeled training corpus. Explore the dataset with <code>pandas</code> to understand
+                            feature distributions and class imbalances.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Feature Extraction &amp; Engineering</div>
+                        <div class="cf-evidence-desc">
+                            Build a <code>FeatureExtractor</code> class that transforms raw flow records into
+                            numeric feature vectors. Extract statistical features: connection duration, byte
+                            counts, packet rates, flag distributions, and service type encodings. Apply
+                            <code>StandardScaler</code> for normalization and <code>LabelEncoder</code> for
+                            categorical columns. Engineer derived features like connections-per-second and
+                            error-rate ratios that improve model discrimination. Split into train/test sets
+                            with stratified sampling to preserve class balance.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Model Training &amp; Evaluation</div>
+                        <div class="cf-evidence-desc">
+                            Train multiple classifiers using <code>scikit-learn</code>:
+                            <code>DecisionTreeClassifier</code>, <code>RandomForestClassifier</code>, and
+                            <code>GradientBoostingClassifier</code>. Evaluate each with 5-fold cross-validation
+                            measuring accuracy, precision, recall, and F1 score. Generate confusion matrices
+                            to visualize true/false positive rates for each attack category. Perform
+                            hyperparameter tuning with <code>GridSearchCV</code> to optimize the best-performing
+                            model. Serialize the final model and scaler with <code>joblib.dump()</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Real-Time Classification Engine</div>
+                        <div class="cf-evidence-desc">
+                            Build the live detection engine that loads the serialized model and processes
+                            incoming traffic flows. Implement a sliding window that aggregates packets into
+                            flow records matching the training feature schema. Classify each flow and assign
+                            a threat confidence score. Maintain a detection buffer that correlates multiple
+                            low-confidence alerts into high-confidence detections, reducing false positive
+                            noise. Log every classification decision with timestamp, source, and confidence.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Alert Engine &amp; Dashboard</div>
+                        <div class="cf-evidence-desc">
+                            Build an alerting system with configurable severity thresholds: INFO, WARN, HIGH,
+                            and CRITICAL. Route alerts to stdout, a log file, and an optional webhook for
+                            Slack or Discord integration. Implement rate limiting to prevent alert fatigue
+                            during sustained attacks. Build a terminal dashboard using <code>rich</code> or
+                            <code>curses</code> that displays live traffic classification, alert counts by
+                            severity, top talkers, and model confidence distribution in real time.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Python 3.10+</div>
+                <div class="cf-manifest-item">scikit-learn</div>
+                <div class="cf-manifest-item">pandas</div>
+                <div class="cf-manifest-item">numpy</div>
+                <div class="cf-manifest-item">scapy / pyshark</div>
+                <div class="cf-manifest-item">joblib</div>
+                <div class="cf-manifest-item">matplotlib</div>
+                <div class="cf-manifest-item">rich</div>
+                <div class="cf-manifest-item">NSL-KDD / CICIDS dataset</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Network traffic feature extraction from raw packets</li>
+                <li>Supervised ML classification with scikit-learn</li>
+                <li>Model evaluation: precision, recall, F1, confusion matrices</li>
+                <li>Hyperparameter tuning with cross-validation</li>
+                <li>Real-time packet processing and flow aggregation</li>
+                <li>Alert engine design with severity tiers</li>
+                <li>Data normalization and categorical encoding</li>
+                <li>Model serialization and deployment patterns</li>
+                <li>Understanding signature vs. anomaly detection tradeoffs</li>
+                <li>SOC-grade intrusion detection architecture</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Related Training ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../houses/shield/index.html" class="cf-training-card">
+                    <span class="tc-district">Shield House</span>
+                    <span class="tc-title">Network Security Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/ai/index.html" class="cf-training-card">
+                    <span class="tc-district">AI House</span>
+                    <span class="tc-title">Introduction to Machine Learning</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../arctic/districts/advanced-topics/index.html" class="cf-training-card">
+                    <span class="tc-district">Certification Prep</span>
+                    <span class="tc-title">Intrusion Detection Systems</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+                <a href="../houses/code/index.html" class="cf-training-card">
+                    <span class="tc-district">Code House</span>
+                    <span class="tc-title">Python Data Analysis with Pandas</span>
+                    <span class="tc-type">Module</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

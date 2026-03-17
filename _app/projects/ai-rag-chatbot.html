@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Build a RAG Chatbot | Hexworth Prime</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        /* ── Drafting table surface ─────────────────────── */
+        .cf-drafting-table {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Primary grid — drafting mat */
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                /* Major grid */
+                linear-gradient(rgba(139, 92, 246, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 92, 246, 0.07) 1px, transparent 1px),
+                /* Minor grid (subdivisions) */
+                linear-gradient(rgba(139, 92, 246, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 92, 246, 0.025) 1px, transparent 1px),
+                /* Glow from center-top */
+                radial-gradient(ellipse at 50% 15%, rgba(139, 92, 246, 0.1) 0%, transparent 55%),
+                /* Vignette */
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size:
+                80px 80px, 80px 80px,
+                20px 20px, 20px 20px,
+                100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches layer — SVG overlay */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%238b5cf6'%3E%3C!-- ═══ LEFT MARGIN: Document stack ═══ --%3E%3Ctext x='18' y='46' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.22'%3EDOC LOADER%3C/text%3E%3Crect x='20' y='55' width='80' height='100' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Crect x='26' y='61' width='68' height='10' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.08'/%3E%3Cline x1='30' y1='80' x2='90' y2='80' stroke-width='0.8' opacity='0.12'/%3E%3Cline x1='30' y1='90' x2='85' y2='90' stroke-width='0.8' opacity='0.1'/%3E%3Cline x1='30' y1='100' x2='88' y2='100' stroke-width='0.8' opacity='0.08'/%3E%3Cline x1='30' y1='110' x2='82' y2='110' stroke-width='0.8' opacity='0.07'/%3E%3Cline x1='30' y1='120' x2='75' y2='120' stroke-width='0.8' opacity='0.06'/%3E%3Cline x1='30' y1='130' x2='90' y2='130' stroke-width='0.8' opacity='0.06'/%3E%3Cline x1='30' y1='140' x2='70' y2='140' stroke-width='0.8' opacity='0.05'/%3E%3C!-- Stacked docs behind --%3E%3Crect x='24' y='52' width='80' height='100' rx='2' stroke-width='1' opacity='0.1'/%3E%3Crect x='28' y='49' width='80' height='100' rx='2' stroke-width='0.8' opacity='0.06'/%3E%3Ctext x='32' y='170' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3EPDF / TXT%3C/text%3E%3C!-- Left margin: Text splitter visualization --%3E%3Ctext x='18' y='200' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3ECHUNK MAP%3C/text%3E%3Crect x='18' y='210' width='120' height='14' rx='1' stroke-width='1' opacity='0.16' fill='%238b5cf6' fill-opacity='0.06'/%3E%3Cline x1='48' y1='210' x2='48' y2='224' stroke-width='1.5' opacity='0.2' stroke-dasharray='2 2'/%3E%3Cline x1='78' y1='210' x2='78' y2='224' stroke-width='1.5' opacity='0.2' stroke-dasharray='2 2'/%3E%3Cline x1='108' y1='210' x2='108' y2='224' stroke-width='1.5' opacity='0.18' stroke-dasharray='2 2'/%3E%3Ctext x='22' y='244' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Echunk_size: 512%3C/text%3E%3Ctext x='22' y='256' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Eoverlap: 50%3C/text%3E%3C!-- Left margin: Embedding vector arrows --%3E%3Ctext x='18' y='290' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3EEMBEDDINGS%3C/text%3E%3Cline x1='20' y1='300' x2='60' y2='300' stroke-width='1.2' opacity='0.16'/%3E%3Cpolygon points='60,296 68,300 60,304' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Ctext x='72' y='304' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3E[0.12, 0.87, ...]%3C/text%3E%3Cline x1='20' y1='316' x2='55' y2='316' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='55,312 63,316 55,320' fill='%238b5cf6' stroke='none' opacity='0.14'/%3E%3Ctext x='67' y='320' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3E[0.45, 0.33, ...]%3C/text%3E%3Cline x1='20' y1='332' x2='50' y2='332' stroke-width='1.2' opacity='0.12'/%3E%3Cpolygon points='50,328 58,332 50,336' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Ctext x='62' y='336' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3E[0.91, 0.02, ...]%3C/text%3E%3C!-- Left margin: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='380' x2='8' y2='620'/%3E%3Cline x1='4' y1='380' x2='12' y2='380'/%3E%3Cline x1='4' y1='430' x2='12' y2='430'/%3E%3Cline x1='4' y1='480' x2='12' y2='480'/%3E%3Cline x1='4' y1='530' x2='12' y2='530'/%3E%3Cline x1='4' y1='580' x2='12' y2='580'/%3E%3Cline x1='4' y1='620' x2='12' y2='620'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='405' x2='10' y2='405'/%3E%3Cline x1='6' y1='455' x2='10' y2='455'/%3E%3Cline x1='6' y1='505' x2='10' y2='505'/%3E%3Cline x1='6' y1='555' x2='10' y2='555'/%3E%3C/g%3E%3C!-- Left margin: circuit traces --%3E%3Cpath d='M5 680 L40 680 L40 660 L80 660 L80 680 L120 680' stroke-width='1.2' opacity='0.14' fill='none'/%3E%3Cpath d='M5 700 L25 700 L25 715 L60 715 L60 700 L90 700 L90 720 L120 720' stroke-width='1' opacity='0.1' fill='none'/%3E%3Ccircle cx='40' cy='660' r='3' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Ccircle cx='80' cy='660' r='3' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Ccircle cx='25' cy='715' r='3' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Ccircle cx='60' cy='715' r='3' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3C!-- ═══ CENTER: RAG Pipeline wireframe ═══ --%3E%3Ctext x='280' y='80' font-family='monospace' font-size='10' fill='%238b5cf6' stroke='none' opacity='0.2'%3ERAG PIPELINE%3C/text%3E%3Crect x='270' y='90' width='68' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='278' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3ELOADER%3C/text%3E%3Cline x1='338' y1='105' x2='358' y2='105' stroke-width='1.5' opacity='0.18'/%3E%3Cpolygon points='358,101 366,105 358,109' fill='%238b5cf6' stroke='none' opacity='0.18'/%3E%3Crect x='366' y='90' width='68' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='372' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3ESPLIT%3C/text%3E%3Cline x1='434' y1='105' x2='454' y2='105' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='454,101 462,105 454,109' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Crect x='462' y='90' width='68' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='470' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3EEMBED%3C/text%3E%3Cline x1='530' y1='105' x2='550' y2='105' stroke-width='1.5' opacity='0.18'/%3E%3Cpolygon points='550,101 558,105 550,109' fill='%238b5cf6' stroke='none' opacity='0.18'/%3E%3Crect x='558' y='90' width='68' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='564' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3ESTORE%3C/text%3E%3Cline x1='626' y1='105' x2='646' y2='105' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='646,101 654,105 646,109' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Crect x='654' y='90' width='76' height='30' rx='2' stroke-width='1.5' opacity='0.2'/%3E%3Ctext x='660' y='110' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.2'%3ERETRIEVE%3C/text%3E%3C!-- Sub-labels --%3E%3Ctext x='274' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Epdf/txt%3C/text%3E%3Ctext x='370' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3E512 tok%3C/text%3E%3Ctext x='466' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Eada-002%3C/text%3E%3Ctext x='564' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Echroma%3C/text%3E%3Ctext x='658' y='130' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Etop-k=4%3C/text%3E%3C!-- Center: Vector space visualization --%3E%3Ctext x='380' y='190' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3EVECTOR SPACE%3C/text%3E%3Crect x='360' y='200' width='260' height='180' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3C!-- Cluster A: document chunks --%3E%3Ccircle cx='420' cy='260' r='5' fill='%238b5cf6' stroke='none' opacity='0.22'/%3E%3Ccircle cx='440' cy='275' r='5' fill='%238b5cf6' stroke='none' opacity='0.2'/%3E%3Ccircle cx='425' cy='290' r='5' fill='%238b5cf6' stroke='none' opacity='0.18'/%3E%3Ccircle cx='450' cy='265' r='5' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Ccircle cx='435' cy='245' r='5' fill='%238b5cf6' stroke='none' opacity='0.14'/%3E%3C!-- Cluster B --%3E%3Ccircle cx='530' cy='310' r='5' fill='%238b5cf6' stroke='none' opacity='0.2'/%3E%3Ccircle cx='545' cy='325' r='5' fill='%238b5cf6' stroke='none' opacity='0.18'/%3E%3Ccircle cx='555' cy='305' r='5' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Ccircle cx='520' cy='330' r='5' fill='%238b5cf6' stroke='none' opacity='0.14'/%3E%3C!-- Query point (hollow) --%3E%3Ccircle cx='460' cy='280' r='7' stroke-width='2' opacity='0.28' fill='none'/%3E%3Ctext x='470' y='278' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.2'%3Equery%3C/text%3E%3C!-- Nearest neighbor lines --%3E%3Cline x1='460' y1='280' x2='440' y2='275' stroke-width='1' opacity='0.16' stroke-dasharray='3 3'/%3E%3Cline x1='460' y1='280' x2='450' y2='265' stroke-width='1' opacity='0.14' stroke-dasharray='3 3'/%3E%3Cline x1='460' y1='280' x2='425' y2='290' stroke-width='1' opacity='0.12' stroke-dasharray='3 3'/%3E%3Ctext x='365' y='395' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Ecosine similarity%3C/text%3E%3C!-- Center: compass arc --%3E%3Cpath d='M180 480 A100 100 0 0 1 380 480' stroke-width='2' opacity='0.2'/%3E%3Cpath d='M195 480 A85 85 0 0 1 365 480' stroke-width='1.2' opacity='0.12' stroke-dasharray='6 4'/%3E%3Cpath d='M210 480 A70 70 0 0 1 350 480' stroke-width='0.8' opacity='0.07' stroke-dasharray='3 3'/%3E%3Ccircle cx='280' cy='480' r='5' fill='%238b5cf6' stroke='none' opacity='0.22'/%3E%3Cline x1='280' y1='480' x2='280' y2='390' stroke-width='1' opacity='0.12' stroke-dasharray='3 5'/%3E%3Cline x1='280' y1='480' x2='370' y2='440' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Cline x1='280' y1='480' x2='210' y2='425' stroke-width='1' opacity='0.08' stroke-dasharray='3 5'/%3E%3Cg stroke-width='1' opacity='0.14'%3E%3Cline x1='230' y1='398' x2='234' y2='408'/%3E%3Cline x1='280' y1='382' x2='280' y2='392'/%3E%3Cline x1='330' y1='398' x2='326' y2='408'/%3E%3C/g%3E%3Ctext x='272' y='402' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.12'%3EN%3C/text%3E%3C!-- ═══ RIGHT MARGIN: LLM chain diagram ═══ --%3E%3Ctext x='886' y='46' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.22'%3ELLM CHAIN%3C/text%3E%3Crect x='880' y='55' width='110' height='30' rx='2' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='900' y='74' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.18'%3EPROMPT%3C/text%3E%3Cline x1='935' y1='85' x2='935' y2='100' stroke-width='1.2' opacity='0.16'/%3E%3Cpolygon points='931,100 935,108 939,100' fill='%238b5cf6' stroke='none' opacity='0.16'/%3E%3Crect x='880' y='110' width='110' height='30' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='896' y='129' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.16'%3ECONTEXT%3C/text%3E%3Cline x1='935' y1='140' x2='935' y2='155' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='931,155 935,163 939,155' fill='%238b5cf6' stroke='none' opacity='0.14'/%3E%3Crect x='880' y='165' width='110' height='30' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='912' y='184' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.14'%3ELLM%3C/text%3E%3Cline x1='935' y1='195' x2='935' y2='210' stroke-width='1.2' opacity='0.12'/%3E%3Cpolygon points='931,210 935,218 939,210' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Crect x='880' y='220' width='110' height='30' rx='2' stroke-width='1.5' opacity='0.12'/%3E%3Ctext x='894' y='239' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.12'%3ERESPONSE%3C/text%3E%3C!-- Right margin: token counter --%3E%3Ctext x='882' y='280' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3ETOKEN USAGE%3C/text%3E%3Crect x='882' y='288' width='104' height='60' rx='1' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='888' y='306' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3Eprompt: 1,240%3C/text%3E%3Ctext x='888' y='320' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Econtext: 2,048%3C/text%3E%3Ctext x='888' y='334' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Ecompletion: 512%3C/text%3E%3Cline x1='882' y1='340' x2='986' y2='340' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='888' y='354' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Etotal: 3,800 tok%3C/text%3E%3C!-- Right margin: similarity scores --%3E%3Ctext x='882' y='390' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3ESIM SCORES%3C/text%3E%3Crect x='882' y='398' width='85' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.14'/%3E%3Ctext x='970' y='406' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.16'%3E0.94%3C/text%3E%3Crect x='882' y='412' width='70' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.1'/%3E%3Ctext x='956' y='420' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3E0.87%3C/text%3E%3Crect x='882' y='426' width='52' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.07'/%3E%3Ctext x='938' y='434' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3E0.72%3C/text%3E%3Crect x='882' y='440' width='35' height='8' rx='1' stroke='none' fill='%238b5cf6' fill-opacity='0.04'/%3E%3Ctext x='922' y='448' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3E0.61%3C/text%3E%3C!-- Right margin: vertical dashed line --%3E%3Cline x1='875' y1='260' x2='875' y2='700' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- Right margin: model metadata --%3E%3Ctext x='882' y='490' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.18'%3EMODEL META%3C/text%3E%3Ctext x='882' y='508' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.14'%3Emodel: gpt-4o-mini%3C/text%3E%3Ctext x='882' y='522' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Etemp: 0.2%3C/text%3E%3Ctext x='882' y='536' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.12'%3Emax_tokens: 1024%3C/text%3E%3Ctext x='882' y='550' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Etop_k: 4%3C/text%3E%3Ctext x='882' y='564' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.1'%3Evector_dim: 1536%3C/text%3E%3Ctext x='882' y='578' font-family='monospace' font-size='7' fill='%238b5cf6' stroke='none' opacity='0.08'%3Edb: chromadb%3C/text%3E%3C!-- ═══ CROSSHAIR MARKS ═══ --%3E%3Cg opacity='0.2' stroke-width='1.8'%3E%3Cline x1='290' y1='560' x2='310' y2='560'/%3E%3Cline x1='300' y1='550' x2='300' y2='570'/%3E%3Ccircle cx='300' cy='560' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='730' y1='460' x2='750' y2='460'/%3E%3Cline x1='740' y1='450' x2='740' y2='470'/%3E%3Ccircle cx='740' cy='460' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.14' stroke-width='1.5'%3E%3Cline x1='150' y1='500' x2='170' y2='500'/%3E%3Cline x1='160' y1='490' x2='160' y2='510'/%3E%3Ccircle cx='160' cy='500' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.07' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.06' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3C!-- ═══ PROTRACTOR bottom-right ═══ --%3E%3Cpath d='M780 640 A120 120 0 0 1 960 640' stroke-width='2' opacity='0.14'/%3E%3Cpath d='M800 640 A100 100 0 0 1 940 640' stroke-width='1.2' opacity='0.09'/%3E%3Cpath d='M820 640 A80 80 0 0 1 920 640' stroke-width='1' opacity='0.06' stroke-dasharray='4 3'/%3E%3Cline x1='870' y1='640' x2='870' y2='530' stroke-width='1' opacity='0.1' stroke-dasharray='3 5'/%3E%3Ctext x='855' y='525' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.1'%3E90%C2%B0%3C/text%3E%3C!-- ═══ RULER bottom edge ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3C!-- Ruler top edge --%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='40' y='470' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.12' transform='rotate(-12 40 470)'%3ERecursiveCharacterTextSplitter%3C/text%3E%3Ctext x='560' y='520' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.1'%3Eas_retriever()%3C/text%3E%3Ctext x='300' y='500' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.08' transform='rotate(5 300 500)'%3ERetrievalQA.from_chain_type%3C/text%3E%3Ctext x='640' y='580' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.1' transform='rotate(-3 640 580)'%3Einvoke(query)%3C/text%3E%3Ctext x='460' y='480' font-family='monospace' font-size='8' fill='%238b5cf6' stroke='none' opacity='0.07'%3EOpenAIEmbeddings()%3C/text%3E%3Ctext x='200' y='620' font-family='monospace' font-size='9' fill='%238b5cf6' stroke='none' opacity='0.09' transform='rotate(-5 200 620)'%3EChroma.from_documents%3C/text%3E%3C!-- ═══ DIAMOND MARKERS at corners ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%238b5cf6' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%238b5cf6' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%238b5cf6' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        /* CRT scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+                transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 9000;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        .cf-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: #0e1018;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .cf-header a {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            letter-spacing: 0.08em;
+            transition: color 0.2s;
+        }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: #8b5cf6;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-header-ref {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* ── Content wrapper ───────────────────────────────── */
+        .cf-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Dossier Cover ─────────────────────────────────── */
+        .cf-cover {
+            position: relative;
+            background: linear-gradient(170deg, #14121e 0%, #12151c 100%);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            border-radius: 2px;
+            padding: 48px 40px 40px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.4),
+                0 0 60px rgba(139, 92, 246, 0.06);
+        }
+
+        /* Classified stamp */
+        .cf-stamp {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: rgba(220, 38, 38, 0.5);
+            border: 3px solid rgba(220, 38, 38, 0.4);
+            padding: 4px 14px;
+            transform: rotate(3deg);
+            text-transform: uppercase;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Fold line */
+        .cf-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.06) 20%,
+                rgba(255,255,255,0.06) 80%, transparent 100%);
+        }
+
+        .cf-meta-row {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .cf-meta-item {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .cf-meta-value {
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+        }
+
+        .cf-house-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 20px 0 24px;
+        }
+        .cf-house-seal {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(139, 92, 246, 0.25) 0%,
+                rgba(139, 92, 246, 0.12) 60%,
+                rgba(139, 92, 246, 0.06) 100%);
+            border: 3px solid rgba(139, 92, 246, 0.5);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.1),
+                inset 0 -2px 4px rgba(0,0,0,0.3),
+                0 2px 6px rgba(0,0,0,0.4),
+                0 0 12px rgba(139, 92, 246, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .cf-house-seal::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            width: 18px;
+            height: 10px;
+            background: radial-gradient(ellipse at center,
+                rgba(255,255,255,0.18) 0%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cf-house-seal img {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 50%;
+            opacity: 0.9;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        .cf-house-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cf-house-name {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: #8b5cf6;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .cf-house-domain {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.06em;
+        }
+
+        /* Subject line */
+        .cf-subject-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.25);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cf-subject {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.3;
+            letter-spacing: 0.02em;
+        }
+
+        /* Classification badges */
+        .cf-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .cf-badge {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cf-badge-diff {
+            color: #facc15;
+            background: rgba(250, 204, 21, 0.1);
+            border: 1px solid rgba(250, 204, 21, 0.3);
+        }
+        .cf-badge-time {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cf-badge-xp {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+        }
+
+        /* ── Paper section card ────────────────────────────── */
+        .cf-paper {
+            background: linear-gradient(175deg, #131620 0%, #11141b 100%);
+            border: 1px solid rgba(139, 92, 246, 0.08);
+            border-left: 3px solid rgba(139, 92, 246, 0.2);
+            border-radius: 2px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        .cf-paper.has-clip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 36px;
+            width: 20px;
+            height: 32px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 0 0 10px 10px;
+            border-top: none;
+        }
+
+        .cf-paper.has-tape::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: 40px;
+            width: 60px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transform: rotate(-1deg);
+        }
+
+        .cf-section-stamp {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #8b5cf6;
+            font-weight: 700;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cf-section-stamp::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #8b5cf6;
+            border-radius: 1px;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ─────────────────────────────────────── */
+        .cf-prose p {
+            font-size: 0.95rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 16px;
+        }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.9rem;
+        }
+
+        /* ── Prerequisites (form style) ────────────────────── */
+        .cf-req-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .cf-req-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        .cf-req-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid rgba(139, 92, 246, 0.4);
+            border-radius: 2px;
+            margin-top: 3px;
+            background: rgba(139, 92, 246, 0.06);
+        }
+
+        /* ── Evidence board (milestones) ───────────────────── */
+        .cf-evidence-board {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cf-evidence-card {
+            display: flex;
+            gap: 18px;
+            padding: 20px 22px;
+            background: rgba(139, 92, 246, 0.02);
+            border: 1px solid rgba(139, 92, 246, 0.08);
+            border-radius: 2px;
+            position: relative;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .cf-evidence-card:hover {
+            border-color: rgba(139, 92, 246, 0.25);
+            background: rgba(139, 92, 246, 0.04);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.06);
+        }
+
+        .cf-evidence-marker {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            border: 2px solid rgba(250, 204, 21, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #facc15;
+        }
+
+        .cf-evidence-card::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 34px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.5);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .cf-evidence-body { flex: 1; }
+
+        .cf-evidence-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.88);
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+        .cf-evidence-desc {
+            font-size: 0.9rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.5);
+        }
+        .cf-evidence-desc code {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 0.85rem;
+        }
+
+        /* ── Asset manifest (tools) ────────────────────────── */
+        .cf-manifest {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .cf-manifest-item {
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            background: rgba(139, 92, 246, 0.04);
+            border: 1px solid rgba(139, 92, 246, 0.12);
+            border-radius: 2px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.05em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cf-manifest-item:hover {
+            background: rgba(139, 92, 246, 0.08);
+            border-color: rgba(139, 92, 246, 0.25);
+        }
+        .cf-manifest-item::before {
+            content: '\25B8 ';
+            color: #8b5cf6;
+        }
+
+        /* ── Debrief (what you'll learn) ───────────────────── */
+        .cf-debrief-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .cf-debrief-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.55;
+        }
+        .cf-debrief-list li::before {
+            content: '\25B9';
+            color: #8b5cf6;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ── Redaction bar divider ─────────────────────────── */
+        .cf-redaction-bar {
+            height: 4px;
+            background: linear-gradient(90deg,
+                rgba(139, 92, 246, 0.3) 0%,
+                rgba(139, 92, 246, 0.1) 40%,
+                rgba(255,255,255,0.03) 100%);
+            margin: 12px 0;
+            border-radius: 1px;
+        }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .cf-footer {
+            text-align: center;
+            margin-top: 48px;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .cf-footer-text {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.12);
+            text-transform: uppercase;
+        }
+
+        /* ── Training cards ───────────────────────────────── */
+        .cf-training-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .cf-training-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .cf-training-card:hover {
+            border-color: #8b5cf6;
+            transform: translateY(-2px);
+        }
+        .cf-training-card .tc-district {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #8b5cf6;
+            opacity: 0.8;
+        }
+        .cf-training-card .tc-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .cf-training-card .tc-type {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Drafting table background -->
+    <div class="cf-drafting-table"></div>
+
+    <!-- Header -->
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">AI-RAG-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <!-- ═══ Dossier Cover ═══ -->
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">AI-RAG-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-robot.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">AI House</span>
+                    <span class="cf-house-domain">Artificial Intelligence Division</span>
+                </div>
+            </div>
+
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Build a RAG Chatbot</h1>
+
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Journeyman</span>
+                <span class="cf-badge cf-badge-time">120 min</span>
+                <span class="cf-badge cf-badge-xp">600 XP</span>
+            </div>
+        </div>
+
+        <!-- ═══ Mission Brief ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    This operation tasks you with building a <strong>Retrieval-Augmented Generation chatbot</strong>
+                    that answers questions grounded in your own documents rather than relying on the LLM's
+                    pre-trained knowledge alone. Feed it PDFs, markdown files, or plain text &mdash; the bot
+                    will index every document into a vector store, retrieve the most relevant chunks at query
+                    time, and inject them as context into the language model's prompt before generating a
+                    response. The result: answers that cite your data, not hallucinated guesses.
+                </p>
+                <p>
+                    The pipeline is orchestrated through <strong>LangChain</strong>, using its document
+                    loaders to ingest files, <code>RecursiveCharacterTextSplitter</code> to chunk them
+                    into retrieval-friendly segments with configurable overlap, and
+                    <code>OpenAIEmbeddings</code> (or a local alternative) to convert each chunk into a
+                    high-dimensional vector. Those vectors are persisted in <strong>ChromaDB</strong>, a
+                    lightweight local vector database that supports similarity search out of the box.
+                </p>
+                <p>
+                    At query time, the user's question is embedded into the same vector space, the top-k
+                    most similar chunks are retrieved, and a <code>RetrievalQA</code> chain sends the
+                    assembled prompt to the LLM. The finished chatbot runs in the terminal as an
+                    interactive loop &mdash; ask a question, get a sourced answer, repeat. Along the way
+                    you will learn how embedding models work, why chunk size and overlap matter, and how
+                    to evaluate retrieval quality with relevance scoring.
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Agent Requirements ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Python fundamentals &mdash; functions, classes, file I/O, and package management with pip</li>
+                <li>Basic understanding of APIs &mdash; sending requests, handling JSON responses, and API keys</li>
+                <li>Familiarity with the command line for running scripts and managing virtual environments</li>
+                <li>Conceptual understanding of what a language model does (input text in, generated text out)</li>
+                <li>No prior experience with LangChain, vector databases, or embeddings required &mdash; the project teaches these from scratch</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Operation Phases ═══ -->
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Document Ingestion</div>
+                        <div class="cf-evidence-desc">
+                            Set up a LangChain document loader pipeline that accepts PDF, plain text, and
+                            markdown files from a local directory. Use <code>PyPDFLoader</code> for PDFs
+                            and <code>TextLoader</code> for raw text. Each loader returns a list of
+                            <code>Document</code> objects containing the page content and metadata (filename,
+                            page number). Normalize all loaded documents into a unified list for downstream
+                            processing, handling encoding edge cases and empty pages gracefully.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Text Splitting &amp; Chunking</div>
+                        <div class="cf-evidence-desc">
+                            Apply <code>RecursiveCharacterTextSplitter</code> to break documents into
+                            retrieval-sized chunks. Configure <code>chunk_size</code> (target 512 tokens)
+                            and <code>chunk_overlap</code> (50 tokens) to balance context preservation
+                            with retrieval granularity. Experiment with different splitter strategies
+                            &mdash; character-based vs. token-based &mdash; and measure how chunk size
+                            affects downstream answer quality. Log chunk counts and average lengths for
+                            each ingested document to build intuition about the splitting process.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Embedding &amp; Vector Store</div>
+                        <div class="cf-evidence-desc">
+                            Initialize an embedding model using <code>OpenAIEmbeddings</code> (or the
+                            local <code>HuggingFaceEmbeddings</code> alternative for offline work) and
+                            embed every chunk into a 1536-dimensional vector. Store the resulting vectors
+                            in <strong>ChromaDB</strong> using <code>Chroma.from_documents()</code> with
+                            persistent storage so the index survives across sessions. Verify the store by
+                            running a raw similarity search with <code>similarity_search_with_score()</code>
+                            and inspecting the returned documents and cosine distances.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Retrieval Chain Assembly</div>
+                        <div class="cf-evidence-desc">
+                            Build a <code>RetrievalQA</code> chain by connecting the ChromaDB retriever
+                            (configured with <code>search_kwargs={"k": 4}</code>) to an LLM instance.
+                            Craft a custom prompt template that instructs the model to answer only from
+                            the provided context and to say "I don't know" when the documents lack the
+                            answer. Set <code>temperature=0.2</code> to keep responses factual. Test the
+                            chain with a suite of questions &mdash; some answerable from the documents,
+                            some intentionally unanswerable &mdash; to validate grounding behavior.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Interactive Chat Loop</div>
+                        <div class="cf-evidence-desc">
+                            Wrap the retrieval chain in a terminal-based interactive loop using Python's
+                            <code>input()</code>. Each user query is passed through the chain, and the
+                            response is printed alongside the source document names and chunk excerpts
+                            for transparency. Add a <code>/sources</code> command that displays the raw
+                            retrieved chunks with their similarity scores. Implement conversation memory
+                            using <code>ConversationBufferMemory</code> so follow-up questions have
+                            context. Include a <code>/ingest</code> command to add new documents to the
+                            vector store without restarting the session.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ Asset Manifest ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Python 3.10+</div>
+                <div class="cf-manifest-item">LangChain</div>
+                <div class="cf-manifest-item">ChromaDB</div>
+                <div class="cf-manifest-item">OpenAI API</div>
+                <div class="cf-manifest-item">PyPDF</div>
+                <div class="cf-manifest-item">tiktoken</div>
+                <div class="cf-manifest-item">HuggingFace Embeddings</div>
+                <div class="cf-manifest-item">dotenv</div>
+            </div>
+        </div>
+
+        <!-- ═══ Debrief ═══ -->
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Document loading and text extraction from multiple formats</li>
+                <li>Text chunking strategies and their impact on retrieval</li>
+                <li>Embedding models and vector representations</li>
+                <li>Vector database indexing and similarity search</li>
+                <li>Retrieval-Augmented Generation architecture</li>
+                <li>Prompt engineering for grounded responses</li>
+                <li>LangChain chain composition and orchestration</li>
+                <li>Conversation memory management</li>
+                <li>Evaluating retrieval quality and relevance</li>
+                <li>Building interactive AI-powered CLI tools</li>
+            </ul>
+        </div>
+
+        <!-- ═══ Related Training ═══ -->
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Related Training</div>
+            <p class="cf-prose" style="margin-bottom: 12px; color: #94a3b8;">
+                Complete these modules to build the skills needed for this project.
+            </p>
+            <div class="cf-training-grid">
+                <a href="../houses/ai/index.html" class="cf-training-card">
+                    <span class="tc-district">AI House</span>
+                    <span class="tc-title">AI Fundamentals</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/script/index.html" class="cf-training-card">
+                    <span class="tc-district">Script House</span>
+                    <span class="tc-title">Python for Automation</span>
+                    <span class="tc-type">Module</span>
+                </a>
+                <a href="../houses/cloud/index.html" class="cf-training-card">
+                    <span class="tc-district">Cloud House</span>
+                    <span class="tc-title">API Integration Basics</span>
+                    <span class="tc-type">Lab</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- ═══ End of File ═══ -->
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

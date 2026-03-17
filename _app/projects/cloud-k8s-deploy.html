@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Deploy to Kubernetes | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        .cf-drafting-table { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px, 100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches — Kubernetes / container orchestration themed */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2338bdf8'%3E%3C!-- ═══ LEFT MARGIN: K8s Pod diagram ═══ --%3E%3Crect x='12' y='24' width='140' height='130' rx='4' stroke-width='2' opacity='0.14' stroke-dasharray='6 4'/%3E%3Ctext x='30' y='18' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.2'%3EPOD: web-app%3C/text%3E%3Crect x='18' y='32' width='60' height='35' rx='3' stroke-width='1.5' opacity='0.18'/%3E%3Ctext x='24' y='54' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.2'%3Enginx%3C/text%3E%3Crect x='84' y='32' width='60' height='35' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='92' y='54' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.18'%3Eapp:v2%3C/text%3E%3Crect x='18' y='74' width='126' height='28' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='30' y='92' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3Evolume: config-map%3C/text%3E%3Crect x='18' y='108' width='126' height='18' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='30' y='120' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3Eport: 8080 / 80%3C/text%3E%3Ccircle cx='22' cy='140' r='4' fill='%2338bdf8' stroke='none' opacity='0.18'/%3E%3Ctext x='30' y='144' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3ERUNNING%3C/text%3E%3C!-- Left margin: replica set sketch --%3E%3Crect x='15' y='180' width='130' height='80' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='198' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.2'%3EREPLICA SET%3C/text%3E%3Cline x1='15' y1='204' x2='145' y2='204' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='22' y='212' width='30' height='20' rx='2' stroke-width='1' opacity='0.16'/%3E%3Ctext x='30' y='226' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3EP1%3C/text%3E%3Crect x='58' y='212' width='30' height='20' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='66' y='226' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EP2%3C/text%3E%3Crect x='94' y='212' width='30' height='20' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='102' y='226' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3EP3%3C/text%3E%3Ctext x='22' y='250' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3Ereplicas: 3/3%3C/text%3E%3C!-- Left margin: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='300' x2='8' y2='600'/%3E%3Cline x1='4' y1='300' x2='12' y2='300'/%3E%3Cline x1='4' y1='350' x2='12' y2='350'/%3E%3Cline x1='4' y1='400' x2='12' y2='400'/%3E%3Cline x1='4' y1='450' x2='12' y2='450'/%3E%3Cline x1='4' y1='500' x2='12' y2='500'/%3E%3Cline x1='4' y1='550' x2='12' y2='550'/%3E%3Cline x1='4' y1='600' x2='12' y2='600'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='325' x2='10' y2='325'/%3E%3Cline x1='6' y1='375' x2='10' y2='375'/%3E%3Cline x1='6' y1='425' x2='10' y2='425'/%3E%3Cline x1='6' y1='475' x2='10' y2='475'/%3E%3Cline x1='6' y1='525' x2='10' y2='525'/%3E%3Cline x1='6' y1='575' x2='10' y2='575'/%3E%3C/g%3E%3C!-- Left margin: kubectl commands --%3E%3Crect x='15' y='310' width='130' height='70' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='328' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.18'%3EKUBECTL%3C/text%3E%3Cline x1='15' y1='332' x2='145' y2='332' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='20' y='346' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3E$ kubectl apply -f%3C/text%3E%3Ctext x='20' y='358' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3E$ kubectl get pods%3C/text%3E%3Ctext x='20' y='370' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3E$ kubectl logs -f%3C/text%3E%3C!-- Left margin: circuit traces --%3E%3Cpath d='M5 620 L40 620 L40 600 L80 600 L80 620 L120 620' stroke-width='1.2' opacity='0.12' fill='none'/%3E%3Cpath d='M5 640 L25 640 L25 658 L60 658 L60 640 L90 640 L90 660 L120 660' stroke-width='1' opacity='0.08' fill='none'/%3E%3Ccircle cx='40' cy='600' r='3' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Ccircle cx='80' cy='600' r='3' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Ccircle cx='25' cy='658' r='3' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3Ccircle cx='60' cy='658' r='3' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3C!-- ═══ RIGHT MARGIN: YAML manifest sketch ═══ --%3E%3Crect x='880' y='30' width='115' height='200' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='896' y='48' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.22'%3EMANIFEST YAML%3C/text%3E%3Cline x1='880' y1='54' x2='995' y2='54' stroke-width='1' opacity='0.14'/%3E%3Ctext x='888' y='70' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EapiVersion: v1%3C/text%3E%3Ctext x='888' y='83' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3Ekind: Deployment%3C/text%3E%3Ctext x='888' y='96' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3Emetadata:%3C/text%3E%3Ctext x='894' y='109' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3Ename: web-app%3C/text%3E%3Ctext x='888' y='122' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3Espec:%3C/text%3E%3Ctext x='894' y='135' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3Ereplicas: 3%3C/text%3E%3Ctext x='894' y='148' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3Econtainers:%3C/text%3E%3Ctext x='900' y='161' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3E- image: app:v2%3C/text%3E%3Ctext x='900' y='174' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3E  ports:%3C/text%3E%3Ctext x='906' y='187' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.06'%3E- 8080%3C/text%3E%3Ctext x='888' y='200' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.06'%3Estrategy:%3C/text%3E%3Ctext x='894' y='213' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.05'%3ErollingUpdate%3C/text%3E%3C!-- Right margin: health check probes --%3E%3Crect x='880' y='260' width='115' height='90' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='896' y='278' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3EHEALTH PROBES%3C/text%3E%3Cline x1='880' y1='284' x2='995' y2='284' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='888' y='300' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3ElivenessProbe:%3C/text%3E%3Ctext x='894' y='313' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EhttpGet: /healthz%3C/text%3E%3Ctext x='888' y='328' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3EreadinessProbe:%3C/text%3E%3Ctext x='894' y='341' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3EhttpGet: /ready%3C/text%3E%3C!-- Right margin: service/ingress flow --%3E%3Crect x='880' y='380' width='115' height='110' rx='2' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='896' y='398' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.16'%3ENETWORK%3C/text%3E%3Cline x1='880' y1='404' x2='995' y2='404' stroke-width='0.8' opacity='0.08'/%3E%3Crect x='900' y='414' width='70' height='18' rx='2' stroke-width='1' opacity='0.14'/%3E%3Ctext x='912' y='427' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3EIngress%3C/text%3E%3Cline x1='935' y1='432' x2='935' y2='444' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='935,444 931,438 939,438' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Crect x='900' y='446' width='70' height='18' rx='2' stroke-width='1' opacity='0.12'/%3E%3Ctext x='912' y='459' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EService%3C/text%3E%3Cline x1='935' y1='464' x2='935' y2='476' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='935,476 931,470 939,470' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3Crect x='900' y='478' width='70' height='18' rx='2' stroke-width='1' opacity='0.1'/%3E%3Ctext x='918' y='491' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3EPods%3C/text%3E%3C!-- Right margin: vertical dashed line --%3E%3Cline x1='875' y1='250' x2='875' y2='650' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- ═══ CENTER: Build pipeline flow ═══ --%3E%3Crect x='240' y='130' width='90' height='35' rx='3' stroke-width='1.8' opacity='0.18'/%3E%3Ctext x='248' y='152' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3EDOCKERFILE%3C/text%3E%3Cline x1='330' y1='147' x2='370' y2='147' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='370,147 364,143 364,151' fill='%2338bdf8' stroke='none' opacity='0.16'/%3E%3Crect x='375' y='130' width='80' height='35' rx='3' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='392' y='152' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.16'%3EBUILD%3C/text%3E%3Cline x1='455' y1='147' x2='495' y2='147' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='495,147 489,143 489,151' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Crect x='500' y='130' width='80' height='35' rx='3' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='510' y='152' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.14'%3EDEPLOY%3C/text%3E%3Cline x1='580' y1='147' x2='620' y2='147' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='620,147 614,143 614,151' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Crect x='625' y='130' width='90' height='35' rx='3' stroke-width='1' opacity='0.12'/%3E%3Ctext x='638' y='152' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.12'%3EMONITOR%3C/text%3E%3C!-- Center: K8s cluster diagram --%3E%3Crect x='340' y='220' width='280' height='160' rx='5' stroke-width='2' opacity='0.16'/%3E%3Ctext x='440' y='238' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3EK8S CLUSTER%3C/text%3E%3Cline x1='340' y1='244' x2='620' y2='244' stroke-width='1' opacity='0.1'/%3E%3Crect x='355' y='256' width='70' height='35' rx='3' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='365' y='278' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.14'%3Enode-1%3C/text%3E%3Crect x='440' y='256' width='70' height='35' rx='3' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='450' y='278' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.12'%3Enode-2%3C/text%3E%3Crect x='525' y='256' width='70' height='35' rx='3' stroke-width='1.2' opacity='0.1'/%3E%3Ctext x='535' y='278' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.1'%3Enode-3%3C/text%3E%3Crect x='370' y='310' width='50' height='22' rx='2' stroke-width='1' opacity='0.12' fill='%2338bdf8' fill-opacity='0.04'/%3E%3Ctext x='378' y='324' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3Epod-1%3C/text%3E%3Crect x='440' y='310' width='50' height='22' rx='2' stroke-width='1' opacity='0.1' fill='%2338bdf8' fill-opacity='0.03'/%3E%3Ctext x='448' y='324' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3Epod-2%3C/text%3E%3Crect x='540' y='310' width='50' height='22' rx='2' stroke-width='1' opacity='0.08' fill='%2338bdf8' fill-opacity='0.02'/%3E%3Ctext x='548' y='324' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.1'%3Epod-3%3C/text%3E%3Cline x1='395' y1='291' x2='395' y2='310' stroke-width='1' opacity='0.1'/%3E%3Cline x1='465' y1='291' x2='465' y2='310' stroke-width='1' opacity='0.08'/%3E%3Cline x1='565' y1='291' x2='565' y2='310' stroke-width='1' opacity='0.07'/%3E%3C!-- Center: crosshairs --%3E%3Cg opacity='0.22' stroke-width='1.8'%3E%3Cline x1='250' y1='440' x2='270' y2='440'/%3E%3Cline x1='260' y1='430' x2='260' y2='450'/%3E%3Ccircle cx='260' cy='440' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='740' y1='360' x2='760' y2='360'/%3E%3Cline x1='750' y1='350' x2='750' y2='370'/%3E%3Ccircle cx='750' cy='360' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='50' y1='520' x2='70' y2='520'/%3E%3Cline x1='60' y1='510' x2='60' y2='530'/%3E%3Ccircle cx='60' cy='520' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='940' y1='730' x2='960' y2='730'/%3E%3Cline x1='950' y1='720' x2='950' y2='740'/%3E%3Ccircle cx='950' cy='730' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.06' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.05' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3Cline x1='0' y1='750' x2='300' y2='600' stroke-width='1' opacity='0.04' stroke-dasharray='12 8'/%3E%3Cline x1='750' y1='700' x2='1000' y2='780' stroke-width='1' opacity='0.04' stroke-dasharray='6 12'/%3E%3C!-- ═══ RULER edges ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='40' y='460' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.11' transform='rotate(-12 40 460)'%3Ekubectl scale%3C/text%3E%3Ctext x='580' y='470' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.09'%3ErollingUpdate%3C/text%3E%3Ctext x='300' y='420' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.08' transform='rotate(5 300 420)'%3Edocker build .%3C/text%3E%3Ctext x='650' y='460' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.09' transform='rotate(-3 650 460)'%3Eport-forward%3C/text%3E%3Ctext x='140' y='560' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.07' transform='rotate(8 140 560)'%3Enamespace%3C/text%3E%3Ctext x='480' y='500' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.07'%3EClusterIP%3C/text%3E%3C!-- ═══ DIAMOND MARKERS ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%2338bdf8' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        body::after { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px); pointer-events: none; z-index: 9000; }
+
+        .cf-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #0e1018; border-bottom: 1px solid rgba(56, 189, 248, 0.12); height: 48px; position: sticky; top: 0; z-index: 200; }
+        .cf-header a { font-size: 0.8rem; color: rgba(255,255,255,0.4); text-decoration: none; letter-spacing: 0.08em; transition: color 0.2s; }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title { font-size: 0.75rem; letter-spacing: 0.2em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-header-ref { font-size: 0.65rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); }
+
+        .cf-content { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; position: relative; z-index: 1; }
+
+        .cf-cover { position: relative; background: linear-gradient(170deg, #121a1e 0%, #12191c 100%); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 2px; padding: 48px 40px 40px; margin-bottom: 32px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 60px rgba(56, 189, 248, 0.06); }
+        .cf-stamp { position: absolute; top: 24px; right: 28px; font-size: 1.1rem; font-weight: 900; letter-spacing: 0.2em; color: rgba(220, 38, 38, 0.5); border: 3px solid rgba(220, 38, 38, 0.4); padding: 4px 14px; transform: rotate(3deg); text-transform: uppercase; border-radius: 2px; pointer-events: none; }
+        .cf-cover::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent 100%); }
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal { width: 68px; height: 68px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.25) 0%, rgba(56, 189, 248, 0.12) 60%, rgba(56, 189, 248, 0.06) 100%); border: 3px solid rgba(56, 189, 248, 0.5); box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; }
+        .cf-house-seal::after { content: ''; position: absolute; top: 3px; left: 6px; width: 18px; height: 10px; background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%); border-radius: 50%; pointer-events: none; }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); }
+
+        .cf-paper { background: linear-gradient(175deg, #131a1e 0%, #11161b 100%); border: 1px solid rgba(56, 189, 248, 0.08); border-left: 3px solid rgba(56, 189, 248, 0.2); border-radius: 2px; padding: 32px 36px; margin-bottom: 24px; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+        .cf-paper.has-clip::before { content: ''; position: absolute; top: -6px; left: 36px; width: 20px; height: 32px; border: 2px solid rgba(255,255,255,0.1); border-radius: 0 0 10px 10px; border-top: none; }
+        .cf-paper.has-tape::after { content: ''; position: absolute; top: -4px; right: 40px; width: 60px; height: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg); }
+        .cf-section-stamp { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #38bdf8; font-weight: 700; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.15); display: flex; align-items: center; gap: 8px; }
+        .cf-section-stamp::before { content: ''; width: 8px; height: 8px; background: #38bdf8; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6; }
+
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(56, 189, 248, 0.06); }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card { display: flex; gap: 18px; padding: 20px 22px; background: rgba(56, 189, 248, 0.02); border: 1px solid rgba(56, 189, 248, 0.08); border-radius: 2px; position: relative; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+        .cf-evidence-card:hover { border-color: rgba(56, 189, 248, 0.25); background: rgba(56, 189, 248, 0.04); box-shadow: 0 0 20px rgba(56, 189, 248, 0.06); }
+        .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
+        .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #38bdf8; }
+
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #38bdf8; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CL-K8S-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CL-K8S-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-cloud.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Cloud House</span>
+                    <span class="cf-house-domain">Cloud Infrastructure Division</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Deploy to Kubernetes</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Intermediate</span>
+                <span class="cf-badge cf-badge-time">120 min</span>
+                <span class="cf-badge cf-badge-xp">600 XP</span>
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Your assignment is to take a containerized application from a local Docker build
+                    all the way to a running <strong>Kubernetes deployment</strong> with multiple replicas,
+                    health checks, and external access through a Service and Ingress. This is the
+                    standard production deployment pipeline used at every major cloud provider.
+                </p>
+                <p>
+                    You will write a <code>Dockerfile</code> to containerize a simple web application,
+                    push the image to a registry, then author Kubernetes manifest files in YAML to
+                    define the Deployment, Service, and Ingress resources. You will use <code>kubectl</code>
+                    to apply these manifests, scale replicas up and down, perform rolling updates,
+                    and inspect pod health in real time.
+                </p>
+                <p>
+                    The emphasis is on understanding the <strong>declarative model</strong>: you describe
+                    the desired state in YAML, and Kubernetes continuously reconciles the cluster to
+                    match. By the end of this operation, you will understand how pods, replica sets,
+                    services, and ingress controllers work together to serve traffic at scale.
+                </p>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Docker installed and working (<code>docker build</code> / <code>docker run</code>)</li>
+                <li>A local Kubernetes cluster (minikube, kind, or Docker Desktop K8s)</li>
+                <li>Basic understanding of containers: images, layers, port mapping</li>
+                <li>Comfort reading and editing YAML configuration files</li>
+                <li>Familiarity with the terminal and basic networking (ports, HTTP)</li>
+            </ul>
+        </div>
+
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Dockerfile and Container Build</div>
+                        <div class="cf-evidence-desc">
+                            Write a multi-stage <code>Dockerfile</code> for a simple Node.js or Python
+                            web server. Build the image with <code>docker build -t app:v1 .</code> and
+                            verify it runs locally with <code>docker run -p 8080:8080 app:v1</code>.
+                            Confirm the <code>/healthz</code> endpoint returns 200 OK.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Deployment Manifest with Replicas</div>
+                        <div class="cf-evidence-desc">
+                            Write a <code>deployment.yaml</code> manifest specifying 3 replicas, resource
+                            limits (CPU and memory), and environment variables from a ConfigMap. Apply
+                            with <code>kubectl apply -f deployment.yaml</code>. Verify all 3 pods reach
+                            Running status with <code>kubectl get pods -w</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Health Checks: Liveness and Readiness Probes</div>
+                        <div class="cf-evidence-desc">
+                            Add <code>livenessProbe</code> and <code>readinessProbe</code> to the container
+                            spec targeting your <code>/healthz</code> and <code>/ready</code> endpoints.
+                            Configure <code>initialDelaySeconds</code>, <code>periodSeconds</code>, and
+                            <code>failureThreshold</code>. Test by temporarily breaking the health endpoint
+                            and watching Kubernetes restart the pod automatically.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Service and Ingress for External Access</div>
+                        <div class="cf-evidence-desc">
+                            Create a <code>service.yaml</code> of type ClusterIP that targets your pods
+                            by label selector. Then write an <code>ingress.yaml</code> that routes
+                            external HTTP traffic to the service. Verify end-to-end connectivity with
+                            <code>curl</code>. Add TLS termination using a self-signed certificate for
+                            HTTPS access.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Scaling, Rolling Updates, and Monitoring</div>
+                        <div class="cf-evidence-desc">
+                            Scale to 5 replicas with <code>kubectl scale</code>. Update the image tag
+                            to <code>app:v2</code> and watch the rolling update proceed with zero downtime.
+                            Use <code>kubectl rollout status</code> and <code>kubectl rollout undo</code>
+                            to practice rollback. Inspect pod logs and resource usage with
+                            <code>kubectl top pods</code>.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Docker</div>
+                <div class="cf-manifest-item">kubectl</div>
+                <div class="cf-manifest-item">minikube / kind</div>
+                <div class="cf-manifest-item">YAML manifests</div>
+                <div class="cf-manifest-item">ConfigMap / Secrets</div>
+                <div class="cf-manifest-item">Ingress Controller</div>
+                <div class="cf-manifest-item">curl / httpie</div>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Container orchestration with Kubernetes declarative model</li>
+                <li>Writing and applying K8s manifests (Deployment, Service, Ingress)</li>
+                <li>Health check probes for production reliability</li>
+                <li>Rolling updates and rollback strategy</li>
+                <li>Scaling workloads horizontally with replica sets</li>
+                <li>Debugging pods with kubectl logs, describe, and exec</li>
+            </ul>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>

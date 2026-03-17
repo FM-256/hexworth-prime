@@ -116,7 +116,7 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — 28 total (12 software + 16 hardware).
+    // Project definitions — 48 total (12 software + 16 hardware + 20 educative-inspired).
     // -------------------------------------------------------------------------
     projects: [
         {
@@ -378,6 +378,188 @@ const ProjectsData = {
             difficulty: 'beginner',
             minutes: 45,
             xp: 250
+        },
+
+        // ── Wave 2: Educative-Inspired Projects ───────────────────────────────
+        {
+            id: 'code-typing-speed',
+            house: 'code',
+            title: 'Build a Typing Speed Test',
+            description: 'Create a browser-based typing speed test with WPM calculation, accuracy tracking, DOM manipulation, timers, and responsive design.',
+            difficulty: 'beginner',
+            minutes: 45,
+            xp: 250
+        },
+        {
+            id: 'code-task-manager',
+            house: 'code',
+            title: 'Build a Task Manager with Local Storage',
+            description: 'Build a full CRUD task manager using vanilla JavaScript with priorities, due dates, tags, filtering, and localStorage persistence.',
+            difficulty: 'beginner',
+            minutes: 90,
+            xp: 250
+        },
+        {
+            id: 'cloud-k8s-deploy',
+            house: 'cloud',
+            title: 'Deploy to Kubernetes',
+            description: 'Containerize a Flask app with Docker, write Kubernetes manifests, deploy with kubectl, and manage scaling, health checks, and rolling updates.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'cloud-terraform-infra',
+            house: 'cloud',
+            title: 'Manage Infrastructure with Terraform',
+            description: 'Automate cloud infrastructure deployment using Terraform and CLI. Write HCL configs for compute, networking, and storage with state management.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'cloud-api-nginx',
+            house: 'cloud',
+            title: 'Deploy an API Behind Nginx',
+            description: 'Deploy a production API with Nginx as reverse proxy. Configure SSL termination, rate limiting, caching, load balancing, and security headers.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'ai-rag-chatbot',
+            house: 'ai',
+            title: 'Build a RAG Chatbot',
+            description: 'Build a Retrieval-Augmented Generation chatbot using LangChain and vector databases. Index documents, embed queries, and generate accurate responses.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'ai-intrusion-detector',
+            house: 'ai',
+            title: 'Detect Cyber Intrusions with ML',
+            description: 'Train machine learning classifiers on network traffic datasets to detect intrusions. Compare Random Forest, SVM, and neural network approaches.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'ai-research-agent',
+            house: 'ai',
+            title: 'Build an AI Research Agent',
+            description: 'Build an autonomous research agent that searches the web, summarizes findings, and generates reports using CrewAI and LangChain orchestration.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'darkarts-metasploit',
+            house: 'dark-arts',
+            title: 'Penetration Testing with Metasploit',
+            description: 'Master the Metasploit Framework for penetration testing. Enumerate targets, select exploits, configure payloads, pivot through networks, and document findings.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'darkarts-recon-automation',
+            house: 'dark-arts',
+            title: 'Automate Recon with Python',
+            description: 'Build automated reconnaissance scripts that chain subdomain enumeration, DNS resolution, port scanning, and technology fingerprinting into a pipeline.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'script-etl-pipeline',
+            house: 'script',
+            title: 'Build an ETL Data Pipeline',
+            description: 'Extract data from APIs and files, transform with Python and pandas, load into SQLite, and schedule with cron. Includes error handling and logging.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'script-github-actions',
+            house: 'script',
+            title: 'Build Custom GitHub Actions',
+            description: 'Create custom GitHub Actions in Bash and Python. Automate code scanning, TODO tracking, deployment notifications, and CI/CD workflows.',
+            difficulty: 'journeyman',
+            minutes: 60,
+            xp: 500
+        },
+        {
+            id: 'matrix-data-viz',
+            house: 'matrix',
+            title: 'Build a Data Visualization Dashboard',
+            description: 'Analyze datasets with pandas, create publication-quality visualizations with matplotlib and seaborn, and build interactive charts for data exploration.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'matrix-time-series',
+            house: 'matrix',
+            title: 'Predictive Time Series Analysis',
+            description: 'Forecast trends using LSTM neural networks. Preprocess time-series data, build sequence models, evaluate predictions, and deploy with Flask.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'web-rest-api',
+            house: 'web',
+            title: 'Build a RESTful API with Express',
+            description: 'Design and build a RESTful API with Express.js and MongoDB. Implement authentication, RBAC, file uploads, pagination, and structured error handling.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'key-blockchain',
+            house: 'key',
+            title: 'Build a Blockchain from Scratch',
+            description: 'Implement a blockchain in Python with SHA-256 hashing, proof-of-work consensus, transaction validation, wallet generation, and a REST API interface.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'shield-ids-ml',
+            house: 'shield',
+            title: 'Build a ML-Powered Network IDS',
+            description: 'Train a machine learning model to classify network traffic as normal or malicious. Build a real-time detection pipeline with alerting and dashboards.',
+            difficulty: 'advanced',
+            minutes: 120,
+            xp: 1000
+        },
+        {
+            id: 'eye-selenium-testing',
+            house: 'eye',
+            title: 'Automated Web Testing with Selenium',
+            description: 'Build an automated testing suite using Python and Selenium. Write page object models, handle dynamic content, capture evidence, and generate reports.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
+        },
+        {
+            id: 'forge-telegram-bot',
+            house: 'forge',
+            title: 'Build a Telegram Monitoring Bot',
+            description: 'Create a Node.js Telegram bot that monitors web pages for changes, sends alerts, tracks uptime, and provides slash-command controls.',
+            difficulty: 'beginner',
+            minutes: 60,
+            xp: 250
+        },
+        {
+            id: 'divergent-discord-bot',
+            house: 'divergent',
+            title: 'Build a Discord Security Bot',
+            description: 'Build a TypeScript Discord bot with moderation commands, user tracking, database integration, and automated security alerting for server events.',
+            difficulty: 'journeyman',
+            minutes: 90,
+            xp: 500
         }
     ],
 

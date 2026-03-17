@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASE FILE: Deploy an API Behind Nginx | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0a0c10;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 16px;
+        }
+
+        .cf-drafting-table { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+
+        .cf-drafting-table::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+                linear-gradient(rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+                radial-gradient(ellipse at 50% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
+            background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px, 100% 100%, 100% 100%;
+        }
+
+        /* Blueprint sketches — Nginx / reverse proxy / SSL / load balancing themed */
+        .cf-drafting-table::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' fill='none' stroke='%2338bdf8'%3E%3C!-- ═══ LEFT MARGIN: Nginx config block ═══ --%3E%3Crect x='15' y='28' width='135' height='140' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='22' y='20' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.2'%3Enginx.conf%3C/text%3E%3Ctext x='22' y='46' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3Eserver %7B%3C/text%3E%3Ctext x='28' y='60' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3Elisten 443 ssl;%3C/text%3E%3Ctext x='28' y='74' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3Eserver_name api;%3C/text%3E%3Ctext x='28' y='92' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3Elocation / %7B%3C/text%3E%3Ctext x='34' y='106' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3Eproxy_pass%3C/text%3E%3Ctext x='38' y='120' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3Ehttp://backend;%3C/text%3E%3Ctext x='28' y='134' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.07'%3E%7D%3C/text%3E%3Ctext x='22' y='148' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.06'%3E%7D%3C/text%3E%3Ctext x='22' y='162' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.05'%3Eupstream backend %7B%3C/text%3E%3C!-- Left margin: SSL handshake sketch --%3E%3Crect x='15' y='200' width='130' height='100' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='218' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.2'%3ESSL HANDSHAKE%3C/text%3E%3Cline x1='15' y1='224' x2='145' y2='224' stroke-width='0.8' opacity='0.1'/%3E%3Ctext x='22' y='240' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3EClientHello%3C/text%3E%3Cline x1='80' y1='236' x2='130' y2='236' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='130,233 135,236 130,239' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Ctext x='22' y='256' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3EServerHello%3C/text%3E%3Cline x1='130' y1='252' x2='80' y2='252' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='80,249 75,252 80,255' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Ctext x='22' y='272' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3ECert + Key%3C/text%3E%3Cline x1='130' y1='268' x2='80' y2='268' stroke-width='1' opacity='0.1'/%3E%3Cpolygon points='80,265 75,268 80,271' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3Ctext x='22' y='288' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3EEncrypted!%3C/text%3E%3Crect x='20' y='290' width='116' height='4' rx='1' stroke='none' fill='%2338bdf8' fill-opacity='0.1'/%3E%3C!-- Left margin: vertical ruler --%3E%3Cg stroke-width='1.2' opacity='0.15'%3E%3Cline x1='8' y1='340' x2='8' y2='620'/%3E%3Cline x1='4' y1='340' x2='12' y2='340'/%3E%3Cline x1='4' y1='390' x2='12' y2='390'/%3E%3Cline x1='4' y1='440' x2='12' y2='440'/%3E%3Cline x1='4' y1='490' x2='12' y2='490'/%3E%3Cline x1='4' y1='540' x2='12' y2='540'/%3E%3Cline x1='4' y1='590' x2='12' y2='590'/%3E%3Cline x1='4' y1='620' x2='12' y2='620'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.08'%3E%3Cline x1='6' y1='365' x2='10' y2='365'/%3E%3Cline x1='6' y1='415' x2='10' y2='415'/%3E%3Cline x1='6' y1='465' x2='10' y2='465'/%3E%3Cline x1='6' y1='515' x2='10' y2='515'/%3E%3Cline x1='6' y1='565' x2='10' y2='565'/%3E%3Cline x1='6' y1='605' x2='10' y2='605'/%3E%3C/g%3E%3C!-- Left margin: rate limit bucket --%3E%3Crect x='15' y='350' width='130' height='70' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='22' y='368' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.18'%3ERATE LIMIT%3C/text%3E%3Cline x1='15' y1='374' x2='145' y2='374' stroke-width='0.8' opacity='0.1'/%3E%3Crect x='30' y='382' width='40' height='30' rx='2' stroke-width='1.2' opacity='0.14'/%3E%3Crect x='30' y='394' width='40' height='18' rx='0' stroke='none' fill='%2338bdf8' fill-opacity='0.12'/%3E%3Ctext x='36' y='406' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3E60%25%3C/text%3E%3Ctext x='80' y='396' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3E100 req/s%3C/text%3E%3Ctext x='80' y='410' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3Eburst=20%3C/text%3E%3C!-- Left margin: circuit traces --%3E%3Cpath d='M5 650 L40 650 L40 630 L80 630 L80 650 L120 650' stroke-width='1.2' opacity='0.12' fill='none'/%3E%3Cpath d='M5 670 L25 670 L25 688 L60 688 L60 670 L90 670 L90 690 L120 690' stroke-width='1' opacity='0.08' fill='none'/%3E%3Ccircle cx='40' cy='630' r='3' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Ccircle cx='80' cy='630' r='3' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Ccircle cx='25' cy='688' r='3' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3Ccircle cx='60' cy='688' r='3' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3C!-- ═══ RIGHT MARGIN: HTTP request/response flow ═══ --%3E%3Crect x='880' y='30' width='115' height='170' rx='2' stroke-width='1.5' opacity='0.16'/%3E%3Ctext x='896' y='48' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.22'%3EHTTP FLOW%3C/text%3E%3Cline x1='880' y1='54' x2='995' y2='54' stroke-width='1' opacity='0.14'/%3E%3Ctext x='888' y='70' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.18'%3EGET /api/users%3C/text%3E%3Cline x1='888' y1='76' x2='980' y2='76' stroke-width='1' opacity='0.14'/%3E%3Cpolygon points='980,73 985,76 980,79' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Ctext x='888' y='94' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EHost: api.example%3C/text%3E%3Ctext x='888' y='108' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3EX-Real-IP: ...%3C/text%3E%3Ctext x='888' y='126' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3E200 OK%3C/text%3E%3Cline x1='980' y1='122' x2='888' y2='122' stroke-width='1' opacity='0.12'/%3E%3Cpolygon points='888,119 883,122 888,125' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Ctext x='888' y='142' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3EContent-Type:%3C/text%3E%3Ctext x='892' y='156' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3Eapplication/json%3C/text%3E%3Ctext x='888' y='174' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.07'%3EX-Cache: HIT%3C/text%3E%3Ctext x='888' y='192' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.06'%3ELatency: 12ms%3C/text%3E%3C!-- Right margin: upstream servers --%3E%3Crect x='880' y='230' width='115' height='120' rx='2' stroke-width='1.5' opacity='0.14'/%3E%3Ctext x='896' y='248' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3EUPSTREAM%3C/text%3E%3Cline x1='880' y1='254' x2='995' y2='254' stroke-width='0.8' opacity='0.1'/%3E%3Ccircle cx='898' cy='272' r='4' fill='%2338bdf8' stroke='none' opacity='0.22'/%3E%3Ctext x='908' y='276' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.16'%3E10.0.1.10:3000%3C/text%3E%3Ccircle cx='898' cy='292' r='4' fill='%2338bdf8' stroke='none' opacity='0.18'/%3E%3Ctext x='908' y='296' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3E10.0.1.11:3000%3C/text%3E%3Ccircle cx='898' cy='312' r='4' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Ctext x='908' y='316' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3E10.0.1.12:3000%3C/text%3E%3Ctext x='888' y='340' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3Emethod: round_robin%3C/text%3E%3C!-- Right margin: cache hit/miss --%3E%3Crect x='880' y='370' width='115' height='80' rx='2' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='896' y='388' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.16'%3ECACHE%3C/text%3E%3Cline x1='880' y1='394' x2='995' y2='394' stroke-width='0.8' opacity='0.08'/%3E%3Ctext x='888' y='410' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3EHIT%3C/text%3E%3Crect x='906' y='402' width='78' height='8' rx='1' stroke-width='1' opacity='0.12'/%3E%3Crect x='906' y='402' width='58' height='8' rx='1' stroke='none' fill='%2338bdf8' fill-opacity='0.16'/%3E%3Ctext x='888' y='430' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3EMISS%3C/text%3E%3Crect x='906' y='422' width='78' height='8' rx='1' stroke-width='1' opacity='0.1'/%3E%3Crect x='906' y='422' width='20' height='8' rx='1' stroke='none' fill='%2338bdf8' fill-opacity='0.08'/%3E%3Ctext x='888' y='446' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3Eexpires: 300s%3C/text%3E%3C!-- Right margin: vertical dashed line --%3E%3Cline x1='875' y1='250' x2='875' y2='650' stroke-width='1' opacity='0.08' stroke-dasharray='6 8'/%3E%3C!-- ═══ CENTER: Client -> Nginx -> API servers flow ═══ --%3E%3Crect x='200' y='130' width='80' height='40' rx='3' stroke-width='1.8' opacity='0.18'/%3E%3Ctext x='214' y='155' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.18'%3ECLIENT%3C/text%3E%3Cline x1='280' y1='150' x2='340' y2='150' stroke-width='1.5' opacity='0.16'/%3E%3Cpolygon points='340,147 334,143 334,151' fill='%2338bdf8' stroke='none' opacity='0.16'/%3E%3Ctext x='294' y='143' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.14'%3EHTTPS%3C/text%3E%3Crect x='345' y='120' width='170' height='60' rx='4' stroke-width='2' opacity='0.18'/%3E%3Ctext x='394' y='140' font-family='monospace' font-size='10' fill='%2338bdf8' stroke='none' opacity='0.22'%3ENGINX%3C/text%3E%3Cline x1='345' y1='146' x2='515' y2='146' stroke-width='1' opacity='0.12'/%3E%3Ctext x='358' y='162' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.14'%3ESSL%3C/text%3E%3Ctext x='390' y='162' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.12'%3ECACHE%3C/text%3E%3Ctext x='430' y='162' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.1'%3ERATE%3C/text%3E%3Ctext x='462' y='162' font-family='monospace' font-size='7' fill='%2338bdf8' stroke='none' opacity='0.08'%3ELOG%3C/text%3E%3Cline x1='515' y1='140' x2='570' y2='110' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='515' y1='150' x2='570' y2='150' stroke-width='1.2' opacity='0.14'/%3E%3Cline x1='515' y1='160' x2='570' y2='190' stroke-width='1.2' opacity='0.14'/%3E%3Cpolygon points='570,107 564,105 564,113' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Cpolygon points='570,147 564,143 564,151' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Cpolygon points='570,187 564,183 564,191' fill='%2338bdf8' stroke='none' opacity='0.14'/%3E%3Crect x='575' y='96' width='90' height='28' rx='3' stroke-width='1.2' opacity='0.14'/%3E%3Ctext x='590' y='114' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.16'%3Eapi-1:3000%3C/text%3E%3Crect x='575' y='136' width='90' height='28' rx='3' stroke-width='1.2' opacity='0.12'/%3E%3Ctext x='590' y='154' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.14'%3Eapi-2:3000%3C/text%3E%3Crect x='575' y='176' width='90' height='28' rx='3' stroke-width='1.2' opacity='0.1'/%3E%3Ctext x='590' y='194' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.12'%3Eapi-3:3000%3C/text%3E%3C!-- Center: request path annotations --%3E%3Ctext x='540' y='134' font-family='monospace' font-size='6' fill='%2338bdf8' stroke='none' opacity='0.12'%3E:3000%3C/text%3E%3C!-- Center: crosshairs --%3E%3Cg opacity='0.22' stroke-width='1.8'%3E%3Cline x1='300' y1='400' x2='320' y2='400'/%3E%3Cline x1='310' y1='390' x2='310' y2='410'/%3E%3Ccircle cx='310' cy='400' r='10' stroke-width='1' opacity='0.4'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='720' y1='330' x2='740' y2='330'/%3E%3Cline x1='730' y1='320' x2='730' y2='340'/%3E%3Ccircle cx='730' cy='330' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.16' stroke-width='1.5'%3E%3Cline x1='50' y1='520' x2='70' y2='520'/%3E%3Cline x1='60' y1='510' x2='60' y2='530'/%3E%3Ccircle cx='60' cy='520' r='7' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3Cg opacity='0.18' stroke-width='1.5'%3E%3Cline x1='940' y1='730' x2='960' y2='730'/%3E%3Cline x1='950' y1='720' x2='950' y2='740'/%3E%3Ccircle cx='950' cy='730' r='8' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C!-- ═══ DIAGONAL CONSTRUCTION LINES ═══ --%3E%3Cline x1='0' y1='550' x2='400' y2='280' stroke-width='1.2' opacity='0.06' stroke-dasharray='10 14'/%3E%3Cline x1='700' y1='0' x2='1000' y2='200' stroke-width='1.2' opacity='0.05' stroke-dasharray='8 12'/%3E%3Cline x1='0' y1='200' x2='180' y2='400' stroke-width='1' opacity='0.05' stroke-dasharray='6 10'/%3E%3Cline x1='850' y1='400' x2='1000' y2='550' stroke-width='1' opacity='0.05' stroke-dasharray='8 10'/%3E%3Cline x1='0' y1='750' x2='300' y2='600' stroke-width='1' opacity='0.04' stroke-dasharray='12 8'/%3E%3Cline x1='750' y1='700' x2='1000' y2='780' stroke-width='1' opacity='0.04' stroke-dasharray='6 12'/%3E%3C!-- ═══ RULER edges ═══ --%3E%3Cg stroke-width='1.2' opacity='0.12'%3E%3Cline x1='50' y1='780' x2='50' y2='798'/%3E%3Cline x1='150' y1='780' x2='150' y2='798'/%3E%3Cline x1='250' y1='780' x2='250' y2='798'/%3E%3Cline x1='350' y1='780' x2='350' y2='798'/%3E%3Cline x1='450' y1='780' x2='450' y2='798'/%3E%3Cline x1='550' y1='780' x2='550' y2='798'/%3E%3Cline x1='650' y1='780' x2='650' y2='798'/%3E%3Cline x1='750' y1='780' x2='750' y2='798'/%3E%3Cline x1='850' y1='780' x2='850' y2='798'/%3E%3Cline x1='950' y1='780' x2='950' y2='798'/%3E%3C/g%3E%3Cg stroke-width='0.8' opacity='0.07'%3E%3Cline x1='100' y1='785' x2='100' y2='795'/%3E%3Cline x1='200' y1='785' x2='200' y2='795'/%3E%3Cline x1='300' y1='785' x2='300' y2='795'/%3E%3Cline x1='400' y1='785' x2='400' y2='795'/%3E%3Cline x1='500' y1='785' x2='500' y2='795'/%3E%3Cline x1='600' y1='785' x2='600' y2='795'/%3E%3Cline x1='700' y1='785' x2='700' y2='795'/%3E%3Cline x1='800' y1='785' x2='800' y2='795'/%3E%3Cline x1='900' y1='785' x2='900' y2='795'/%3E%3C/g%3E%3Cg stroke-width='1' opacity='0.08'%3E%3Cline x1='50' y1='0' x2='50' y2='10'/%3E%3Cline x1='150' y1='0' x2='150' y2='10'/%3E%3Cline x1='250' y1='0' x2='250' y2='10'/%3E%3Cline x1='350' y1='0' x2='350' y2='10'/%3E%3Cline x1='450' y1='0' x2='450' y2='10'/%3E%3Cline x1='550' y1='0' x2='550' y2='10'/%3E%3Cline x1='650' y1='0' x2='650' y2='10'/%3E%3Cline x1='750' y1='0' x2='750' y2='10'/%3E%3Cline x1='850' y1='0' x2='850' y2='10'/%3E%3Cline x1='950' y1='0' x2='950' y2='10'/%3E%3C/g%3E%3C!-- ═══ SCATTERED ANNOTATIONS ═══ --%3E%3Ctext x='40' y='460' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.11' transform='rotate(-12 40 460)'%3Ecertbot%3C/text%3E%3Ctext x='580' y='300' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.09'%3Eproxy_set_header%3C/text%3E%3Ctext x='300' y='340' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.08' transform='rotate(5 300 340)'%3Eaccess.log%3C/text%3E%3Ctext x='650' y='400' font-family='monospace' font-size='9' fill='%2338bdf8' stroke='none' opacity='0.09' transform='rotate(-3 650 400)'%3Elimit_req_zone%3C/text%3E%3Ctext x='140' y='560' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.07' transform='rotate(8 140 560)'%3Enginx -t%3C/text%3E%3Ctext x='480' y='480' font-family='monospace' font-size='8' fill='%2338bdf8' stroke='none' opacity='0.07'%3Eip_hash%3C/text%3E%3C!-- ═══ DIAMOND MARKERS ═══ --%3E%3Cpolygon points='50,760 56,770 50,780 44,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='950,760 956,770 950,780 944,770' fill='%2338bdf8' stroke='none' opacity='0.12'/%3E%3Cpolygon points='500,20 506,30 500,40 494,30' fill='%2338bdf8' stroke='none' opacity='0.1'/%3E%3Cpolygon points='50,20 56,30 50,40 44,30' fill='%2338bdf8' stroke='none' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 1000px 800px;
+        }
+
+        body::after { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px); pointer-events: none; z-index: 9000; }
+
+        .cf-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #0e1018; border-bottom: 1px solid rgba(56, 189, 248, 0.12); height: 48px; position: sticky; top: 0; z-index: 200; }
+        .cf-header a { font-size: 0.8rem; color: rgba(255,255,255,0.4); text-decoration: none; letter-spacing: 0.08em; transition: color 0.2s; }
+        .cf-header a:hover { color: rgba(255,255,255,0.8); }
+        .cf-header-title { font-size: 0.75rem; letter-spacing: 0.2em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-header-ref { font-size: 0.65rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); }
+
+        .cf-content { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; position: relative; z-index: 1; }
+
+        .cf-cover { position: relative; background: linear-gradient(170deg, #121a1e 0%, #12191c 100%); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 2px; padding: 48px 40px 40px; margin-bottom: 32px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 60px rgba(56, 189, 248, 0.06); }
+        .cf-stamp { position: absolute; top: 24px; right: 28px; font-size: 1.1rem; font-weight: 900; letter-spacing: 0.2em; color: rgba(220, 38, 38, 0.5); border: 3px solid rgba(220, 38, 38, 0.4); padding: 4px 14px; transform: rotate(3deg); text-transform: uppercase; border-radius: 2px; pointer-events: none; }
+        .cf-cover::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent 100%); }
+        .cf-meta-row { display: flex; gap: 32px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cf-meta-item { font-size: 0.7rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+        .cf-meta-value { color: rgba(255,255,255,0.6); font-weight: 600; }
+        .cf-house-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 24px; }
+        .cf-house-seal { width: 68px; height: 68px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.25) 0%, rgba(56, 189, 248, 0.12) 60%, rgba(56, 189, 248, 0.06) 100%); border: 3px solid rgba(56, 189, 248, 0.5); box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; }
+        .cf-house-seal::after { content: ''; position: absolute; top: 3px; left: 6px; width: 18px; height: 10px; background: radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, transparent 100%); border-radius: 50%; pointer-events: none; }
+        .cf-house-seal img { width: 55px; height: 55px; object-fit: cover; border-radius: 50%; opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+        .cf-house-info { display: flex; flex-direction: column; gap: 2px; }
+        .cf-house-name { font-size: 0.75rem; letter-spacing: 0.15em; color: #38bdf8; text-transform: uppercase; font-weight: 700; }
+        .cf-house-domain { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
+        .cf-subject-label { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+        .cf-subject { font-size: 1.6rem; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.3; letter-spacing: 0.02em; }
+        .cf-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .cf-badge { font-size: 0.75rem; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 2px; font-weight: 700; text-transform: uppercase; }
+        .cf-badge-diff { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); }
+        .cf-badge-time { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+        .cf-badge-xp { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); }
+
+        .cf-paper { background: linear-gradient(175deg, #131a1e 0%, #11161b 100%); border: 1px solid rgba(56, 189, 248, 0.08); border-left: 3px solid rgba(56, 189, 248, 0.2); border-radius: 2px; padding: 32px 36px; margin-bottom: 24px; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+        .cf-paper.has-clip::before { content: ''; position: absolute; top: -6px; left: 36px; width: 20px; height: 32px; border: 2px solid rgba(255,255,255,0.1); border-radius: 0 0 10px 10px; border-top: none; }
+        .cf-paper.has-tape::after { content: ''; position: absolute; top: -4px; right: 40px; width: 60px; height: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.06); transform: rotate(-1deg); }
+        .cf-section-stamp { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #38bdf8; font-weight: 700; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.15); display: flex; align-items: center; gap: 8px; }
+        .cf-section-stamp::before { content: ''; width: 8px; height: 8px; background: #38bdf8; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; opacity: 0.6; }
+
+        .cf-prose p { font-size: 0.95rem; line-height: 1.85; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+        .cf-prose p:last-child { margin-bottom: 0; }
+        .cf-prose code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.9rem; }
+
+        .cf-req-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .cf-req-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.95rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+        .cf-req-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 2px; margin-top: 3px; background: rgba(56, 189, 248, 0.06); }
+
+        .cf-evidence-board { display: flex; flex-direction: column; gap: 16px; }
+        .cf-evidence-card { display: flex; gap: 18px; padding: 20px 22px; background: rgba(56, 189, 248, 0.02); border: 1px solid rgba(56, 189, 248, 0.08); border-radius: 2px; position: relative; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; }
+        .cf-evidence-card:hover { border-color: rgba(56, 189, 248, 0.25); background: rgba(56, 189, 248, 0.04); box-shadow: 0 0 20px rgba(56, 189, 248, 0.06); }
+        .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
+        .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .cf-evidence-body { flex: 1; }
+        .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
+        .cf-evidence-desc code { color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
+        .cf-manifest-item:hover { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); }
+        .cf-manifest-item::before { content: '\25B8 '; color: #38bdf8; }
+
+        .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li::before { content: '\25B9'; color: #38bdf8; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+        .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
+
+        .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
+        .cf-footer-text { font-size: 0.6rem; letter-spacing: 0.3em; color: rgba(255,255,255,0.12); text-transform: uppercase; }
+
+        @media (max-width: 640px) {
+            .cf-content { padding: 24px 16px 60px; }
+            .cf-cover { padding: 36px 20px 28px; }
+            .cf-subject { font-size: 1.25rem; }
+            .cf-stamp { font-size: 0.85rem; top: 16px; right: 16px; padding: 3px 10px; }
+            .cf-paper { padding: 24px 20px; }
+            .cf-meta-row { gap: 16px; }
+            .cf-debrief-list { grid-template-columns: 1fr; }
+            .cf-evidence-card { padding: 16px; gap: 14px; }
+            .cf-evidence-card::before { left: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cf-drafting-table"></div>
+
+    <div class="cf-header">
+        <a href="index.html">&larr; PROJECTS</a>
+        <span class="cf-header-title">Case File</span>
+        <span class="cf-header-ref">CL-NGX-001</span>
+    </div>
+
+    <div class="cf-content">
+
+        <div class="cf-cover">
+            <div class="cf-stamp">Classified</div>
+            <div class="cf-meta-row">
+                <span class="cf-meta-item">Case No: <span class="cf-meta-value">CL-NGX-001</span></span>
+                <span class="cf-meta-item">Filed: <span class="cf-meta-value">2026-03-16</span></span>
+                <span class="cf-meta-item">Status: <span class="cf-meta-value">Open</span></span>
+            </div>
+            <div class="cf-redaction-bar"></div>
+            <div class="cf-house-row">
+                <div class="cf-house-seal">
+                    <img src="/assets/images/icons/icon-cloud.webp" alt="">
+                </div>
+                <div class="cf-house-info">
+                    <span class="cf-house-name">Cloud House</span>
+                    <span class="cf-house-domain">Cloud Infrastructure Division</span>
+                </div>
+            </div>
+            <div class="cf-subject-label">Subject</div>
+            <h1 class="cf-subject">Deploy an API Behind Nginx</h1>
+            <div class="cf-badges">
+                <span class="cf-badge cf-badge-diff">Intermediate</span>
+                <span class="cf-badge cf-badge-time">90 min</span>
+                <span class="cf-badge cf-badge-xp">500 XP</span>
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Mission Brief</div>
+            <div class="cf-prose">
+                <p>
+                    Your assignment is to deploy a backend API behind an <strong>Nginx reverse proxy</strong>
+                    &mdash; the exact architecture used in production at companies from startups to
+                    Fortune 500. Nginx sits in front of your application servers, handling SSL termination,
+                    request caching, rate limiting, and load balancing so your API code only has to
+                    worry about business logic.
+                </p>
+                <p>
+                    You will configure Nginx as a reverse proxy that forwards client requests to one
+                    or more upstream API servers running on internal ports. You will add HTTPS using
+                    a self-signed certificate (or Let's Encrypt for a real domain), set up rate limiting
+                    to protect against abuse, enable response caching for read-heavy endpoints, and
+                    configure load balancing across multiple backend instances.
+                </p>
+                <p>
+                    The emphasis is on understanding the <strong>request lifecycle</strong>: a client
+                    hits Nginx on port 443, the TLS handshake terminates, Nginx checks its cache,
+                    applies rate limits, selects an upstream server, forwards the request over HTTP,
+                    and returns the response with proper headers. By the end, you will have a
+                    production-grade reverse proxy configuration you can use on any project.
+                </p>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Agent Requirements</div>
+            <ul class="cf-req-list">
+                <li>Nginx installed (<code>nginx -v</code> returns a version number)</li>
+                <li>A simple backend API (Node.js, Python Flask, or any HTTP server on a local port)</li>
+                <li>Basic understanding of HTTP: methods, status codes, headers</li>
+                <li>Familiarity with editing config files and restarting services</li>
+                <li>Comfort with <code>curl</code> for testing HTTP requests from the terminal</li>
+            </ul>
+        </div>
+
+        <div class="cf-paper">
+            <div class="cf-section-stamp">Operation Phases</div>
+            <div class="cf-evidence-board">
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">1</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Basic Reverse Proxy Configuration</div>
+                        <div class="cf-evidence-desc">
+                            Start a simple API server on <code>localhost:3000</code>. Write an Nginx
+                            <code>server</code> block that listens on port 80 and uses
+                            <code>proxy_pass http://localhost:3000;</code> to forward all requests.
+                            Add <code>proxy_set_header</code> directives for <code>Host</code>,
+                            <code>X-Real-IP</code>, and <code>X-Forwarded-For</code>. Test with
+                            <code>curl http://localhost</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">2</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">SSL/TLS Termination with HTTPS</div>
+                        <div class="cf-evidence-desc">
+                            Generate a self-signed certificate with <code>openssl req -x509</code>
+                            (or use Let's Encrypt via <code>certbot</code> for a real domain). Configure
+                            Nginx to listen on port 443 with <code>ssl_certificate</code> and
+                            <code>ssl_certificate_key</code>. Add a redirect block that sends all HTTP
+                            port 80 traffic to HTTPS. Verify with <code>curl -k https://localhost</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">3</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Rate Limiting to Protect the API</div>
+                        <div class="cf-evidence-desc">
+                            Define a <code>limit_req_zone</code> in the <code>http</code> context keyed
+                            by <code>$binary_remote_addr</code> with a rate of 10 requests per second.
+                            Apply <code>limit_req</code> in your location block with a
+                            <code>burst=20</code> and <code>nodelay</code>. Test by sending rapid
+                            requests with a loop and confirm that excess requests receive a 503.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">4</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Load Balancing Across Multiple Backends</div>
+                        <div class="cf-evidence-desc">
+                            Start three instances of your API on ports 3001, 3002, and 3003. Define
+                            an <code>upstream</code> block listing all three servers. Configure the
+                            load balancing method: start with round-robin (default), then try
+                            <code>least_conn</code> and <code>ip_hash</code>. Add health checks with
+                            <code>max_fails</code> and <code>fail_timeout</code>. Watch logs to confirm
+                            traffic distribution.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cf-evidence-card">
+                    <div class="cf-evidence-marker">5</div>
+                    <div class="cf-evidence-body">
+                        <div class="cf-evidence-title">Response Caching and Access Logging</div>
+                        <div class="cf-evidence-desc">
+                            Configure <code>proxy_cache_path</code> with a 10MB zone and a 5-minute
+                            expiry. Add <code>proxy_cache</code> and <code>proxy_cache_valid</code>
+                            directives to cache GET responses. Add an <code>X-Cache-Status</code>
+                            header using <code>add_header</code> so you can see HIT/MISS in responses.
+                            Set up structured access logging with <code>log_format</code> to capture
+                            request time, upstream response time, and cache status.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="cf-paper has-clip">
+            <div class="cf-section-stamp">Asset Manifest</div>
+            <div class="cf-manifest">
+                <div class="cf-manifest-item">Nginx</div>
+                <div class="cf-manifest-item">OpenSSL / certbot</div>
+                <div class="cf-manifest-item">Node.js or Python (backend)</div>
+                <div class="cf-manifest-item">curl / httpie</div>
+                <div class="cf-manifest-item">systemctl / nginx -t</div>
+                <div class="cf-manifest-item">Access / error logs</div>
+                <div class="cf-manifest-item">upstream block</div>
+            </div>
+        </div>
+
+        <div class="cf-paper has-tape">
+            <div class="cf-section-stamp">Expected Outcomes</div>
+            <ul class="cf-debrief-list">
+                <li>Reverse proxy architecture and request lifecycle</li>
+                <li>SSL/TLS termination and HTTPS configuration</li>
+                <li>Rate limiting to protect APIs from abuse</li>
+                <li>Load balancing strategies: round-robin, least connections, IP hash</li>
+                <li>Response caching for read-heavy endpoints</li>
+                <li>Structured access logging and debugging with nginx -t</li>
+            </ul>
+        </div>
+
+        <div class="cf-footer">
+            <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
+        </div>
+
+    </div>
+
+    <script src="../components/ModuleProgress.js"></script>
+</body>
+</html>
