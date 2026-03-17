@@ -523,7 +523,7 @@ class PortalManager {
         this.portals.push(portalA, portalB);
         this.stats.portalsCreated += 2;
 
-        console.log(`[refresh] Portal pair created`);
+        console.log('[refresh] Portal pair created');
 
         return { portalA, portalB };
     }

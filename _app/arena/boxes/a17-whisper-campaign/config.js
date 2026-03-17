@@ -1613,7 +1613,7 @@ Press 'q' or Ctrl-C to abort, any other key for status
 [hint] .onion sites require Tor. Use the browser instead, which has a simulated Tor connection.`;
             }
 
-            return `curl: (7) Failed to connect: Connection refused`;
+            return 'curl: (7) Failed to connect: Connection refused';
         },
 
         // ── ping ──────────────────────────────────────────────────

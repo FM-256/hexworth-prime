@@ -95,7 +95,7 @@ const IdleDetector = (function() {
         if (_config.referenceUrl) {
             buttonsHtml += `<a class="idle-btn idle-btn-ref" href="${_config.referenceUrl}" target="_blank">Quick Reference</a>`;
         }
-        buttonsHtml += `<button class="idle-btn idle-btn-dismiss">Dismiss</button>`;
+        buttonsHtml += '<button class="idle-btn idle-btn-dismiss">Dismiss</button>';
 
         _bannerEl.innerHTML = `
             <div class="idle-detector-inner">

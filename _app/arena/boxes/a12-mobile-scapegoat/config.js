@@ -1027,7 +1027,7 @@ Use sqlite3 voyager.db to examine the database.`;
 
             // adb push
             if (subcmd === 'push') {
-                return `adb: error: push requires two arguments (local source, remote destination)`;
+                return 'adb: error: push requires two arguments (local source, remote destination)';
             }
 
             // adb shell
@@ -1542,7 +1542,7 @@ CREATE TABLE sqlite_sequence (name TEXT, seq INTEGER);`;
                     return 'name|seq\nsafehouses|5';
                 }
 
-                return `Error: no such table (check .tables for available tables)`;
+                return 'Error: no such table (check .tables for available tables)';
             }
 
             // Default — show database info

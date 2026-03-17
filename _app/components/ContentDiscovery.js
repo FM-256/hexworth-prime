@@ -331,7 +331,7 @@ const ContentDiscovery = (function() {
             chipsRow.id = `${instanceId}-chips`;
 
             // All Types chip
-            chipsRow.innerHTML = `<button class="cd-chip active" data-type="all">All Types</button>`;
+            chipsRow.innerHTML = '<button class="cd-chip active" data-type="all">All Types</button>';
 
             // Get available types from catalog
             const allModules = ContentCatalog.getAllModules();

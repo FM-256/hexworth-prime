@@ -199,7 +199,7 @@ class PredatorManager {
         this.serpents.push(serpent);
         this.stats.serpentsSpawned++;
 
-        console.log(`[snake] Void Serpent spawned! Beware!`);
+        console.log('[snake] Void Serpent spawned! Beware!');
 
         return serpent;
     }

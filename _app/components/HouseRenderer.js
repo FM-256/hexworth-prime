@@ -1478,7 +1478,7 @@ const HouseRenderer = (function() {
                 const fallbackSrc = (p.icon && p.icon.includes('src=')) ? (p.icon.match(/src="([^"]+)"/)?.[1] || '/assets/images/icons/icon-books.webp') : (p.icon && !p.icon.includes('<') ? p.icon : '/assets/images/icons/icon-books.webp');
                 const iconHTML = iconSrc
                     ? `<img src="${iconSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='${fallbackSrc}'">`
-                    : (p.icon || `<img src="/assets/images/icons/icon-books.webp" alt="">`);
+                    : (p.icon || '<img src="/assets/images/icons/icon-books.webp" alt="">');
                 const href = p.href || `../../path-view.html?house=${config.houseId}&path=${p.id}`;
                 return `
                     <div class="hr-hub-card" role="listitem" tabindex="0" data-href="${href}" aria-label="${p.name} - ${p.cert}">

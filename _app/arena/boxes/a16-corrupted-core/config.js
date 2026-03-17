@@ -638,7 +638,7 @@ PID 1842  crimson_ghost<br>
             }
 
             if (target === 'crimson_ghost.pcap' || target === './crimson_ghost.pcap') {
-                return `crimson_ghost.pcap: pcap capture file, microsecond ts (little-endian) - version 2.4 (Ethernet, capture length 262144)`;
+                return 'crimson_ghost.pcap: pcap capture file, microsecond ts (little-endian) - version 2.4 (Ethernet, capture length 262144)';
             }
 
             if (!target) return 'Usage: file <filename>';
@@ -713,7 +713,7 @@ GCC: (Ubuntu 12.3.0-1ubuntu1~22.04) 12.3.0
             // Handle: echo "MTkyLjE2OC4xMy4zNw==" | base64 -d
             if (fullCmd.includes('MTkyLjE2OC4xMy4zNw==') && fullCmd.includes('base64')) {
                 A16Config._state.c2Identified = true;
-                return `192.168.13.37`;
+                return '192.168.13.37';
             }
 
             // Handle: echo "string" | base64 -d (generic)
@@ -722,7 +722,7 @@ GCC: (Ubuntu 12.3.0-1ubuntu1~22.04) 12.3.0
                 try {
                     return atob(b64Match[1]);
                 } catch(e) {
-                    return `base64: invalid input`;
+                    return 'base64: invalid input';
                 }
             }
 
@@ -845,10 +845,10 @@ Partial RELRO   No canary found   NX enabled    No PIE          No RPATH   No RU
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (target === 'crimson_ghost' || target === './crimson_ghost') {
-                return `a3f8c9d1e7b2450f6a8d3c1e9f0b7a2d5c4e8f1a6b3d9e0c7f2a5b8d1e4c7f0a  crimson_ghost`;
+                return 'a3f8c9d1e7b2450f6a8d3c1e9f0b7a2d5c4e8f1a6b3d9e0c7f2a5b8d1e4c7f0a  crimson_ghost';
             }
             if (target === 'crimson_ghost.pcap' || target === './crimson_ghost.pcap') {
-                return `b7c2d4e6f8a0b1c3d5e7f9a1b3c5d7e9f0a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0  crimson_ghost.pcap`;
+                return 'b7c2d4e6f8a0b1c3d5e7f9a1b3c5d7e9f0a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0  crimson_ghost.pcap';
             }
 
             if (!target) return 'Usage: sha256sum <file>';
@@ -1301,16 +1301,16 @@ bash          982 kali    0u   CHR  136,0      0t0      3 /dev/pts/0`;
 
             // Common patterns users might grep for
             if (pattern.includes('base64') || pattern.includes('MTky') || pattern.includes('b64')) {
-                return `Binary file crimson_ghost matches`;
+                return 'Binary file crimson_ghost matches';
             }
             if (pattern.includes('flag') || pattern.includes('FLAG')) {
                 return `notes.txt:  user.txt — C2 server address\nnotes.txt:  root.txt — Ghost Protocol decryption key`;
             }
             if (pattern.includes('ptrace')) {
-                return `Binary file crimson_ghost matches`;
+                return 'Binary file crimson_ghost matches';
             }
             if (pattern.includes('192.168')) {
-                return `crimson_ghost.pcap: (binary match)`;
+                return 'crimson_ghost.pcap: (binary match)';
             }
 
             return `grep: ${pattern}: No match found`;
@@ -1402,14 +1402,14 @@ rtt min/avg/max/mdev = 41.8/42.1/42.3/0.204 ms`;
         // ── chmod — change permissions ─────────────────────────────────
         'chmod': function(args) {
             if (args.length === 0) return 'Usage: chmod [options] <mode> <file>';
-            return `chmod: mode changed`;
+            return 'chmod: mode changed';
         },
 
         // ── md5sum — file hash ─────────────────────────────────────────
         'md5sum': function(args) {
             const target = args.find(a => !a.startsWith('-')) || '';
             if (target === 'crimson_ghost' || target === './crimson_ghost') {
-                return `d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9  crimson_ghost`;
+                return 'd4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9  crimson_ghost';
             }
             if (!target) return 'Usage: md5sum <file>';
             return `md5sum: ${target}: No such file or directory`;
@@ -1528,13 +1528,13 @@ Breakpoint 1, 0x00000000004011a0 in ?? ()
                 }
 
                 if (fullArgs.includes('0x401094') && fullArgs.includes('0x90909090')) {
-                    return `[*] Patched: 0x401094 = 0x90909090 (continued NOP sled)`;
+                    return '[*] Patched: 0x401094 = 0x90909090 (continued NOP sled)';
                 }
                 if (fullArgs.includes('0x401098') && fullArgs.includes('0x9090')) {
-                    return `[*] Patched: 0x401098 = 0x9090 (NOP)`;
+                    return '[*] Patched: 0x401098 = 0x9090 (NOP)';
                 }
                 if (fullArgs.includes('0x40109a') && fullArgs.includes('0x90')) {
-                    return `[*] Patched: 0x40109a = 0x90 (NOP)`;
+                    return '[*] Patched: 0x40109a = 0x90 (NOP)';
                 }
 
                 return `Set: ${fullArgs}`;
@@ -1594,23 +1594,23 @@ rip            0x4011a0            0x4011a0
 [*] rsi = 0x7fffe8a04000 — points to encrypted payload buffer
 [*] rdx = 0x800 (2048) — payload size`;
                     }
-                    return `No program running. Start with: (gdb) run`;
+                    return 'No program running. Start with: (gdb) run';
                 }
                 if (args[0] === 'breakpoints' || args[0] === 'break') {
                     if (A16Config._state.gdbBreakpointSet) {
                         return `Num     Type           Disp Enb Address            What
 1       breakpoint     keep y   0x00000000004011a0 <xor_decrypt>`;
                     }
-                    return `No breakpoints or watchpoints.`;
+                    return 'No breakpoints or watchpoints.';
                 }
                 if (args.join(' ') === 'reg rdi') {
                     if (A16Config._state.gdbBreakpointSet && A16Config._state.gdbPtracePatched) {
                         return `rdi            0x403040            4206656
 [*] Points to: "Gh0stK3y_X0R_2024"`;
                     }
-                    return `rdi            0x0                 0`;
+                    return 'rdi            0x0                 0';
                 }
-                return `Usage: info <registers|breakpoints|functions|...>`;
+                return 'Usage: info <registers|breakpoints|functions|...>';
             },
 
             'disas': function(args, term, engine) {
@@ -1654,7 +1654,7 @@ End of assembler dump.
     Returns 1 if debugger detected, 0 otherwise.
     NOP this out: set *(int*)0x401090 = 0x90909090`;
                 }
-                return `Usage: disas <address>`;
+                return 'Usage: disas <address>';
             },
 
             'disassemble': function(args, term, engine) {
@@ -1669,7 +1669,7 @@ End of assembler dump.
 
 [Inferior 1 (process 4102) exited normally]`;
                 }
-                return `The program is not being run.`;
+                return 'The program is not being run.';
             },
 
             'c': function(args, term, engine) {
@@ -1681,7 +1681,7 @@ End of assembler dump.
                 A16Config._state.gdbBreakpointSet = false;
                 // Uninstall GDB commands
                 A16Config._uninstallGdbCommands(engine);
-                return `Quitting GDB.`;
+                return 'Quitting GDB.';
             },
 
             'q': function(args, term, engine) {

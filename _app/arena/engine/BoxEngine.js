@@ -49,6 +49,8 @@ const BoxEngine = {
         }
     },
 
+    // Called after mode selection (solo/co-op/VS) — sets up state, security,
+    // DOM, and either resumes a saved session or starts the boot sequence.
     _initWithMode() {
         const config = this.config;
         this.load();
@@ -63,7 +65,9 @@ const BoxEngine = {
         this._flagHashes = [];
         this._computeFlagHashes().catch(e => console.error('[ARENA] Flag hash computation failed:', e));
 
-        // DevTools detection — research instrumentation only, does NOT block (AR-11)
+        // DevTools detection — research instrumentation only, does NOT block (AR-11).
+        // Uses window size differential heuristic: when DevTools is docked,
+        // outerWidth - innerWidth grows beyond 200px. Logged for instructor analytics.
         this._devToolsOpen = false;
         this._devToolsInterval = setInterval(() => {
             const threshold = 200;
@@ -165,6 +169,8 @@ const BoxEngine = {
     // STATE MANAGEMENT
     // ────────────────────────────────────────────────
 
+    // Fresh state for a new box session. Score starts at config.scoring.base
+    // (default 1000) and gets modified by flag captures (+), hints (-), wrong flags (-).
     _defaults() {
         return {
             score: this.config.scoring?.base || 1000,
@@ -210,6 +216,8 @@ const BoxEngine = {
         }
     },
 
+    // Classify a command into CTF attack phases for research analytics.
+    // Maps to a simplified kill-chain: RECON -> EXPLOIT -> EXTRACTION.
     _classifyCommand(cmd) {
         const c = cmd.toLowerCase().split(' ')[0];
         const recon = ['nmap', 'whoami', 'id', 'ls', 'pwd', 'find', 'cat', 'head', 'hostname', 'uname', 'file', 'help'];
@@ -833,7 +841,8 @@ const BoxEngine = {
         win.className = 'arena-window focused';
         win.dataset.app = appId;
 
-        // Position: cascade from top-left
+        // Position: cascade from top-left, wrapping within a 200x300 area
+        // so windows don't stack exactly on top of each other
         const count = Object.keys(this._windows).length;
         const top = 30 + (count * 30) % 200;
         const left = 100 + (count * 40) % 300;
@@ -1369,6 +1378,9 @@ const BoxEngine = {
         document.getElementById('flagModalOverlay').classList.remove('active');
     },
 
+    // Main flag submission entry point. Routes through:
+    // 1. TripWire decoy detection  2. Rate limiting  3. Server validation (if authed)
+    // 4. Local SHA-256 hash fallback (if offline/anon)
     submitFlag() {
         const input = document.getElementById('flagModalInput');
         const msg = document.getElementById('flagModalMsg');
@@ -1789,8 +1801,9 @@ const BoxEngine = {
         });
     },
 
+    // Toggle God Mode (Ctrl+Shift+G). Requires admin/instructor localStorage flag.
+    // Reveals all flag values in console and removes hint penalties.
     _toggleGodMode() {
-        // If enabling, check for instructor access (AR-11)
         if (!this.state.godMode) {
             const isAdmin = localStorage.getItem('hexworth_firebase_admin');
             if (!isAdmin) {

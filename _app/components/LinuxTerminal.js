@@ -1031,9 +1031,9 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
                     return `default via 192.168.1.1 dev eth0 proto dhcp\n192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100`;
                 }
                 if (ipSub === 'neigh' || ipSub === 'n') {
-                    return `192.168.1.1 dev eth0 lladdr aa:bb:cc:dd:ee:ff REACHABLE`;
+                    return '192.168.1.1 dev eth0 lladdr aa:bb:cc:dd:ee:ff REACHABLE';
                 }
-                return `Usage: ip [ addr | link | route | neigh ] [show]`;
+                return 'Usage: ip [ addr | link | route | neigh ] [show]';
             }
 
             case 'netstat':
@@ -1119,7 +1119,7 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             case 'nohup': {
                 if (args.length === 0) return 'nohup: missing operand';
                 const nohupCmd = args.join(' ');
-                return `<span class="lt-warning">nohup: ignoring input and appending output to 'nohup.out'</span>`;
+                return '<span class="lt-warning">nohup: ignoring input and appending output to \'nohup.out\'</span>';
             }
 
             case 'disown': {
@@ -1240,7 +1240,7 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             // --------------- SSH Tools ---------------
             case 'ssh': {
                 if (args.length === 0) return 'usage: ssh [-p port] [user@]hostname [command]';
-                if (args.includes('-keygen') || args[0] === '-keygen') return `<span class="lt-error">Did you mean: ssh-keygen?</span>`;
+                if (args.includes('-keygen') || args[0] === '-keygen') return '<span class="lt-error">Did you mean: ssh-keygen?</span>';
                 const sshTarget = args.find(a => !a.startsWith('-')) || '';
                 return `<span class="lt-highlight">ssh: would connect to ${sshTarget}\nssh: connection simulated (not a real network)</span>`;
             }

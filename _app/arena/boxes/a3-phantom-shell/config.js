@@ -851,15 +851,15 @@ if (!empty($host)) {
         const p = args.replace(/-[la]+\s*/g, '').trim() || '/var/www/html/monitor';
 
         if (p === '/' || p === '-la /') {
-            return `bin   boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var`;
+            return 'bin   boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var';
         }
 
         if (p.includes('/home/monitor_svc') || p === '/home/monitor_svc/' || p === '/home/monitor_svc') {
-            return `user.txt  .bash_history  .ssh/`;
+            return 'user.txt  .bash_history  .ssh/';
         }
 
         if (p.includes('/home') && !p.includes('/home/monitor_svc') && !p.includes('/home/kali') && !p.includes('/home/node')) {
-            return `monitor_svc  www-data`;
+            return 'monitor_svc  www-data';
         }
 
         if (p.includes('/root')) {
@@ -867,23 +867,23 @@ if (!empty($host)) {
         }
 
         if (p.includes('/var/www/html/monitor') || p.includes('/var/www/html')) {
-            return `index.html  tools/  logs/  api/  assets/  config.php`;
+            return 'index.html  tools/  logs/  api/  assets/  config.php';
         }
 
         if (p.includes('/opt/monitor')) {
-            return `server.js  health_check.sh  config.json  node_modules/  package.json`;
+            return 'server.js  health_check.sh  config.json  node_modules/  package.json';
         }
 
         if (p.includes('/tmp')) {
-            return `systemd-private-abc123  sess_4f8a2b1c`;
+            return 'systemd-private-abc123  sess_4f8a2b1c';
         }
 
         if (p.includes('/etc/cron.d')) {
-            return `monitor  anacron  popularity-contest`;
+            return 'monitor  anacron  popularity-contest';
         }
 
         if (p.includes('/etc')) {
-            return `apache2  cron.d  crontab  hostname  hosts  passwd  shadow  ssh  sudoers  sudoers.d`;
+            return 'apache2  cron.d  crontab  hostname  hosts  passwd  shadow  ssh  sudoers  sudoers.d';
         }
 
         return `ls: cannot access '${p}': No such file or directory`;

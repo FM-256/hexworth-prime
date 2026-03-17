@@ -86,7 +86,7 @@ const SQLTerminal = (() => {
             return `<div class="sql-success">${escapeHtml(result.message)}</div>`;
         }
         if (!result.results || result.results.length === 0) {
-            return `<div class="sql-success">Query OK. No results returned.</div>`;
+            return '<div class="sql-success">Query OK. No results returned.</div>';
         }
 
         let html = '';

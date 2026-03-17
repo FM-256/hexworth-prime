@@ -621,19 +621,19 @@ Sync word purpose: frame alignment / start-of-packet marker
             }
 
             if (target.includes('freq_info.txt')) {
-                return `freq_info.txt: ASCII text, 584 bytes`;
+                return 'freq_info.txt: ASCII text, 584 bytes';
             }
 
             if (target.includes('notes.txt')) {
-                return `notes.txt: ASCII text, 1124 bytes`;
+                return 'notes.txt: ASCII text, 1124 bytes';
             }
 
             if (target.includes('demod.py')) {
-                return `tools/demod.py: Python script, ASCII text executable, 1296 bytes`;
+                return 'tools/demod.py: Python script, ASCII text executable, 1296 bytes';
             }
 
             if (target.includes('decode.py')) {
-                return `tools/decode.py: Python script, ASCII text executable, 1820 bytes`;
+                return 'tools/decode.py: Python script, ASCII text executable, 1820 bytes';
             }
 
             return `${target}: cannot open '${target}' (No such file or directory)`;
@@ -860,7 +860,7 @@ Scanning 430.000 - 436.000 MHz (step: 10 kHz)...
 
             if (target.includes('demodulated_bits.bin')) {
                 if (!A15Config._state.demodulated) {
-                    return `strings: demodulated_bits.bin: No such file or directory`;
+                    return 'strings: demodulated_bits.bin: No such file or directory';
                 }
                 return `[*] Scanning demodulated_bits.bin for ASCII strings...
 [*] No clean ASCII strings found

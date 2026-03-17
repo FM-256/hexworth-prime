@@ -1,10 +1,14 @@
         // ═══════════════════════════════════════════════════════════════
         // VIEW ENGINE
+        // Stack-based navigation for instructor drill-down views.
+        // Level 0 = class overview (tab-based). drillDown() pushes deeper
+        // views (student detail, assignment detail, etc.) onto the stack.
+        // goBack() pops the stack and restores the previous view's HTML.
         // ═══════════════════════════════════════════════════════════════
 
         const _viewStack = [];
         let _currentView = null;
-        let _savedMainHTML = null;
+        let _savedMainHTML = null;  // Snapshot of Level 0 HTML for restoration
 
         function drillDown(viewConfig) {
             const mainEl = document.getElementById('mainContent');
@@ -95,6 +99,9 @@
         let _analyticsRendered = false;
         let _ailabRendered = false;
 
+        // Switch between class detail tabs (overview, roster, analytics, AI lab).
+        // Analytics and AI Lab tabs are lazy-rendered on first activation to
+        // avoid loading Chart.js and fetching data until actually needed.
         function switchTab(tab) {
             _activeTab = tab;
             document.querySelectorAll('.hd-tab-panel').forEach(function(p) { p.classList.remove('active'); });
@@ -103,7 +110,6 @@
             const btn = document.querySelector('.hd-tab-btn[data-tab="' + tab + '"]');
             if (panel) panel.classList.add('active');
             if (btn) btn.classList.add('active');
-            // Lazy-render charts only when tab first shown
             if (tab === 'analytics' && !_analyticsRendered) { _renderAnalyticsTab(); _analyticsRendered = true; }
             if (tab === 'ailab' && !_ailabRendered) { loadAiLabData(); _ailabRendered = true; }
         }
@@ -154,23 +160,25 @@
         // STATE
         // ═══════════════════════════════════════════════════════════════
 
-        let handlerClasses = [];
-        let selectedClassId = null;
-        let classAssignments = [];
-        let classProgressData = [];
-        let rosterMembers = [];
+        let handlerClasses = [];       // All classes owned by this instructor
+        let selectedClassId = null;    // Currently viewed class
+        let classAssignments = [];     // Assignments for the selected class
+        let classProgressData = [];    // Per-student progress snapshots
+        let rosterMembers = [];        // Paginated student list for the roster tab
         let rosterPage = 0;
         const ROSTER_PAGE_SIZE = 15;
-        let cbSelection = new Map(); // key => { type, data }
+        let cbSelection = new Map();   // Clipboard: key => { type, data } for bulk operations
         const dismissedWarnings = new Set();
-        const cohortCache = new Map(); // classId => { data, ts }
+        const cohortCache = new Map(); // classId => { data, ts } — avoids re-fetching within session
 
         // ═══════════════════════════════════════════════════════════════
         // ACCESS GATE
+        // Redirects non-handler accounts back to dashboard.html.
+        // AccountFrame.getAccountType() is set during login based on
+        // instructor tier or admin claims.
         // ═══════════════════════════════════════════════════════════════
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // Check handler status
             if (typeof AccountFrame === 'undefined' || AccountFrame.getAccountType() !== 'handler') {
                 window.location.href = 'dashboard.html';
                 return;
@@ -900,7 +908,7 @@
             // Take only the most recent 20 events
             const recentEvents = events.slice(0, 20);
 
-            const filterText = filterUid ? ` (filtered)` : '';
+            const filterText = filterUid ? ' (filtered)' : '';
             if (events.length > 20) {
                 countBadge.textContent = `20 of ${events.length} events${filterText}`;
             } else {

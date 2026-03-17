@@ -1080,7 +1080,7 @@ Finished`;
 
     _tableHtml(headers, rows) {
         const accent = '#9b59b6';
-        let html = `<table style="width:100%; border-collapse:collapse; font-size:0.78rem;"><thead><tr>`;
+        let html = '<table style="width:100%; border-collapse:collapse; font-size:0.78rem;"><thead><tr>';
         headers.forEach(h => {
             html += `<th style="padding:6px 10px; text-align:left; color:${accent}; border-bottom:2px solid #4a2d7a; background:#1a0a2e;">${h}</th>`;
         });

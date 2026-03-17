@@ -1740,9 +1740,9 @@ Commands:
 {"Id":"sha256:9a0b1c...","RepoTags":["alpine:3.18"],"Size":7340000}]`;
                 }
                 if (raw.includes('/info')) {
-                    return `{"ServerVersion":"24.0.7","Containers":5,"ContainersRunning":4,"Images":6,"OperatingSystem":"Ubuntu 22.04.3 LTS","KernelVersion":"5.15.0-88-generic","Name":"vault-host","NCPU":4,"MemTotal":8345169920}`;
+                    return '{"ServerVersion":"24.0.7","Containers":5,"ContainersRunning":4,"Images":6,"OperatingSystem":"Ubuntu 22.04.3 LTS","KernelVersion":"5.15.0-88-generic","Name":"vault-host","NCPU":4,"MemTotal":8345169920}';
                 }
-                return `{"message":"page not found"}`;
+                return '{"message":"page not found"}';
             }
 
             // curl to the vault web portal

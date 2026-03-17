@@ -1461,7 +1461,7 @@ const GUISimulator = (function() {
     function _buildField(field) {
         const required = field.required ? ' required' : '';
         const requiredClass = field.required ? ' required' : '';
-        let html = `<div class="gui-form-group">`;
+        let html = '<div class="gui-form-group">';
 
         if (field.type !== 'checkbox' && field.label) {
             html += `<label class="gui-form-label${requiredClass}">${field.label}</label>`;

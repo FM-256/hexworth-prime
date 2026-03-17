@@ -758,7 +758,7 @@ const ModuleProgress = (function() {
         }
 
         // Stay & Explore
-        actionsHtml += `<button class="mp-btn mp-btn-stay" onclick="this.closest('.mp-overlay').remove()">Stay &amp; Explore</button>`;
+        actionsHtml += '<button class="mp-btn mp-btn-stay" onclick="this.closest(\'.mp-overlay\').remove()">Stay &amp; Explore</button>';
 
         // Course Home
         if (nav.indexUrl || nav.courseHomeUrl) {
@@ -767,7 +767,7 @@ const ModuleProgress = (function() {
         }
 
         // Dashboard
-        actionsHtml += `<a href="javascript:void(0)" class="mp-btn mp-btn-dash" onclick="ModuleProgress._goToDashboard()">Dashboard</a>`;
+        actionsHtml += '<a href="javascript:void(0)" class="mp-btn mp-btn-dash" onclick="ModuleProgress._goToDashboard()">Dashboard</a>';
 
         const overlay = document.createElement('div');
         overlay.className = 'mp-overlay';

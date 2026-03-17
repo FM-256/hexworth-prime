@@ -1127,7 +1127,7 @@ class ProgressManager {
         }
 
         if (result.unlocks.length > 0) {
-            content += `<div class="unlocks"><img src="/assets/images/icons/icon-unlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> New content unlocked!</div>`;
+            content += '<div class="unlocks"><img src="/assets/images/icons/icon-unlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> New content unlocked!</div>';
         }
 
         if (result.nextModule) {

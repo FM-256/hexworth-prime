@@ -530,7 +530,7 @@ class PlayerTools {
             animation: shieldPulse 2s ease-in-out infinite;
             z-index: 18;
         `;
-        shield.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>`;
+        shield.element.innerHTML = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;"><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>';
         this.container.appendChild(shield.element);
 
         this.activeEffects.push(shield);
@@ -573,7 +573,7 @@ class PlayerTools {
             animation: beaconPulse 1.5s ease-in-out infinite;
             z-index: 15;
         `;
-        beacon.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>`;
+        beacon.element.innerHTML = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>';
         this.container.appendChild(beacon.element);
 
         this.activeEffects.push(beacon);
@@ -617,7 +617,7 @@ class PlayerTools {
             animation: catalystGlow 0.5s ease-in-out infinite alternate;
             z-index: 16;
         `;
-        catalyst.element.innerHTML = `<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;"><img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>`;
+        catalyst.element.innerHTML = '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;"><img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>';
         this.container.appendChild(catalyst.element);
 
         this.activeEffects.push(catalyst);

@@ -550,7 +550,7 @@ DOWNLOADED: 4612 - FOUND: 4`;
 + End Time: ${new Date().toLocaleTimeString()} (elapsed: 42 seconds)
 ---------------------------------------------------------------------------`;
                     }
-                    return `nikto: ERROR: cannot resolve hostname / connect to target`;
+                    return 'nikto: ERROR: cannot resolve hostname / connect to target';
                 },
 
                 'curl': function(args, term) {
@@ -642,7 +642,7 @@ devops@nexus-web01:~$
 Type 'sudo -l' to check privileges, or explore /var/www/html/`;
                         }
                         if (user === 'root') {
-                            return `Permission denied (publickey,password).`;
+                            return 'Permission denied (publickey,password).';
                         }
                         return `${user}@10.10.14.20: Permission denied (publickey,password).`;
                     }

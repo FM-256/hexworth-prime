@@ -173,12 +173,12 @@ const SecretFeatures = (function() {
         if (typeof ContentCatalog !== 'undefined' && ContentCatalog.getStats) mods = ContentCatalog.getStats().total;
         const el = document.createElement('div');
         el.style.cssText = 'position:absolute;top:' + (window.scrollY + window.innerHeight / 2) + 'px;left:50%;transform:translate(-50%,-50%);background:#111;color:#aaa;border:1px solid #333;border-radius:10px;padding:32px;font-family:monospace;font-size:13px;z-index:999999;text-align:center;min-width:300px;box-shadow:0 0 40px rgba(0,0,0,0.5);';
-        el.innerHTML = `<div style="color:#9f7aea;font-size:18px;margin-bottom:12px;">HEXWORTH PRIME</div>`
+        el.innerHTML = '<div style="color:#9f7aea;font-size:18px;margin-bottom:12px;">HEXWORTH PRIME</div>'
             + `<div style="margin:6px 0;">Version: <span style="color:#fff;">${ver}</span></div>`
             + `<div style="margin:6px 0;">Codename: <span style="color:#fff;">${code}</span></div>`
             + `<div style="margin:6px 0;">Released: <span style="color:#fff;">${rel}</span></div>`
             + `<div style="margin:6px 0;">Modules: <span style="color:#fff;">${mods}</span></div>`
-            + `<div style="margin-top:16px;color:#808080;font-size:11px;">Triple-clicked the logo. You're observant.</div>`;
+            + '<div style="margin-top:16px;color:#808080;font-size:11px;">Triple-clicked the logo. You\'re observant.</div>';
         el.onclick = () => el.remove();
         document.body.appendChild(el);
         setTimeout(() => { if (el.parentNode) { el.style.transition = 'opacity 0.5s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 500); } }, 8000);

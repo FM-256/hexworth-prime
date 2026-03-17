@@ -657,15 +657,15 @@ NOTE: Redis is bound to 127.0.0.1 only. Access via SSRF through the Link Inspect
         }
 
         if (lower.includes('iam/security-credentials')) {
-            return A10Config._inspectRaw(url, `GlassCorridorRole`);
+            return A10Config._inspectRaw(url, 'GlassCorridorRole');
         }
 
         if (lower.includes('iam')) {
-            return A10Config._inspectRaw(url, `security-credentials/`);
+            return A10Config._inspectRaw(url, 'security-credentials/');
         }
 
         if (lower.includes('latest/meta-data/iam')) {
-            return A10Config._inspectRaw(url, `security-credentials/`);
+            return A10Config._inspectRaw(url, 'security-credentials/');
         }
 
         if (lower.includes('latest/meta-data')) {
@@ -1019,7 +1019,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.04 seconds`;
 
             // Direct curl to localhost:6379 from Kali also fails
             if (lower.includes('127.0.0.1:6379') || lower.includes('localhost:6379')) {
-                return `curl: (7) Failed to connect to 127.0.0.1 port 6379 after 0 ms: Connection refused`;
+                return 'curl: (7) Failed to connect to 127.0.0.1 port 6379 after 0 ms: Connection refused';
             }
 
             return `curl: (7) Failed to connect to ${url.replace(/https?:\/\//, '').split('/')[0]}: Connection refused`;
