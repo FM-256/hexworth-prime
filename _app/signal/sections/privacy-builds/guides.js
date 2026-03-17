@@ -2048,6 +2048,121 @@ window.SignalGuides['sg-20'] = {
         <p>This project builds a spectrum monitor on the ESP32 CYD that scans all 14 WiFi channels in the 2.4 GHz band, measures the noise floor on each channel, and detects anomalies that suggest active jamming. The built-in TFT display shows a real-time spectrum visualization — a bar graph of signal energy per channel — with alert thresholds that trigger when broadband noise spikes across multiple channels simultaneously.</p>
         <p>The key insight is that legitimate WiFi congestion affects specific channels (1, 6, 11 are most common), while a broadband jammer raises the noise floor across ALL channels at once. That simultaneous broadband spike is the signature we detect.</p>
     `,
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg20-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '<linearGradient id="sg20-comp" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg20-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SIGNAL JAMMER DETECTOR — ESP32 CYD WIRING DIAGRAM</text>' +
+
+        '<!-- ESP32 CYD Board -->' +
+        '<g>' +
+        '<rect x="200" y="50" width="300" height="170" rx="8" fill="url(#sg20-comp)" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="200" y="50" width="300" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="200" y="64" width="300" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="350" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 CYD (Cheap Yellow Display)</text>' +
+
+        '<!-- Built-in TFT -->' +
+        '<rect x="215" y="82" width="130" height="70" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
+        '<text x="280" y="96" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">BUILT-IN 2.8" TFT</text>' +
+        '<text x="280" y="109" text-anchor="middle" fill="#8b949e" font-size="6">320x240 ILI9341</text>' +
+        '<!-- Mini spectrum bars -->' +
+        '<rect x="228" y="116" width="8" height="12" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+        '<rect x="238" y="120" width="8" height="8" rx="1" fill="rgba(34,197,94,0.3)"/>' +
+        '<rect x="248" y="114" width="8" height="14" rx="1" fill="rgba(239,68,68,0.5)"/>' +
+        '<rect x="258" y="118" width="8" height="10" rx="1" fill="rgba(234,179,8,0.4)"/>' +
+        '<rect x="268" y="122" width="8" height="6" rx="1" fill="rgba(34,197,94,0.3)"/>' +
+        '<rect x="278" y="113" width="8" height="15" rx="1" fill="rgba(239,68,68,0.5)"/>' +
+        '<rect x="288" y="119" width="8" height="9" rx="1" fill="rgba(234,179,8,0.4)"/>' +
+        '<rect x="298" y="116" width="8" height="12" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+        '<rect x="308" y="121" width="8" height="7" rx="1" fill="rgba(34,197,94,0.3)"/>' +
+        '<rect x="318" y="117" width="8" height="11" rx="1" fill="rgba(234,179,8,0.4)"/>' +
+        '<rect x="328" y="124" width="8" height="4" rx="1" fill="rgba(34,197,94,0.2)"/>' +
+        '<text x="280" y="144" text-anchor="middle" fill="#555" font-size="5">CH1 CH2 CH3 CH4 CH5 CH6 CH7 CH8 CH9 CH10 CH11</text>' +
+
+        '<!-- Built-in WiFi radio -->' +
+        '<rect x="360" y="82" width="130" height="45" rx="4" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.25)" stroke-width="0.5"/>' +
+        '<text x="425" y="96" text-anchor="middle" fill="#06b6d4" font-size="7" font-weight="600">WiFi RADIO 2.4GHz</text>' +
+        '<text x="425" y="109" text-anchor="middle" fill="#8b949e" font-size="6">Built-in PCB antenna</text>' +
+        '<text x="425" y="120" text-anchor="middle" fill="#67e8f9" font-size="5" opacity="0.7">Scans CH 1-14</text>' +
+
+        '<!-- Built-in touch -->' +
+        '<rect x="360" y="133" width="130" height="30" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.25)" stroke-width="0.5"/>' +
+        '<text x="425" y="147" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">XPT2046 Touch</text>' +
+        '<text x="425" y="157" text-anchor="middle" fill="#8b949e" font-size="6">Threshold adjust</text>' +
+
+        '<!-- USB port -->' +
+        '<rect x="310" y="176" width="80" height="20" rx="3" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+        '<text x="350" y="190" text-anchor="middle" fill="#f97316" font-size="7" font-weight="600">USB-C (Power)</text>' +
+
+        '<!-- Pin labels on sides -->' +
+        '<text x="210" y="200" fill="#555" font-size="6">GPIO pins (optional external antenna)</text>' +
+        '</g>' +
+
+        '<!-- External Antenna (optional) -->' +
+        '<g>' +
+        '<rect x="30" y="80" width="130" height="80" rx="8" fill="url(#sg20-comp)" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2"/>' +
+        '<rect x="30" y="80" width="130" height="20" rx="8" fill="rgba(245,158,11,0.1)"/>' +
+        '<rect x="30" y="93" width="130" height="7" fill="rgba(245,158,11,0.1)"/>' +
+        '<text x="95" y="95" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="600">OPTIONAL</text>' +
+        '<text x="95" y="115" text-anchor="middle" fill="#8b949e" font-size="7">External 2.4GHz</text>' +
+        '<text x="95" y="128" text-anchor="middle" fill="#8b949e" font-size="7">Antenna + IPEX</text>' +
+        '<text x="95" y="148" text-anchor="middle" fill="#fde68a" font-size="6" opacity="0.7">Better sensitivity</text>' +
+        '</g>' +
+
+        '<!-- Antenna wire -->' +
+        '<line x1="160" y1="120" x2="200" y2="104" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.5"/>' +
+
+        '<!-- USB Power -->' +
+        '<line x1="350" y1="196" x2="350" y2="230" stroke="#ef4444" stroke-width="2"/>' +
+        '<rect x="300" y="230" width="100" height="30" rx="5" fill="#1e2736" stroke="#ef4444" stroke-width="1"/>' +
+        '<text x="350" y="249" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">5V USB-C PSU</text>' +
+        '<text x="330" y="218" text-anchor="middle" fill="#ef4444" font-size="6">VCC (red)</text>' +
+
+        '<!-- Detection Logic -->' +
+        '<text x="350" y="285" text-anchor="middle" fill="#444" font-size="10" letter-spacing="0.15em">JAMMING DETECTION LOGIC</text>' +
+
+        '<rect x="40" y="295" width="620" height="45" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+
+        '<!-- Normal -->' +
+        '<rect x="55" y="302" width="180" height="30" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="145" y="315" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">NORMAL: Uneven RSSI</text>' +
+        '<text x="145" y="327" text-anchor="middle" fill="#555" font-size="6">CH 1,6,11 busy; others quiet</text>' +
+
+        '<!-- Suspicious -->' +
+        '<rect x="250" y="302" width="190" height="30" rx="4" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+        '<text x="345" y="315" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">SUSPICIOUS: Elevated noise</text>' +
+        '<text x="345" y="327" text-anchor="middle" fill="#555" font-size="6">Multiple channels above threshold</text>' +
+
+        '<!-- Jamming -->' +
+        '<rect x="455" y="302" width="190" height="30" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="550" y="315" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">JAMMING: Broadband spike</text>' +
+        '<text x="550" y="327" text-anchor="middle" fill="#555" font-size="6">ALL channels high simultaneously</text>' +
+
+        '<!-- What you need -->' +
+        '<rect x="40" y="350" width="620" height="38" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="60" y="367" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">WHAT YOU NEED</text>' +
+        '<g>' +
+        '<rect x="190" y="354" width="120" height="28" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+        '<text x="250" y="372" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">ESP32 CYD Board</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="320" y="354" width="100" height="28" rx="5" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="370" y="372" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">USB-C Cable</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="430" y="354" width="140" height="28" rx="5" fill="rgba(245,158,11,0.08)" stroke="rgba(245,158,11,0.2)" stroke-width="0.5" stroke-dasharray="3,2"/>' +
+        '<text x="500" y="372" text-anchor="middle" fill="#f59e0b" font-size="7" font-weight="600">Ext Antenna (optional)</text>' +
+        '</g>' +
+
+        '</svg>' +
+        '</div>',
     wiring: null,
     steps: [
         {
