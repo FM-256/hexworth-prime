@@ -1787,6 +1787,122 @@ window.SignalGuides['sg-14'] = {
 <p>There is a second potentiometer on the PIR module (marked "Sx") that controls sensitivity (detection range). Start with both pots at the middle position.</p>
 <p><strong>Warm-up period:</strong> PIR sensors need 30-60 seconds to stabilize after power-on. Your sketch should wait during this period before arming.</p>`,
 
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg14-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg14-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-14 MOTION SURVEILLANCE RIG WIRING</text>' +
+
+        '<!-- Arduino Mega -->' +
+        '<rect x="280" y="50" width="160" height="300" rx="8" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="280" y="50" width="160" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="280" y="64" width="160" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="360" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ARDUINO MEGA 2560</text>' +
+        '<!-- Power pins -->' +
+        '<text x="295" y="92" fill="#8b949e" font-size="7">5V</text>' +
+        '<text x="295" y="112" fill="#8b949e" font-size="7">GND</text>' +
+        '<!-- Signal pins -->' +
+        '<text x="295" y="145" fill="#8b949e" font-size="7">Pin 2 (INT0)</text>' +
+        '<text x="295" y="175" fill="#8b949e" font-size="7">Pin 3 (INT1)</text>' +
+        '<text x="295" y="205" fill="#8b949e" font-size="7">Pin 4</text>' +
+        '<text x="295" y="240" fill="#8b949e" font-size="7">Pin 8</text>' +
+        '<text x="295" y="270" fill="#8b949e" font-size="7">Pin 9 (PWM)</text>' +
+        '<!-- Pin dots left side -->' +
+        '<circle cx="288" cy="89" r="3" fill="#ef4444"/>' +
+        '<circle cx="288" cy="109" r="3" fill="#333"/>' +
+        '<circle cx="288" cy="142" r="3" fill="#22c55e"/>' +
+        '<circle cx="288" cy="172" r="3" fill="#eab308"/>' +
+        '<circle cx="288" cy="202" r="3" fill="#f97316"/>' +
+        '<circle cx="288" cy="237" r="3" fill="#4ade80"/>' +
+        '<circle cx="288" cy="267" r="3" fill="#60a5fa"/>' +
+
+        '<!-- PIR Sensor 1 (Primary) -->' +
+        '<rect x="40" y="55" width="170" height="120" rx="8" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<rect x="40" y="55" width="170" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="40" y="69" width="170" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="125" y="71" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">PIR SENSOR 1</text>' +
+        '<text x="125" y="90" text-anchor="middle" fill="#22c55e" font-size="7" opacity="0.6">ZONE A - Primary</text>' +
+        '<!-- Fresnel lens icon -->' +
+        '<circle cx="125" cy="115" r="20" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<circle cx="125" cy="115" r="12" fill="none" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+        '<circle cx="125" cy="115" r="5" fill="rgba(34,197,94,0.2)"/>' +
+        '<text x="125" y="118" text-anchor="middle" fill="#22c55e" font-size="5">PIR</text>' +
+        '<!-- PIR pins -->' +
+        '<text x="55" y="152" fill="#8b949e" font-size="7">VCC</text>' +
+        '<text x="55" y="164" fill="#8b949e" font-size="7">OUT</text>' +
+        '<text x="120" y="164" fill="#8b949e" font-size="7">GND</text>' +
+        '<!-- PIR1 wires -->' +
+        '<line x1="210" y1="149" x2="285" y2="89" stroke="#ef4444" stroke-width="1.2"/>' +
+        '<line x1="210" y1="161" x2="285" y2="142" stroke="#22c55e" stroke-width="1.2"/>' +
+        '<line x1="210" y1="161" x2="210" y2="164" stroke="none"/>' +
+        '<line x1="160" y1="161" x2="230" y2="109" stroke="#555" stroke-width="1.2"/>' +
+        '<line x1="230" y1="109" x2="285" y2="109" stroke="#555" stroke-width="1.2"/>' +
+
+        '<!-- PIR Sensor 2 (Optional) -->' +
+        '<rect x="40" y="190" width="170" height="65" rx="8" fill="#1a1f2b" stroke="#eab308" stroke-width="1" stroke-dasharray="4,3"/>' +
+        '<text x="125" y="210" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">PIR SENSOR 2</text>' +
+        '<text x="125" y="225" text-anchor="middle" fill="#eab308" font-size="7" opacity="0.6">ZONE B - Window</text>' +
+        '<text x="125" y="245" text-anchor="middle" fill="#8b949e" font-size="6">(Optional - Pin 3)</text>' +
+        '<line x1="210" y1="222" x2="285" y2="172" stroke="#eab308" stroke-width="1" stroke-dasharray="3,2"/>' +
+
+        '<!-- PIR Sensor 3 (Optional) -->' +
+        '<rect x="40" y="265" width="170" height="65" rx="8" fill="#1a1f2b" stroke="#f97316" stroke-width="1" stroke-dasharray="4,3"/>' +
+        '<text x="125" y="285" text-anchor="middle" fill="#f97316" font-size="9" font-weight="600">PIR SENSOR 3</text>' +
+        '<text x="125" y="300" text-anchor="middle" fill="#f97316" font-size="7" opacity="0.6">ZONE C - Hallway</text>' +
+        '<text x="125" y="320" text-anchor="middle" fill="#8b949e" font-size="6">(Optional - Pin 4)</text>' +
+        '<line x1="210" y1="295" x2="285" y2="202" stroke="#f97316" stroke-width="1" stroke-dasharray="3,2"/>' +
+
+        '<!-- Alert LED -->' +
+        '<rect x="500" y="55" width="160" height="70" rx="8" fill="#1a1f2b" stroke="#4ade80" stroke-width="1.5"/>' +
+        '<rect x="500" y="55" width="160" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="500" y="69" width="160" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="580" y="71" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">ALERT LED</text>' +
+        '<circle cx="530" cy="100" r="10" fill="rgba(74,222,128,0.2)" stroke="#4ade80" stroke-width="1"/>' +
+        '<circle cx="530" cy="100" r="5" fill="#4ade80" opacity="0.6"/>' +
+        '<text x="555" y="96" fill="#8b949e" font-size="7">220 ohm</text>' +
+        '<text x="555" y="110" fill="#8b949e" font-size="7">Pin 8</text>' +
+        '<!-- LED wire -->' +
+        '<line x1="440" y1="237" x2="497" y2="100" stroke="#4ade80" stroke-width="1.2"/>' +
+
+        '<!-- Buzzer -->' +
+        '<rect x="500" y="145" width="160" height="70" rx="8" fill="#1a1f2b" stroke="#60a5fa" stroke-width="1.5"/>' +
+        '<rect x="500" y="145" width="160" height="22" rx="8" fill="rgba(96,165,250,0.12)"/>' +
+        '<rect x="500" y="159" width="160" height="8" fill="rgba(96,165,250,0.12)"/>' +
+        '<text x="580" y="161" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">PIEZO BUZZER</text>' +
+        '<circle cx="530" cy="192" r="12" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="1"/>' +
+        '<text x="530" y="196" text-anchor="middle" fill="#60a5fa" font-size="8">~</text>' +
+        '<text x="555" y="186" fill="#8b949e" font-size="7">(+) Pin 9 PWM</text>' +
+        '<text x="555" y="200" fill="#8b949e" font-size="7">(-) GND</text>' +
+        '<!-- Buzzer wires -->' +
+        '<line x1="440" y1="267" x2="497" y2="186" stroke="#60a5fa" stroke-width="1.2"/>' +
+        '<line x1="440" y1="109" x2="497" y2="200" stroke="#555" stroke-width="1.2"/>' +
+
+        '<!-- PIR Detection Cone -->' +
+        '<rect x="500" y="240" width="160" height="100" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="580" y="258" text-anchor="middle" fill="#555" font-size="8" font-weight="600" letter-spacing="0.1em">PIR SPECS</text>' +
+        '<text x="515" y="278" fill="#8b949e" font-size="7">Range: 3-7m adjustable</text>' +
+        '<text x="515" y="293" fill="#8b949e" font-size="7">FOV: 110 deg horizontal</text>' +
+        '<text x="515" y="308" fill="#8b949e" font-size="7">Warm-up: 30-60 seconds</text>' +
+        '<text x="515" y="323" fill="#8b949e" font-size="7">Output: Digital HIGH/LOW</text>' +
+
+        '<!-- Legend -->' +
+        '<rect x="280" y="310" width="160" height="40" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<line x1="295" y1="324" x2="310" y2="324" stroke="#ef4444" stroke-width="2"/><text x="315" y="327" fill="#8b949e" font-size="7">5V Power</text>' +
+        '<line x1="295" y1="340" x2="310" y2="340" stroke="#555" stroke-width="2"/><text x="315" y="343" fill="#8b949e" font-size="7">Ground</text>' +
+        '<line x1="370" y1="324" x2="385" y2="324" stroke="#22c55e" stroke-width="2"/><text x="390" y="327" fill="#8b949e" font-size="7">Signal</text>' +
+
+        '<!-- Dashed = optional badge -->' +
+        '<text x="125" y="365" text-anchor="middle" fill="#8b949e" font-size="7">Dashed borders = optional expansion zones</text>' +
+
+        '</svg>' +
+        '</div>',
+
     steps: [
         {
             title: 'Understand PIR Sensor Operation',
@@ -2217,6 +2333,146 @@ window.SignalGuides['sg-15'] = {
     wiringNotes: `<p>The HC-SR04 has 4 pins: VCC (5V), TRIG (trigger pulse output), ECHO (echo pulse input), and GND. The TRIG pin receives a 10-microsecond pulse from the Arduino, and the ECHO pin returns a pulse whose width corresponds to the round-trip time of the ultrasonic burst.</p>
 <p>LEDs: Use 220-ohm resistors in series with each LED. The ELEGOO kit includes resistors and LEDs of various colors. If you don't have a yellow LED, use a second green or red one.</p>
 <p>The arm/disarm button uses the Arduino's internal pull-up resistor (<code>INPUT_PULLUP</code>), so it connects between the pin and GND with no external resistor needed.</p>`,
+
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg15-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg15-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-15 PERIMETER ALARM SYSTEM WIRING</text>' +
+
+        '<!-- Arduino Mega -->' +
+        '<rect x="250" y="45" width="170" height="320" rx="8" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="250" y="45" width="170" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="250" y="59" width="170" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="335" y="61" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ARDUINO MEGA 2560</text>' +
+        '<!-- Pin labels -->' +
+        '<text x="265" y="85" fill="#8b949e" font-size="7">5V</text>' +
+        '<text x="265" y="105" fill="#8b949e" font-size="7">GND</text>' +
+        '<text x="265" y="135" fill="#8b949e" font-size="7">Pin 2 (INT0)</text>' +
+        '<text x="265" y="165" fill="#8b949e" font-size="7">Pin 6 (ECHO)</text>' +
+        '<text x="265" y="185" fill="#8b949e" font-size="7">Pin 7 (TRIG)</text>' +
+        '<text x="265" y="215" fill="#8b949e" font-size="7">Pin 9 (PWM)</text>' +
+        '<text x="265" y="250" fill="#8b949e" font-size="7">Pin 10</text>' +
+        '<text x="265" y="275" fill="#8b949e" font-size="7">Pin 11</text>' +
+        '<text x="265" y="300" fill="#8b949e" font-size="7">Pin 12</text>' +
+        '<!-- Pin dots -->' +
+        '<circle cx="258" cy="82" r="3" fill="#ef4444"/>' +
+        '<circle cx="258" cy="102" r="3" fill="#333"/>' +
+        '<circle cx="258" cy="132" r="3" fill="#a855f7"/>' +
+        '<circle cx="258" cy="162" r="3" fill="#eab308"/>' +
+        '<circle cx="258" cy="182" r="3" fill="#eab308"/>' +
+        '<circle cx="258" cy="212" r="3" fill="#60a5fa"/>' +
+        '<circle cx="258" cy="247" r="3" fill="#22c55e"/>' +
+        '<circle cx="258" cy="272" r="3" fill="#f97316"/>' +
+        '<circle cx="258" cy="297" r="3" fill="#ef4444"/>' +
+
+        '<!-- HC-SR04 Ultrasonic -->' +
+        '<rect x="40" y="50" width="150" height="140" rx="8" fill="#1a1f2b" stroke="#eab308" stroke-width="1.5"/>' +
+        '<rect x="40" y="50" width="150" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+        '<rect x="40" y="64" width="150" height="8" fill="rgba(234,179,8,0.12)"/>' +
+        '<text x="115" y="66" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">HC-SR04</text>' +
+        '<text x="115" y="84" text-anchor="middle" fill="#eab308" font-size="7" opacity="0.6">Ultrasonic Distance</text>' +
+        '<!-- Transducer icons -->' +
+        '<circle cx="90" cy="115" r="16" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.25)" stroke-width="1"/>' +
+        '<circle cx="90" cy="115" r="8" fill="rgba(234,179,8,0.15)"/>' +
+        '<text x="90" y="118" text-anchor="middle" fill="#eab308" font-size="5">TX</text>' +
+        '<circle cx="140" cy="115" r="16" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.25)" stroke-width="1"/>' +
+        '<circle cx="140" cy="115" r="8" fill="rgba(234,179,8,0.15)"/>' +
+        '<text x="140" y="118" text-anchor="middle" fill="#eab308" font-size="5">RX</text>' +
+        '<!-- Ultrasonic wave lines -->' +
+        '<path d="M55,100 Q40,115 55,130" fill="none" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+        '<path d="M48,95 Q30,115 48,135" fill="none" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+        '<!-- SR04 pins -->' +
+        '<text x="55" y="150" fill="#8b949e" font-size="7">VCC</text>' +
+        '<text x="55" y="163" fill="#8b949e" font-size="7">TRIG</text>' +
+        '<text x="55" y="176" fill="#8b949e" font-size="7">ECHO</text>' +
+        '<text x="120" y="176" fill="#8b949e" font-size="7">GND</text>' +
+        '<!-- SR04 wires -->' +
+        '<line x1="190" y1="147" x2="255" y2="82" stroke="#ef4444" stroke-width="1.2"/>' +
+        '<line x1="190" y1="160" x2="255" y2="182" stroke="#eab308" stroke-width="1.2"/>' +
+        '<line x1="190" y1="173" x2="255" y2="162" stroke="#eab308" stroke-width="1.2"/>' +
+        '<line x1="160" y1="173" x2="220" y2="102" stroke="#555" stroke-width="1.2"/>' +
+        '<line x1="220" y1="102" x2="255" y2="102" stroke="#555" stroke-width="1.2"/>' +
+
+        '<!-- Arm/Disarm Button -->' +
+        '<rect x="40" y="210" width="150" height="70" rx="8" fill="#1a1f2b" stroke="#a855f7" stroke-width="1.5"/>' +
+        '<rect x="40" y="210" width="150" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<rect x="40" y="224" width="150" height="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<text x="115" y="226" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="600">ARM BUTTON</text>' +
+        '<!-- Button icon -->' +
+        '<rect x="90" y="245" width="50" height="20" rx="4" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+        '<circle cx="115" cy="255" r="6" fill="rgba(168,85,247,0.3)"/>' +
+        '<text x="115" y="258" text-anchor="middle" fill="#c084fc" font-size="5">PUSH</text>' +
+        '<text x="72" y="252" fill="#8b949e" font-size="6">Pin 2</text>' +
+        '<text x="148" y="252" fill="#8b949e" font-size="6">GND</text>' +
+        '<text x="115" y="275" text-anchor="middle" fill="#8b949e" font-size="6">INPUT_PULLUP (no resistor)</text>' +
+        '<!-- Button wire -->' +
+        '<line x1="190" y1="247" x2="255" y2="132" stroke="#a855f7" stroke-width="1.2"/>' +
+
+        '<!-- Green LED -->' +
+        '<rect x="490" y="50" width="170" height="55" rx="8" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<circle cx="520" cy="77" r="10" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1"/>' +
+        '<circle cx="520" cy="77" r="5" fill="#22c55e" opacity="0.6"/>' +
+        '<text x="540" y="72" fill="#4ade80" font-size="9" font-weight="600">GREEN LED</text>' +
+        '<text x="540" y="86" fill="#8b949e" font-size="7">220 ohm &rarr; Pin 10</text>' +
+        '<text x="540" y="98" fill="#22c55e" font-size="6" opacity="0.6">&gt; 100cm = ALL CLEAR</text>' +
+        '<line x1="420" y1="247" x2="487" y2="77" stroke="#22c55e" stroke-width="1.2"/>' +
+
+        '<!-- Yellow LED -->' +
+        '<rect x="490" y="115" width="170" height="55" rx="8" fill="#1a1f2b" stroke="#f97316" stroke-width="1.5"/>' +
+        '<circle cx="520" cy="142" r="10" fill="rgba(249,115,22,0.2)" stroke="#f97316" stroke-width="1"/>' +
+        '<circle cx="520" cy="142" r="5" fill="#f97316" opacity="0.6"/>' +
+        '<text x="540" y="137" fill="#fb923c" font-size="9" font-weight="600">YELLOW LED</text>' +
+        '<text x="540" y="151" fill="#8b949e" font-size="7">220 ohm &rarr; Pin 11</text>' +
+        '<text x="540" y="163" fill="#f97316" font-size="6" opacity="0.6">50-100cm = APPROACHING</text>' +
+        '<line x1="420" y1="272" x2="487" y2="142" stroke="#f97316" stroke-width="1.2"/>' +
+
+        '<!-- Red LED -->' +
+        '<rect x="490" y="180" width="170" height="55" rx="8" fill="#1a1f2b" stroke="#ef4444" stroke-width="1.5"/>' +
+        '<circle cx="520" cy="207" r="10" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1"/>' +
+        '<circle cx="520" cy="207" r="5" fill="#ef4444" opacity="0.6"/>' +
+        '<text x="540" y="202" fill="#f87171" font-size="9" font-weight="600">RED LED</text>' +
+        '<text x="540" y="216" fill="#8b949e" font-size="7">220 ohm &rarr; Pin 12</text>' +
+        '<text x="540" y="228" fill="#ef4444" font-size="6" opacity="0.6">&lt; 50cm = BREACH</text>' +
+        '<line x1="420" y1="297" x2="487" y2="207" stroke="#ef4444" stroke-width="1.2"/>' +
+
+        '<!-- Buzzer -->' +
+        '<rect x="490" y="250" width="170" height="55" rx="8" fill="#1a1f2b" stroke="#60a5fa" stroke-width="1.5"/>' +
+        '<circle cx="520" cy="277" r="12" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="1"/>' +
+        '<text x="520" y="281" text-anchor="middle" fill="#60a5fa" font-size="8">~</text>' +
+        '<text x="545" y="272" fill="#60a5fa" font-size="9" font-weight="600">BUZZER</text>' +
+        '<text x="545" y="286" fill="#8b949e" font-size="7">(+) Pin 9 PWM</text>' +
+        '<text x="545" y="298" fill="#8b949e" font-size="7">(-) GND</text>' +
+        '<line x1="420" y1="212" x2="487" y2="270" stroke="#60a5fa" stroke-width="1.2"/>' +
+        '<line x1="420" y1="102" x2="487" y2="290" stroke="#555" stroke-width="1"/>' +
+
+        '<!-- Zone Legend -->' +
+        '<rect x="40" y="310" width="620" height="70" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="55" y="328" fill="#555" font-size="8" font-weight="600" letter-spacing="0.1em">PROXIMITY ZONES</text>' +
+
+        '<rect x="55" y="338" width="170" height="30" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<circle cx="72" cy="353" r="5" fill="#22c55e" opacity="0.5"/>' +
+        '<text x="85" y="349" fill="#4ade80" font-size="7" font-weight="600">GREEN: &gt; 100cm</text>' +
+        '<text x="85" y="362" fill="#8b949e" font-size="6">All clear - silent</text>' +
+
+        '<rect x="240" y="338" width="170" height="30" rx="4" fill="rgba(249,115,22,0.06)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+        '<circle cx="257" cy="353" r="5" fill="#f97316" opacity="0.5"/>' +
+        '<text x="270" y="349" fill="#fb923c" font-size="7" font-weight="600">YELLOW: 50-100cm</text>' +
+        '<text x="270" y="362" fill="#8b949e" font-size="6">Approaching - slow beep</text>' +
+
+        '<rect x="425" y="338" width="170" height="30" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<circle cx="442" cy="353" r="5" fill="#ef4444" opacity="0.5"/>' +
+        '<text x="455" y="349" fill="#f87171" font-size="7" font-weight="600">RED: &lt; 50cm</text>' +
+        '<text x="455" y="362" fill="#8b949e" font-size="6">BREACH - rapid alarm</text>' +
+
+        '</svg>' +
+        '</div>',
 
     steps: [
         {

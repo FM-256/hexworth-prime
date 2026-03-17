@@ -978,6 +978,149 @@ window.SignalGuides['sg-18'] = {
         <p>This project builds a dedicated file transfer station on a Raspberry Pi 4. The Pi has all wireless radios permanently disabled. Two USB drives are used: an IN drive (source files) and an OUT drive (sanitized output). Every file that passes through is scanned for malware with ClamAV, hashed with SHA-256 for integrity verification, and logged in an audit trail.</p>
         <p>The key discipline of an air-gapped system is the <strong>one-way data flow</strong>: data moves from IN to OUT, never backwards. The IN drive is treated as untrusted. The OUT drive is your clean output. This is the same principle behind data diodes used in critical infrastructure.</p>
     `,
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg18-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '<linearGradient id="sg18-comp" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
+        '<marker id="sg18-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#22c55e"/></marker>' +
+        '<marker id="sg18-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#ef4444"/></marker>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg18-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">AIR-GAPPED FILE TRANSFER STATION — DATA FLOW</text>' +
+
+        '<!-- IN Drive (Untrusted) -->' +
+        '<g>' +
+        '<rect x="30" y="70" width="160" height="120" rx="8" fill="url(#sg18-comp)" stroke="#ef4444" stroke-width="1.5"/>' +
+        '<rect x="30" y="70" width="160" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+        '<rect x="30" y="84" width="160" height="8" fill="rgba(239,68,68,0.12)"/>' +
+        '<text x="110" y="86" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">IN DRIVE (USB-A)</text>' +
+        '<!-- USB connector -->' +
+        '<rect x="6" y="112" width="28" height="28" rx="3" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+        '<rect x="12" y="118" width="5" height="16" rx="1" fill="#ef4444" opacity="0.4"/>' +
+        '<rect x="22" y="118" width="5" height="16" rx="1" fill="#ef4444" opacity="0.4"/>' +
+        '<text x="110" y="112" text-anchor="middle" fill="#8b949e" font-size="8">UNTRUSTED source</text>' +
+        '<text x="110" y="127" text-anchor="middle" fill="#8b949e" font-size="7">Potentially malicious files</text>' +
+        '<rect x="55" y="148" width="110" height="16" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="110" y="159" text-anchor="middle" fill="#f87171" font-size="6" font-weight="600">READ-ONLY MOUNT</text>' +
+        '<text x="110" y="175" text-anchor="middle" fill="#555" font-size="6">/mnt/in</text>' +
+        '</g>' +
+
+        '<!-- Raspberry Pi 4 (Center) -->' +
+        '<g>' +
+        '<rect x="230" y="55" width="240" height="165" rx="8" fill="url(#sg18-comp)" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<rect x="230" y="55" width="240" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<rect x="230" y="69" width="240" height="8" fill="rgba(34,197,94,0.12)"/>' +
+        '<text x="350" y="71" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">RASPBERRY PI 4 (AIR-GAPPED)</text>' +
+
+        '<!-- Crossed-out wireless -->' +
+        '<rect x="245" y="88" width="70" height="22" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="280" y="102" text-anchor="middle" fill="#ef4444" font-size="6">WiFi DISABLED</text>' +
+        '<line x1="248" y1="90" x2="312" y2="107" stroke="#ef4444" stroke-width="1" opacity="0.5"/>' +
+        '<rect x="325" y="88" width="70" height="22" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="360" y="102" text-anchor="middle" fill="#ef4444" font-size="6">BT DISABLED</text>' +
+        '<line x1="328" y1="90" x2="392" y2="107" stroke="#ef4444" stroke-width="1" opacity="0.5"/>' +
+        '<rect x="405" y="88" width="55" height="22" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="432" y="102" text-anchor="middle" fill="#ef4444" font-size="6">No ETH</text>' +
+        '<line x1="408" y1="90" x2="457" y2="107" stroke="#ef4444" stroke-width="1" opacity="0.5"/>' +
+
+        '<!-- Processing pipeline -->' +
+        '<rect x="250" y="120" width="80" height="32" rx="4" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+        '<text x="290" y="134" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">ClamAV</text>' +
+        '<text x="290" y="145" text-anchor="middle" fill="#fde68a" font-size="5" opacity="0.7">Malware Scan</text>' +
+        '<rect x="340" y="120" width="60" height="32" rx="4" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.3)" stroke-width="0.5"/>' +
+        '<text x="370" y="134" text-anchor="middle" fill="#06b6d4" font-size="7" font-weight="600">SHA-256</text>' +
+        '<text x="370" y="145" text-anchor="middle" fill="#67e8f9" font-size="5" opacity="0.7">Hash</text>' +
+        '<rect x="410" y="120" width="50" height="32" rx="4" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+        '<text x="435" y="134" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Log</text>' +
+        '<text x="435" y="145" text-anchor="middle" fill="#c084fc" font-size="5" opacity="0.7">Audit</text>' +
+
+        '<!-- Pipeline arrows -->' +
+        '<line x1="330" y1="136" x2="338" y2="136" stroke="#8b949e" stroke-width="1"/>' +
+        '<line x1="400" y1="136" x2="408" y2="136" stroke="#8b949e" stroke-width="1"/>' +
+
+        '<!-- Transfer direction labels -->' +
+        '<text x="350" y="172" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="600">ONE-WAY DATA FLOW</text>' +
+        '<rect x="285" y="178" width="130" height="14" rx="3" fill="rgba(34,197,94,0.08)"/>' +
+        '<text x="350" y="189" text-anchor="middle" fill="#22c55e" font-size="6">IN &rarr; SCAN &rarr; HASH &rarr; OUT</text>' +
+        '<rect x="248" y="198" width="204" height="14" rx="3" fill="rgba(239,68,68,0.06)"/>' +
+        '<text x="350" y="209" text-anchor="middle" fill="#ef4444" font-size="6">NEVER: OUT &rarr; IN (data diode principle)</text>' +
+        '</g>' +
+
+        '<!-- Data flow arrows IN to Pi -->' +
+        '<line x1="190" y1="126" x2="228" y2="126" stroke="#22c55e" stroke-width="2" marker-end="url(#sg18-arrow)"/>' +
+        '<text x="209" y="120" text-anchor="middle" fill="#22c55e" font-size="6">files</text>' +
+
+        '<!-- OUT Drive (Clean) -->' +
+        '<g>' +
+        '<rect x="510" y="70" width="160" height="120" rx="8" fill="url(#sg18-comp)" stroke="#3b82f6" stroke-width="1.5"/>' +
+        '<rect x="510" y="70" width="160" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<rect x="510" y="84" width="160" height="8" fill="rgba(59,130,246,0.12)"/>' +
+        '<text x="590" y="86" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">OUT DRIVE (USB-B)</text>' +
+        '<!-- USB connector -->' +
+        '<rect x="666" y="112" width="28" height="28" rx="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+        '<rect x="672" y="118" width="5" height="16" rx="1" fill="#3b82f6" opacity="0.4"/>' +
+        '<rect x="682" y="118" width="5" height="16" rx="1" fill="#3b82f6" opacity="0.4"/>' +
+        '<text x="590" y="112" text-anchor="middle" fill="#8b949e" font-size="8">CLEAN output</text>' +
+        '<text x="590" y="127" text-anchor="middle" fill="#8b949e" font-size="7">Scanned &amp; verified files</text>' +
+        '<rect x="535" y="148" width="110" height="16" rx="3" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+        '<text x="590" y="159" text-anchor="middle" fill="#60a5fa" font-size="6" font-weight="600">READ-WRITE MOUNT</text>' +
+        '<text x="590" y="175" text-anchor="middle" fill="#555" font-size="6">/mnt/out</text>' +
+        '</g>' +
+
+        '<!-- Data flow arrows Pi to OUT -->' +
+        '<line x1="472" y1="126" x2="508" y2="126" stroke="#22c55e" stroke-width="2" marker-end="url(#sg18-arrow)"/>' +
+        '<text x="490" y="120" text-anchor="middle" fill="#22c55e" font-size="6">clean</text>' +
+
+        '<!-- Blocked reverse arrow -->' +
+        '<line x1="508" y1="140" x2="472" y2="140" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>' +
+        '<text x="490" y="152" text-anchor="middle" fill="#ef4444" font-size="5" opacity="0.6">BLOCKED</text>' +
+
+        '<!-- Physical setup bottom -->' +
+        '<rect x="40" y="240" width="620" height="50" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="60" y="260" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">PHYSICAL SETUP</text>' +
+        '<text x="60" y="278" fill="#8b949e" font-size="7">Pi 4 + keyboard + HDMI monitor (direct console only) + 2x USB drives + USB power supply + microSD card</text>' +
+
+        '<!-- What you need -->' +
+        '<rect x="40" y="310" width="620" height="75" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="60" y="328" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">WHAT YOU NEED</text>' +
+        '<g>' +
+        '<rect x="55" y="338" width="90" height="36" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="100" y="354" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Pi 4</text>' +
+        '<text x="100" y="366" text-anchor="middle" fill="#555" font-size="5">2GB+ RAM</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="155" y="338" width="90" height="36" rx="5" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="200" y="354" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">IN Drive</text>' +
+        '<text x="200" y="366" text-anchor="middle" fill="#555" font-size="5">USB-A</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="255" y="338" width="90" height="36" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+        '<text x="300" y="354" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">OUT Drive</text>' +
+        '<text x="300" y="366" text-anchor="middle" fill="#555" font-size="5">USB-A</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="355" y="338" width="100" height="36" rx="5" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+        '<text x="405" y="354" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">HDMI Monitor</text>' +
+        '<text x="405" y="366" text-anchor="middle" fill="#555" font-size="5">Direct console</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="465" y="338" width="90" height="36" rx="5" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+        '<text x="510" y="354" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Keyboard</text>' +
+        '<text x="510" y="366" text-anchor="middle" fill="#555" font-size="5">USB</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="565" y="338" width="90" height="36" rx="5" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="0.5"/>' +
+        '<text x="610" y="354" text-anchor="middle" fill="#06b6d4" font-size="7" font-weight="600">microSD</text>' +
+        '<text x="610" y="366" text-anchor="middle" fill="#555" font-size="5">16GB+</text>' +
+        '</g>' +
+
+        '</svg>' +
+        '</div>',
     wiring: null,
     steps: [
         {
@@ -1426,6 +1569,147 @@ window.SignalGuides['sg-19'] = {
         <p>In this project, you turn a Raspberry Pi 4 into a transparent Tor proxy. Any device connected to the Pi's network has all its traffic automatically routed through Tor — no special software or configuration needed on the client device. Optionally, you can set up a WiFi access point so that connecting to the Pi's WiFi network instantly gives you anonymous browsing.</p>
         <p>This is a practical exercise in network routing, iptables firewall rules, transparent proxying, and operational security. You will also learn the limitations of Tor — it is not magic, and misconfigured Tor is worse than no Tor at all because it creates a false sense of security.</p>
     `,
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+        '<defs>' +
+        '<pattern id="sg19-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '<linearGradient id="sg19-comp" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
+        '</defs>' +
+        '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="680" height="380" fill="url(#sg19-grid)" rx="4"/>' +
+
+        '<!-- Title -->' +
+        '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">PI TOR ROUTER — NETWORK ROUTING DIAGRAM</text>' +
+
+        '<!-- Client Devices -->' +
+        '<g>' +
+        '<rect x="30" y="65" width="130" height="115" rx="8" fill="url(#sg19-comp)" stroke="#06b6d4" stroke-width="1.5"/>' +
+        '<rect x="30" y="65" width="130" height="22" rx="8" fill="rgba(6,182,212,0.12)"/>' +
+        '<rect x="30" y="79" width="130" height="8" fill="rgba(6,182,212,0.12)"/>' +
+        '<text x="95" y="81" text-anchor="middle" fill="#06b6d4" font-size="10" font-weight="600">CLIENT DEVICES</text>' +
+        '<text x="95" y="103" text-anchor="middle" fill="#8b949e" font-size="7">Laptop / Phone / Tablet</text>' +
+        '<text x="95" y="118" text-anchor="middle" fill="#8b949e" font-size="7">Connect to Pi WiFi AP</text>' +
+        '<rect x="48" y="130" width="95" height="18" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.25)" stroke-width="0.5"/>' +
+        '<text x="95" y="142" text-anchor="middle" fill="#67e8f9" font-size="6">No config needed</text>' +
+        '<rect x="48" y="152" width="95" height="18" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.25)" stroke-width="0.5"/>' +
+        '<text x="95" y="164" text-anchor="middle" fill="#67e8f9" font-size="6">192.168.4.0/24</text>' +
+        '</g>' +
+
+        '<!-- WiFi connection -->' +
+        '<line x1="160" y1="122" x2="198" y2="122" stroke="#06b6d4" stroke-width="2" stroke-dasharray="4,3"/>' +
+        '<polygon points="198,118 206,122 198,126" fill="#06b6d4"/>' +
+        '<text x="183" y="115" text-anchor="middle" fill="#06b6d4" font-size="6">WiFi</text>' +
+
+        '<!-- Pi Tor Router -->' +
+        '<g>' +
+        '<rect x="210" y="50" width="220" height="180" rx="8" fill="url(#sg19-comp)" stroke="#a855f7" stroke-width="1.5"/>' +
+        '<rect x="210" y="50" width="220" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<rect x="210" y="64" width="220" height="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<text x="320" y="66" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">RASPBERRY PI 4 (TOR ROUTER)</text>' +
+
+        '<!-- wlan0 - AP -->' +
+        '<rect x="222" y="82" width="95" height="50" rx="4" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.25)" stroke-width="0.5"/>' +
+        '<text x="270" y="96" text-anchor="middle" fill="#06b6d4" font-size="7" font-weight="600">wlan0 (AP)</text>' +
+        '<text x="270" y="109" text-anchor="middle" fill="#8b949e" font-size="6">hostapd</text>' +
+        '<text x="270" y="121" text-anchor="middle" fill="#8b949e" font-size="6">192.168.4.1</text>' +
+
+        '<!-- eth0 - WAN -->' +
+        '<rect x="325" y="82" width="95" height="50" rx="4" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.25)" stroke-width="0.5"/>' +
+        '<text x="372" y="96" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">eth0 (WAN)</text>' +
+        '<text x="372" y="109" text-anchor="middle" fill="#8b949e" font-size="6">Upstream router</text>' +
+        '<text x="372" y="121" text-anchor="middle" fill="#8b949e" font-size="6">DHCP client</text>' +
+
+        '<!-- Tor Process -->' +
+        '<rect x="230" y="142" width="190" height="40" rx="4" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+        '<text x="325" y="157" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">TOR (TransPort 9040)</text>' +
+        '<text x="325" y="170" text-anchor="middle" fill="#c084fc" font-size="6">DNSPort 5353 + iptables NAT rules</text>' +
+
+        '<!-- iptables label -->' +
+        '<rect x="230" y="190" width="190" height="26" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="325" y="207" text-anchor="middle" fill="#f87171" font-size="7">iptables: REDIRECT all TCP &rarr; :9040</text>' +
+        '</g>' +
+
+        '<!-- Ethernet to upstream -->' +
+        '<line x1="430" y1="107" x2="468" y2="107" stroke="#eab308" stroke-width="2"/>' +
+        '<polygon points="468,103 476,107 468,111" fill="#eab308"/>' +
+        '<text x="453" y="100" text-anchor="middle" fill="#eab308" font-size="6">ETH</text>' +
+
+        '<!-- Upstream Router -->' +
+        '<g>' +
+        '<rect x="480" y="70" width="120" height="75" rx="8" fill="url(#sg19-comp)" stroke="#eab308" stroke-width="1.5"/>' +
+        '<rect x="480" y="70" width="120" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+        '<rect x="480" y="84" width="120" height="8" fill="rgba(234,179,8,0.12)"/>' +
+        '<text x="540" y="86" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">HOME ROUTER</text>' +
+        '<text x="540" y="108" text-anchor="middle" fill="#8b949e" font-size="7">Gateway to ISP</text>' +
+        '<text x="540" y="122" text-anchor="middle" fill="#8b949e" font-size="7">DHCP server</text>' +
+        '<text x="540" y="136" text-anchor="middle" fill="#fde68a" font-size="6" opacity="0.7">192.168.1.1</text>' +
+        '</g>' +
+
+        '<!-- To Internet -->' +
+        '<line x1="600" y1="107" x2="638" y2="107" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+        '<polygon points="638,103 646,107 638,111" fill="#eab308"/>' +
+
+        '<!-- Internet/Tor cloud -->' +
+        '<g>' +
+        '<rect x="612" y="55" width="75" height="105" rx="8" fill="url(#sg19-comp)" stroke="#a855f7" stroke-width="1.5"/>' +
+        '<rect x="612" y="55" width="75" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<rect x="612" y="69" width="75" height="8" fill="rgba(168,85,247,0.12)"/>' +
+        '<text x="650" y="71" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">TOR NET</text>' +
+        '<text x="650" y="94" text-anchor="middle" fill="#8b949e" font-size="6">Guard</text>' +
+        '<text x="650" y="108" text-anchor="middle" fill="#8b949e" font-size="6">Middle</text>' +
+        '<text x="650" y="122" text-anchor="middle" fill="#8b949e" font-size="6">Exit</text>' +
+        '<line x1="637" y1="98" x2="637" y2="116" stroke="#a855f7" stroke-width="0.5" opacity="0.3"/>' +
+        '<text x="650" y="148" text-anchor="middle" fill="#c084fc" font-size="5" opacity="0.7">3 hops encrypted</text>' +
+        '</g>' +
+
+        '<!-- Traffic Flow Label -->' +
+        '<text x="350" y="260" text-anchor="middle" fill="#444" font-size="10" letter-spacing="0.15em">TRAFFIC FLOW</text>' +
+        '<rect x="60" y="270" width="580" height="40" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="100" y="290" text-anchor="middle" fill="#06b6d4" font-size="7" font-weight="600">Client</text>' +
+        '<line x1="130" y1="288" x2="160" y2="288" stroke="#555" stroke-width="1"/>' +
+        '<polygon points="160,285 165,288 160,291" fill="#555"/>' +
+        '<text x="200" y="290" text-anchor="middle" fill="#06b6d4" font-size="7">wlan0 AP</text>' +
+        '<line x1="230" y1="288" x2="260" y2="288" stroke="#555" stroke-width="1"/>' +
+        '<polygon points="260,285 265,288 260,291" fill="#555"/>' +
+        '<text x="300" y="290" text-anchor="middle" fill="#f87171" font-size="7">iptables</text>' +
+        '<line x1="330" y1="288" x2="360" y2="288" stroke="#555" stroke-width="1"/>' +
+        '<polygon points="360,285 365,288 360,291" fill="#555"/>' +
+        '<text x="400" y="290" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Tor :9040</text>' +
+        '<line x1="430" y1="288" x2="460" y2="288" stroke="#555" stroke-width="1"/>' +
+        '<polygon points="460,285 465,288 460,291" fill="#555"/>' +
+        '<text x="500" y="290" text-anchor="middle" fill="#eab308" font-size="7">eth0 WAN</text>' +
+        '<line x1="530" y1="288" x2="560" y2="288" stroke="#555" stroke-width="1"/>' +
+        '<polygon points="560,285 565,288 560,291" fill="#555"/>' +
+        '<text x="605" y="290" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Tor Network</text>' +
+        '<text x="350" y="304" text-anchor="middle" fill="#555" font-size="6">All DNS resolves through Tor (DNSPort 5353) — no DNS leaks</text>' +
+
+        '<!-- What you need -->' +
+        '<rect x="40" y="325" width="620" height="60" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+        '<text x="60" y="342" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">WHAT YOU NEED</text>' +
+        '<g>' +
+        '<rect x="55" y="350" width="100" height="28" rx="5" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+        '<text x="105" y="368" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Pi 4 (2GB+)</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="165" y="350" width="100" height="28" rx="5" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+        '<text x="215" y="368" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">Ethernet Cable</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="275" y="350" width="100" height="28" rx="5" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="0.5"/>' +
+        '<text x="325" y="368" text-anchor="middle" fill="#06b6d4" font-size="7" font-weight="600">WiFi (built-in)</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="385" y="350" width="100" height="28" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+        '<text x="435" y="368" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">microSD 16GB+</text>' +
+        '</g>' +
+        '<g>' +
+        '<rect x="495" y="350" width="120" height="28" rx="5" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+        '<text x="555" y="368" text-anchor="middle" fill="#f97316" font-size="7" font-weight="600">USB-C Power Supply</text>' +
+        '</g>' +
+
+        '</svg>' +
+        '</div>',
     wiring: null,
     steps: [
         {

@@ -591,6 +591,114 @@ window.SignalGuides = {
                '<p>Using the ESP32 CYD in WiFi promiscuous mode, you will capture traffic metadata (not payload), build statistical baselines using moving averages and standard deviation, track every MAC address on the network, and visualize anomaly scores on the TFT display in real time. Baselines persist to SD card so the device remembers your network across reboots.</p>' +
                '<p>This is the same principle behind commercial SIEM systems and network behavior analysis tools &mdash; scaled down to a $15 microcontroller.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+            '<defs>' +
+            '<pattern id="sg24-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#sg24-grid)" rx="4"/>' +
+
+            '<!-- Title -->' +
+            '<text x="350" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">NETWORK ANOMALY MONITOR</text>' +
+
+            '<!-- ESP32 CYD (center) -->' +
+            '<g>' +
+            '<rect x="220" y="55" width="260" height="170" rx="10" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="220" y="55" width="260" height="26" rx="10" fill="rgba(59,130,246,0.15)"/>' +
+            '<rect x="220" y="73" width="260" height="8" fill="rgba(59,130,246,0.15)"/>' +
+            '<text x="350" y="72" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">ESP32 CYD</text>' +
+            '<!-- Screen with anomaly display -->' +
+            '<rect x="240" y="90" width="170" height="110" rx="6" fill="#0a0a0a" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="325" y="110" text-anchor="middle" fill="#22c55e" font-size="7" opacity="0.5">ANOMALY MONITOR</text>' +
+            '<!-- Mini graph bars -->' +
+            '<rect x="258" y="150" width="8" height="20" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="270" y="145" width="8" height="25" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="282" y="155" width="8" height="15" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="294" y="130" width="8" height="40" rx="1" fill="rgba(239,68,68,0.5)"/>' +
+            '<rect x="306" y="148" width="8" height="22" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="318" y="152" width="8" height="18" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="330" y="140" width="8" height="30" rx="1" fill="rgba(234,179,8,0.5)"/>' +
+            '<rect x="342" y="155" width="8" height="15" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="354" y="150" width="8" height="20" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="366" y="148" width="8" height="22" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="378" y="158" width="8" height="12" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<rect x="390" y="152" width="8" height="18" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+            '<text x="325" y="190" text-anchor="middle" fill="#ef4444" font-size="6" opacity="0.5">^ anomaly spike</text>' +
+            '<!-- Built-in labels -->' +
+            '<text x="430" y="100" fill="#8b949e" font-size="6">WiFi Promisc</text>' +
+            '<text x="430" y="112" fill="#8b949e" font-size="6">Touch UI</text>' +
+            '<text x="430" y="124" fill="#8b949e" font-size="6">Ch 1-13 Hop</text>' +
+            '<!-- USB-C -->' +
+            '<rect x="325" y="212" width="50" height="14" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="350" y="222" text-anchor="middle" fill="#888" font-size="6">USB-C</text>' +
+            '</g>' +
+
+            '<!-- CYD SPI Pins -->' +
+            '<circle cx="240" cy="228" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="240" y="245" text-anchor="middle" fill="#8b949e" font-size="6">D15</text>' +
+            '<circle cx="268" cy="228" r="4" fill="#3b82f6" stroke="#93c5fd" stroke-width="0.5"/><text x="268" y="245" text-anchor="middle" fill="#8b949e" font-size="6">D13</text>' +
+            '<circle cx="296" cy="228" r="4" fill="#f97316" stroke="#fdba74" stroke-width="0.5"/><text x="296" y="245" text-anchor="middle" fill="#8b949e" font-size="6">D12</text>' +
+            '<circle cx="324" cy="228" r="4" fill="#a855f7" stroke="#d8b4fe" stroke-width="0.5"/><text x="324" y="245" text-anchor="middle" fill="#8b949e" font-size="6">D14</text>' +
+            '<circle cx="352" cy="228" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text x="352" y="245" text-anchor="middle" fill="#8b949e" font-size="6">3V3</text>' +
+            '<circle cx="380" cy="228" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="380" y="245" text-anchor="middle" fill="#8b949e" font-size="6">GND</text>' +
+
+            '<!-- SD Card Module -->' +
+            '<g>' +
+            '<rect x="220" y="270" width="260" height="90" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="220" y="270" width="260" height="24" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<rect x="220" y="286" width="260" height="8" fill="rgba(34,197,94,0.12)"/>' +
+            '<text x="350" y="286" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">SD Card Module</text>' +
+            '<!-- Card -->' +
+            '<rect x="300" y="305" width="100" height="30" rx="4" fill="#2a2a3a" stroke="#555" stroke-width="0.5"/>' +
+            '<text x="350" y="323" text-anchor="middle" fill="#666" font-size="7">MicroSD (Baseline logs)</text>' +
+            '<!-- Pin labels -->' +
+            '<text x="240" y="350" fill="#22c55e" font-size="6">CS (D15)</text>' +
+            '<text x="300" y="350" fill="#3b82f6" font-size="6">MOSI (D13)</text>' +
+            '<text x="370" y="350" fill="#f97316" font-size="6">MISO (D12)</text>' +
+            '<text x="435" y="350" fill="#a855f7" font-size="6">CLK (D14)</text>' +
+            '</g>' +
+
+            '<!-- Wires: CYD to SD -->' +
+            '<line x1="240" y1="232" x2="240" y2="270" stroke="#22c55e" stroke-width="2" stroke-linecap="round"/>' +
+            '<line x1="268" y1="232" x2="268" y2="270" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>' +
+            '<line x1="296" y1="232" x2="296" y2="270" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>' +
+            '<line x1="324" y1="232" x2="324" y2="270" stroke="#a855f7" stroke-width="2" stroke-linecap="round"/>' +
+            '<line x1="352" y1="232" x2="352" y2="270" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>' +
+            '<line x1="380" y1="232" x2="380" y2="270" stroke="#555" stroke-width="2" stroke-linecap="round"/>' +
+
+            '<!-- WiFi signal waves (left side) -->' +
+            '<g opacity="0.3">' +
+            '<path d="M60,100 Q40,120 60,140" stroke="#3b82f6" stroke-width="1.5" fill="none"/>' +
+            '<path d="M50,90 Q20,120 50,150" stroke="#3b82f6" stroke-width="1.5" fill="none"/>' +
+            '<path d="M40,80 Q0,120 40,160" stroke="#3b82f6" stroke-width="1.5" fill="none"/>' +
+            '<text x="55" y="175" fill="#3b82f6" font-size="7">WiFi</text>' +
+            '<text x="40" y="187" fill="#3b82f6" font-size="6">Promiscuous</text>' +
+            '<text x="55" y="199" fill="#3b82f6" font-size="6">Mode</text>' +
+            '</g>' +
+
+            '<!-- Power source (right side) -->' +
+            '<g>' +
+            '<rect x="540" y="80" width="130" height="60" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+            '<text x="605" y="100" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">USB-C Power</text>' +
+            '<text x="605" y="115" text-anchor="middle" fill="#8b949e" font-size="7">5V / 1A min</text>' +
+            '<text x="605" y="128" text-anchor="middle" fill="#8b949e" font-size="6">Continuous operation</text>' +
+            '</g>' +
+
+            '<!-- Power arrow -->' +
+            '<line x1="540" y1="110" x2="485" y2="110" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+            '<polygon points="488,106 480,110 488,114" fill="#ef4444" opacity="0.4"/>' +
+
+            '<!-- Info box -->' +
+            '<rect x="540" y="160" width="130" height="70" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+            '<text x="605" y="178" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">Monitors</text>' +
+            '<text x="605" y="192" text-anchor="middle" fill="#8b949e" font-size="6">Mgmt / Data / Ctrl</text>' +
+            '<text x="605" y="204" text-anchor="middle" fill="#8b949e" font-size="6">Deauth detection</text>' +
+            '<text x="605" y="216" text-anchor="middle" fill="#8b949e" font-size="6">MAC tracking</text>' +
+
+            '</svg>' +
+            '</div>',
+
         wiring: '    ESP32 CYD + SD Card\n' +
                 '    +---------------------------+\n' +
                 '    |   2.8" TFT (built-in)     |\n' +
@@ -693,6 +801,124 @@ window.SignalGuides = {
         intro: '<p>An Intrusion Detection System (IDS) inspects every packet crossing your network and compares it against a database of known attack signatures &mdash; SQL injection payloads, malware callbacks, port scan patterns, brute-force attempts, and thousands of other threats. Commercial IDS appliances cost thousands of dollars. You can build one on a Raspberry Pi for the cost of an Ethernet adapter.</p>' +
                '<p>In this project you install and configure <strong>Suricata</strong>, the open-source IDS/IPS engine used by enterprises and governments worldwide. You will set up the Pi as an inline network tap using two Ethernet interfaces, write custom detection rules, parse the EVE JSON alert logs with Python, and build a real-time Flask dashboard to monitor and triage alerts.</p>' +
                '<p>This is the capstone of the Firmware Ops track &mdash; a full network security appliance running on a $50 single-board computer.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+            '<defs>' +
+            '<pattern id="sg25-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#sg25-grid)" rx="4"/>' +
+
+            '<!-- Title -->' +
+            '<text x="350" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">PI NETWORK IDS &mdash; INLINE TAP MODE</text>' +
+
+            '<!-- Internet cloud -->' +
+            '<g>' +
+            '<ellipse cx="350" cy="65" rx="60" ry="22" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3"/>' +
+            '<text x="350" y="69" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">Internet</text>' +
+            '</g>' +
+
+            '<!-- Down arrow -->' +
+            '<line x1="350" y1="87" x2="350" y2="110" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<polygon points="346,108 350,116 354,108" fill="#3b82f6"/>' +
+
+            '<!-- Router -->' +
+            '<g>' +
+            '<rect x="280" y="118" width="140" height="45" rx="6" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<rect x="280" y="118" width="140" height="18" rx="6" fill="rgba(234,179,8,0.12)"/>' +
+            '<rect x="280" y="130" width="140" height="6" fill="rgba(234,179,8,0.12)"/>' +
+            '<text x="350" y="132" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">Router / Modem</text>' +
+            '<text x="350" y="152" text-anchor="middle" fill="#8b949e" font-size="7">WAN + DHCP + NAT</text>' +
+            '</g>' +
+
+            '<!-- Down arrow with eth0 label -->' +
+            '<line x1="350" y1="163" x2="350" y2="195" stroke="#22c55e" stroke-width="2"/>' +
+            '<rect x="360" y="170" width="55" height="14" rx="3" fill="rgba(0,0,0,0.7)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+            '<text x="388" y="180" text-anchor="middle" fill="#86efac" font-size="7">eth0</text>' +
+
+            '<!-- Raspberry Pi (center, large) -->' +
+            '<g>' +
+            '<rect x="180" y="195" width="340" height="90" rx="10" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="180" y="195" width="340" height="26" rx="10" fill="rgba(239,68,68,0.12)"/>' +
+            '<rect x="180" y="213" width="340" height="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="350" y="213" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">Raspberry Pi 4 &mdash; Suricata IDS</text>' +
+            '<!-- Internal components -->' +
+            '<rect x="200" y="230" width="80" height="30" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="240" y="245" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">Suricata</text>' +
+            '<text x="240" y="256" text-anchor="middle" fill="#b03030" font-size="6">30K+ rules</text>' +
+            '<rect x="290" y="230" width="70" height="30" rx="4" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="325" y="245" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="600">Bridge</text>' +
+            '<text x="325" y="256" text-anchor="middle" fill="#9060c0" font-size="6">br0</text>' +
+            '<rect x="370" y="230" width="70" height="30" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="405" y="245" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">EVE Log</text>' +
+            '<text x="405" y="256" text-anchor="middle" fill="#1a8a3e" font-size="6">JSON</text>' +
+            '<rect x="450" y="230" width="55" height="30" rx="4" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="478" y="245" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">Flask</text>' +
+            '<text x="478" y="256" text-anchor="middle" fill="#3060a0" font-size="6">:5000</text>' +
+            '<!-- Ethernet ports -->' +
+            '<rect x="310" y="195" width="30" height="10" rx="2" fill="#22c55e" opacity="0.3"/>' +
+            '<rect x="360" y="195" width="30" height="10" rx="2" fill="#f97316" opacity="0.3"/>' +
+            '</g>' +
+
+            '<!-- WiFi management -->' +
+            '<g>' +
+            '<rect x="550" y="215" width="120" height="50" rx="6" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="610" y="233" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">WiFi (wlan0)</text>' +
+            '<text x="610" y="247" text-anchor="middle" fill="#8b949e" font-size="6">SSH Management</text>' +
+            '<text x="610" y="259" text-anchor="middle" fill="#8b949e" font-size="6">Fallback access</text>' +
+            '</g>' +
+            '<line x1="520" y1="240" x2="548" y2="240" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,2" opacity="0.4"/>' +
+
+            '<!-- USB Ethernet adapter label -->' +
+            '<rect x="550" y="190" width="120" height="18" rx="4" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+            '<text x="610" y="202" text-anchor="middle" fill="#f97316" font-size="7">USB 3.0 Gigabit</text>' +
+
+            '<!-- Down arrow with eth1 label -->' +
+            '<line x1="350" y1="285" x2="350" y2="315" stroke="#f97316" stroke-width="2"/>' +
+            '<rect x="360" y="290" width="55" height="14" rx="3" fill="rgba(0,0,0,0.7)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="388" y="300" text-anchor="middle" fill="#fdba74" font-size="7">eth1 (USB)</text>' +
+
+            '<!-- Network Switch -->' +
+            '<g>' +
+            '<rect x="260" y="318" width="180" height="35" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="260" y="318" width="180" height="16" rx="6" fill="rgba(168,85,247,0.12)"/>' +
+            '<rect x="260" y="328" width="180" height="6" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="350" y="330" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="600">Network Switch</text>' +
+            '<text x="350" y="346" text-anchor="middle" fill="#8b949e" font-size="7">LAN devices downstream</text>' +
+            '</g>' +
+
+            '<!-- Devices at bottom -->' +
+            '<line x1="290" y1="353" x2="290" y2="373" stroke="#a855f7" stroke-width="1" opacity="0.4"/>' +
+            '<line x1="350" y1="353" x2="350" y2="373" stroke="#a855f7" stroke-width="1" opacity="0.4"/>' +
+            '<line x1="410" y1="353" x2="410" y2="373" stroke="#a855f7" stroke-width="1" opacity="0.4"/>' +
+            '<rect x="270" y="373" width="40" height="16" rx="3" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="290" y="384" text-anchor="middle" fill="#8b949e" font-size="6">PC</text>' +
+            '<rect x="330" y="373" width="40" height="16" rx="3" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="350" y="384" text-anchor="middle" fill="#8b949e" font-size="6">IoT</text>' +
+            '<rect x="390" y="373" width="40" height="16" rx="3" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+            '<text x="410" y="384" text-anchor="middle" fill="#8b949e" font-size="6">Server</text>' +
+
+            '<!-- Traffic flow indicators -->' +
+            '<g opacity="0.5">' +
+            '<polygon points="335,170 330,175 340,175" fill="#22c55e"/>' +
+            '<polygon points="365,170 360,175 370,175" fill="#22c55e"/>' +
+            '<polygon points="335,310 330,305 340,305" fill="#f97316"/>' +
+            '<polygon points="365,310 360,305 370,305" fill="#f97316"/>' +
+            '</g>' +
+
+            '<!-- SPAN mode note (left side) -->' +
+            '<g>' +
+            '<rect x="25" y="200" width="140" height="70" rx="6" fill="rgba(234,179,8,0.04)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5" stroke-dasharray="4,3"/>' +
+            '<text x="95" y="218" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">ALT: SPAN Mode</text>' +
+            '<text x="95" y="232" text-anchor="middle" fill="#8b949e" font-size="6">Mirror port on switch</text>' +
+            '<text x="95" y="244" text-anchor="middle" fill="#8b949e" font-size="6">Passive / read-only</text>' +
+            '<text x="95" y="256" text-anchor="middle" fill="#8b949e" font-size="6">1 NIC only needed</text>' +
+            '</g>' +
+
+            '</svg>' +
+            '</div>',
 
         wiring: '    Network Topology (Inline Tap Mode)\n' +
                 '\n' +

@@ -870,6 +870,121 @@ window.SignalGuides['sg-10'] = {
                  '</ul>' +
                  '<p>Both components share the GND bus on the breadboard. The ESP32 DevKit provides multiple GND pins on both sides of the board.</p>',
 
+    wiringSvg: '<div class="svg-build-wrap">' +
+        '<svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+        '<defs>' +
+        '<pattern id="sg10-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+        '</defs>' +
+        '<rect width="720" height="420" fill="#0d1117" rx="8"/>' +
+        '<rect x="10" y="10" width="700" height="400" fill="url(#sg10-grid)" rx="4"/>' +
+        '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">DEAUTH DETECTOR — BREADBOARD WIRING</text>' +
+
+        '<!-- Breadboard base -->' +
+        '<rect x="60" y="55" width="600" height="280" rx="6" fill="#1a1f2b" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+        '<text x="360" y="48" text-anchor="middle" fill="#444" font-size="8">BREADBOARD</text>' +
+
+        '<!-- ESP32 DevKit -->' +
+        '<rect x="100" y="85" width="180" height="220" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+        '<rect x="100" y="85" width="180" height="26" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+        '<rect x="100" y="103" width="180" height="8" fill="rgba(239,68,68,0.12)"/>' +
+        '<text x="190" y="102" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">ESP32 DevKit V1</text>' +
+
+        '<!-- USB connector -->' +
+        '<rect x="165" y="72" width="50" height="18" rx="4" fill="#2a2a3a" stroke="#888" stroke-width="1"/>' +
+        '<text x="190" y="84" text-anchor="middle" fill="#999" font-size="7">USB</text>' +
+
+        '<!-- ESP32 module -->' +
+        '<rect x="130" y="120" width="120" height="50" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+        '<text x="190" y="140" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">ESP32-WROOM-32</text>' +
+        '<text x="190" y="155" text-anchor="middle" fill="#ef4444" font-size="6">Promiscuous Mode</text>' +
+        '<text x="190" y="165" text-anchor="middle" fill="#ef4444" font-size="5">Ch 1-13 Scanning</text>' +
+
+        '<!-- Pin labels on ESP32 -->' +
+        '<!-- Left side -->' +
+        '<circle cx="112" cy="195" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/>' +
+        '<text x="128" y="198" fill="#e6edf3" font-size="8">GPIO2</text>' +
+        '<circle cx="112" cy="225" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/>' +
+        '<text x="128" y="228" fill="#e6edf3" font-size="8">GPIO4</text>' +
+        '<circle cx="112" cy="255" r="4" fill="#333" stroke="#888" stroke-width="0.5"/>' +
+        '<text x="128" y="258" fill="#e6edf3" font-size="8">GND</text>' +
+        '<circle cx="112" cy="280" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/>' +
+        '<text x="128" y="283" fill="#e6edf3" font-size="8">3V3</text>' +
+
+        '<!-- Right side pins -->' +
+        '<circle cx="268" cy="195" r="3" fill="#8b949e"/><text x="252" y="198" fill="#8b949e" font-size="7" text-anchor="end">D23</text>' +
+        '<circle cx="268" cy="215" r="3" fill="#8b949e"/><text x="252" y="218" fill="#8b949e" font-size="7" text-anchor="end">D22</text>' +
+        '<circle cx="268" cy="235" r="3" fill="#8b949e"/><text x="252" y="238" fill="#8b949e" font-size="7" text-anchor="end">D21</text>' +
+        '<circle cx="268" cy="255" r="3" fill="#ef4444"/><text x="252" y="258" fill="#8b949e" font-size="7" text-anchor="end">3V3</text>' +
+        '<circle cx="268" cy="280" r="3" fill="#333" stroke="#888" stroke-width="0.5"/><text x="252" y="283" fill="#8b949e" font-size="7" text-anchor="end">GND</text>' +
+
+        '<!-- Wire from GPIO2 to resistor -->' +
+        '<line x1="112" y1="195" x2="112" y2="195" stroke="#eab308" stroke-width="0"/>' +
+        '<path d="M112,195 L90,195 L90,195 L370,195" stroke="#eab308" stroke-width="2.5" stroke-linecap="round" fill="none"/>' +
+
+        '<!-- 220 ohm Resistor -->' +
+        '<rect x="370" y="186" width="60" height="18" rx="3" fill="#2a2a3a" stroke="#eab308" stroke-width="1"/>' +
+        '<text x="400" y="198" text-anchor="middle" fill="#fde68a" font-size="7" font-weight="600">220R</text>' +
+        '<!-- Color bands -->' +
+        '<rect x="380" y="189" width="4" height="12" rx="1" fill="#ef4444"/>' +
+        '<rect x="388" y="189" width="4" height="12" rx="1" fill="#ef4444"/>' +
+        '<rect x="396" y="189" width="4" height="12" rx="1" fill="#8b4513"/>' +
+        '<rect x="404" y="189" width="4" height="12" rx="1" fill="#d4a574"/>' +
+
+        '<!-- Wire from resistor to LED -->' +
+        '<line x1="430" y1="195" x2="470" y2="195" stroke="#eab308" stroke-width="2.5" stroke-linecap="round"/>' +
+
+        '<!-- LED -->' +
+        '<g>' +
+        '<polygon points="470,180 510,195 470,210" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1.5"/>' +
+        '<line x1="510" y1="180" x2="510" y2="210" stroke="#ef4444" stroke-width="1.5"/>' +
+        '<text x="490" y="228" text-anchor="middle" fill="#f87171" font-size="8" font-weight="600">LED</text>' +
+        '<text x="490" y="240" text-anchor="middle" fill="#ef4444" font-size="6">(Alert)</text>' +
+        '</g>' +
+
+        '<!-- LED cathode to GND -->' +
+        '<line x1="510" y1="195" x2="560" y2="195" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<line x1="560" y1="195" x2="560" y2="310" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>' +
+
+        '<!-- Wire from GPIO4 to Buzzer -->' +
+        '<path d="M112,225 L80,225 L80,280 L370,280" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" fill="none"/>' +
+
+        '<!-- Buzzer -->' +
+        '<circle cx="420" cy="280" r="25" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>' +
+        '<circle cx="420" cy="280" r="15" fill="rgba(34,197,94,0.05)" stroke="#22c55e" stroke-width="0.5"/>' +
+        '<text x="420" y="275" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">BUZZER</text>' +
+        '<text x="420" y="287" text-anchor="middle" fill="#22c55e" font-size="5">(Active)</text>' +
+        '<text x="390" y="275" text-anchor="middle" fill="#4ade80" font-size="6">+</text>' +
+
+        '<!-- Buzzer GND -->' +
+        '<line x1="445" y1="280" x2="560" y2="280" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>' +
+
+        '<!-- GND bus line -->' +
+        '<line x1="112" y1="255" x2="75" y2="255" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<line x1="75" y1="255" x2="75" y2="310" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<line x1="75" y1="310" x2="560" y2="310" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<rect x="570" y="302" width="60" height="18" rx="3" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>' +
+        '<text x="600" y="314" text-anchor="middle" fill="#888" font-size="7" font-weight="600">GND BUS</text>' +
+
+        '<!-- WiFi attack waves -->' +
+        '<g opacity="0.5">' +
+        '<path d="M560,100 Q580,110 560,120" stroke="#ef4444" stroke-width="1.5" fill="none"/>' +
+        '<path d="M570,90 Q600,110 570,130" stroke="#ef4444" stroke-width="1.2" fill="none"/>' +
+        '<path d="M580,80 Q620,110 580,140" stroke="#ef4444" stroke-width="0.8" fill="none"/>' +
+        '<text x="610" y="114" fill="#ef4444" font-size="7" font-weight="600">Deauth</text>' +
+        '<text x="610" y="126" fill="#ef4444" font-size="7" font-weight="600">Frames</text>' +
+        '</g>' +
+
+        '<!-- Wire color legend -->' +
+        '<rect x="40" y="355" width="640" height="50" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+        '<text x="60" y="373" fill="#555" font-size="7" font-weight="600" letter-spacing="0.1em">WIRING KEY</text>' +
+        '<circle cx="65" cy="390" r="4" fill="#eab308"/><text x="80" y="393" fill="#fde68a" font-size="7">GPIO2 to LED (via 220R)</text>' +
+        '<circle cx="220" cy="390" r="4" fill="#22c55e"/><text x="235" y="393" fill="#86efac" font-size="7">GPIO4 to Buzzer (+)</text>' +
+        '<circle cx="375" cy="390" r="4" fill="#555"/><text x="390" y="393" fill="#aaa" font-size="7">GND bus (shared)</text>' +
+        '<circle cx="510" cy="390" r="4" fill="#ef4444"/><text x="525" y="393" fill="#fca5a5" font-size="7">3V3 (not used externally)</text>' +
+
+        '</svg>' +
+        '</div>',
+
     steps: [
         {
             title: 'Understand Deauth Frames',

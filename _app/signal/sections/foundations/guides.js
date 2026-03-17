@@ -884,6 +884,146 @@ window.SignalGuides = {
                      '<p><strong>SD card formatting:</strong> The microSD card must be formatted as <strong>FAT16</strong> or <strong>FAT32</strong>. Most new cards ship as FAT32. If the SD library fails to initialize, try reformatting the card with the official SD Card Formatter tool.</p>' +
                      '<p><strong>Power note:</strong> The SD module can draw significant current during writes. If you experience random resets, power the SD module from the Mega\'s 5V pin (not the breadboard rail) and add a 100&micro;F capacitor between VCC and GND.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 460" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs>' +
+            '<pattern id="sg05-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '</defs>' +
+            '<rect width="720" height="460" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="440" fill="url(#sg05-grid)" rx="4"/>' +
+            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-05 DATA LOGGER</text>' +
+
+            '<!-- Arduino Mega -->' +
+            '<g>' +
+            '<rect x="40" y="60" width="180" height="340" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="60" width="180" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="76" width="180" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="130" y="76" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ARDUINO MEGA 2560</text>' +
+            '<!-- USB -->' +
+            '<rect x="16" y="75" width="28" height="22" rx="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+            '<text x="30" y="89" text-anchor="middle" fill="#3b82f6" font-size="6">USB</text>' +
+            '<!-- Pin labels -->' +
+            '<text x="210" y="110" text-anchor="end" fill="#8b949e" font-size="8">5V</text>' +
+            '<circle cx="218" cy="107" r="3" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+            '<text x="210" y="130" text-anchor="end" fill="#8b949e" font-size="8">GND</text>' +
+            '<circle cx="218" cy="127" r="3" fill="#1a1f2b" stroke="#8b949e" stroke-width="1"/>' +
+            '<!-- SPI pins -->' +
+            '<text x="210" y="170" text-anchor="end" fill="#8b949e" font-size="8">D53 CS</text>' +
+            '<circle cx="218" cy="167" r="3" fill="#1a1f2b" stroke="#f97316" stroke-width="1"/>' +
+            '<text x="210" y="190" text-anchor="end" fill="#8b949e" font-size="8">D51 MOSI</text>' +
+            '<circle cx="218" cy="187" r="3" fill="#1a1f2b" stroke="#eab308" stroke-width="1"/>' +
+            '<text x="210" y="210" text-anchor="end" fill="#8b949e" font-size="8">D50 MISO</text>' +
+            '<circle cx="218" cy="207" r="3" fill="#1a1f2b" stroke="#22c55e" stroke-width="1"/>' +
+            '<text x="210" y="230" text-anchor="end" fill="#8b949e" font-size="8">D52 SCK</text>' +
+            '<circle cx="218" cy="227" r="3" fill="#1a1f2b" stroke="#06b6d4" stroke-width="1"/>' +
+            '<!-- I2C pins -->' +
+            '<text x="210" y="275" text-anchor="end" fill="#8b949e" font-size="8">SDA 20</text>' +
+            '<circle cx="218" cy="272" r="3" fill="#1a1f2b" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="210" y="295" text-anchor="end" fill="#8b949e" font-size="8">SCL 21</text>' +
+            '<circle cx="218" cy="292" r="3" fill="#1a1f2b" stroke="#c084fc" stroke-width="1"/>' +
+            '<!-- DHT pin -->' +
+            '<text x="210" y="340" text-anchor="end" fill="#8b949e" font-size="8">D7</text>' +
+            '<circle cx="218" cy="337" r="3" fill="#1a1f2b" stroke="#fb923c" stroke-width="1"/>' +
+            '</g>' +
+
+            '<!-- SD Card Module -->' +
+            '<g>' +
+            '<rect x="320" y="55" width="180" height="150" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="320" y="55" width="180" height="20" rx="8" fill="rgba(249,115,22,0.1)"/>' +
+            '<rect x="320" y="68" width="180" height="7" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="410" y="70" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="600">SD CARD MODULE</text>' +
+            '<text x="410" y="90" text-anchor="middle" fill="#8b949e" font-size="7">SPI Interface</text>' +
+            '<!-- SD card slot visual -->' +
+            '<rect x="370" y="100" width="80" height="50" rx="4" fill="#0a1628" stroke="rgba(249,115,22,0.3)" stroke-width="1"/>' +
+            '<rect x="380" y="108" width="60" height="34" rx="2" fill="rgba(249,115,22,0.08)"/>' +
+            '<text x="410" y="128" text-anchor="middle" fill="#fb923c" font-size="8">microSD</text>' +
+            '<text x="410" y="140" text-anchor="middle" fill="#555" font-size="6">FAT32</text>' +
+            '<!-- Pins -->' +
+            '<rect x="330" y="162" width="24" height="14" rx="2" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="342" y="172" text-anchor="middle" fill="#fb923c" font-size="5">CS</text>' +
+            '<rect x="358" y="162" width="28" height="14" rx="2" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+            '<text x="372" y="172" text-anchor="middle" fill="#eab308" font-size="5">MOSI</text>' +
+            '<rect x="390" y="162" width="28" height="14" rx="2" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+            '<text x="404" y="172" text-anchor="middle" fill="#22c55e" font-size="5">MISO</text>' +
+            '<rect x="422" y="162" width="24" height="14" rx="2" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.3)" stroke-width="0.5"/>' +
+            '<text x="434" y="172" text-anchor="middle" fill="#06b6d4" font-size="5">SCK</text>' +
+            '<rect x="450" y="162" width="24" height="14" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="462" y="172" text-anchor="middle" fill="#ef4444" font-size="5">VCC</text>' +
+            '<rect x="478" y="162" width="24" height="14" rx="2" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+            '<text x="490" y="172" text-anchor="middle" fill="#60a5fa" font-size="5">GND</text>' +
+            '</g>' +
+
+            '<!-- DS3231 RTC -->' +
+            '<g>' +
+            '<rect x="320" y="240" width="180" height="110" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="320" y="240" width="180" height="20" rx="8" fill="rgba(168,85,247,0.1)"/>' +
+            '<rect x="320" y="253" width="180" height="7" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="410" y="255" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="600">DS3231 RTC</text>' +
+            '<text x="410" y="275" text-anchor="middle" fill="#8b949e" font-size="7">I2C Interface (addr: 0x68)</text>' +
+            '<!-- Battery -->' +
+            '<circle cx="410" cy="305" r="16" fill="none" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>' +
+            '<circle cx="410" cy="305" r="10" fill="rgba(168,85,247,0.08)"/>' +
+            '<text x="410" y="308" text-anchor="middle" fill="#c084fc" font-size="6">CR2032</text>' +
+            '<text x="410" y="318" text-anchor="middle" fill="#555" font-size="5">backup battery</text>' +
+            '<!-- Pins -->' +
+            '<rect x="330" y="330" width="24" height="14" rx="2" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+            '<text x="342" y="340" text-anchor="middle" fill="#c084fc" font-size="5">SDA</text>' +
+            '<rect x="358" y="330" width="24" height="14" rx="2" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+            '<text x="370" y="340" text-anchor="middle" fill="#c084fc" font-size="5">SCL</text>' +
+            '<rect x="386" y="330" width="24" height="14" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="398" y="340" text-anchor="middle" fill="#ef4444" font-size="5">VCC</text>' +
+            '<rect x="414" y="330" width="24" height="14" rx="2" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+            '<text x="426" y="340" text-anchor="middle" fill="#60a5fa" font-size="5">GND</text>' +
+            '</g>' +
+
+            '<!-- DHT11 -->' +
+            '<g>' +
+            '<rect x="320" y="380" width="130" height="60" rx="8" fill="#1e2736" stroke="#fb923c" stroke-width="1.5"/>' +
+            '<rect x="320" y="380" width="130" height="20" rx="8" fill="rgba(251,146,60,0.1)"/>' +
+            '<rect x="320" y="393" width="130" height="7" fill="rgba(251,146,60,0.1)"/>' +
+            '<text x="385" y="395" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="600">DHT11</text>' +
+            '<text x="385" y="418" text-anchor="middle" fill="#8b949e" font-size="7">D7 | 5V | GND</text>' +
+            '<text x="385" y="432" text-anchor="middle" fill="#555" font-size="6">Temp + Humidity</text>' +
+            '</g>' +
+
+            '<!-- SPI Wires -->' +
+            '<path d="M221,167 C270,167 290,169 342,169" stroke="#f97316" stroke-width="1.5" fill="none"/>' +
+            '<path d="M221,187 C270,187 300,169 372,169" stroke="#eab308" stroke-width="1.5" fill="none"/>' +
+            '<path d="M221,207 C270,207 310,169 404,169" stroke="#22c55e" stroke-width="1.5" fill="none"/>' +
+            '<path d="M221,227 C270,227 320,169 434,169" stroke="#06b6d4" stroke-width="1.5" fill="none"/>' +
+
+            '<!-- I2C Wires -->' +
+            '<path d="M221,272 C270,272 290,337 342,337" stroke="#a855f7" stroke-width="1.5" fill="none"/>' +
+            '<path d="M221,292 C270,292 300,337 370,337" stroke="#c084fc" stroke-width="1.5" fill="none"/>' +
+
+            '<!-- DHT11 Wire -->' +
+            '<path d="M221,337 C270,337 290,410 320,410" stroke="#fb923c" stroke-width="1.5" fill="none"/>' +
+
+            '<!-- Power wires (dashed) -->' +
+            '<path d="M221,107 C260,107 290,90 462,169" stroke="#ef4444" stroke-width="1.5" fill="none" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<path d="M221,127 C260,127 310,100 490,169" stroke="#8b949e" stroke-width="1.5" fill="none" stroke-dasharray="4,3" opacity="0.5"/>' +
+
+            '<!-- Data flow labels -->' +
+            '<rect x="545" y="60" width="140" height="145" rx="6" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.12)" stroke-width="0.5"/>' +
+            '<text x="555" y="78" fill="#fb923c" font-size="8" font-weight="600">DATA FLOW</text>' +
+            '<text x="555" y="96" fill="#8b949e" font-size="7">1. RTC provides time</text>' +
+            '<text x="555" y="110" fill="#8b949e" font-size="7">2. DHT11 reads sensors</text>' +
+            '<text x="555" y="124" fill="#8b949e" font-size="7">3. Arduino formats CSV</text>' +
+            '<text x="555" y="138" fill="#8b949e" font-size="7">4. SD card stores data</text>' +
+            '<text x="555" y="158" fill="#555" font-size="6">timestamp,temp,humidity,light</text>' +
+            '<text x="555" y="172" fill="#555" font-size="6">2026-03-06T14:30:00,23.5,45.2,512</text>' +
+            '<text x="555" y="190" fill="#fb923c" font-size="6" font-weight="600">LOG INTERVAL: 10s</text>' +
+
+            '<!-- Bus labels -->' +
+            '<rect x="545" y="240" width="140" height="70" rx="6" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.12)" stroke-width="0.5"/>' +
+            '<text x="555" y="258" fill="#c084fc" font-size="8" font-weight="600">BUS PROTOCOLS</text>' +
+            '<text x="555" y="276" fill="#fb923c" font-size="7">SPI: SD Card (4 wire)</text>' +
+            '<text x="555" y="290" fill="#c084fc" font-size="7">I2C: RTC DS3231 (2 wire)</text>' +
+            '<text x="555" y="304" fill="#8b949e" font-size="7">Digital: DHT11 (1 wire)</text>' +
+
+            '</svg>' +
+            '</div>',
+
         steps: [
             {
                 title: 'Install Required Libraries',

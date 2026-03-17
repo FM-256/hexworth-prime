@@ -730,6 +730,136 @@ window.SignalGuides = {
                '<p>In this project you will build a custom USB arcade fight stick: a Sanwa-style joystick with 8 full-size arcade buttons, all connected to a Pro Micro that presents itself to any computer as a standard USB gamepad. No drivers, no configuration software. Plug it in and it works on Windows, Mac, Linux, and RetroPie.</p>' +
                '<p>This is the bridge between electronics and real hardware fabrication. You will wire microswitches, crimp spade connectors, drill a mounting panel, and produce a finished product you can use for competitive gaming.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs><pattern id="bg-grid-29" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#bg-grid-29)" rx="4"/>' +
+            '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-29 WIRING &mdash; USB ARCADE CONTROLLER</text>' +
+
+            '<!-- Arduino Pro Micro -->' +
+            '<g>' +
+            '<rect x="40" y="55" width="160" height="300" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="55" width="160" height="26" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="73" width="160" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="120" y="73" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">Pro Micro</text>' +
+            '<text x="120" y="90" text-anchor="middle" fill="#555" font-size="7">ATmega32U4 &mdash; Native USB</text>' +
+
+            '<!-- USB port -->' +
+            '<rect x="85" y="42" width="70" height="16" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="120" y="53" text-anchor="middle" fill="#666" font-size="7">micro-USB</text>' +
+
+            '<!-- GND pin -->' +
+            '<circle cx="180" cy="112" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="60" y="115" fill="#888" font-size="8">GND</text>' +
+
+            '<!-- Direction pins -->' +
+            '<text x="55" y="140" fill="#555" font-size="7" font-weight="600">Joystick:</text>' +
+            '<circle cx="180" cy="152" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="60" y="155" fill="#22c55e" font-size="8">D2</text>' +
+            '<circle cx="180" cy="170" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="60" y="173" fill="#22c55e" font-size="8">D3</text>' +
+            '<circle cx="180" cy="188" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="60" y="191" fill="#22c55e" font-size="8">D4</text>' +
+            '<circle cx="180" cy="206" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="60" y="209" fill="#22c55e" font-size="8">D5</text>' +
+
+            '<!-- Button pins -->' +
+            '<text x="55" y="232" fill="#555" font-size="7" font-weight="600">Buttons:</text>' +
+            '<circle cx="180" cy="244" r="4" fill="#f97316" stroke="#fdba74" stroke-width="0.5"/><text x="60" y="247" fill="#f97316" font-size="8">D6</text>' +
+            '<circle cx="180" cy="260" r="4" fill="#f97316" stroke="#fdba74" stroke-width="0.5"/><text x="60" y="263" fill="#f97316" font-size="8">D7</text>' +
+            '<circle cx="180" cy="276" r="4" fill="#f97316" stroke="#fdba74" stroke-width="0.5"/><text x="60" y="279" fill="#f97316" font-size="8">D8</text>' +
+            '<circle cx="180" cy="292" r="4" fill="#f97316" stroke="#fdba74" stroke-width="0.5"/><text x="60" y="295" fill="#f97316" font-size="8">D9</text>' +
+            '<circle cx="180" cy="308" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/><text x="60" y="311" fill="#eab308" font-size="8">D10</text>' +
+            '<circle cx="180" cy="324" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/><text x="60" y="327" fill="#eab308" font-size="8">D14</text>' +
+            '<circle cx="180" cy="340" r="4" fill="#a855f7" stroke="#c084fc" stroke-width="0.5"/><text x="60" y="343" fill="#a855f7" font-size="8">D15</text>' +
+            '<circle cx="180" cy="356" r="4" fill="#a855f7" stroke="#c084fc" stroke-width="0.5"/><text x="60" y="359" fill="#a855f7" font-size="8">D16</text>' +
+            '</g>' +
+
+            '<!-- GND Bus -->' +
+            '<line x1="184" y1="112" x2="640" y2="112" stroke="#888" stroke-width="2.5" opacity="0.6"/>' +
+            '<text x="640" y="108" text-anchor="end" fill="#888" font-size="7" font-weight="600">GND BUS (daisy-chain)</text>' +
+
+            '<!-- Joystick -->' +
+            '<g>' +
+            '<rect x="280" y="130" width="160" height="120" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="280" y="130" width="160" height="22" rx="8" fill="rgba(34,197,94,0.1)"/>' +
+            '<rect x="280" y="146" width="160" height="6" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="360" y="146" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">Sanwa Joystick</text>' +
+
+            '<!-- Joystick visual -->' +
+            '<circle cx="360" cy="200" r="28" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>' +
+            '<circle cx="360" cy="200" r="10" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+
+            '<!-- Direction labels -->' +
+            '<text x="360" y="170" text-anchor="middle" fill="#4ade80" font-size="6">UP</text>' +
+            '<text x="360" y="238" text-anchor="middle" fill="#4ade80" font-size="6">DOWN</text>' +
+            '<text x="318" y="203" text-anchor="middle" fill="#4ade80" font-size="6">L</text>' +
+            '<text x="402" y="203" text-anchor="middle" fill="#4ade80" font-size="6">R</text>' +
+            '</g>' +
+
+            '<!-- Wires to joystick -->' +
+            '<line x1="184" y1="152" x2="280" y2="165" stroke="#22c55e" stroke-width="2" opacity="0.6"/>' +
+            '<line x1="184" y1="170" x2="280" y2="185" stroke="#22c55e" stroke-width="2" opacity="0.6"/>' +
+            '<line x1="184" y1="188" x2="280" y2="205" stroke="#22c55e" stroke-width="2" opacity="0.6"/>' +
+            '<line x1="184" y1="206" x2="280" y2="225" stroke="#22c55e" stroke-width="2" opacity="0.6"/>' +
+
+            '<!-- GND drop to joystick -->' +
+            '<line x1="360" y1="130" x2="360" y2="112" stroke="#888" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>' +
+
+            '<!-- Arcade Buttons -->' +
+            '<g>' +
+            '<rect x="490" y="130" width="170" height="230" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="490" y="130" width="170" height="22" rx="8" fill="rgba(249,115,22,0.1)"/>' +
+            '<rect x="490" y="146" width="170" height="6" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="575" y="146" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="600">8 Arcade Buttons</text>' +
+
+            '<!-- Button grid -->' +
+            '<circle cx="530" cy="178" r="14" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1"/><text x="530" y="181" text-anchor="middle" fill="#fb923c" font-size="7">X</text>' +
+            '<circle cx="570" cy="178" r="14" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1"/><text x="570" y="181" text-anchor="middle" fill="#fb923c" font-size="7">A</text>' +
+            '<circle cx="610" cy="178" r="14" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1"/><text x="610" y="181" text-anchor="middle" fill="#fb923c" font-size="7">B</text>' +
+            '<circle cx="530" cy="218" r="14" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1"/><text x="530" y="221" text-anchor="middle" fill="#fb923c" font-size="7">Y</text>' +
+            '<circle cx="570" cy="218" r="14" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1"/><text x="570" y="221" text-anchor="middle" fill="#eab308" font-size="7">LB</text>' +
+            '<circle cx="610" cy="218" r="14" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1"/><text x="610" y="221" text-anchor="middle" fill="#eab308" font-size="7">RB</text>' +
+
+            '<!-- Start/Select -->' +
+            '<rect x="520" y="252" width="50" height="22" rx="4" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="545" y="266" text-anchor="middle" fill="#a855f7" font-size="7">Start</text>' +
+            '<rect x="580" y="252" width="50" height="22" rx="4" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+            '<text x="605" y="266" text-anchor="middle" fill="#a855f7" font-size="7">Select</text>' +
+
+            '<!-- Wiring note -->' +
+            '<text x="575" y="300" text-anchor="middle" fill="#555" font-size="6">Each: NO &rarr; GPIO</text>' +
+            '<text x="575" y="312" text-anchor="middle" fill="#555" font-size="6">COM &rarr; GND bus</text>' +
+            '<text x="575" y="330" text-anchor="middle" fill="#555" font-size="6">0.110" spade connectors</text>' +
+            '<text x="575" y="345" text-anchor="middle" fill="#555" font-size="6">or solder</text>' +
+            '</g>' +
+
+            '<!-- Wires to buttons -->' +
+            '<line x1="184" y1="244" x2="516" y2="178" stroke="#f97316" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="184" y1="260" x2="556" y2="178" stroke="#f97316" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="184" y1="276" x2="596" y2="178" stroke="#f97316" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="184" y1="292" x2="516" y2="218" stroke="#f97316" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="184" y1="308" x2="556" y2="218" stroke="#eab308" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="184" y1="324" x2="596" y2="218" stroke="#eab308" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="184" y1="340" x2="545" y2="252" stroke="#a855f7" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="184" y1="356" x2="605" y2="252" stroke="#a855f7" stroke-width="1.5" opacity="0.5"/>' +
+
+            '<!-- GND drops to buttons -->' +
+            '<line x1="575" y1="130" x2="575" y2="112" stroke="#888" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>' +
+
+            '<!-- USB output label -->' +
+            '<rect x="240" y="280" width="200" height="50" rx="6" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="340" y="300" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">USB HID Gamepad</text>' +
+            '<text x="340" y="316" text-anchor="middle" fill="#555" font-size="7">No drivers &mdash; plug and play on any OS</text>' +
+
+            '<!-- Arrow from Pro Micro USB to label -->' +
+            '<line x1="120" y1="48" x2="120" y2="38" stroke="#3b82f6" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="120" y1="38" x2="340" y2="38" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3" opacity="0.3"/>' +
+            '<line x1="340" y1="38" x2="340" y2="280" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3" opacity="0.3"/>' +
+
+            '<!-- INPUT_PULLUP badge -->' +
+            '<rect x="240" y="345" width="200" height="24" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+            '<text x="340" y="361" text-anchor="middle" fill="#4ade80" font-size="8">INPUT_PULLUP &mdash; no resistors needed</text>' +
+
+            '</svg>' +
+            '</div>',
+
         wiring: '    Arduino Pro Micro (ATmega32U4)\n' +
                 '    +-------------------+\n' +
                 '    |              GND  |---[Common ground bus]--+\n' +
@@ -859,6 +989,174 @@ window.SignalGuides = {
         intro: '<p>This is the capstone of the Arcade Ops track &mdash; a complete tabletop arcade cabinet with a 7-inch display, full-size joystick and buttons, stereo speakers, LED marquee, and hundreds of games running on RetroPie. Everything you learned in SG-26 through SG-29 comes together here.</p>' +
                '<p>The cabinet uses a bartop form factor: compact enough for a desk or shelf, but with full-size arcade controls. The zero-delay USB encoder handles all button inputs (no coding needed for the controls), the Pi runs RetroPie, and the display connects via HDMI.</p>' +
                '<p>This is the most physically involved build in The Signal &mdash; you will cut panels, mount hardware, run wires, and assemble a finished product.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs><pattern id="bg-grid-30" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+            '<rect width="700" height="400" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="680" height="380" fill="url(#bg-grid-30)" rx="4"/>' +
+            '<text x="350" y="32" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-30 WIRING &mdash; MINI ARCADE CABINET INTERNALS</text>' +
+
+            '<!-- Cabinet outline -->' +
+            '<rect x="160" y="45" width="380" height="300" rx="10" fill="rgba(255,255,255,0.015)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" stroke-dasharray="6,3"/>' +
+            '<text x="350" y="58" text-anchor="middle" fill="#444" font-size="8" letter-spacing="0.1em">CABINET ENCLOSURE</text>' +
+
+            '<!-- LED Marquee -->' +
+            '<rect x="200" y="65" width="300" height="30" rx="5" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+            '<circle cx="220" cy="80" r="4" fill="#ef4444" opacity="0.4"/><circle cx="240" cy="80" r="4" fill="#f97316" opacity="0.4"/>' +
+            '<circle cx="260" cy="80" r="4" fill="#eab308" opacity="0.4"/><circle cx="280" cy="80" r="4" fill="#22c55e" opacity="0.4"/>' +
+            '<circle cx="300" cy="80" r="4" fill="#3b82f6" opacity="0.4"/><circle cx="320" cy="80" r="4" fill="#a855f7" opacity="0.4"/>' +
+            '<circle cx="340" cy="80" r="4" fill="#ef4444" opacity="0.4"/><circle cx="360" cy="80" r="4" fill="#f97316" opacity="0.4"/>' +
+            '<circle cx="380" cy="80" r="4" fill="#eab308" opacity="0.4"/><circle cx="400" cy="80" r="4" fill="#22c55e" opacity="0.4"/>' +
+            '<circle cx="420" cy="80" r="4" fill="#3b82f6" opacity="0.4"/><circle cx="440" cy="80" r="4" fill="#a855f7" opacity="0.4"/>' +
+            '<circle cx="460" cy="80" r="4" fill="#ef4444" opacity="0.4"/><circle cx="480" cy="80" r="4" fill="#f97316" opacity="0.4"/>' +
+            '<text x="350" y="83" text-anchor="middle" fill="#e6edf3" font-size="7" font-weight="600">WS2812B LED MARQUEE</text>' +
+
+            '<!-- 7" Display -->' +
+            '<rect x="230" y="100" width="240" height="90" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="230" y="100" width="240" height="20" rx="6" fill="rgba(59,130,246,0.1)"/>' +
+            '<rect x="230" y="114" width="240" height="6" fill="rgba(59,130,246,0.1)"/>' +
+            '<text x="350" y="114" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">7" IPS Display</text>' +
+            '<rect x="250" y="128" width="200" height="50" rx="3" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.1)" stroke-width="0.5"/>' +
+            '<text x="350" y="152" text-anchor="middle" fill="#3b82f6" font-size="8" opacity="0.6">1024 x 600</text>' +
+            '<text x="350" y="165" text-anchor="middle" fill="#555" font-size="6">HDMI input + 5V barrel</text>' +
+
+            '<!-- Control panel area -->' +
+            '<rect x="185" y="200" width="330" height="65" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+            '<text x="350" y="215" text-anchor="middle" fill="#555" font-size="7" letter-spacing="0.08em">CONTROL PANEL</text>' +
+
+            '<!-- Joystick -->' +
+            '<circle cx="250" cy="240" r="18" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+            '<circle cx="250" cy="240" r="7" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="0.5"/>' +
+            '<text x="250" y="215" text-anchor="middle" fill="#22c55e" font-size="6">STICK</text>' +
+
+            '<!-- Buttons -->' +
+            '<circle cx="320" cy="232" r="10" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="0.8"/>' +
+            '<circle cx="345" cy="228" r="10" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="0.8"/>' +
+            '<circle cx="370" cy="228" r="10" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="0.8"/>' +
+            '<circle cx="320" cy="252" r="10" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="0.8"/>' +
+            '<circle cx="345" cy="248" r="10" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="0.8"/>' +
+            '<circle cx="370" cy="248" r="10" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="0.8"/>' +
+
+            '<!-- Start/Select -->' +
+            '<circle cx="430" cy="235" r="6" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="430" y="237" text-anchor="middle" fill="#a855f7" font-size="4">ST</text>' +
+            '<circle cx="450" cy="235" r="6" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="0.8"/>' +
+            '<text x="450" y="237" text-anchor="middle" fill="#a855f7" font-size="4">SE</text>' +
+
+            '<!-- Internal components -->' +
+
+            '<!-- Raspberry Pi -->' +
+            '<g>' +
+            '<rect x="40" y="90" width="100" height="70" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="40" y="90" width="100" height="18" rx="6" fill="rgba(34,197,94,0.1)"/>' +
+            '<rect x="40" y="103" width="100" height="5" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="90" y="103" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">RPi 4</text>' +
+            '<text x="90" y="120" text-anchor="middle" fill="#555" font-size="6">RetroPie</text>' +
+            '<text x="90" y="132" text-anchor="middle" fill="#555" font-size="6">HDMI + USB + GPIO</text>' +
+            '<text x="90" y="147" text-anchor="middle" fill="#555" font-size="5">3.5mm audio out</text>' +
+            '</g>' +
+
+            '<!-- Zero-Delay Encoder -->' +
+            '<g>' +
+            '<rect x="40" y="195" width="100" height="55" rx="6" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="40" y="195" width="100" height="18" rx="6" fill="rgba(249,115,22,0.1)"/>' +
+            '<rect x="40" y="208" width="100" height="5" fill="rgba(249,115,22,0.1)"/>' +
+            '<text x="90" y="208" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="600">Zero-Delay</text>' +
+            '<text x="90" y="226" text-anchor="middle" fill="#555" font-size="6">USB Encoder</text>' +
+            '<text x="90" y="238" text-anchor="middle" fill="#555" font-size="6">Screw terminals</text>' +
+            '</g>' +
+
+            '<!-- PAM8403 Amp -->' +
+            '<g>' +
+            '<rect x="40" y="280" width="100" height="55" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="40" y="280" width="100" height="18" rx="6" fill="rgba(168,85,247,0.1)"/>' +
+            '<rect x="40" y="293" width="100" height="5" fill="rgba(168,85,247,0.1)"/>' +
+            '<text x="90" y="293" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">PAM8403</text>' +
+            '<text x="90" y="312" text-anchor="middle" fill="#555" font-size="6">Stereo amplifier</text>' +
+            '<text x="90" y="324" text-anchor="middle" fill="#555" font-size="6">3.5mm in, 2x spkr</text>' +
+            '</g>' +
+
+            '<!-- Speakers -->' +
+            '<rect x="185" y="278" width="70" height="40" rx="4" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="220" y="295" text-anchor="middle" fill="#c084fc" font-size="7">SPK L</text>' +
+            '<text x="220" y="310" text-anchor="middle" fill="#555" font-size="5">8 ohm</text>' +
+            '<rect x="265" y="278" width="70" height="40" rx="4" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="300" y="295" text-anchor="middle" fill="#c084fc" font-size="7">SPK R</text>' +
+            '<text x="300" y="310" text-anchor="middle" fill="#555" font-size="5">8 ohm</text>' +
+
+            '<!-- Connection lines -->' +
+
+            '<!-- Pi HDMI to display -->' +
+            '<line x1="140" y1="110" x2="230" y2="135" stroke="#3b82f6" stroke-width="2" opacity="0.7"/>' +
+            '<text x="185" y="118" text-anchor="middle" fill="#3b82f6" font-size="6">HDMI</text>' +
+
+            '<!-- Pi USB to encoder -->' +
+            '<line x1="90" y1="160" x2="90" y2="195" stroke="#f97316" stroke-width="2" opacity="0.7"/>' +
+            '<text x="110" y="180" fill="#fb923c" font-size="6">USB</text>' +
+
+            '<!-- Encoder to controls -->' +
+            '<line x1="140" y1="222" x2="250" y2="222" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+
+            '<!-- Pi audio to amp -->' +
+            '<line x1="70" y1="160" x2="70" y2="280" stroke="#a855f7" stroke-width="1.5" opacity="0.5"/>' +
+            '<text x="55" y="230" fill="#c084fc" font-size="5" transform="rotate(-90,55,230)">3.5mm</text>' +
+
+            '<!-- Amp to speakers -->' +
+            '<line x1="140" y1="300" x2="185" y2="298" stroke="#c084fc" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="140" y1="310" x2="265" y2="298" stroke="#c084fc" stroke-width="1.5" opacity="0.5"/>' +
+
+            '<!-- Pi GPIO to LEDs -->' +
+            '<line x1="140" y1="100" x2="160" y2="100" stroke="#ef4444" stroke-width="1" opacity="0.4"/>' +
+            '<line x1="160" y1="80" x2="200" y2="80" stroke="#ef4444" stroke-width="1.5" opacity="0.5"/>' +
+            '<line x1="160" y1="80" x2="160" y2="100" stroke="#ef4444" stroke-width="1" opacity="0.4"/>' +
+            '<text x="170" y="70" fill="#ef4444" font-size="5">GPIO 18</text>' +
+
+            '<!-- Power Supply -->' +
+            '<g>' +
+            '<rect x="555" y="80" width="120" height="265" rx="8" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>' +
+            '<text x="615" y="100" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">5V 5A PSU</text>' +
+            '<text x="615" y="115" text-anchor="middle" fill="#555" font-size="7">Single power source</text>' +
+
+            '<!-- Power distribution -->' +
+            '<rect x="570" y="130" width="90" height="26" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="615" y="140" text-anchor="middle" fill="#fca5a5" font-size="7">USB-C</text>' +
+            '<text x="615" y="151" text-anchor="middle" fill="#555" font-size="5">Pi (3A)</text>' +
+
+            '<rect x="570" y="162" width="90" height="26" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="615" y="172" text-anchor="middle" fill="#fca5a5" font-size="7">Barrel 5V</text>' +
+            '<text x="615" y="183" text-anchor="middle" fill="#555" font-size="5">Display</text>' +
+
+            '<rect x="570" y="194" width="90" height="26" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="615" y="204" text-anchor="middle" fill="#fca5a5" font-size="7">Screw 5V</text>' +
+            '<text x="615" y="215" text-anchor="middle" fill="#555" font-size="5">Amp</text>' +
+
+            '<rect x="570" y="226" width="90" height="26" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+            '<text x="615" y="236" text-anchor="middle" fill="#fca5a5" font-size="7">Screw 5V</text>' +
+            '<text x="615" y="247" text-anchor="middle" fill="#555" font-size="5">LEDs</text>' +
+
+            '<!-- Capacitor -->' +
+            '<rect x="575" y="262" width="80" height="22" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="615" y="276" text-anchor="middle" fill="#eab308" font-size="6">1000uF cap</text>' +
+
+            '<!-- Power lines -->' +
+            '<line x1="555" y1="143" x2="140" y2="120" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+            '<line x1="555" y1="175" x2="470" y2="155" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.4"/>' +
+            '<line x1="555" y1="207" x2="140" y2="300" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3" opacity="0.3"/>' +
+            '<line x1="555" y1="239" x2="500" y2="80" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3" opacity="0.3"/>' +
+
+            '<!-- Kiosk badge -->' +
+            '<text x="615" y="310" text-anchor="middle" fill="#555" font-size="6">Kiosk mode</text>' +
+            '<text x="615" y="325" text-anchor="middle" fill="#555" font-size="6">Attract screensaver</text>' +
+            '<text x="615" y="340" text-anchor="middle" fill="#555" font-size="6">Auto-boot</text>' +
+            '</g>' +
+
+            '<!-- Vent note -->' +
+            '<text x="350" y="360" text-anchor="middle" fill="#555" font-size="7">Back panel: ventilation holes + optional 40mm fan</text>' +
+            '<text x="350" y="375" text-anchor="middle" fill="#555" font-size="7">Cabinet: 300mm W x 350mm D x 400mm H (MDF or acrylic)</text>' +
+
+            '</svg>' +
+            '</div>',
 
         wiring: '    Mini Arcade Cabinet — Internal Wiring\n' +
                 '    +------------------------------------------+\n' +
