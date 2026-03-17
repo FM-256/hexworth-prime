@@ -112,7 +112,6 @@
         /* Floating Button */
         .flux-btn {
             position: absolute;
-            bottom: 24px;
             right: 24px;
             width: 64px;
             height: 64px;
@@ -530,6 +529,13 @@
             this.button.setAttribute('title', 'Flux Capacitor (Press ~)');
             this.button.innerHTML = '<span class="flux-icon"><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>';
             document.body.appendChild(this.button);
+
+            // Keep button pinned to viewport (position:fixed is broken when body has filter)
+            const btn = this.button;
+            function pinFlux() { btn.style.top = (window.scrollY + window.innerHeight - 88) + 'px'; }
+            pinFlux();
+            window.addEventListener('scroll', pinFlux, { passive: true });
+            window.addEventListener('resize', pinFlux, { passive: true });
         }
 
         createModal() {

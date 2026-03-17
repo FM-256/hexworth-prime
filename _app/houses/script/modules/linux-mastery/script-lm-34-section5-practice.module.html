@@ -689,10 +689,11 @@
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
+                var ok = !output || !output.includes('lt-error');
                 // Detect sudo passthrough
                 let effectiveCmd = cmd;
                 let effectiveArgs = args;
-                if (cmd === 'sudo') {
+                if (cmd === 'sudo' && args.length > 0) {
                     effectiveCmd = args[0] || '';
                     effectiveArgs = args.slice(1);
                 }
@@ -880,32 +881,26 @@
 
                     const svc = services[service];
 
-                    switch(action) {
-                        case 'status':
-                            if (service === 'nginx') completeTask('7');
-                            const dot = svc.active ? '\u25cf' : '\u25cb';
-                            const status = svc.active ? 'active (running)' : 'inactive (dead)';
-                            const enabled = svc.enabled ? 'enabled' : 'disabled';
-                            LinuxTerminal.print(`${dot} ${service}.service\n   Active: ${status}\n   Loaded: (${enabled})`);
-                            break;
-                        case 'start':
-                            if (service === 'nginx') completeTask('7');
-                            svc.active = true;
-                            break;
-                        case 'stop':
-                            svc.active = false;
-                            break;
-                        case 'enable':
-                            if (service === 'nginx') completeTask('8');
-                            svc.enabled = true;
-                            LinuxTerminal.print(`Created symlink for ${service}.service`);
-                            break;
-                        case 'disable':
-                            svc.enabled = false;
-                            LinuxTerminal.print(`Removed symlink for ${service}.service`);
-                            break;
-                        default:
-                            LinuxTerminal.print(`Unknown operation '${action}'`);
+                    if (action === 'status') {
+                        if (service === 'nginx') completeTask('7');
+                        var dot = svc.active ? '\u25cf' : '\u25cb';
+                        var svcStatus = svc.active ? 'active (running)' : 'inactive (dead)';
+                        var svcEnabled = svc.enabled ? 'enabled' : 'disabled';
+                        LinuxTerminal.print(dot + ' ' + service + '.service\n   Active: ' + svcStatus + '\n   Loaded: (' + svcEnabled + ')');
+                    } else if (action === 'start') {
+                        if (service === 'nginx') completeTask('7');
+                        svc.active = true;
+                    } else if (action === 'stop') {
+                        svc.active = false;
+                    } else if (action === 'enable') {
+                        if (service === 'nginx') completeTask('8');
+                        svc.enabled = true;
+                        LinuxTerminal.print('Created symlink for ' + service + '.service');
+                    } else if (action === 'disable') {
+                        svc.enabled = false;
+                        LinuxTerminal.print('Removed symlink for ' + service + '.service');
+                    } else {
+                        LinuxTerminal.print('Unknown operation \'' + action + '\'');
                     }
                     return true;
                 }
@@ -995,12 +990,16 @@
                 lastAccess: Date.now(),
                 ...(allDone && { completedAt: new Date().toISOString() })
             };
+            if (allDone) {
+                const longKey = 'script-' + MODULE_ID;
+                progress.script[longKey] = { ...progress.script[longKey], completed: true, completedAt: new Date().toISOString() };
+            }
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const saved = progress.script?.[MODULE_ID];
+            const saved = progress.script?.[MODULE_ID] || progress.script?.['script-' + MODULE_ID];
             if (saved) {
                 const taskList = saved.completedTasks || (Array.isArray(saved.completed) ? saved.completed : (saved.completed === true ? Object.keys(tasks) : []));
                 taskList.forEach(t => {
@@ -1015,6 +1014,14 @@
                 updateProgress();
                 if (Object.values(tasks).every(v => v)) {
                     document.getElementById('completionBox').classList.add('visible');
+                }
+            }
+            // Repair: if all tasks done but long key missing, trigger silent completion
+            if (Object.values(tasks).every(v => v) && Object.keys(tasks).length > 0) {
+                const longKey = 'script-' + MODULE_ID;
+                const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!p.script?.[longKey]?.completed) {
+                    ModuleProgress.complete('script', longKey, { silent: true, returnToDashboard: false });
                 }
             }
         })();

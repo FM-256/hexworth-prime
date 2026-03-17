@@ -385,6 +385,10 @@
     }
 
     function init() {
+        // DISABLED: Roxy deactivated pending investigation into false positives.
+        // IntegrityLockscreen will not engage until re-enabled.
+        return;
+
         // Skip for admin users
         if (isAdmin()) return;
 

@@ -702,6 +702,7 @@
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
+                var ok = !output || !output.includes('lt-error');
                 // Task 1: Try to read protected file WITHOUT sudo
                 if (cmd === 'cat' && (cmdLine.includes('/etc/shadow') || cmdLine.includes('/etc/sudoers'))) {
                     if (typeof output === 'string' && output.includes('Permission denied')) {
@@ -709,7 +710,7 @@
                     }
                 }
 
-                if (cmd === 'sudo') {
+                if (cmd === 'sudo' && args.length > 0 && ok) {
                     const joined = args.join(' ');
 
                     // Task 2: Read a protected file WITH sudo
@@ -870,6 +871,10 @@
                 lastAccess: Date.now(),
                 ...(allDone && { completedAt: new Date().toISOString() })
             };
+            if (allDone) {
+                const longKey = 'script-' + MODULE_ID;
+                progress.script[longKey] = { ...progress.script[longKey], completed: true, completedAt: new Date().toISOString() };
+            }
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
@@ -883,7 +888,7 @@
 
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const saved = progress.script?.[MODULE_ID];
+            const saved = progress.script?.[MODULE_ID] || progress.script?.['script-' + MODULE_ID];
             if (saved) {
                 const taskList = saved.completedTasks || (Array.isArray(saved.completed) ? saved.completed : (saved.completed === true ? Object.keys(tasks) : []));
                 taskList.forEach(t => {
@@ -893,7 +898,16 @@
                 });
                 updateProgress();
             }
-            const next = getNextIncompleteTask();
+            
+            // Repair: if all tasks done but long key missing, trigger silent completion
+            if (Object.values(tasks).every(v => v) && Object.keys(tasks).length > 0) {
+                const longKey = 'script-' + MODULE_ID;
+                const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!p.script?.[longKey]?.completed) {
+                    ModuleProgress.complete('script', longKey, { silent: true, returnToDashboard: false });
+                }
+            }
+const next = getNextIncompleteTask();
             if (next) showTaskInstruction(next);
         })();
     </script>

@@ -23,6 +23,18 @@
   /* ── Double-init guard ─────────────────────────────────────── */
   if (window.TripWire && window.TripWire._initialized) return;
 
+  /* ── Admin / bypass guard ──────────────────────────────────── */
+  var _bypass = false;
+  try {
+    _bypass = localStorage.getItem('hexworth_tripwire_bypass') === 'true'
+           || localStorage.getItem('hexworth_firebase_admin') === 'true';
+  } catch(e) {}
+  if (_bypass) {
+    console.log('%c[TripWire] Bypass active — sensors disabled', 'color:#fbbf24');
+    window.TripWire = { _initialized: true, _dispatch: function(){}, protect: function(){}, authorizeWrite: function(){}, init: function(){}, getLog: function(){ return []; }, getTripCount: function(){ return 0; }, getSensorsTripped: function(){ return new Set(); } };
+    return;
+  }
+
   /* ── Constants ─────────────────────────────────────────────── */
   var LOG_KEY          = 'hexworth_tripwire_log';
   var LOG_MAX          = 100;
@@ -968,8 +980,9 @@
     function checkDevTools() {
       var widthDelta = window.outerWidth - window.innerWidth;
       var heightDelta = window.outerHeight - window.innerHeight;
+      var dpr = window.devicePixelRatio || 1;
 
-      var isOpen = widthDelta > threshold || heightDelta > threshold;
+      var isOpen = (widthDelta / dpr) > threshold || (heightDelta / dpr) > threshold;
 
       if (isOpen && !_devToolsOpen) {
         _devToolsOpen = true;

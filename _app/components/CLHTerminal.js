@@ -4542,7 +4542,8 @@ class CLHTerminal {
             case 'passwd': output = this._cmdPasswd(args); break;
             case 'useradd': case 'userdel': case 'usermod': case 'groupadd':
                 output = `${cmd}: requires root privileges (use sudo)`; break;
-            case 'vim': case 'vi': case 'nano': output = this._cmdVim(args); break;
+            case 'vim': case 'vi': output = this._cmdVim(args); break;
+            case 'nano': output = this._cmdNano(args); break;
             case 'less': case 'more': output = this._cmdCat(args); break;
             case 'man': output = this._cmdMan(args); break;
             case 'which': output = args[0] ? `/usr/bin/${args[0]}` : 'which: missing argument'; break;
@@ -4727,7 +4728,8 @@ class CLHTerminal {
             case 'passwd': output = this._cmdPasswd(args); break;
             case 'useradd': case 'userdel': case 'usermod': case 'groupadd':
                 output = `${cmd}: requires root privileges (use sudo)`; break;
-            case 'vim': case 'vi': case 'nano': output = this._cmdVim(args); break;
+            case 'vim': case 'vi': output = this._cmdVim(args); break;
+            case 'nano': output = this._cmdNano(args); break;
             case 'less': case 'more': output = this._cmdCat(args); break;
             case 'man': output = this._cmdMan(args); break;
             case 'which': output = args[0] ? `/usr/bin/${args[0]}` : 'which: missing argument'; break;
@@ -14714,6 +14716,19 @@ Number of days of warning before password expires       : 7`;
         }
 
         return `groups: '${user}': no such user`;
+    }
+
+    _cmdNano(args) {
+        const file = args.filter(a => !a.startsWith('-'))[0];
+        if (!file) return 'Usage: nano [filename]';
+        const path = this._resolvePath(file);
+        const node = this.fs[path];
+        if (node && node.type === 'file' && node.content) {
+            const escaped = node.content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `<span class="clh-highlight">nano: opening ${file} (read-only in this terminal)</span>\n<span class="clh-dim">${escaped}</span>\n<span class="clh-highlight">[ Use cat/echo to view/create files in this terminal ]</span>`;
+        }
+        if (node && node.type === 'dir') return `nano: ${file}: Is a directory`;
+        return `<span class="clh-highlight">nano: would create new file ${file}\n[ Use touch/echo to create files in this terminal ]</span>`;
     }
 
     _cmdVim(args) {

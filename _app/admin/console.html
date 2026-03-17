@@ -887,11 +887,60 @@
             <div class="ac-panel" data-panel="integrity">
                 <div class="ac-panel-title">Integrity & Security</div>
 
+                <!-- Roxy Status Banner -->
+                <div class="ac-card" id="roxyStatusCard" style="border-left: 3px solid var(--ac-warning);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <div class="ac-card-title" style="margin-bottom:4px;">Roxy Status</div>
+                            <div id="roxyStatusText" style="font-size:0.82rem; color:var(--ac-text-muted);">Checking status...</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <span id="roxyStatusBadge" class="ac-badge" style="font-size:0.72rem;">--</span>
+                            <button class="ac-btn ac-btn-warning ac-btn-sm" id="roxyToggleBtn" onclick="toggleRoxyStatus()" style="display:none;">--</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Search + Lock/Unlock -->
+                <div class="ac-card">
+                    <div class="ac-card-title">Quick User Lookup</div>
+                    <div class="ac-search-wrap">
+                        <input type="text" class="ac-search-input" id="integritySearchInput" placeholder="Search by callsign, email, or UID..." onkeydown="if(event.key==='Enter') integritySearchUser()">
+                        <button class="ac-btn ac-btn-primary" onclick="integritySearchUser()">Find</button>
+                    </div>
+                    <div id="integritySearchResults"></div>
+                </div>
+
                 <!-- Active Lockouts -->
                 <div class="ac-card">
-                    <div class="ac-card-title">Active Lockouts</div>
+                    <div class="ac-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Active Lockouts</span>
+                        <div style="display:flex; gap:8px;">
+                            <button class="ac-btn ac-btn-danger ac-btn-sm" onclick="confirmMassClearIntegrity()">Clear All</button>
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="refreshLockouts()">Refresh</button>
+                        </div>
+                    </div>
                     <div id="activeLockouts">
                         <div class="ac-loading"><div class="ac-spinner"></div>Loading lockouts...</div>
+                    </div>
+                </div>
+
+                <!-- Lockout History -->
+                <div class="ac-card">
+                    <div class="ac-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Lockout History</span>
+                        <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="loadLockoutHistory()">Refresh</button>
+                    </div>
+                    <div id="lockoutHistory">
+                        <div class="ac-loading"><div class="ac-spinner"></div>Loading history...</div>
+                    </div>
+                </div>
+
+                <!-- TripWire Sensor Breakdown -->
+                <div class="ac-card">
+                    <div class="ac-card-title">TripWire Sensor Breakdown</div>
+                    <div id="tripwireSensorBreakdown">
+                        <div class="ac-loading"><div class="ac-spinner"></div>Loading sensor data...</div>
                     </div>
                 </div>
 
@@ -900,13 +949,16 @@
                     <div class="ac-card-title">TripWire Event Log</div>
                     <div class="ac-filter-bar">
                         <select id="tripwireTypeFilter" onchange="loadTripWireEvents()">
-                            <option value="">All Types</option>
-                            <option value="localStorage">localStorage</option>
+                            <option value="">All Sensors</option>
+                            <option value="storage">Storage</option>
                             <option value="console">Console</option>
                             <option value="dom">DOM</option>
                             <option value="timer">Timer</option>
                             <option value="xss">XSS</option>
                             <option value="decoy">Decoy</option>
+                            <option value="runtime">Runtime</option>
+                            <option value="devtools">DevTools</option>
+                            <option value="cross-tab">Cross-Tab</option>
                         </select>
                         <input type="date" id="tripwireDateFrom" onchange="loadTripWireEvents()">
                         <input type="date" id="tripwireDateTo" onchange="loadTripWireEvents()">
@@ -1389,6 +1441,9 @@
                     await FirebaseAuth.callFunction('adminResetIntegrity', { uid: uid });
                     showToast('Integrity cleared', 'success');
                     searchUsers();
+                    // Refresh integrity panel if it was loaded
+                    _integrityLoaded = false;
+                    if (document.querySelector('[data-panel="integrity"].active')) loadIntegrityData();
                 } catch (e) {
                     showToast('Reset failed: ' + e.message, 'error');
                 }
@@ -1436,11 +1491,167 @@
             if (_integrityLoaded) return;
             _integrityLoaded = true;
 
+            checkRoxyStatus();
             loadActiveLockouts();
+            loadLockoutHistory();
+            loadTripWireSensorBreakdown();
             loadTripWireEvents();
             loadFlagAudit();
         }
 
+        // --- Roxy Status ---
+        async function checkRoxyStatus() {
+            const textEl = document.getElementById('roxyStatusText');
+            const badgeEl = document.getElementById('roxyStatusBadge');
+            const toggleBtn = document.getElementById('roxyToggleBtn');
+            const card = document.getElementById('roxyStatusCard');
+
+            // Check if IntegrityLockscreen and XPCalculator integrity checks are active
+            // We detect this by checking if the deployed code has the disable marker
+            try {
+                const resp = await fetch('/components/IntegrityLockscreen.js?_t=' + Date.now());
+                const src = await resp.text();
+                const disabled = src.includes('// DISABLED: Roxy deactivated');
+                if (disabled) {
+                    textEl.textContent = 'Roxy is DISABLED. Integrity violations will not trigger lockouts. Students can browse freely.';
+                    badgeEl.textContent = 'DISABLED';
+                    badgeEl.style.background = 'var(--ac-warning-subtle)';
+                    badgeEl.style.color = 'var(--ac-warning)';
+                    card.style.borderLeftColor = 'var(--ac-warning)';
+                    toggleBtn.textContent = 'Enable Roxy';
+                    toggleBtn.className = 'ac-btn ac-btn-danger ac-btn-sm';
+                    toggleBtn.style.display = '';
+                } else {
+                    textEl.textContent = 'Roxy is ACTIVE. Integrity violations will lock out students with the dancing T-Rex.';
+                    badgeEl.textContent = 'ACTIVE';
+                    badgeEl.style.background = 'var(--ac-success-subtle)';
+                    badgeEl.style.color = 'var(--ac-success)';
+                    card.style.borderLeftColor = 'var(--ac-success)';
+                    toggleBtn.textContent = 'Disable Roxy';
+                    toggleBtn.className = 'ac-btn ac-btn-warning ac-btn-sm';
+                    toggleBtn.style.display = '';
+                }
+            } catch (e) {
+                textEl.textContent = 'Could not determine Roxy status.';
+                badgeEl.textContent = 'UNKNOWN';
+                badgeEl.style.background = 'rgba(255,255,255,0.06)';
+                badgeEl.style.color = 'var(--ac-text-muted)';
+            }
+        }
+
+        window.toggleRoxyStatus = function() {
+            showToast('Roxy toggle requires a code deploy. Edit IntegrityLockscreen.js and XPCalculator.js, then redeploy.', 'warning');
+        };
+
+        // --- Quick User Lookup (Integrity panel) ---
+        window.integritySearchUser = async function() {
+            const query = document.getElementById('integritySearchInput').value.trim();
+            if (!query) return;
+            const container = document.getElementById('integritySearchResults');
+            container.innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Searching...</div>';
+
+            try {
+                const result = await FirebaseAuth.callFunction('adminSearchUsers', { query: query });
+                const users = result.data.users || [];
+
+                if (users.length === 0) {
+                    container.innerHTML = '<div class="ac-empty">No users found for "' + escHtml(query) + '"</div>';
+                    return;
+                }
+
+                let html = '<div class="ac-table-wrap" style="margin-top:10px;"><table class="ac-table"><thead><tr><th>User</th><th>House</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+                users.forEach(u => {
+                    const violated = u.integrity && u.integrity.status === 'violated';
+                    const statusHtml = violated
+                        ? '<span style="color:var(--ac-danger); font-weight:600;">LOCKED</span>'
+                        : '<span style="color:var(--ac-success);">Clean</span>';
+
+                    html += `<tr>
+                        <td>
+                            <strong>${escHtml(u.displayName || u.callsign || 'Unknown')}</strong><br>
+                            <span style="font-size:0.7rem; color:var(--ac-text-muted);">${escHtml(u.email || u.uid)}</span>
+                        </td>
+                        <td>${escHtml(u.house || '--')}</td>
+                        <td>${u.level || '--'}</td>
+                        <td>${statusHtml}</td>
+                        <td style="white-space:nowrap;">
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="viewUserProfile('${escHtml(u.uid)}')">View</button>
+                            ${violated
+                                ? '<button class="ac-btn ac-btn-success ac-btn-sm" onclick="resetIntegrity(\'' + escHtml(u.uid) + '\')">Unlock</button>'
+                                : '<button class="ac-btn ac-btn-danger ac-btn-sm" onclick="lockAccount(\'' + escHtml(u.uid) + '\')">Lock</button>'
+                            }
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="viewUserTripWireLog(\'' + escHtml(u.uid) + '\', \'' + escHtml(u.displayName || u.callsign || '') + '\')">TripWire Log</button>
+                        </td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="ac-empty" style="color:var(--ac-danger)">Search failed: ' + escHtml(e.message) + '</div>';
+            }
+        };
+
+        // --- View a user's TripWire events ---
+        window.viewUserTripWireLog = async function(uid, name) {
+            if (!db) return;
+            const overlay = document.createElement('div');
+            overlay.className = 'ac-overlay';
+            overlay.innerHTML = '<div class="ac-modal" style="max-width:700px;"><div class="ac-loading"><div class="ac-spinner"></div>Loading TripWire log...</div></div>';
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+            try {
+                const { collection, query, orderBy, getDocs, limit } = _firestoreModule;
+                const q = query(collection(db, 'users/' + uid + '/tripwire_events'), orderBy('timestamp', 'desc'), limit(100));
+                const snap = await getDocs(q);
+
+                // Count by sensor type
+                const sensorCounts = {};
+                const rows = [];
+                snap.forEach(docSnap => {
+                    const d = docSnap.data();
+                    const sensor = d.sensor || d.type || 'unknown';
+                    sensorCounts[sensor] = (sensorCounts[sensor] || 0) + 1;
+                    const ts = d.timestamp ? (d.timestamp.toDate ? d.timestamp.toDate() : new Date(d.timestamp)) : null;
+                    rows.push({ sensor, ts, detail: d.detail || d.message || d.key || '' });
+                });
+
+                let breakdownHtml = '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">';
+                const sensorColors = { storage: '#ef4444', console: '#f97316', dom: '#06b6d4', timer: '#eab308', xss: '#ec4899', decoy: '#f59e0b', runtime: '#a855f7', devtools: '#8b5cf6', 'cross-tab': '#6366f1' };
+                for (const [sensor, count] of Object.entries(sensorCounts).sort((a, b) => b[1] - a[1])) {
+                    const color = sensorColors[sensor] || '#6b7280';
+                    breakdownHtml += '<span style="background:' + color + '22; color:' + color + '; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:600;">' + escHtml(sensor) + ': ' + count + '</span>';
+                }
+                breakdownHtml += '</div>';
+
+                let tableHtml = '';
+                if (rows.length === 0) {
+                    tableHtml = '<div class="ac-empty">No TripWire events for this user.</div>';
+                } else {
+                    tableHtml = '<div class="ac-table-wrap" style="max-height:400px; overflow-y:auto;"><table class="ac-table"><thead><tr><th>Time</th><th>Sensor</th><th>Detail</th></tr></thead><tbody>';
+                    rows.forEach(r => {
+                        tableHtml += '<tr><td style="white-space:nowrap;">' + (r.ts ? r.ts.toLocaleString() : '--') + '</td><td>' + escHtml(r.sensor) + '</td><td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escHtml(String(r.detail).substring(0, 150)) + '</td></tr>';
+                    });
+                    tableHtml += '</tbody></table></div>';
+                }
+
+                overlay.querySelector('.ac-modal').innerHTML = `
+                    <button class="ac-modal-close" onclick="this.closest('.ac-overlay').remove()">&times;</button>
+                    <div class="ac-modal-title">TripWire Log: ${escHtml(name || uid)}</div>
+                    <div style="margin-bottom:8px; font-size:0.78rem; color:var(--ac-text-muted);">UID: ${escHtml(uid)} | ${rows.length} event(s)</div>
+                    ${breakdownHtml}
+                    ${tableHtml}
+                `;
+            } catch (e) {
+                overlay.querySelector('.ac-modal').innerHTML = `
+                    <button class="ac-modal-close" onclick="this.closest('.ac-overlay').remove()">&times;</button>
+                    <div class="ac-modal-title">TripWire Log</div>
+                    <div class="ac-empty" style="color:var(--ac-danger);">Failed: ${escHtml(e.message)}</div>
+                `;
+            }
+        };
+
+        // --- Active Lockouts ---
         async function loadActiveLockouts() {
             if (!db) return;
             const container = document.getElementById('activeLockouts');
@@ -1454,22 +1665,33 @@
                     return;
                 }
 
-                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>User</th><th>Violation Time</th><th>Source</th><th>Time Remaining</th><th>Actions</th></tr></thead><tbody>';
+                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>User</th><th>Violation Time</th><th>Source</th><th>Garbage Count</th><th>Time Remaining</th><th>Actions</th></tr></thead><tbody>';
                 const LOCKOUT_MS = (4 * 60 + 20) * 60 * 1000;
                 snap.forEach(docSnap => {
                     const d = docSnap.data();
                     const integrity = d.integrity || {};
-                    const violationTime = integrity.violatedAt ? (integrity.violatedAt.toDate ? integrity.violatedAt.toDate() : new Date(integrity.violatedAt)) : null;
+                    const detectedAt = integrity.detectedAt || integrity.violatedAt;
+                    const violationTime = detectedAt ? (detectedAt.toDate ? detectedAt.toDate() : new Date(detectedAt)) : null;
                     const remaining = violationTime ? Math.max(0, LOCKOUT_MS - (Date.now() - violationTime.getTime())) : 0;
                     const remainingStr = remaining > 0 ? formatDuration(remaining) : 'Expired';
 
                     html += `<tr>
-                        <td>${escHtml(d.displayName || d.callsign || docSnap.id)}<br><span style="font-size:0.7rem;color:var(--ac-text-muted)">${escHtml(d.email || '')}</span></td>
-                        <td>${violationTime ? violationTime.toLocaleString() : '--'}</td>
-                        <td>${escHtml(integrity.source || 'unknown')}</td>
-                        <td style="color:${remaining > 0 ? 'var(--ac-danger)' : 'var(--ac-success)'}">${remainingStr}</td>
                         <td>
-                            <button class="ac-btn ac-btn-success ac-btn-sm" onclick="resetIntegrity('${docSnap.id}')">Clear</button>
+                            <strong>${escHtml(d.displayName || d.callsign || docSnap.id)}</strong><br>
+                            <span style="font-size:0.7rem;color:var(--ac-text-muted)">${escHtml(d.email || '')}</span>
+                        </td>
+                        <td>${violationTime ? violationTime.toLocaleString() : '--'}</td>
+                        <td>${escHtml(integrity.source || 'auto')}</td>
+                        <td>
+                            <span style="font-weight:600; color:${(integrity.garbageCount || 0) > 50 ? 'var(--ac-danger)' : 'var(--ac-warning)'}">
+                                ${integrity.garbageCount || '--'}
+                            </span>
+                            ${integrity.peakGarbage ? '<span style="font-size:0.68rem; color:var(--ac-text-muted);"> (peak: ' + integrity.peakGarbage + ')</span>' : ''}
+                        </td>
+                        <td style="color:${remaining > 0 ? 'var(--ac-danger)' : 'var(--ac-success)'}">${remainingStr}</td>
+                        <td style="white-space:nowrap;">
+                            <button class="ac-btn ac-btn-success ac-btn-sm" onclick="resetIntegrity('${docSnap.id}')">Unlock</button>
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="viewUserTripWireLog('${docSnap.id}', '${escHtml(d.displayName || d.callsign || '')}')">Log</button>
                             <button class="ac-btn ac-btn-warning ac-btn-sm" onclick="extendLockout('${docSnap.id}')">Extend</button>
                         </td>
                     </tr>`;
@@ -1481,19 +1703,151 @@
             }
         }
 
-        window.extendLockout = async function(uid) {
-            try {
-                await FirebaseAuth.callFunction('adminSetIntegrity', {
-                    uid: uid,
-                    data: { source: 'admin_extend', reason: 'Lockout extended by admin' }
-                });
-                showToast('Lockout extended', 'warning');
-                _integrityLoaded = false;
-                loadIntegrityData();
-            } catch (e) {
-                showToast('Extend failed: ' + e.message, 'error');
-            }
+        window.refreshLockouts = function() {
+            document.getElementById('activeLockouts').innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Loading...</div>';
+            loadActiveLockouts();
         };
+
+        window.extendLockout = async function(uid) {
+            showConfirm('Extend Lockout', 'Reset the lockout timer for this user? They will serve another 4h 20m.', async () => {
+                try {
+                    await FirebaseAuth.callFunction('adminSetIntegrity', {
+                        uid: uid,
+                        data: { source: 'admin_extend', reason: 'Lockout extended by admin' }
+                    });
+                    showToast('Lockout extended', 'warning');
+                    _integrityLoaded = false;
+                    loadIntegrityData();
+                } catch (e) {
+                    showToast('Extend failed: ' + e.message, 'error');
+                }
+            });
+        };
+
+        // --- Lockout History (previously cleared) ---
+        async function loadLockoutHistory() {
+            if (!db) return;
+            const container = document.getElementById('lockoutHistory');
+            container.innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Loading...</div>';
+
+            try {
+                const { collection, query, where, orderBy, getDocs, limit } = _firestoreModule;
+                // Users who have integrityResetAt = were previously locked and cleared
+                const q = query(
+                    collection(db, 'users'),
+                    where('integrityResetAt', '!=', null),
+                    orderBy('integrityResetAt', 'desc'),
+                    limit(30)
+                );
+                const snap = await getDocs(q);
+
+                if (snap.empty) {
+                    container.innerHTML = '<div class="ac-empty">No lockout history found.</div>';
+                    return;
+                }
+
+                let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>User</th><th>Cleared At</th><th>Cleared By</th><th>Current Status</th><th>Actions</th></tr></thead><tbody>';
+                snap.forEach(docSnap => {
+                    const d = docSnap.data();
+                    const resetAt = d.integrityResetAt ? (d.integrityResetAt.toDate ? d.integrityResetAt.toDate() : new Date(d.integrityResetAt)) : null;
+                    const resetBy = d.integrityResetBy || 'unknown';
+                    const isCurrentlyLocked = d.integrity && d.integrity.status === 'violated';
+
+                    html += `<tr>
+                        <td>
+                            <strong>${escHtml(d.displayName || d.callsign || docSnap.id)}</strong><br>
+                            <span style="font-size:0.7rem; color:var(--ac-text-muted);">${escHtml(d.email || '')}</span>
+                        </td>
+                        <td>${resetAt ? resetAt.toLocaleString() : '--'}</td>
+                        <td style="font-size:0.78rem;">${escHtml(resetBy)}</td>
+                        <td>
+                            ${isCurrentlyLocked
+                                ? '<span style="color:var(--ac-danger); font-weight:600;">LOCKED AGAIN</span>'
+                                : '<span style="color:var(--ac-success);">Clean</span>'
+                            }
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="viewUserProfile('${docSnap.id}')">View</button>
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="viewUserTripWireLog('${docSnap.id}', '${escHtml(d.displayName || d.callsign || '')}')">TripWire</button>
+                            ${isCurrentlyLocked
+                                ? '<button class="ac-btn ac-btn-success ac-btn-sm" onclick="resetIntegrity(\'' + docSnap.id + '\')">Unlock</button>'
+                                : '<button class="ac-btn ac-btn-danger ac-btn-sm" onclick="lockAccount(\'' + docSnap.id + '\')">Lock</button>'
+                            }
+                        </td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="ac-empty" style="color:var(--ac-danger)">Failed: ' + escHtml(e.message) + '</div>';
+            }
+        }
+
+        // --- TripWire Sensor Breakdown (heatmap) ---
+        async function loadTripWireSensorBreakdown() {
+            if (!db) return;
+            const container = document.getElementById('tripwireSensorBreakdown');
+
+            try {
+                const { collectionGroup, query, orderBy, getDocs, limit } = _firestoreModule;
+                const q = query(collectionGroup(db, 'tripwire_events'), orderBy('timestamp', 'desc'), limit(500));
+                const snap = await getDocs(q);
+
+                if (snap.empty) {
+                    container.innerHTML = '<div class="ac-empty">No TripWire events recorded.</div>';
+                    return;
+                }
+
+                const sensorCounts = {};
+                const uniqueUsers = new Set();
+                let last24h = 0;
+                let last7d = 0;
+                const now = Date.now();
+                const DAY_MS = 86400000;
+
+                snap.forEach(docSnap => {
+                    const d = docSnap.data();
+                    const sensor = d.sensor || d.type || 'unknown';
+                    sensorCounts[sensor] = (sensorCounts[sensor] || 0) + 1;
+
+                    const pathParts = docSnap.ref.path.split('/');
+                    if (pathParts.length >= 2) uniqueUsers.add(pathParts[1]);
+
+                    const ts = d.timestamp ? (d.timestamp.toDate ? d.timestamp.toDate().getTime() : new Date(d.timestamp).getTime()) : 0;
+                    if (now - ts < DAY_MS) last24h++;
+                    if (now - ts < 7 * DAY_MS) last7d++;
+                });
+
+                const sorted = Object.entries(sensorCounts).sort((a, b) => b[1] - a[1]);
+                const maxCount = sorted.length > 0 ? sorted[0][1] : 1;
+                const sensorColors = { storage: '#ef4444', console: '#f97316', dom: '#06b6d4', timer: '#eab308', xss: '#ec4899', decoy: '#f59e0b', runtime: '#a855f7', devtools: '#8b5cf6', 'cross-tab': '#6366f1' };
+
+                let html = '<div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px;">';
+                html += '<div style="text-align:center; padding:8px 14px; background:var(--ac-surface); border-radius:8px;"><div style="font-size:1.3rem; font-weight:700; color:var(--ac-text);">' + snap.size + '</div><div style="font-size:0.68rem; color:var(--ac-text-muted);">Total Events</div></div>';
+                html += '<div style="text-align:center; padding:8px 14px; background:var(--ac-surface); border-radius:8px;"><div style="font-size:1.3rem; font-weight:700; color:var(--ac-warning);">' + last24h + '</div><div style="font-size:0.68rem; color:var(--ac-text-muted);">Last 24h</div></div>';
+                html += '<div style="text-align:center; padding:8px 14px; background:var(--ac-surface); border-radius:8px;"><div style="font-size:1.3rem; font-weight:700; color:var(--ac-accent);">' + last7d + '</div><div style="font-size:0.68rem; color:var(--ac-text-muted);">Last 7 Days</div></div>';
+                html += '<div style="text-align:center; padding:8px 14px; background:var(--ac-surface); border-radius:8px;"><div style="font-size:1.3rem; font-weight:700; color:var(--ac-text);">' + uniqueUsers.size + '</div><div style="font-size:0.68rem; color:var(--ac-text-muted);">Unique Users</div></div>';
+                html += '</div>';
+
+                html += '<div style="display:flex; flex-direction:column; gap:6px;">';
+                sorted.forEach(([sensor, count]) => {
+                    const color = sensorColors[sensor] || '#6b7280';
+                    const pct = Math.round((count / maxCount) * 100);
+                    html += `<div style="display:flex; align-items:center; gap:10px;">
+                        <span style="min-width:80px; font-size:0.78rem; font-weight:600; color:${color};">${escHtml(sensor)}</span>
+                        <div style="flex:1; height:20px; background:rgba(255,255,255,0.04); border-radius:4px; overflow:hidden;">
+                            <div style="height:100%; width:${pct}%; background:${color}33; border-left:3px solid ${color}; transition:width 0.3s;"></div>
+                        </div>
+                        <span style="min-width:36px; text-align:right; font-size:0.78rem; font-weight:600; color:var(--ac-text);">${count}</span>
+                    </div>`;
+                });
+                html += '</div>';
+
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="ac-empty" style="color:var(--ac-danger)">Failed: ' + escHtml(e.message) + '</div>';
+            }
+        }
 
         window.loadTripWireEvents = async function() {
             if (!db) return;

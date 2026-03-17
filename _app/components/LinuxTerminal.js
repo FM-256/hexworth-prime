@@ -1364,11 +1364,10 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             case 'nano': {
                 const nanoFile = args.find(a => !a.startsWith('-')) || '';
                 if (!nanoFile) return 'Usage: nano [filename]';
-                // Check if file exists, show content
                 const nanoPath = _resolvePath(nanoFile);
-                const nanoNode = _getNode(nanoPath);
-                if (nanoNode && typeof nanoNode === 'string') {
-                    return `<span class="lt-highlight">nano: opening ${nanoFile} (read-only in this terminal)</span>\n<span class="lt-output">${_escape(nanoNode)}</span>\n<span class="lt-highlight">[ Use cat/echo to view/create files in this terminal ]</span>`;
+                const nanoNode = state.fs[nanoPath];
+                if (nanoNode && nanoNode.type === 'file' && nanoNode.content) {
+                    return `<span class="lt-highlight">nano: opening ${nanoFile} (read-only in this terminal)</span>\n<span class="lt-output">${_escape(nanoNode.content)}</span>\n<span class="lt-highlight">[ Use cat/echo to view/create files in this terminal ]</span>`;
                 }
                 return `<span class="lt-highlight">nano: would create new file ${nanoFile}\n[ Use touch/echo to create files in this terminal ]</span>`;
             }
@@ -1378,9 +1377,9 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
                 const viFile = args.find(a => !a.startsWith('-') && a !== '--') || '';
                 if (!viFile) return `<span class="lt-highlight">vim: opening empty buffer (read-only in this terminal)\n[ Press i for insert, :wq to save, :q! to quit ]\n[ Use cat/echo to view/create files in this terminal ]</span>`;
                 const viPath = _resolvePath(viFile);
-                const viNode = _getNode(viPath);
-                if (viNode && typeof viNode === 'string') {
-                    return `<span class="lt-highlight">vim: opening ${viFile} (read-only in this terminal)</span>\n<span class="lt-output">${_escape(viNode)}</span>\n<span class="lt-highlight">[ Use cat/echo to view/create files in this terminal ]</span>`;
+                const viNode = state.fs[viPath];
+                if (viNode && viNode.type === 'file' && viNode.content) {
+                    return `<span class="lt-highlight">vim: opening ${viFile} (read-only in this terminal)</span>\n<span class="lt-output">${_escape(viNode.content)}</span>\n<span class="lt-highlight">[ Use cat/echo to view/create files in this terminal ]</span>`;
                 }
                 return `<span class="lt-highlight">vim: would create new file ${viFile}\n[ Use touch/echo to create files in this terminal ]</span>`;
             }

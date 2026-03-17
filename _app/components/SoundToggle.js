@@ -76,6 +76,15 @@ class SoundToggle {
 
         // Add to document
         document.body.appendChild(this.element);
+
+        // Keep pinned to viewport (position:fixed is broken when body has filter)
+        if (this.options.position === 'bottom-right') {
+            const el = this.element;
+            function pinSound() { el.style.top = (window.scrollY + window.innerHeight - 136) + 'px'; el.style.bottom = 'auto'; }
+            pinSound();
+            window.addEventListener('scroll', pinSound, { passive: true });
+            window.addEventListener('resize', pinSound, { passive: true });
+        }
     }
 
     /**

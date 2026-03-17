@@ -928,20 +928,10 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         mergedModules, mergedLabs, mergedQuizzes, mergedAchievements, mergedStreak
     );
 
-    // Detect cheating: if client sent > 5 garbage module IDs, flag the account.
-    // The integrity field is server-only — NOT in firestore.rules client whitelist,
-    // so the cheater cannot delete or modify it from the browser.
+    // DISABLED: Roxy deactivated pending investigation into false positives.
+    // Server-side integrity flagging paused — will log but not lock.
     if (garbageModules > 5) {
-        const existingIntegrity = cloudData.integrity || {};
-        await userRef.set({
-            integrity: {
-                status: 'violated',
-                detectedAt: existingIntegrity.detectedAt || FieldValue.serverTimestamp(),
-                garbageCount: garbageModules,
-                peakGarbage: Math.max(garbageModules, existingIntegrity.peakGarbage || 0),
-                lastDetected: FieldValue.serverTimestamp()
-            }
-        }, { merge: true });
+        console.warn(`[syncProgress] ${uid} has ${garbageModules} garbage modules — NOT flagging (Roxy disabled).`);
     }
 
     await userRef.set({

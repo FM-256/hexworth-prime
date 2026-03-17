@@ -556,13 +556,14 @@
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
-                if (cmd === 'nano') completeTask('nano');
+                var ok = !output || !output.includes('lt-error');
+                if (cmd === 'nano' && args.length > 0 && ok) completeTask('nano');
                 if (cmd === 'vim' || cmd === 'vi') completeTask('vim-modes');
-                if (cmdLine.includes(':w') || cmdLine.includes('Ctrl+O')) completeTask('vim-save');
-                if (cmdLine.includes(':q') || cmdLine.includes(':wq') || cmdLine.includes('Ctrl+X')) completeTask('vim-quit');
+                if ((cmdLine.includes(':w') || cmdLine.includes('Ctrl+O')) && ok) completeTask('vim-save');
+                if ((cmdLine.includes(':q') || cmdLine.includes(':wq') || cmdLine.includes('Ctrl+X')) && ok) completeTask('vim-quit');
                 if (cmd === 'cat' || cmd === 'echo') {
-                    if (cmdLine.includes('nano')) completeTask('nano');
-                    if (cmdLine.includes('vim') || cmdLine.includes(':wq')) completeTask('vim-quit');
+                    if ((cmdLine.includes('nano')) && ok) completeTask('nano');
+                    if ((cmdLine.includes('vim') || cmdLine.includes(':wq')) && ok) completeTask('vim-quit');
                 }
             }
         });
@@ -660,6 +661,10 @@
                 lastAccess: Date.now(),
                 ...(allDone && { completedAt: new Date().toISOString() })
             };
+            if (allDone) {
+                const longKey = 'script-' + MODULE_ID;
+                progress.script[longKey] = { ...progress.script[longKey], completed: true, completedAt: new Date().toISOString() };
+            }
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
@@ -672,13 +677,22 @@
 
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const saved = progress.script?.[MODULE_ID];
+            const saved = progress.script?.[MODULE_ID] || progress.script?.['script-' + MODULE_ID];
             if (saved) {
                 const taskList = saved.completedTasks || (Array.isArray(saved.completed) ? saved.completed : (saved.completed === true ? Object.keys(tasks) : []));
                 taskList.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
-            const next = getNextIncompleteTask();
+            
+            // Repair: if all tasks done but long key missing, trigger silent completion
+            if (Object.values(tasks).every(v => v) && Object.keys(tasks).length > 0) {
+                const longKey = 'script-' + MODULE_ID;
+                const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!p.script?.[longKey]?.completed) {
+                    ModuleProgress.complete('script', longKey, { silent: true, returnToDashboard: false });
+                }
+            }
+const next = getNextIncompleteTask();
             if (next) showTaskInstruction(next);
         })();
     </script>

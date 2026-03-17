@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-03-14 11:53:14 AM
+                    Scanned: 2026-03-16 11:06:23 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,20 +10,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 2378 |
-| Directories | 602 |
-| Content Files | 2378 |
-| Scan Duration | 286ms |
+| Files Scanned | 3141 |
+| Directories | 682 |
+| Content Files | 3141 |
+| Scan Duration | 654ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 986 |
-| html | 671 |
+| presentation | 1658 |
+| html | 752 |
 | lab | 398 |
 | quiz | 241 |
-| applet | 82 |
+| applet | 92 |
 
 ### ContentCatalog Validation
 
@@ -32,7 +32,7 @@
 | Total Modules | 1833 |
 | Available | 1821 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 0 |
+| Undeclared Files (CAT-002) | 160 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -40,19 +40,19 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 0 |
-| Suspect | 13 |
-| Warning | 590 |
-| Info | 339 |
-| **Total** | **4086** |
+| Critical | 25 |
+| Suspect | 19 |
+| Warning | 1266 |
+| Info | 349 |
+| **Total** | **9316** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1702 |
-| Not Ready | 5 |
-| Unknown | 671 |
+| Ready | 2382 |
+| Not Ready | 7 |
+| Unknown | 752 |
 
 
 ## FILE HIERARCHY
@@ -63,6 +63,7 @@
 ├── 📄 about.html
 ├── 📁 admin
 │   ├── 📄 audit-tool.html
+│   ├── 📄 console.html
 │   └── 📁 scripts
 ├── 📁 announcements
 │   └── 📍 index.html
@@ -149,11 +150,39 @@
 │   │       └── 📍 index.html
 │   ├── 📁 engine
 │   └── 📍 index.html
+├── 📁 bot-avatars
+├── 📄 bot-knowledge.html
+├── 📁 bot-widgets
 ├── 📁 career
 │   └── 📍 index.html
 ├── ❓ career-quiz.html
 ├── 📁 components
-│   └── 📁 styles [styles]
+│   ├── 📁 analytics
+│   │   ├── 📄 attendance-heatmap.html
+│   │   ├── 📄 engagement-charts.html
+│   │   └── 📄 pulse-survey.html
+│   ├── 📁 hive
+│   │   ├── 📄 hive-competitive.html
+│   │   ├── 📄 hive-coop.html
+│   │   ├── 📄 hive-lobby.html
+│   │   └── 📄 hive-redqueen.html
+│   ├── 📁 lockscreen
+│   │   └── 📄 test.html
+│   ├── 📁 mascot
+│   │   ├── 📄 mascot-terrarium.html
+│   │   └── 📄 mascot-widget.html
+│   ├── 📁 messaging
+│   │   ├── 📄 inbox.html
+│   │   └── 📄 moderation.html
+│   ├── 📁 multiplayer
+│   │   ├── 📄 lobby.html
+│   │   └── 📄 split-screen.html
+│   ├── 📁 profile
+│   │   ├── 📄 privacy-settings.html
+│   │   └── 📄 profile.html
+│   ├── 📁 styles [styles]
+│   ├── 📄 tourist-sort-redirect.html
+│   └── 📄 tourist-visa-prompt.html
 ├── 📁 config
 ├── 📁 css
 ├── 📁 dark-arts
@@ -446,6 +475,176 @@
 │   └── 📁 puzzles
 ├── 📁 houses
 │   ├── 🏠 ai [house:ai]
+│   │   ├── 📁 cortex
+│   │   │   ├── 📁 adversarial
+│   │   │   │   ├── 📄 cx-adv-01.html
+│   │   │   │   ├── 📄 cx-adv-02.html
+│   │   │   │   ├── 📄 cx-adv-03.html
+│   │   │   │   ├── 📄 cx-adv-04.html
+│   │   │   │   ├── 📄 cx-adv-05.html
+│   │   │   │   ├── 📄 cx-adv-06.html
+│   │   │   │   ├── 📄 cx-adv-07.html
+│   │   │   │   ├── 📄 cx-adv-08.html
+│   │   │   │   ├── 📄 cx-adv-09.html
+│   │   │   │   ├── 📄 cx-adv-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 capstone
+│   │   │   │   ├── 📄 cx-cap-01.html
+│   │   │   │   ├── 📄 cx-cap-02.html
+│   │   │   │   ├── 📄 cx-cap-03.html
+│   │   │   │   ├── 📄 cx-cap-04.html
+│   │   │   │   ├── 📄 cx-cap-05.html
+│   │   │   │   ├── 📄 cx-cap-06.html
+│   │   │   │   ├── 📄 cx-cap-07.html
+│   │   │   │   ├── 📄 cx-cap-08.html
+│   │   │   │   ├── 📄 cx-cap-09.html
+│   │   │   │   ├── 📄 cx-cap-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 cnn
+│   │   │   │   ├── 📄 cx-cnn-01.html
+│   │   │   │   ├── 📄 cx-cnn-02.html
+│   │   │   │   ├── 📄 cx-cnn-03.html
+│   │   │   │   ├── 📄 cx-cnn-04.html
+│   │   │   │   ├── 📄 cx-cnn-05.html
+│   │   │   │   ├── 📄 cx-cnn-06.html
+│   │   │   │   ├── 📄 cx-cnn-07.html
+│   │   │   │   ├── 📄 cx-cnn-08.html
+│   │   │   │   ├── 📄 cx-cnn-09.html
+│   │   │   │   ├── 📄 cx-cnn-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 cyber-ml
+│   │   │   │   ├── 📄 cx-sec-01.html
+│   │   │   │   ├── 📄 cx-sec-02.html
+│   │   │   │   ├── 📄 cx-sec-03.html
+│   │   │   │   ├── 📄 cx-sec-04.html
+│   │   │   │   ├── 📄 cx-sec-05.html
+│   │   │   │   ├── 📄 cx-sec-06.html
+│   │   │   │   ├── 📄 cx-sec-07.html
+│   │   │   │   ├── 📄 cx-sec-08.html
+│   │   │   │   ├── 📄 cx-sec-09.html
+│   │   │   │   ├── 📄 cx-sec-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 deep-learning
+│   │   │   │   ├── 📄 cx-dl-01.html
+│   │   │   │   ├── 📄 cx-dl-02.html
+│   │   │   │   ├── 📄 cx-dl-03.html
+│   │   │   │   ├── 📄 cx-dl-04.html
+│   │   │   │   ├── 📄 cx-dl-05.html
+│   │   │   │   ├── 📄 cx-dl-06.html
+│   │   │   │   ├── 📄 cx-dl-07.html
+│   │   │   │   ├── 📄 cx-dl-08.html
+│   │   │   │   ├── 📄 cx-dl-09.html
+│   │   │   │   ├── 📄 cx-dl-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 foundations
+│   │   │   │   ├── 📄 cx-ai-01.html
+│   │   │   │   ├── 📄 cx-ai-02.html
+│   │   │   │   ├── 📄 cx-ai-03.html
+│   │   │   │   ├── 📄 cx-ai-04.html
+│   │   │   │   ├── 📄 cx-ai-05.html
+│   │   │   │   ├── 📄 cx-ai-06.html
+│   │   │   │   ├── 📄 cx-ai-07.html
+│   │   │   │   ├── 📄 cx-ai-08.html
+│   │   │   │   ├── 📄 cx-ai-09.html
+│   │   │   │   ├── 📄 cx-ai-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 generative
+│   │   │   │   ├── 📄 cx-gen-01.html
+│   │   │   │   ├── 📄 cx-gen-02.html
+│   │   │   │   ├── 📄 cx-gen-03.html
+│   │   │   │   ├── 📄 cx-gen-04.html
+│   │   │   │   ├── 📄 cx-gen-05.html
+│   │   │   │   ├── 📄 cx-gen-06.html
+│   │   │   │   ├── 📄 cx-gen-07.html
+│   │   │   │   ├── 📄 cx-gen-08.html
+│   │   │   │   ├── 📄 cx-gen-09.html
+│   │   │   │   ├── 📄 cx-gen-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 math
+│   │   │   │   ├── 📄 cx-math-01.html
+│   │   │   │   ├── 📄 cx-math-02.html
+│   │   │   │   ├── 📄 cx-math-03.html
+│   │   │   │   ├── 📄 cx-math-04.html
+│   │   │   │   ├── 📄 cx-math-05.html
+│   │   │   │   ├── 📄 cx-math-06.html
+│   │   │   │   ├── 📄 cx-math-07.html
+│   │   │   │   ├── 📄 cx-math-08.html
+│   │   │   │   ├── 📄 cx-math-09.html
+│   │   │   │   ├── 📄 cx-math-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 mlops
+│   │   │   │   ├── 📄 cx-ops-01.html
+│   │   │   │   ├── 📄 cx-ops-02.html
+│   │   │   │   ├── 📄 cx-ops-03.html
+│   │   │   │   ├── 📄 cx-ops-04.html
+│   │   │   │   ├── 📄 cx-ops-05.html
+│   │   │   │   ├── 📄 cx-ops-06.html
+│   │   │   │   ├── 📄 cx-ops-07.html
+│   │   │   │   ├── 📄 cx-ops-08.html
+│   │   │   │   ├── 📄 cx-ops-09.html
+│   │   │   │   ├── 📄 cx-ops-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 nlp
+│   │   │   │   ├── 📄 cx-nlp-01.html
+│   │   │   │   ├── 📄 cx-nlp-02.html
+│   │   │   │   ├── 📄 cx-nlp-03.html
+│   │   │   │   ├── 📄 cx-nlp-04.html
+│   │   │   │   ├── 📄 cx-nlp-05.html
+│   │   │   │   ├── 📄 cx-nlp-06.html
+│   │   │   │   ├── 📄 cx-nlp-07.html
+│   │   │   │   ├── 📄 cx-nlp-08.html
+│   │   │   │   ├── 📄 cx-nlp-09.html
+│   │   │   │   ├── 📄 cx-nlp-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 rl
+│   │   │   │   ├── 📄 cx-rl-01.html
+│   │   │   │   ├── 📄 cx-rl-02.html
+│   │   │   │   ├── 📄 cx-rl-03.html
+│   │   │   │   ├── 📄 cx-rl-04.html
+│   │   │   │   ├── 📄 cx-rl-05.html
+│   │   │   │   ├── 📄 cx-rl-06.html
+│   │   │   │   ├── 📄 cx-rl-07.html
+│   │   │   │   ├── 📄 cx-rl-08.html
+│   │   │   │   ├── 📄 cx-rl-09.html
+│   │   │   │   ├── 📄 cx-rl-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 supervised
+│   │   │   │   ├── 📄 cx-sup-01.html
+│   │   │   │   ├── 📄 cx-sup-02.html
+│   │   │   │   ├── 📄 cx-sup-03.html
+│   │   │   │   ├── 📄 cx-sup-04.html
+│   │   │   │   ├── 📄 cx-sup-05.html
+│   │   │   │   ├── 📄 cx-sup-06.html
+│   │   │   │   ├── 📄 cx-sup-07.html
+│   │   │   │   ├── 📄 cx-sup-08.html
+│   │   │   │   ├── 📄 cx-sup-09.html
+│   │   │   │   ├── 📄 cx-sup-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 transformers
+│   │   │   │   ├── 📄 cx-rnn-01.html
+│   │   │   │   ├── 📄 cx-rnn-02.html
+│   │   │   │   ├── 📄 cx-rnn-03.html
+│   │   │   │   ├── 📄 cx-rnn-04.html
+│   │   │   │   ├── 📄 cx-rnn-05.html
+│   │   │   │   ├── 📄 cx-rnn-06.html
+│   │   │   │   ├── 📄 cx-rnn-07.html
+│   │   │   │   ├── 📄 cx-rnn-08.html
+│   │   │   │   ├── 📄 cx-rnn-09.html
+│   │   │   │   ├── 📄 cx-rnn-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   └── 📁 unsupervised
+│   │   │       ├── 📄 cx-uns-01.html
+│   │   │       ├── 📄 cx-uns-02.html
+│   │   │       ├── 📄 cx-uns-03.html
+│   │   │       ├── 📄 cx-uns-04.html
+│   │   │       ├── 📄 cx-uns-05.html
+│   │   │       ├── 📄 cx-uns-06.html
+│   │   │       ├── 📄 cx-uns-07.html
+│   │   │       ├── 📄 cx-uns-08.html
+│   │   │       ├── 📄 cx-uns-09.html
+│   │   │       ├── 📄 cx-uns-10.html
+│   │   │       └── 📍 index.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 ai-agent-builder.applet.html
 │   │   │   ├── 📄 ai-guardrail-challenge.applet.html
@@ -505,12 +704,108 @@
 │   │   └── 📍 index.html
 │   ├── 🏠 cloud [house:cloud]
 │   │   ├── 📁 api
+│   │   │   ├── 📁 auth
+│   │   │   │   ├── 📄 capi-auth-01.html
+│   │   │   │   ├── 📄 capi-auth-02.html
+│   │   │   │   ├── 📄 capi-auth-03.html
+│   │   │   │   ├── 📄 capi-auth-04.html
+│   │   │   │   ├── 📄 capi-auth-05.html
+│   │   │   │   ├── 📄 capi-auth-06.html
+│   │   │   │   ├── 📄 capi-auth-07.html
+│   │   │   │   ├── 📄 capi-auth-08.html
+│   │   │   │   ├── 📄 capi-auth-09.html
+│   │   │   │   ├── 📄 capi-auth-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 capstone
+│   │   │   │   ├── 📄 capi-cap-01.html
+│   │   │   │   ├── 📄 capi-cap-02.html
+│   │   │   │   ├── 📄 capi-cap-03.html
+│   │   │   │   ├── 📄 capi-cap-04.html
+│   │   │   │   ├── 📄 capi-cap-05.html
+│   │   │   │   ├── 📄 capi-cap-06.html
+│   │   │   │   ├── 📄 capi-cap-07.html
+│   │   │   │   ├── 📄 capi-cap-08.html
+│   │   │   │   ├── 📄 capi-cap-09.html
+│   │   │   │   ├── 📄 capi-cap-10.html
+│   │   │   │   └── 📍 index.html
 │   │   │   ├── 📊 cloud-api-002.presentation.html
 │   │   │   ├── 📊 cloud-api-003.presentation.html
 │   │   │   ├── 📊 cloud-api-004.presentation.html
 │   │   │   ├── 📊 cloud-api-005.presentation.html
 │   │   │   ├── 🔬 cloud-api-006.lab.html
-│   │   │   └── 📊 cloud-api-007.presentation.html
+│   │   │   ├── 📊 cloud-api-007.presentation.html
+│   │   │   ├── 📁 cloud-patterns
+│   │   │   │   ├── 📄 capi-cloud-01.html
+│   │   │   │   ├── 📄 capi-cloud-02.html
+│   │   │   │   ├── 📄 capi-cloud-03.html
+│   │   │   │   ├── 📄 capi-cloud-04.html
+│   │   │   │   ├── 📄 capi-cloud-05.html
+│   │   │   │   ├── 📄 capi-cloud-06.html
+│   │   │   │   ├── 📄 capi-cloud-07.html
+│   │   │   │   ├── 📄 capi-cloud-08.html
+│   │   │   │   ├── 📄 capi-cloud-09.html
+│   │   │   │   ├── 📄 capi-cloud-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 design
+│   │   │   │   ├── 📄 capi-des-01.html
+│   │   │   │   ├── 📄 capi-des-02.html
+│   │   │   │   ├── 📄 capi-des-03.html
+│   │   │   │   ├── 📄 capi-des-04.html
+│   │   │   │   ├── 📄 capi-des-05.html
+│   │   │   │   ├── 📄 capi-des-06.html
+│   │   │   │   ├── 📄 capi-des-07.html
+│   │   │   │   ├── 📄 capi-des-08.html
+│   │   │   │   ├── 📄 capi-des-09.html
+│   │   │   │   ├── 📄 capi-des-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 event-driven
+│   │   │   │   ├── 📄 capi-evt-01.html
+│   │   │   │   ├── 📄 capi-evt-02.html
+│   │   │   │   ├── 📄 capi-evt-03.html
+│   │   │   │   ├── 📄 capi-evt-04.html
+│   │   │   │   ├── 📄 capi-evt-05.html
+│   │   │   │   ├── 📄 capi-evt-06.html
+│   │   │   │   ├── 📄 capi-evt-07.html
+│   │   │   │   ├── 📄 capi-evt-08.html
+│   │   │   │   ├── 📄 capi-evt-09.html
+│   │   │   │   ├── 📄 capi-evt-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 owasp
+│   │   │   │   ├── 📄 capi-owasp-01.html
+│   │   │   │   ├── 📄 capi-owasp-02.html
+│   │   │   │   ├── 📄 capi-owasp-03.html
+│   │   │   │   ├── 📄 capi-owasp-04.html
+│   │   │   │   ├── 📄 capi-owasp-05.html
+│   │   │   │   ├── 📄 capi-owasp-06.html
+│   │   │   │   ├── 📄 capi-owasp-07.html
+│   │   │   │   ├── 📄 capi-owasp-08.html
+│   │   │   │   ├── 📄 capi-owasp-09.html
+│   │   │   │   ├── 📄 capi-owasp-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 pentest
+│   │   │   │   ├── 📄 capi-pen-01.html
+│   │   │   │   ├── 📄 capi-pen-02.html
+│   │   │   │   ├── 📄 capi-pen-03.html
+│   │   │   │   ├── 📄 capi-pen-04.html
+│   │   │   │   ├── 📄 capi-pen-05.html
+│   │   │   │   ├── 📄 capi-pen-06.html
+│   │   │   │   ├── 📄 capi-pen-07.html
+│   │   │   │   ├── 📄 capi-pen-08.html
+│   │   │   │   ├── 📄 capi-pen-09.html
+│   │   │   │   ├── 📄 capi-pen-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   └── 📁 rate-limiting
+│   │   │       ├── 📄 capi-rl-01.html
+│   │   │       ├── 📄 capi-rl-02.html
+│   │   │       ├── 📄 capi-rl-03.html
+│   │   │       ├── 📄 capi-rl-04.html
+│   │   │       ├── 📄 capi-rl-05.html
+│   │   │       ├── 📄 capi-rl-06.html
+│   │   │       ├── 📄 capi-rl-07.html
+│   │   │       ├── 📄 capi-rl-08.html
+│   │   │       ├── 📄 capi-rl-09.html
+│   │   │       ├── 📄 capi-rl-10.html
+│   │   │       └── 📍 index.html
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 architecture [applets]
 │   │   │   │   └── 📄 cloud-architecture-designer.applet.html
@@ -767,6 +1062,140 @@
 │   │       ├── 📄 cloud-ch12-use-cases.tool.html
 │   │       └── 📄 cloud-cloud.tool.html
 │   ├── 🏠 code [house:code]
+│   │   ├── 📁 algorithm-chamber
+│   │   │   ├── 📁 capstone
+│   │   │   │   ├── 📄 ac-cap-01.html
+│   │   │   │   ├── 📄 ac-cap-02.html
+│   │   │   │   ├── 📄 ac-cap-03.html
+│   │   │   │   ├── 📄 ac-cap-04.html
+│   │   │   │   ├── 📄 ac-cap-05.html
+│   │   │   │   ├── 📄 ac-cap-06.html
+│   │   │   │   ├── 📄 ac-cap-07.html
+│   │   │   │   ├── 📄 ac-cap-08.html
+│   │   │   │   ├── 📄 ac-cap-09.html
+│   │   │   │   ├── 📄 ac-cap-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 challenges
+│   │   │   │   ├── 📄 ac-ch-01.html
+│   │   │   │   ├── 📄 ac-ch-02.html
+│   │   │   │   ├── 📄 ac-ch-03.html
+│   │   │   │   ├── 📄 ac-ch-04.html
+│   │   │   │   ├── 📄 ac-ch-05.html
+│   │   │   │   ├── 📄 ac-ch-06.html
+│   │   │   │   ├── 📄 ac-ch-07.html
+│   │   │   │   ├── 📄 ac-ch-08.html
+│   │   │   │   ├── 📄 ac-ch-09.html
+│   │   │   │   ├── 📄 ac-ch-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 complexity
+│   │   │   │   ├── 📄 ac-bigo-01.html
+│   │   │   │   ├── 📄 ac-bigo-02.html
+│   │   │   │   ├── 📄 ac-bigo-03.html
+│   │   │   │   ├── 📄 ac-bigo-04.html
+│   │   │   │   ├── 📄 ac-bigo-05.html
+│   │   │   │   ├── 📄 ac-bigo-06.html
+│   │   │   │   ├── 📄 ac-bigo-07.html
+│   │   │   │   ├── 📄 ac-bigo-08.html
+│   │   │   │   ├── 📄 ac-bigo-09.html
+│   │   │   │   ├── 📄 ac-bigo-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 data-structures
+│   │   │   │   ├── 📄 ac-ds-01.html
+│   │   │   │   ├── 📄 ac-ds-02.html
+│   │   │   │   ├── 📄 ac-ds-03.html
+│   │   │   │   ├── 📄 ac-ds-04.html
+│   │   │   │   ├── 📄 ac-ds-05.html
+│   │   │   │   ├── 📄 ac-ds-06.html
+│   │   │   │   ├── 📄 ac-ds-07.html
+│   │   │   │   ├── 📄 ac-ds-08.html
+│   │   │   │   ├── 📄 ac-ds-09.html
+│   │   │   │   ├── 📄 ac-ds-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 discrete-math
+│   │   │   │   ├── 📄 ac-dm-01.html
+│   │   │   │   ├── 📄 ac-dm-02.html
+│   │   │   │   ├── 📄 ac-dm-03.html
+│   │   │   │   ├── 📄 ac-dm-04.html
+│   │   │   │   ├── 📄 ac-dm-05.html
+│   │   │   │   ├── 📄 ac-dm-06.html
+│   │   │   │   ├── 📄 ac-dm-07.html
+│   │   │   │   ├── 📄 ac-dm-08.html
+│   │   │   │   ├── 📄 ac-dm-09.html
+│   │   │   │   ├── 📄 ac-dm-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 dp
+│   │   │   │   ├── 📄 ac-dp-01.html
+│   │   │   │   ├── 📄 ac-dp-02.html
+│   │   │   │   ├── 📄 ac-dp-03.html
+│   │   │   │   ├── 📄 ac-dp-04.html
+│   │   │   │   ├── 📄 ac-dp-05.html
+│   │   │   │   ├── 📄 ac-dp-06.html
+│   │   │   │   ├── 📄 ac-dp-07.html
+│   │   │   │   ├── 📄 ac-dp-08.html
+│   │   │   │   ├── 📄 ac-dp-09.html
+│   │   │   │   ├── 📄 ac-dp-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 geometry
+│   │   │   │   ├── 📄 ac-geo-01.html
+│   │   │   │   ├── 📄 ac-geo-02.html
+│   │   │   │   ├── 📄 ac-geo-03.html
+│   │   │   │   ├── 📄 ac-geo-04.html
+│   │   │   │   ├── 📄 ac-geo-05.html
+│   │   │   │   ├── 📄 ac-geo-06.html
+│   │   │   │   ├── 📄 ac-geo-07.html
+│   │   │   │   ├── 📄 ac-geo-08.html
+│   │   │   │   ├── 📄 ac-geo-09.html
+│   │   │   │   ├── 📄 ac-geo-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 graphs
+│   │   │   │   ├── 📄 ac-gr-01.html
+│   │   │   │   ├── 📄 ac-gr-02.html
+│   │   │   │   ├── 📄 ac-gr-03.html
+│   │   │   │   ├── 📄 ac-gr-04.html
+│   │   │   │   ├── 📄 ac-gr-05.html
+│   │   │   │   ├── 📄 ac-gr-06.html
+│   │   │   │   ├── 📄 ac-gr-07.html
+│   │   │   │   ├── 📄 ac-gr-08.html
+│   │   │   │   ├── 📄 ac-gr-09.html
+│   │   │   │   ├── 📄 ac-gr-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 greedy
+│   │   │   │   ├── 📄 ac-grd-01.html
+│   │   │   │   ├── 📄 ac-grd-02.html
+│   │   │   │   ├── 📄 ac-grd-03.html
+│   │   │   │   ├── 📄 ac-grd-04.html
+│   │   │   │   ├── 📄 ac-grd-05.html
+│   │   │   │   ├── 📄 ac-grd-06.html
+│   │   │   │   ├── 📄 ac-grd-07.html
+│   │   │   │   ├── 📄 ac-grd-08.html
+│   │   │   │   ├── 📄 ac-grd-09.html
+│   │   │   │   ├── 📄 ac-grd-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 sorting
+│   │   │   │   ├── 📄 ac-sort-01.html
+│   │   │   │   ├── 📄 ac-sort-02.html
+│   │   │   │   ├── 📄 ac-sort-03.html
+│   │   │   │   ├── 📄 ac-sort-04.html
+│   │   │   │   ├── 📄 ac-sort-05.html
+│   │   │   │   ├── 📄 ac-sort-06.html
+│   │   │   │   ├── 📄 ac-sort-07.html
+│   │   │   │   ├── 📄 ac-sort-08.html
+│   │   │   │   ├── 📄 ac-sort-09.html
+│   │   │   │   ├── 📄 ac-sort-10.html
+│   │   │   │   └── 📍 index.html
+│   │   │   └── 📁 strings
+│   │   │       ├── 📄 ac-str-01.html
+│   │   │       ├── 📄 ac-str-02.html
+│   │   │       ├── 📄 ac-str-03.html
+│   │   │       ├── 📄 ac-str-04.html
+│   │   │       ├── 📄 ac-str-05.html
+│   │   │       ├── 📄 ac-str-06.html
+│   │   │       ├── 📄 ac-str-07.html
+│   │   │       ├── 📄 ac-str-08.html
+│   │   │       ├── 📄 ac-str-09.html
+│   │   │       ├── 📄 ac-str-10.html
+│   │   │       └── 📍 index.html
 │   │   ├── 📁 algorithms
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 applets [applets]
@@ -777,7 +1206,217 @@
 │   │   │   ├── 📄 code-pipeline-builder.applet.html
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 armory
-│   │   │   └── 📍 index.html
+│   │   │   ├── 📁 assembly
+│   │   │   │   ├── 📄 arm-asm-01-intro.module.html
+│   │   │   │   ├── 📄 arm-asm-02-registers.module.html
+│   │   │   │   ├── 📄 arm-asm-03-arithmetic.module.html
+│   │   │   │   ├── 📄 arm-asm-04-control-flow.module.html
+│   │   │   │   ├── 📄 arm-asm-05-stack-functions.module.html
+│   │   │   │   ├── 📄 arm-asm-06-memory.module.html
+│   │   │   │   ├── 📄 arm-asm-07-syscalls.module.html
+│   │   │   │   ├── 📄 arm-asm-08-debugging.module.html
+│   │   │   │   ├── 📄 arm-asm-09-reverse-engineering.module.html
+│   │   │   │   ├── 📄 arm-asm-10-exploits.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 bash
+│   │   │   │   ├── 📄 arm-bash-01-intro.module.html
+│   │   │   │   ├── 📄 arm-bash-02-variables.module.html
+│   │   │   │   ├── 📄 arm-bash-03-input-output.module.html
+│   │   │   │   ├── 📄 arm-bash-04-conditionals.module.html
+│   │   │   │   ├── 📄 arm-bash-05-loops.module.html
+│   │   │   │   ├── 📄 arm-bash-06-functions.module.html
+│   │   │   │   ├── 📄 arm-bash-07-text-processing.module.html
+│   │   │   │   ├── 📄 arm-bash-08-system-admin.module.html
+│   │   │   │   ├── 📄 arm-bash-09-security-scripts.module.html
+│   │   │   │   ├── 📄 arm-bash-10-advanced.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 c
+│   │   │   │   ├── 📄 arm-c-01-intro.module.html
+│   │   │   │   ├── 📄 arm-c-02-variables-types.module.html
+│   │   │   │   ├── 📄 arm-c-03-operators-control.module.html
+│   │   │   │   ├── 📄 arm-c-04-functions.module.html
+│   │   │   │   ├── 📄 arm-c-05-arrays-strings.module.html
+│   │   │   │   ├── 📄 arm-c-06-pointers.module.html
+│   │   │   │   ├── 📄 arm-c-07-memory.module.html
+│   │   │   │   ├── 📄 arm-c-08-structs-unions.module.html
+│   │   │   │   ├── 📄 arm-c-09-file-io.module.html
+│   │   │   │   ├── 📄 arm-c-10-preprocessor.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 challenges
+│   │   │   │   ├── 📄 challenge-runner.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📄 compare.html
+│   │   │   ├── 📁 cpp
+│   │   │   │   ├── 📄 arm-cpp-01-intro.module.html
+│   │   │   │   ├── 📄 arm-cpp-02-variables.module.html
+│   │   │   │   ├── 📄 arm-cpp-03-control-flow.module.html
+│   │   │   │   ├── 📄 arm-cpp-04-oop.module.html
+│   │   │   │   ├── 📄 arm-cpp-05-inheritance.module.html
+│   │   │   │   ├── 📄 arm-cpp-06-templates-stl.module.html
+│   │   │   │   ├── 📄 arm-cpp-07-memory.module.html
+│   │   │   │   ├── 📄 arm-cpp-08-modern-cpp.module.html
+│   │   │   │   ├── 📄 arm-cpp-09-security.module.html
+│   │   │   │   ├── 📄 arm-cpp-10-advanced.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 csharp
+│   │   │   │   ├── 📄 arm-cs-01-intro.module.html
+│   │   │   │   ├── 📄 arm-cs-02-variables.module.html
+│   │   │   │   ├── 📄 arm-cs-03-control-flow.module.html
+│   │   │   │   ├── 📄 arm-cs-04-oop.module.html
+│   │   │   │   ├── 📄 arm-cs-05-inheritance.module.html
+│   │   │   │   ├── 📄 arm-cs-06-collections.module.html
+│   │   │   │   ├── 📄 arm-cs-07-exceptions.module.html
+│   │   │   │   ├── 📄 arm-cs-08-async.module.html
+│   │   │   │   ├── 📄 arm-cs-09-aspnet.module.html
+│   │   │   │   ├── 📄 arm-cs-10-security.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 go
+│   │   │   │   ├── 📄 arm-go-01-intro.module.html
+│   │   │   │   ├── 📄 arm-go-02-variables.module.html
+│   │   │   │   ├── 📄 arm-go-03-control-flow.module.html
+│   │   │   │   ├── 📄 arm-go-04-data-structures.module.html
+│   │   │   │   ├── 📄 arm-go-05-interfaces.module.html
+│   │   │   │   ├── 📄 arm-go-06-concurrency.module.html
+│   │   │   │   ├── 📄 arm-go-07-errors-testing.module.html
+│   │   │   │   ├── 📄 arm-go-08-stdlib.module.html
+│   │   │   │   ├── 📄 arm-go-09-cli-cloud.module.html
+│   │   │   │   ├── 📄 arm-go-10-security.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 java
+│   │   │   │   ├── 📄 arm-java-01-intro.module.html
+│   │   │   │   ├── 📄 arm-java-02-variables.module.html
+│   │   │   │   ├── 📄 arm-java-03-control-flow.module.html
+│   │   │   │   ├── 📄 arm-java-04-oop.module.html
+│   │   │   │   ├── 📄 arm-java-05-inheritance.module.html
+│   │   │   │   ├── 📄 arm-java-06-collections.module.html
+│   │   │   │   ├── 📄 arm-java-07-exceptions.module.html
+│   │   │   │   ├── 📄 arm-java-08-threads.module.html
+│   │   │   │   ├── 📄 arm-java-09-spring.module.html
+│   │   │   │   ├── 📄 arm-java-10-security.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 javascript
+│   │   │   │   ├── 📄 arm-js-01-intro.module.html
+│   │   │   │   ├── 📄 arm-js-02-variables-types.module.html
+│   │   │   │   ├── 📄 arm-js-03-control-flow.module.html
+│   │   │   │   ├── 📄 arm-js-04-functions.module.html
+│   │   │   │   ├── 📄 arm-js-05-arrays-objects.module.html
+│   │   │   │   ├── 📄 arm-js-06-dom.module.html
+│   │   │   │   ├── 📄 arm-js-07-async.module.html
+│   │   │   │   ├── 📄 arm-js-08-classes-modules.module.html
+│   │   │   │   ├── 📄 arm-js-09-typescript-intro.module.html
+│   │   │   │   ├── 📄 arm-js-10-practical.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 lua-perl-r
+│   │   │   │   ├── 📄 arm-lpr-01-intro.module.html
+│   │   │   │   ├── 📄 arm-lpr-02-lua-basics.module.html
+│   │   │   │   ├── 📄 arm-lpr-03-lua-apps.module.html
+│   │   │   │   ├── 📄 arm-lpr-04-perl-basics.module.html
+│   │   │   │   ├── 📄 arm-lpr-05-perl-text.module.html
+│   │   │   │   ├── 📄 arm-lpr-06-perl-security.module.html
+│   │   │   │   ├── 📄 arm-lpr-07-r-basics.module.html
+│   │   │   │   ├── 📄 arm-lpr-08-r-analysis.module.html
+│   │   │   │   ├── 📄 arm-lpr-09-r-security.module.html
+│   │   │   │   ├── 📄 arm-lpr-10-comparison.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 php
+│   │   │   │   ├── 📄 arm-php-01-intro.module.html
+│   │   │   │   ├── 📄 arm-php-02-variables.module.html
+│   │   │   │   ├── 📄 arm-php-03-control.module.html
+│   │   │   │   ├── 📄 arm-php-04-arrays.module.html
+│   │   │   │   ├── 📄 arm-php-05-oop.module.html
+│   │   │   │   ├── 📄 arm-php-06-forms.module.html
+│   │   │   │   ├── 📄 arm-php-07-pdo.module.html
+│   │   │   │   ├── 📄 arm-php-08-sessions.module.html
+│   │   │   │   ├── 📄 arm-php-09-modern.module.html
+│   │   │   │   ├── 📄 arm-php-10-security.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 powershell
+│   │   │   │   ├── 📄 arm-ps-01-intro.module.html
+│   │   │   │   ├── 📄 arm-ps-02-cmdlets-pipeline.module.html
+│   │   │   │   ├── 📄 arm-ps-03-variables-types.module.html
+│   │   │   │   ├── 📄 arm-ps-04-control-flow.module.html
+│   │   │   │   ├── 📄 arm-ps-05-objects.module.html
+│   │   │   │   ├── 📄 arm-ps-06-filesystem.module.html
+│   │   │   │   ├── 📄 arm-ps-07-active-directory.module.html
+│   │   │   │   ├── 📄 arm-ps-08-remoting.module.html
+│   │   │   │   ├── 📄 arm-ps-09-scripting.module.html
+│   │   │   │   ├── 📄 arm-ps-10-security.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 python
+│   │   │   │   ├── 📄 arm-py-01-intro.module.html
+│   │   │   │   ├── 📄 arm-py-02-variables.module.html
+│   │   │   │   ├── 📄 arm-py-03-control-flow.module.html
+│   │   │   │   ├── 📄 arm-py-04-loops.module.html
+│   │   │   │   ├── 📄 arm-py-05-functions.module.html
+│   │   │   │   ├── 📄 arm-py-06-data-structures.module.html
+│   │   │   │   ├── 📄 arm-py-07-strings-io.module.html
+│   │   │   │   ├── 📄 arm-py-08-oop.module.html
+│   │   │   │   ├── 📄 arm-py-09-modules-packages.module.html
+│   │   │   │   ├── 📄 arm-py-10-error-handling.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 python-graphics
+│   │   │   │   ├── 📍 index.html
+│   │   │   │   ├── 📄 pg-01.html
+│   │   │   │   ├── 📄 pg-02.html
+│   │   │   │   ├── 📄 pg-03.html
+│   │   │   │   ├── 📄 pg-04.html
+│   │   │   │   ├── 📄 pg-05.html
+│   │   │   │   ├── 📄 pg-06.html
+│   │   │   │   ├── 📄 pg-07.html
+│   │   │   │   ├── 📄 pg-08.html
+│   │   │   │   ├── 📄 pg-09.html
+│   │   │   │   └── 📄 pg-10.html
+│   │   │   ├── 📁 ruby
+│   │   │   │   ├── 📄 arm-rb-01-intro.module.html
+│   │   │   │   ├── 📄 arm-rb-02-variables.module.html
+│   │   │   │   ├── 📄 arm-rb-03-control-flow.module.html
+│   │   │   │   ├── 📄 arm-rb-04-collections.module.html
+│   │   │   │   ├── 📄 arm-rb-05-oop.module.html
+│   │   │   │   ├── 📄 arm-rb-06-blocks.module.html
+│   │   │   │   ├── 📄 arm-rb-07-file-io.module.html
+│   │   │   │   ├── 📄 arm-rb-08-regex.module.html
+│   │   │   │   ├── 📄 arm-rb-09-security.module.html
+│   │   │   │   ├── 📄 arm-rb-10-advanced.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 rust
+│   │   │   │   ├── 📄 arm-rs-01-intro.module.html
+│   │   │   │   ├── 📄 arm-rs-02-variables.module.html
+│   │   │   │   ├── 📄 arm-rs-03-ownership.module.html
+│   │   │   │   ├── 📄 arm-rs-04-control-flow.module.html
+│   │   │   │   ├── 📄 arm-rs-05-structs-enums.module.html
+│   │   │   │   ├── 📄 arm-rs-06-traits-generics.module.html
+│   │   │   │   ├── 📄 arm-rs-07-error-handling.module.html
+│   │   │   │   ├── 📄 arm-rs-08-collections.module.html
+│   │   │   │   ├── 📄 arm-rs-09-concurrency.module.html
+│   │   │   │   ├── 📄 arm-rs-10-security.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 security-guide
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 📁 sql
+│   │   │   │   ├── 📄 arm-sql-01-intro.module.html
+│   │   │   │   ├── 📄 arm-sql-02-select.module.html
+│   │   │   │   ├── 📄 arm-sql-03-filtering.module.html
+│   │   │   │   ├── 📄 arm-sql-04-joins.module.html
+│   │   │   │   ├── 📄 arm-sql-05-aggregation.module.html
+│   │   │   │   ├── 📄 arm-sql-06-subqueries.module.html
+│   │   │   │   ├── 📄 arm-sql-07-crud.module.html
+│   │   │   │   ├── 📄 arm-sql-08-schema.module.html
+│   │   │   │   ├── 📄 arm-sql-09-security.module.html
+│   │   │   │   ├── 📄 arm-sql-10-practical.module.html
+│   │   │   │   └── 📍 index.html
+│   │   │   └── 📁 swift-kotlin
+│   │   │       ├── 📄 arm-sk-01-intro.module.html
+│   │   │       ├── 📄 arm-sk-02-variables.module.html
+│   │   │       ├── 📄 arm-sk-03-control-flow.module.html
+│   │   │       ├── 📄 arm-sk-04-collections.module.html
+│   │   │       ├── 📄 arm-sk-05-oop.module.html
+│   │   │       ├── 📄 arm-sk-06-error-handling.module.html
+│   │   │       ├── 📄 arm-sk-07-concurrency.module.html
+│   │   │       ├── 📄 arm-sk-08-mobile-ui.module.html
+│   │   │       ├── 📄 arm-sk-09-networking.module.html
+│   │   │       ├── 📄 arm-sk-10-security.module.html
+│   │   │       └── 📍 index.html
 │   │   ├── 📁 cortex
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 devops
@@ -2662,6 +3301,18 @@
 │   │   │   ├── 🔬 shield-osint-google-dorking.lab.html
 │   │   │   ├── 🔬 shield-security-fundamentals.lab.html
 │   │   │   └── 🔬 shield-threats.lab.html
+│   │   ├── 📁 ms-security
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 ms-sec-01.html
+│   │   │   ├── 📄 ms-sec-02.html
+│   │   │   ├── 📄 ms-sec-03.html
+│   │   │   ├── 📄 ms-sec-04.html
+│   │   │   ├── 📄 ms-sec-05.html
+│   │   │   ├── 📄 ms-sec-06.html
+│   │   │   ├── 📄 ms-sec-07.html
+│   │   │   ├── 📄 ms-sec-08.html
+│   │   │   ├── 📄 ms-sec-09.html
+│   │   │   └── 📄 ms-sec-10.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 shield-cia-triad.presentation.html
 │   │   │   ├── 📊 shield-cse-06-security-monitoring-incident-response.presentation.html
@@ -2749,7 +3400,187 @@
 │       │   │   └── 📄 web-smb-file-sharing.applet.html
 │       │   └── 📄 web-networking-interactive.applet.html
 │       ├── 📁 backbone
-│       │   └── 📍 index.html
+│       │   ├── 📁 bgp
+│       │   │   ├── 📄 bb-bgp-01.html
+│       │   │   ├── 📄 bb-bgp-02.html
+│       │   │   ├── 📄 bb-bgp-03.html
+│       │   │   ├── 📄 bb-bgp-04.html
+│       │   │   ├── 📄 bb-bgp-05.html
+│       │   │   ├── 📄 bb-bgp-06.html
+│       │   │   ├── 📄 bb-bgp-07.html
+│       │   │   ├── 📄 bb-bgp-08.html
+│       │   │   ├── 📄 bb-bgp-09.html
+│       │   │   ├── 📄 bb-bgp-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 capstone
+│       │   │   ├── 📄 bb-cap-01.html
+│       │   │   ├── 📄 bb-cap-02.html
+│       │   │   ├── 📄 bb-cap-03.html
+│       │   │   ├── 📄 bb-cap-04.html
+│       │   │   ├── 📄 bb-cap-05.html
+│       │   │   ├── 📄 bb-cap-06.html
+│       │   │   ├── 📄 bb-cap-07.html
+│       │   │   ├── 📄 bb-cap-08.html
+│       │   │   ├── 📄 bb-cap-09.html
+│       │   │   ├── 📄 bb-cap-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 carrier
+│       │   │   ├── 📄 bb-5g-01.html
+│       │   │   ├── 📄 bb-5g-02.html
+│       │   │   ├── 📄 bb-5g-03.html
+│       │   │   ├── 📄 bb-5g-04.html
+│       │   │   ├── 📄 bb-5g-05.html
+│       │   │   ├── 📄 bb-5g-06.html
+│       │   │   ├── 📄 bb-5g-07.html
+│       │   │   ├── 📄 bb-5g-08.html
+│       │   │   ├── 📄 bb-5g-09.html
+│       │   │   ├── 📄 bb-5g-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 datacenter
+│       │   │   ├── 📄 bb-dc-01.html
+│       │   │   ├── 📄 bb-dc-02.html
+│       │   │   ├── 📄 bb-dc-03.html
+│       │   │   ├── 📄 bb-dc-04.html
+│       │   │   ├── 📄 bb-dc-05.html
+│       │   │   ├── 📄 bb-dc-06.html
+│       │   │   ├── 📄 bb-dc-07.html
+│       │   │   ├── 📄 bb-dc-08.html
+│       │   │   ├── 📄 bb-dc-09.html
+│       │   │   ├── 📄 bb-dc-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 forensics
+│       │   │   ├── 📄 bb-nf-01.html
+│       │   │   ├── 📄 bb-nf-02.html
+│       │   │   ├── 📄 bb-nf-03.html
+│       │   │   ├── 📄 bb-nf-04.html
+│       │   │   ├── 📄 bb-nf-05.html
+│       │   │   ├── 📄 bb-nf-06.html
+│       │   │   ├── 📄 bb-nf-07.html
+│       │   │   ├── 📄 bb-nf-08.html
+│       │   │   ├── 📄 bb-nf-09.html
+│       │   │   ├── 📄 bb-nf-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📍 index.html
+│       │   ├── 📁 infiniband
+│       │   │   ├── 📄 bb-ib-01.html
+│       │   │   ├── 📄 bb-ib-02.html
+│       │   │   ├── 📄 bb-ib-03.html
+│       │   │   ├── 📄 bb-ib-04.html
+│       │   │   ├── 📄 bb-ib-05.html
+│       │   │   ├── 📄 bb-ib-06.html
+│       │   │   ├── 📄 bb-ib-07.html
+│       │   │   ├── 📄 bb-ib-08.html
+│       │   │   ├── 📄 bb-ib-09.html
+│       │   │   ├── 📄 bb-ib-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 ipv6
+│       │   │   ├── 📄 bb-v6-01.html
+│       │   │   ├── 📄 bb-v6-02.html
+│       │   │   ├── 📄 bb-v6-03.html
+│       │   │   ├── 📄 bb-v6-04.html
+│       │   │   ├── 📄 bb-v6-05.html
+│       │   │   ├── 📄 bb-v6-06.html
+│       │   │   ├── 📄 bb-v6-07.html
+│       │   │   ├── 📄 bb-v6-08.html
+│       │   │   ├── 📄 bb-v6-09.html
+│       │   │   ├── 📄 bb-v6-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 mpls
+│       │   │   ├── 📄 bb-mpls-01.html
+│       │   │   ├── 📄 bb-mpls-02.html
+│       │   │   ├── 📄 bb-mpls-03.html
+│       │   │   ├── 📄 bb-mpls-04.html
+│       │   │   ├── 📄 bb-mpls-05.html
+│       │   │   ├── 📄 bb-mpls-06.html
+│       │   │   ├── 📄 bb-mpls-07.html
+│       │   │   ├── 📄 bb-mpls-08.html
+│       │   │   ├── 📄 bb-mpls-09.html
+│       │   │   ├── 📄 bb-mpls-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 netsec
+│       │   │   ├── 📄 bb-ns-01.html
+│       │   │   ├── 📄 bb-ns-02.html
+│       │   │   ├── 📄 bb-ns-03.html
+│       │   │   ├── 📄 bb-ns-04.html
+│       │   │   ├── 📄 bb-ns-05.html
+│       │   │   ├── 📄 bb-ns-06.html
+│       │   │   ├── 📄 bb-ns-07.html
+│       │   │   ├── 📄 bb-ns-08.html
+│       │   │   ├── 📄 bb-ns-09.html
+│       │   │   ├── 📄 bb-ns-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 optical
+│       │   │   ├── 📄 bb-op-01.html
+│       │   │   ├── 📄 bb-op-02.html
+│       │   │   ├── 📄 bb-op-03.html
+│       │   │   ├── 📄 bb-op-04.html
+│       │   │   ├── 📄 bb-op-05.html
+│       │   │   ├── 📄 bb-op-06.html
+│       │   │   ├── 📄 bb-op-07.html
+│       │   │   ├── 📄 bb-op-08.html
+│       │   │   ├── 📄 bb-op-09.html
+│       │   │   ├── 📄 bb-op-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 qos
+│       │   │   ├── 📄 bb-qos-01.html
+│       │   │   ├── 📄 bb-qos-02.html
+│       │   │   ├── 📄 bb-qos-03.html
+│       │   │   ├── 📄 bb-qos-04.html
+│       │   │   ├── 📄 bb-qos-05.html
+│       │   │   ├── 📄 bb-qos-06.html
+│       │   │   ├── 📄 bb-qos-07.html
+│       │   │   ├── 📄 bb-qos-08.html
+│       │   │   ├── 📄 bb-qos-09.html
+│       │   │   ├── 📄 bb-qos-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 routing
+│       │   │   ├── 📄 bb-rt-01.html
+│       │   │   ├── 📄 bb-rt-02.html
+│       │   │   ├── 📄 bb-rt-03.html
+│       │   │   ├── 📄 bb-rt-04.html
+│       │   │   ├── 📄 bb-rt-05.html
+│       │   │   ├── 📄 bb-rt-06.html
+│       │   │   ├── 📄 bb-rt-07.html
+│       │   │   ├── 📄 bb-rt-08.html
+│       │   │   ├── 📄 bb-rt-09.html
+│       │   │   ├── 📄 bb-rt-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 sdn
+│       │   │   ├── 📄 bb-sdn-01.html
+│       │   │   ├── 📄 bb-sdn-02.html
+│       │   │   ├── 📄 bb-sdn-03.html
+│       │   │   ├── 📄 bb-sdn-04.html
+│       │   │   ├── 📄 bb-sdn-05.html
+│       │   │   ├── 📄 bb-sdn-06.html
+│       │   │   ├── 📄 bb-sdn-07.html
+│       │   │   ├── 📄 bb-sdn-08.html
+│       │   │   ├── 📄 bb-sdn-09.html
+│       │   │   ├── 📄 bb-sdn-10.html
+│       │   │   └── 📍 index.html
+│       │   ├── 📁 sdwan
+│       │   │   ├── 📄 bb-sw-01.html
+│       │   │   ├── 📄 bb-sw-02.html
+│       │   │   ├── 📄 bb-sw-03.html
+│       │   │   ├── 📄 bb-sw-04.html
+│       │   │   ├── 📄 bb-sw-05.html
+│       │   │   ├── 📄 bb-sw-06.html
+│       │   │   ├── 📄 bb-sw-07.html
+│       │   │   ├── 📄 bb-sw-08.html
+│       │   │   ├── 📄 bb-sw-09.html
+│       │   │   ├── 📄 bb-sw-10.html
+│       │   │   └── 📍 index.html
+│       │   └── 📁 wireless
+│       │       ├── 📄 bb-wl-01.html
+│       │       ├── 📄 bb-wl-02.html
+│       │       ├── 📄 bb-wl-03.html
+│       │       ├── 📄 bb-wl-04.html
+│       │       ├── 📄 bb-wl-05.html
+│       │       ├── 📄 bb-wl-06.html
+│       │       ├── 📄 bb-wl-07.html
+│       │       ├── 📄 bb-wl-08.html
+│       │       ├── 📄 bb-wl-09.html
+│       │       ├── 📄 bb-wl-10.html
+│       │       └── 📍 index.html
 │       ├── 📁 exams
 │       │   ├── 📍 index.html
 │       │   ├── 📄 web-networking-exam-flashcards.exam.html
@@ -2780,6 +3611,18 @@
 │       │   ├── 📍 index.html
 │       │   ├── 📄 web-ip-addressing-ch7-10.module.html
 │       │   └── 📄 web-networking-flashcards.module.html
+│       ├── 📁 network-essentials
+│       │   ├── 📍 index.html
+│       │   ├── 📄 ne-01.html
+│       │   ├── 📄 ne-02.html
+│       │   ├── 📄 ne-03.html
+│       │   ├── 📄 ne-04.html
+│       │   ├── 📄 ne-05.html
+│       │   ├── 📄 ne-06.html
+│       │   ├── 📄 ne-07.html
+│       │   ├── 📄 ne-08.html
+│       │   ├── 📄 ne-09.html
+│       │   └── 📄 ne-10.html
 │       ├── 📁 presentations [presentations]
 │       │   ├── 📊 web-arp.presentation.html
 │       │   ├── 📊 web-cables.presentation.html
@@ -3050,6 +3893,150 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| cx-adv-01 | presentation | ✓ | 0 |
+| cx-adv-02 | presentation | ✓ | 0 |
+| cx-adv-03 | presentation | ✓ | 0 |
+| cx-adv-04 | presentation | ✓ | 0 |
+| cx-adv-05 | presentation | ✓ | 0 |
+| cx-adv-06 | presentation | ✓ | 0 |
+| cx-adv-07 | presentation | ✓ | 0 |
+| cx-adv-08 | presentation | ✓ | 0 |
+| cx-adv-09 | presentation | ✓ | 0 |
+| cx-adv-10 | presentation | ✓ | 0 |
+| cx-cap-01 | presentation | ✓ | 0 |
+| cx-cap-02 | presentation | ✓ | 0 |
+| cx-cap-03 | presentation | ✓ | 0 |
+| cx-cap-04 | presentation | ✓ | 0 |
+| cx-cap-05 | presentation | ✓ | 0 |
+| cx-cap-06 | presentation | ✓ | 0 |
+| cx-cap-07 | presentation | ✓ | 0 |
+| cx-cap-08 | presentation | ✓ | 0 |
+| cx-cap-09 | presentation | ✓ | 0 |
+| cx-cap-10 | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| cx-cnn-01 | presentation | ✓ | 0 |
+| cx-cnn-02 | presentation | ✓ | 0 |
+| cx-cnn-03 | presentation | ✓ | 0 |
+| cx-cnn-04 | presentation | ✓ | 0 |
+| cx-cnn-05 | presentation | ✓ | 0 |
+| cx-cnn-06 | presentation | ✓ | 0 |
+| cx-cnn-07 | presentation | ✓ | 0 |
+| cx-cnn-08 | presentation | ✓ | 0 |
+| cx-cnn-09 | presentation | ✓ | 0 |
+| cx-cnn-10 | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| cx-sec-01 | presentation | ✓ | 0 |
+| cx-sec-02 | presentation | ✓ | 0 |
+| cx-sec-03 | presentation | ✓ | 0 |
+| cx-sec-04 | presentation | ✓ | 0 |
+| cx-sec-05 | presentation | ✓ | 0 |
+| cx-sec-06 | presentation | ✓ | 0 |
+| cx-sec-07 | presentation | ✓ | 0 |
+| cx-sec-08 | presentation | ✓ | 0 |
+| cx-sec-09 | presentation | ✓ | 0 |
+| cx-sec-10 | presentation | ✓ | 0 |
+| cx-dl-01 | presentation | ✓ | 0 |
+| cx-dl-02 | presentation | ✓ | 0 |
+| cx-dl-03 | presentation | ✓ | 0 |
+| cx-dl-04 | presentation | ✓ | 0 |
+| cx-dl-05 | presentation | ✓ | 0 |
+| cx-dl-06 | presentation | ✓ | 0 |
+| cx-dl-07 | presentation | ✓ | 0 |
+| cx-dl-08 | presentation | ✓ | 0 |
+| cx-dl-09 | presentation | ✓ | 0 |
+| cx-dl-10 | presentation | ✓ | 0 |
+| cx-ai-01 | presentation | ✓ | 0 |
+| cx-ai-02 | presentation | ✓ | 0 |
+| cx-ai-03 | presentation | ✓ | 0 |
+| cx-ai-04 | presentation | ✓ | 0 |
+| cx-ai-05 | presentation | ✓ | 0 |
+| cx-ai-06 | presentation | ✓ | 0 |
+| cx-ai-07 | presentation | ✓ | 0 |
+| cx-ai-08 | presentation | ✓ | 0 |
+| cx-ai-09 | presentation | ✓ | 0 |
+| cx-ai-10 | presentation | ✓ | 0 |
+| cx-gen-01 | presentation | ✓ | 0 |
+| cx-gen-02 | presentation | ✓ | 0 |
+| cx-gen-03 | presentation | ✓ | 0 |
+| cx-gen-04 | presentation | ✓ | 0 |
+| cx-gen-05 | presentation | ✓ | 0 |
+| cx-gen-06 | presentation | ✓ | 0 |
+| cx-gen-07 | presentation | ✓ | 0 |
+| cx-gen-08 | presentation | ✓ | 0 |
+| cx-gen-09 | presentation | ✓ | 0 |
+| cx-gen-10 | presentation | ✓ | 0 |
+| cx-math-01 | presentation | ✓ | 0 |
+| cx-math-02 | presentation | ✓ | 0 |
+| cx-math-03 | presentation | ✓ | 0 |
+| cx-math-04 | presentation | ✓ | 0 |
+| cx-math-05 | presentation | ✓ | 0 |
+| cx-math-06 | presentation | ✓ | 0 |
+| cx-math-07 | presentation | ✓ | 0 |
+| cx-math-08 | presentation | ✓ | 0 |
+| cx-math-09 | presentation | ✓ | 0 |
+| cx-math-10 | presentation | ✓ | 0 |
+| cx-ops-01 | presentation | ✓ | 0 |
+| cx-ops-02 | presentation | ✓ | 0 |
+| cx-ops-03 | presentation | ✓ | 0 |
+| cx-ops-04 | presentation | ✓ | 0 |
+| cx-ops-05 | presentation | ✓ | 0 |
+| cx-ops-06 | presentation | ✓ | 0 |
+| cx-ops-07 | presentation | ✓ | 0 |
+| cx-ops-08 | presentation | ✓ | 0 |
+| cx-ops-09 | presentation | ✓ | 0 |
+| cx-ops-10 | presentation | ✓ | 0 |
+| cx-nlp-01 | presentation | ✓ | 0 |
+| cx-nlp-02 | presentation | ✓ | 0 |
+| cx-nlp-03 | presentation | ✓ | 0 |
+| cx-nlp-04 | presentation | ✓ | 0 |
+| cx-nlp-05 | presentation | ✓ | 0 |
+| cx-nlp-06 | presentation | ✓ | 0 |
+| cx-nlp-07 | presentation | ✓ | 0 |
+| cx-nlp-08 | presentation | ✓ | 0 |
+| cx-nlp-09 | presentation | ✓ | 0 |
+| cx-nlp-10 | presentation | ✓ | 0 |
+| cx-rl-01 | presentation | ✓ | 0 |
+| cx-rl-02 | presentation | ✓ | 0 |
+| cx-rl-03 | presentation | ✓ | 0 |
+| cx-rl-04 | presentation | ✓ | 0 |
+| cx-rl-05 | presentation | ✓ | 0 |
+| cx-rl-06 | presentation | ✓ | 0 |
+| cx-rl-07 | presentation | ✓ | 0 |
+| cx-rl-08 | presentation | ✓ | 0 |
+| cx-rl-09 | presentation | ✓ | 0 |
+| cx-rl-10 | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| cx-sup-01 | presentation | ✓ | 0 |
+| cx-sup-02 | presentation | ✓ | 0 |
+| cx-sup-03 | presentation | ✓ | 0 |
+| cx-sup-04 | presentation | ✓ | 0 |
+| cx-sup-05 | presentation | ✓ | 0 |
+| cx-sup-06 | presentation | ✓ | 0 |
+| cx-sup-07 | presentation | ✓ | 0 |
+| cx-sup-08 | presentation | ✓ | 0 |
+| cx-sup-09 | presentation | ✓ | 0 |
+| cx-sup-10 | presentation | ✓ | 0 |
+| cx-rnn-01 | presentation | ✓ | 0 |
+| cx-rnn-02 | presentation | ✓ | 0 |
+| cx-rnn-03 | presentation | ✓ | 0 |
+| cx-rnn-04 | presentation | ✓ | 0 |
+| cx-rnn-05 | presentation | ✓ | 0 |
+| cx-rnn-06 | presentation | ✓ | 0 |
+| cx-rnn-07 | presentation | ✓ | 0 |
+| cx-rnn-08 | presentation | ✓ | 0 |
+| cx-rnn-09 | presentation | ✓ | 0 |
+| cx-rnn-10 | presentation | ✓ | 0 |
+| cx-uns-01 | presentation | ✓ | 0 |
+| cx-uns-02 | presentation | ✓ | 0 |
+| cx-uns-03 | presentation | ✓ | 0 |
+| cx-uns-04 | presentation | ✓ | 0 |
+| cx-uns-05 | presentation | ✓ | 0 |
+| cx-uns-06 | presentation | ✓ | 0 |
+| cx-uns-07 | presentation | ✓ | 0 |
+| cx-uns-08 | presentation | ✓ | 0 |
+| cx-uns-09 | presentation | ✓ | 0 |
+| cx-uns-10 | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | ai-agent-builder.applet | applet | ✓ | 1 |
 | ai-triage-trainer.applet | presentation | ✓ | 1 |
 | index | presentation | ✓ | 0 |
@@ -3088,12 +4075,92 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| capi-auth-01 | presentation | ✓ | 0 |
+| capi-auth-02 | presentation | ✓ | 0 |
+| capi-auth-03 | presentation | ✓ | 0 |
+| capi-auth-04 | presentation | ✓ | 0 |
+| capi-auth-05 | presentation | ✓ | 0 |
+| capi-auth-06 | presentation | ✓ | 0 |
+| capi-auth-07 | presentation | ✓ | 0 |
+| capi-auth-08 | presentation | ✓ | 0 |
+| capi-auth-09 | presentation | ✓ | 0 |
+| capi-auth-10 | presentation | ✓ | 0 |
+| capi-cap-01 | presentation | ✓ | 0 |
+| capi-cap-02 | presentation | ✓ | 0 |
+| capi-cap-03 | presentation | ✓ | 0 |
+| capi-cap-04 | presentation | ✓ | 0 |
+| capi-cap-05 | presentation | ✓ | 0 |
+| capi-cap-06 | presentation | ✓ | 0 |
+| capi-cap-07 | presentation | ✓ | 0 |
+| capi-cap-08 | presentation | ✓ | 0 |
+| capi-cap-09 | presentation | ✓ | 0 |
+| capi-cap-10 | presentation | ✓ | 0 |
 | cloud-api-002.presentation | lab | ✓ | 0 |
 | cloud-api-003.presentation | presentation | ✓ | 0 |
 | cloud-api-004.presentation | lab | ✓ | 0 |
 | cloud-api-005.presentation | lab | ✓ | 0 |
 | cloud-api-006.lab | presentation | ✓ | 0 |
 | cloud-api-007.presentation | presentation | ✓ | 0 |
+| capi-cloud-01 | presentation | ✓ | 0 |
+| capi-cloud-02 | presentation | ✓ | 0 |
+| capi-cloud-03 | presentation | ✓ | 0 |
+| capi-cloud-04 | presentation | ✓ | 0 |
+| capi-cloud-05 | presentation | ✓ | 0 |
+| capi-cloud-06 | presentation | ✓ | 0 |
+| capi-cloud-07 | presentation | ✓ | 0 |
+| capi-cloud-08 | presentation | ✓ | 0 |
+| capi-cloud-09 | presentation | ✓ | 0 |
+| capi-cloud-10 | presentation | ✓ | 0 |
+| capi-des-01 | presentation | ✓ | 0 |
+| capi-des-02 | presentation | ✓ | 0 |
+| capi-des-03 | presentation | ✓ | 0 |
+| capi-des-04 | presentation | ✓ | 0 |
+| capi-des-05 | presentation | ✓ | 0 |
+| capi-des-06 | presentation | ✓ | 0 |
+| capi-des-07 | presentation | ✓ | 0 |
+| capi-des-08 | presentation | ✓ | 0 |
+| capi-des-09 | presentation | ✓ | 0 |
+| capi-des-10 | presentation | ✓ | 0 |
+| capi-evt-01 | presentation | ✓ | 0 |
+| capi-evt-02 | presentation | ✓ | 0 |
+| capi-evt-03 | presentation | ✓ | 0 |
+| capi-evt-04 | presentation | ✓ | 0 |
+| capi-evt-05 | presentation | ✓ | 0 |
+| capi-evt-06 | presentation | ✓ | 0 |
+| capi-evt-07 | presentation | ✓ | 0 |
+| capi-evt-08 | presentation | ✓ | 0 |
+| capi-evt-09 | presentation | ✓ | 0 |
+| capi-evt-10 | presentation | ✓ | 0 |
+| capi-owasp-01 | presentation | ✓ | 0 |
+| capi-owasp-02 | presentation | ✓ | 0 |
+| capi-owasp-03 | presentation | ✓ | 0 |
+| capi-owasp-04 | presentation | ✓ | 0 |
+| capi-owasp-05 | presentation | ✓ | 0 |
+| capi-owasp-06 | presentation | ✓ | 0 |
+| capi-owasp-07 | presentation | ✓ | 0 |
+| capi-owasp-08 | presentation | ✓ | 0 |
+| capi-owasp-09 | presentation | ✓ | 0 |
+| capi-owasp-10 | presentation | ✓ | 0 |
+| capi-pen-01 | presentation | ✓ | 0 |
+| capi-pen-02 | presentation | ✓ | 0 |
+| capi-pen-03 | presentation | ✓ | 0 |
+| capi-pen-04 | presentation | ✓ | 0 |
+| capi-pen-05 | presentation | ✓ | 0 |
+| capi-pen-06 | presentation | ✓ | 0 |
+| capi-pen-07 | presentation | ✓ | 0 |
+| capi-pen-08 | presentation | ✓ | 0 |
+| capi-pen-09 | presentation | ✓ | 0 |
+| capi-pen-10 | presentation | ✓ | 0 |
+| capi-rl-01 | presentation | ✓ | 0 |
+| capi-rl-02 | presentation | ✓ | 0 |
+| capi-rl-03 | presentation | ✓ | 0 |
+| capi-rl-04 | presentation | ✓ | 0 |
+| capi-rl-05 | presentation | ✓ | 0 |
+| capi-rl-06 | presentation | ✓ | 0 |
+| capi-rl-07 | presentation | ✓ | 0 |
+| capi-rl-08 | presentation | ✓ | 0 |
+| capi-rl-09 | presentation | ✓ | 0 |
+| capi-rl-10 | presentation | ✓ | 0 |
 | cloud-architecture-designer.applet | presentation | ✓ | 0 |
 | cloud-comparison.applet | presentation | ✓ | 0 |
 | cloud-provider-comparison.applet | presentation | ✓ | 0 |
@@ -3247,9 +4314,294 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| ac-cap-01 | presentation | ✓ | 0 |
+| ac-cap-02 | presentation | ✓ | 0 |
+| ac-cap-03 | presentation | ✓ | 0 |
+| ac-cap-04 | presentation | ✓ | 0 |
+| ac-cap-05 | presentation | ✓ | 0 |
+| ac-cap-06 | presentation | ✓ | 0 |
+| ac-cap-07 | presentation | ✓ | 0 |
+| ac-cap-08 | presentation | ✓ | 0 |
+| ac-cap-09 | presentation | ✓ | 0 |
+| ac-cap-10 | presentation | ✓ | 0 |
+| ac-ch-01 | presentation | ✓ | 0 |
+| ac-ch-02 | presentation | ✓ | 0 |
+| ac-ch-03 | presentation | ✓ | 0 |
+| ac-ch-04 | presentation | ✓ | 0 |
+| ac-ch-05 | presentation | ✓ | 0 |
+| ac-ch-06 | presentation | ✓ | 0 |
+| ac-ch-07 | presentation | ✓ | 0 |
+| ac-ch-08 | presentation | ✓ | 0 |
+| ac-ch-09 | presentation | ✓ | 0 |
+| ac-ch-10 | presentation | ✓ | 0 |
+| ac-bigo-01 | presentation | ✓ | 0 |
+| ac-bigo-02 | presentation | ✓ | 0 |
+| ac-bigo-03 | presentation | ✓ | 0 |
+| ac-bigo-04 | presentation | ✓ | 0 |
+| ac-bigo-05 | presentation | ✓ | 0 |
+| ac-bigo-06 | presentation | ✓ | 0 |
+| ac-bigo-07 | presentation | ✓ | 0 |
+| ac-bigo-08 | presentation | ✓ | 0 |
+| ac-bigo-09 | presentation | ✓ | 0 |
+| ac-bigo-10 | presentation | ✓ | 0 |
+| ac-ds-01 | presentation | ✓ | 0 |
+| ac-ds-02 | presentation | ✓ | 0 |
+| ac-ds-03 | presentation | ✓ | 0 |
+| ac-ds-04 | presentation | ✓ | 0 |
+| ac-ds-05 | presentation | ✓ | 0 |
+| ac-ds-06 | presentation | ✓ | 0 |
+| ac-ds-07 | presentation | ✓ | 0 |
+| ac-ds-08 | presentation | ✓ | 0 |
+| ac-ds-09 | presentation | ✓ | 0 |
+| ac-ds-10 | presentation | ✓ | 0 |
+| ac-dm-01 | presentation | ✓ | 0 |
+| ac-dm-02 | presentation | ✓ | 0 |
+| ac-dm-03 | presentation | ✓ | 0 |
+| ac-dm-04 | presentation | ✓ | 0 |
+| ac-dm-05 | presentation | ✓ | 0 |
+| ac-dm-06 | presentation | ✓ | 0 |
+| ac-dm-07 | presentation | ✓ | 0 |
+| ac-dm-08 | presentation | ✓ | 0 |
+| ac-dm-09 | presentation | ✓ | 0 |
+| ac-dm-10 | presentation | ✓ | 0 |
+| ac-dp-01 | presentation | ✓ | 0 |
+| ac-dp-02 | presentation | ✓ | 0 |
+| ac-dp-03 | presentation | ✓ | 0 |
+| ac-dp-04 | presentation | ✓ | 0 |
+| ac-dp-05 | presentation | ✓ | 0 |
+| ac-dp-06 | presentation | ✓ | 0 |
+| ac-dp-07 | presentation | ✓ | 0 |
+| ac-dp-08 | presentation | ✓ | 0 |
+| ac-dp-09 | presentation | ✓ | 0 |
+| ac-dp-10 | presentation | ✓ | 0 |
+| ac-geo-01 | presentation | ✓ | 0 |
+| ac-geo-02 | presentation | ✓ | 0 |
+| ac-geo-03 | presentation | ✓ | 0 |
+| ac-geo-04 | presentation | ✓ | 0 |
+| ac-geo-05 | presentation | ✓ | 0 |
+| ac-geo-06 | presentation | ✓ | 0 |
+| ac-geo-07 | presentation | ✓ | 0 |
+| ac-geo-08 | presentation | ✓ | 0 |
+| ac-geo-09 | presentation | ✓ | 0 |
+| ac-geo-10 | presentation | ✓ | 0 |
+| ac-gr-01 | presentation | ✓ | 0 |
+| ac-gr-02 | presentation | ✓ | 0 |
+| ac-gr-03 | presentation | ✓ | 0 |
+| ac-gr-04 | presentation | ✓ | 0 |
+| ac-gr-05 | presentation | ✓ | 0 |
+| ac-gr-06 | presentation | ✓ | 0 |
+| ac-gr-07 | presentation | ✓ | 0 |
+| ac-gr-08 | presentation | ✓ | 0 |
+| ac-gr-09 | presentation | ✓ | 0 |
+| ac-gr-10 | presentation | ✓ | 0 |
+| ac-grd-01 | presentation | ✓ | 0 |
+| ac-grd-02 | presentation | ✓ | 0 |
+| ac-grd-03 | presentation | ✓ | 0 |
+| ac-grd-04 | presentation | ✓ | 0 |
+| ac-grd-05 | presentation | ✓ | 0 |
+| ac-grd-06 | presentation | ✓ | 0 |
+| ac-grd-07 | presentation | ✓ | 0 |
+| ac-grd-08 | presentation | ✓ | 0 |
+| ac-grd-09 | presentation | ✓ | 0 |
+| ac-grd-10 | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| ac-sort-01 | presentation | ✓ | 0 |
+| ac-sort-02 | presentation | ✓ | 0 |
+| ac-sort-03 | presentation | ✓ | 0 |
+| ac-sort-04 | presentation | ✓ | 0 |
+| ac-sort-05 | presentation | ✓ | 0 |
+| ac-sort-06 | presentation | ✓ | 0 |
+| ac-sort-07 | presentation | ✓ | 0 |
+| ac-sort-08 | presentation | ✓ | 0 |
+| ac-sort-09 | presentation | ✓ | 0 |
+| ac-sort-10 | presentation | ✓ | 0 |
+| ac-str-01 | presentation | ✓ | 0 |
+| ac-str-02 | presentation | ✓ | 0 |
+| ac-str-03 | presentation | ✓ | 0 |
+| ac-str-04 | presentation | ✓ | 0 |
+| ac-str-05 | presentation | ✓ | 0 |
+| ac-str-06 | presentation | ✓ | 0 |
+| ac-str-07 | presentation | ✓ | 0 |
+| ac-str-08 | presentation | ✓ | 0 |
+| ac-str-09 | presentation | ✓ | 0 |
+| ac-str-10 | presentation | ✓ | 0 |
 | code-docker-playground.applet | presentation | ✓ | 0 |
 | code-kubernetes-cluster-sim.applet | presentation | ✓ | 0 |
+| arm-asm-01-intro.module | presentation | ✓ | 0 |
+| arm-asm-02-registers.module | presentation | ✓ | 0 |
+| arm-asm-03-arithmetic.module | presentation | ✓ | 0 |
+| arm-asm-04-control-flow.module | presentation | ✓ | 0 |
+| arm-asm-05-stack-functions.module | presentation | ✓ | 0 |
+| arm-asm-06-memory.module | presentation | ✓ | 0 |
+| arm-asm-07-syscalls.module | presentation | ✓ | 0 |
+| arm-asm-08-debugging.module | presentation | ✓ | 0 |
+| arm-asm-09-reverse-engineering.module | presentation | ✓ | 0 |
+| arm-asm-10-exploits.module | presentation | ✓ | 0 |
+| arm-bash-01-intro.module | presentation | ✓ | 0 |
+| arm-bash-02-variables.module | presentation | ✓ | 0 |
+| arm-bash-03-input-output.module | presentation | ✓ | 0 |
+| arm-bash-04-conditionals.module | presentation | ✓ | 0 |
+| arm-bash-05-loops.module | presentation | ✓ | 0 |
+| arm-bash-06-functions.module | presentation | ✓ | 0 |
+| arm-bash-07-text-processing.module | presentation | ✓ | 0 |
+| arm-bash-08-system-admin.module | presentation | ✓ | 0 |
+| arm-bash-09-security-scripts.module | presentation | ✓ | 0 |
+| arm-bash-10-advanced.module | presentation | ✓ | 0 |
+| arm-c-01-intro.module | presentation | ✓ | 0 |
+| arm-c-02-variables-types.module | presentation | ✓ | 0 |
+| arm-c-03-operators-control.module | presentation | ✓ | 0 |
+| arm-c-04-functions.module | presentation | ✓ | 0 |
+| arm-c-05-arrays-strings.module | presentation | ✓ | 0 |
+| arm-c-06-pointers.module | presentation | ✓ | 0 |
+| arm-c-07-memory.module | presentation | ✓ | 0 |
+| arm-c-08-structs-unions.module | presentation | ✓ | 0 |
+| arm-c-09-file-io.module | presentation | ✓ | 0 |
+| arm-c-10-preprocessor.module | presentation | ✓ | 0 |
+| compare | applet | ✓ | 1 |
+| arm-cpp-01-intro.module | presentation | ✓ | 0 |
+| arm-cpp-02-variables.module | presentation | ✓ | 0 |
+| arm-cpp-03-control-flow.module | presentation | ✓ | 0 |
+| arm-cpp-04-oop.module | presentation | ✓ | 0 |
+| arm-cpp-05-inheritance.module | presentation | ✓ | 0 |
+| arm-cpp-06-templates-stl.module | presentation | ✓ | 0 |
+| arm-cpp-07-memory.module | presentation | ✓ | 0 |
+| arm-cpp-08-modern-cpp.module | presentation | ✓ | 0 |
+| arm-cpp-09-security.module | presentation | ✓ | 0 |
+| arm-cpp-10-advanced.module | presentation | ✓ | 0 |
+| arm-cs-01-intro.module | presentation | ✓ | 0 |
+| arm-cs-02-variables.module | presentation | ✓ | 0 |
+| arm-cs-03-control-flow.module | presentation | ✓ | 0 |
+| arm-cs-04-oop.module | presentation | ✓ | 0 |
+| arm-cs-05-inheritance.module | presentation | ✓ | 0 |
+| arm-cs-06-collections.module | presentation | ✓ | 0 |
+| arm-cs-07-exceptions.module | presentation | ✓ | 0 |
+| arm-cs-08-async.module | presentation | ✓ | 0 |
+| arm-cs-09-aspnet.module | presentation | ✓ | 0 |
+| arm-cs-10-security.module | presentation | ✓ | 0 |
+| arm-go-01-intro.module | presentation | ✓ | 0 |
+| arm-go-02-variables.module | presentation | ✓ | 0 |
+| arm-go-03-control-flow.module | presentation | ✓ | 0 |
+| arm-go-04-data-structures.module | presentation | ✓ | 0 |
+| arm-go-05-interfaces.module | presentation | ✓ | 0 |
+| arm-go-06-concurrency.module | presentation | ✓ | 0 |
+| arm-go-07-errors-testing.module | presentation | ✓ | 0 |
+| arm-go-08-stdlib.module | presentation | ✓ | 0 |
+| arm-go-09-cli-cloud.module | presentation | ✓ | 0 |
+| arm-go-10-security.module | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
+| arm-java-01-intro.module | presentation | ✓ | 0 |
+| arm-java-02-variables.module | presentation | ✓ | 0 |
+| arm-java-03-control-flow.module | presentation | ✓ | 0 |
+| arm-java-04-oop.module | presentation | ✓ | 0 |
+| arm-java-05-inheritance.module | presentation | ✓ | 0 |
+| arm-java-06-collections.module | presentation | ✓ | 0 |
+| arm-java-07-exceptions.module | presentation | ✓ | 0 |
+| arm-java-08-threads.module | presentation | ✓ | 0 |
+| arm-java-09-spring.module | presentation | ✓ | 0 |
+| arm-java-10-security.module | presentation | ✓ | 0 |
+| arm-js-01-intro.module | presentation | ✓ | 0 |
+| arm-js-02-variables-types.module | presentation | ✓ | 0 |
+| arm-js-03-control-flow.module | presentation | ✓ | 0 |
+| arm-js-04-functions.module | presentation | ✓ | 0 |
+| arm-js-05-arrays-objects.module | presentation | ✓ | 0 |
+| arm-js-06-dom.module | presentation | ✓ | 0 |
+| arm-js-07-async.module | presentation | ✓ | 0 |
+| arm-js-08-classes-modules.module | presentation | ✓ | 0 |
+| arm-js-09-typescript-intro.module | presentation | ✓ | 0 |
+| arm-js-10-practical.module | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| arm-lpr-01-intro.module | presentation | ✓ | 0 |
+| arm-lpr-02-lua-basics.module | presentation | ✓ | 0 |
+| arm-lpr-03-lua-apps.module | presentation | ✓ | 0 |
+| arm-lpr-04-perl-basics.module | presentation | ✓ | 0 |
+| arm-lpr-05-perl-text.module | presentation | ✓ | 0 |
+| arm-lpr-06-perl-security.module | presentation | ✓ | 0 |
+| arm-lpr-07-r-basics.module | presentation | ✓ | 0 |
+| arm-lpr-08-r-analysis.module | presentation | ✓ | 0 |
+| arm-lpr-09-r-security.module | presentation | ✓ | 0 |
+| arm-lpr-10-comparison.module | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| arm-php-01-intro.module | presentation | ✓ | 0 |
+| arm-php-02-variables.module | presentation | ✓ | 0 |
+| arm-php-03-control.module | presentation | ✓ | 0 |
+| arm-php-04-arrays.module | presentation | ✓ | 0 |
+| arm-php-05-oop.module | presentation | ✓ | 0 |
+| arm-php-06-forms.module | presentation | ✓ | 0 |
+| arm-php-07-pdo.module | presentation | ✓ | 0 |
+| arm-php-08-sessions.module | presentation | ✓ | 0 |
+| arm-php-09-modern.module | presentation | ✓ | 0 |
+| arm-php-10-security.module | presentation | ✓ | 0 |
+| arm-ps-01-intro.module | presentation | ✓ | 0 |
+| arm-ps-02-cmdlets-pipeline.module | presentation | ✓ | 0 |
+| arm-ps-03-variables-types.module | presentation | ✓ | 0 |
+| arm-ps-04-control-flow.module | presentation | ✓ | 0 |
+| arm-ps-05-objects.module | presentation | ✓ | 0 |
+| arm-ps-06-filesystem.module | presentation | ✓ | 0 |
+| arm-ps-07-active-directory.module | presentation | ✓ | 0 |
+| arm-ps-08-remoting.module | presentation | ✓ | 0 |
+| arm-ps-09-scripting.module | presentation | ✓ | 0 |
+| arm-ps-10-security.module | presentation | ✓ | 0 |
+| arm-py-01-intro.module | presentation | ✓ | 0 |
+| arm-py-02-variables.module | presentation | ✓ | 0 |
+| arm-py-03-control-flow.module | presentation | ✓ | 0 |
+| arm-py-04-loops.module | presentation | ✓ | 0 |
+| arm-py-05-functions.module | presentation | ✓ | 0 |
+| arm-py-06-data-structures.module | presentation | ✓ | 0 |
+| arm-py-07-strings-io.module | presentation | ✓ | 0 |
+| arm-py-08-oop.module | presentation | ✓ | 0 |
+| arm-py-09-modules-packages.module | presentation | ✓ | 0 |
+| arm-py-10-error-handling.module | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| pg-01 | presentation | ✓ | 0 |
+| pg-02 | presentation | ✓ | 0 |
+| pg-03 | presentation | ✓ | 0 |
+| pg-04 | presentation | ✓ | 0 |
+| pg-05 | presentation | ✓ | 0 |
+| pg-06 | presentation | ✓ | 0 |
+| pg-07 | presentation | ✓ | 0 |
+| pg-08 | presentation | ✓ | 0 |
+| pg-09 | presentation | ✓ | 0 |
+| pg-10 | presentation | ✓ | 0 |
+| arm-rb-01-intro.module | presentation | ✓ | 0 |
+| arm-rb-02-variables.module | presentation | ✓ | 0 |
+| arm-rb-03-control-flow.module | presentation | ✓ | 0 |
+| arm-rb-04-collections.module | presentation | ✓ | 0 |
+| arm-rb-05-oop.module | presentation | ✓ | 0 |
+| arm-rb-06-blocks.module | presentation | ✓ | 0 |
+| arm-rb-07-file-io.module | presentation | ✓ | 0 |
+| arm-rb-08-regex.module | presentation | ✓ | 0 |
+| arm-rb-09-security.module | presentation | ✓ | 0 |
+| arm-rb-10-advanced.module | presentation | ✓ | 0 |
+| arm-rs-01-intro.module | presentation | ✓ | 0 |
+| arm-rs-02-variables.module | presentation | ✓ | 0 |
+| arm-rs-03-ownership.module | presentation | ✓ | 0 |
+| arm-rs-04-control-flow.module | presentation | ✓ | 0 |
+| arm-rs-05-structs-enums.module | presentation | ✓ | 0 |
+| arm-rs-06-traits-generics.module | presentation | ✓ | 0 |
+| arm-rs-07-error-handling.module | presentation | ✓ | 0 |
+| arm-rs-08-collections.module | presentation | ✓ | 0 |
+| arm-rs-09-concurrency.module | presentation | ✓ | 0 |
+| arm-rs-10-security.module | presentation | ✓ | 0 |
+| arm-sql-01-intro.module | presentation | ✓ | 0 |
+| arm-sql-02-select.module | presentation | ✓ | 0 |
+| arm-sql-03-filtering.module | presentation | ✓ | 0 |
+| arm-sql-04-joins.module | presentation | ✓ | 0 |
+| arm-sql-05-aggregation.module | presentation | ✓ | 0 |
+| arm-sql-06-subqueries.module | presentation | ✓ | 0 |
+| arm-sql-07-crud.module | presentation | ✓ | 0 |
+| arm-sql-08-schema.module | presentation | ✓ | 0 |
+| arm-sql-09-security.module | presentation | ✓ | 0 |
+| arm-sql-10-practical.module | presentation | ✓ | 0 |
+| arm-sk-01-intro.module | presentation | ✓ | 0 |
+| arm-sk-02-variables.module | presentation | ✓ | 0 |
+| arm-sk-03-control-flow.module | presentation | ✓ | 0 |
+| arm-sk-04-collections.module | presentation | ✓ | 0 |
+| arm-sk-05-oop.module | presentation | ✓ | 0 |
+| arm-sk-06-error-handling.module | presentation | ✓ | 0 |
+| arm-sk-07-concurrency.module | presentation | ✓ | 0 |
+| arm-sk-08-mobile-ui.module | presentation | ✓ | 0 |
+| arm-sk-09-networking.module | presentation | ✓ | 0 |
+| arm-sk-10-security.module | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | do-82-ansible-fundamentals | presentation | ✓ | 0 |
 | do-83-automation-landscape | presentation | ✓ | 0 |
@@ -4418,6 +5770,16 @@
 | shield-osint-google-dorking.lab | presentation | ✓ | 0 |
 | shield-security-fundamentals.lab | applet | ✓ | 0 |
 | shield-threats.lab | presentation | ✓ | 0 |
+| ms-sec-01 | presentation | ✓ | 0 |
+| ms-sec-02 | presentation | ✓ | 0 |
+| ms-sec-03 | presentation | ✓ | 0 |
+| ms-sec-04 | presentation | ✓ | 0 |
+| ms-sec-05 | presentation | ✓ | 0 |
+| ms-sec-06 | presentation | ✓ | 0 |
+| ms-sec-07 | presentation | ✓ | 0 |
+| ms-sec-08 | presentation | ✓ | 0 |
+| ms-sec-09 | presentation | ✓ | 0 |
+| ms-sec-10 | presentation | ✓ | 0 |
 | shield-cia-triad.presentation | presentation | ✓ | 0 |
 | shield-hash-steg.presentation | presentation | ✓ | 0 |
 | shield-security-fundamentals.presentation | presentation | ✓ | 0 |
@@ -4456,8 +5818,11 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | audit-tool | applet | ✓ | 1 |
+| bot-knowledge | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | career-quiz | applet | ✓ | 1 |
+| privacy-settings | presentation | ✓ | 1 |
+| profile | presentation | ✓ | 1 |
 | ctf-leaderboard.applet | presentation | ✓ | 0 |
 | botnet-architecture.presentation | presentation | ✓ | 0 |
 | buffer-overflow-lab | presentation | ✓ | 0 |
@@ -4724,6 +6089,156 @@
 | web-binary-decimal-converter.applet | presentation | ✓ | 0 |
 | web-server-comparison.applet | presentation | ✓ | 0 |
 | networking-interactive-guide | quiz | ✓ | 0 |
+| bb-bgp-01 | presentation | ✓ | 0 |
+| bb-bgp-02 | presentation | ✓ | 0 |
+| bb-bgp-03 | presentation | ✓ | 0 |
+| bb-bgp-04 | presentation | ✓ | 0 |
+| bb-bgp-05 | presentation | ✓ | 0 |
+| bb-bgp-06 | presentation | ✓ | 0 |
+| bb-bgp-07 | presentation | ✓ | 0 |
+| bb-bgp-08 | presentation | ✓ | 0 |
+| bb-bgp-09 | presentation | ✓ | 0 |
+| bb-bgp-10 | presentation | ✓ | 0 |
+| bb-cap-01 | presentation | ✓ | 0 |
+| bb-cap-02 | presentation | ✓ | 0 |
+| bb-cap-03 | presentation | ✓ | 0 |
+| bb-cap-04 | presentation | ✓ | 0 |
+| bb-cap-05 | presentation | ✓ | 0 |
+| bb-cap-06 | presentation | ✓ | 0 |
+| bb-cap-07 | presentation | ✓ | 0 |
+| bb-cap-08 | presentation | ✓ | 0 |
+| bb-cap-09 | presentation | ✓ | 0 |
+| bb-cap-10 | presentation | ✓ | 0 |
+| bb-5g-01 | presentation | ✓ | 0 |
+| bb-5g-02 | presentation | ✓ | 0 |
+| bb-5g-03 | presentation | ✓ | 0 |
+| bb-5g-04 | presentation | ✓ | 0 |
+| bb-5g-05 | presentation | ✓ | 0 |
+| bb-5g-06 | presentation | ✓ | 0 |
+| bb-5g-07 | presentation | ✓ | 0 |
+| bb-5g-08 | presentation | ✓ | 0 |
+| bb-5g-09 | presentation | ✓ | 0 |
+| bb-5g-10 | presentation | ✓ | 0 |
+| bb-dc-01 | presentation | ✓ | 0 |
+| bb-dc-02 | presentation | ✓ | 0 |
+| bb-dc-03 | presentation | ✓ | 0 |
+| bb-dc-04 | presentation | ✓ | 0 |
+| bb-dc-05 | presentation | ✓ | 0 |
+| bb-dc-06 | presentation | ✓ | 0 |
+| bb-dc-07 | presentation | ✓ | 0 |
+| bb-dc-08 | presentation | ✓ | 0 |
+| bb-dc-09 | presentation | ✓ | 0 |
+| bb-dc-10 | presentation | ✓ | 0 |
+| bb-nf-01 | presentation | ✓ | 0 |
+| bb-nf-02 | presentation | ✓ | 0 |
+| bb-nf-03 | presentation | ✓ | 0 |
+| bb-nf-04 | presentation | ✓ | 0 |
+| bb-nf-05 | presentation | ✓ | 0 |
+| bb-nf-06 | presentation | ✓ | 0 |
+| bb-nf-07 | presentation | ✓ | 0 |
+| bb-nf-08 | presentation | ✓ | 0 |
+| bb-nf-09 | presentation | ✓ | 0 |
+| bb-nf-10 | presentation | ✓ | 0 |
+| bb-ib-01 | presentation | ✓ | 0 |
+| bb-ib-02 | presentation | ✓ | 0 |
+| bb-ib-03 | presentation | ✓ | 0 |
+| bb-ib-04 | presentation | ✓ | 0 |
+| bb-ib-05 | presentation | ✓ | 0 |
+| bb-ib-06 | presentation | ✓ | 0 |
+| bb-ib-07 | presentation | ✓ | 0 |
+| bb-ib-08 | presentation | ✓ | 0 |
+| bb-ib-09 | presentation | ✓ | 0 |
+| bb-ib-10 | presentation | ✓ | 0 |
+| bb-v6-01 | presentation | ✓ | 0 |
+| bb-v6-02 | presentation | ✓ | 0 |
+| bb-v6-03 | presentation | ✓ | 0 |
+| bb-v6-04 | presentation | ✓ | 0 |
+| bb-v6-05 | presentation | ✓ | 0 |
+| bb-v6-06 | presentation | ✓ | 0 |
+| bb-v6-07 | presentation | ✓ | 0 |
+| bb-v6-08 | presentation | ✓ | 0 |
+| bb-v6-09 | presentation | ✓ | 0 |
+| bb-v6-10 | presentation | ✓ | 0 |
+| bb-mpls-01 | presentation | ✓ | 0 |
+| bb-mpls-02 | presentation | ✓ | 0 |
+| bb-mpls-03 | presentation | ✓ | 0 |
+| bb-mpls-04 | presentation | ✓ | 0 |
+| bb-mpls-05 | presentation | ✓ | 0 |
+| bb-mpls-06 | presentation | ✓ | 0 |
+| bb-mpls-07 | presentation | ✓ | 0 |
+| bb-mpls-08 | presentation | ✓ | 0 |
+| bb-mpls-09 | presentation | ✓ | 0 |
+| bb-mpls-10 | presentation | ✓ | 0 |
+| bb-ns-01 | presentation | ✓ | 0 |
+| bb-ns-02 | presentation | ✓ | 0 |
+| bb-ns-03 | presentation | ✓ | 0 |
+| bb-ns-04 | presentation | ✓ | 0 |
+| bb-ns-05 | presentation | ✓ | 0 |
+| bb-ns-06 | presentation | ✓ | 0 |
+| bb-ns-07 | presentation | ✓ | 0 |
+| bb-ns-08 | presentation | ✓ | 0 |
+| bb-ns-09 | presentation | ✓ | 0 |
+| bb-ns-10 | presentation | ✓ | 0 |
+| bb-op-01 | presentation | ✓ | 0 |
+| bb-op-02 | presentation | ✓ | 0 |
+| bb-op-03 | presentation | ✓ | 0 |
+| bb-op-04 | presentation | ✓ | 0 |
+| bb-op-05 | presentation | ✓ | 0 |
+| bb-op-06 | presentation | ✓ | 0 |
+| bb-op-07 | presentation | ✓ | 0 |
+| bb-op-08 | presentation | ✓ | 0 |
+| bb-op-09 | presentation | ✓ | 0 |
+| bb-op-10 | presentation | ✓ | 0 |
+| bb-qos-01 | presentation | ✓ | 0 |
+| bb-qos-02 | presentation | ✓ | 0 |
+| bb-qos-03 | presentation | ✓ | 0 |
+| bb-qos-04 | presentation | ✓ | 0 |
+| bb-qos-05 | presentation | ✓ | 0 |
+| bb-qos-06 | presentation | ✓ | 0 |
+| bb-qos-07 | presentation | ✓ | 0 |
+| bb-qos-08 | presentation | ✓ | 0 |
+| bb-qos-09 | presentation | ✓ | 0 |
+| bb-qos-10 | presentation | ✓ | 0 |
+| bb-rt-01 | presentation | ✓ | 0 |
+| bb-rt-02 | presentation | ✓ | 0 |
+| bb-rt-03 | presentation | ✓ | 0 |
+| bb-rt-04 | presentation | ✓ | 0 |
+| bb-rt-05 | presentation | ✓ | 0 |
+| bb-rt-06 | presentation | ✓ | 0 |
+| bb-rt-07 | presentation | ✓ | 0 |
+| bb-rt-08 | presentation | ✓ | 0 |
+| bb-rt-09 | presentation | ✓ | 0 |
+| bb-rt-10 | presentation | ✓ | 0 |
+| bb-sdn-01 | presentation | ✓ | 0 |
+| bb-sdn-02 | presentation | ✓ | 0 |
+| bb-sdn-03 | presentation | ✓ | 0 |
+| bb-sdn-04 | presentation | ✓ | 0 |
+| bb-sdn-05 | presentation | ✓ | 0 |
+| bb-sdn-06 | presentation | ✓ | 0 |
+| bb-sdn-07 | presentation | ✓ | 0 |
+| bb-sdn-08 | presentation | ✓ | 0 |
+| bb-sdn-09 | presentation | ✓ | 0 |
+| bb-sdn-10 | presentation | ✓ | 0 |
+| bb-sw-01 | presentation | ✓ | 0 |
+| bb-sw-02 | presentation | ✓ | 0 |
+| bb-sw-03 | presentation | ✓ | 0 |
+| bb-sw-04 | presentation | ✓ | 0 |
+| bb-sw-05 | presentation | ✓ | 0 |
+| bb-sw-06 | presentation | ✓ | 0 |
+| bb-sw-07 | presentation | ✓ | 0 |
+| bb-sw-08 | presentation | ✓ | 0 |
+| bb-sw-09 | presentation | ✓ | 0 |
+| bb-sw-10 | presentation | ✓ | 0 |
+| bb-wl-01 | presentation | ✓ | 0 |
+| bb-wl-02 | presentation | ✓ | 0 |
+| bb-wl-03 | presentation | ✓ | 0 |
+| bb-wl-04 | presentation | ✓ | 0 |
+| bb-wl-05 | presentation | ✓ | 0 |
+| bb-wl-06 | presentation | ✓ | 0 |
+| bb-wl-07 | presentation | ✓ | 0 |
+| bb-wl-08 | presentation | ✓ | 0 |
+| bb-wl-09 | presentation | ✓ | 0 |
+| bb-wl-10 | presentation | ✓ | 0 |
 | web-networking-midterm.exam | presentation | ✓ | 0 |
 | web-dns-resolver-race.applet | applet | ✓ | 1 |
 | web-network-architect.applet | applet | ✓ | 1 |
@@ -4742,6 +6257,16 @@
 | web-troubleshooting.lab | lab | ✓ | 0 |
 | web-vlan-config.lab | lab | ✓ | 0 |
 | web-ip-addressing-ch7-10.module | presentation | ✓ | 0 |
+| ne-01 | presentation | ✓ | 0 |
+| ne-02 | presentation | ✓ | 0 |
+| ne-03 | presentation | ✓ | 0 |
+| ne-04 | presentation | ✓ | 0 |
+| ne-05 | presentation | ✓ | 0 |
+| ne-06 | presentation | ✓ | 0 |
+| ne-07 | presentation | ✓ | 0 |
+| ne-08 | presentation | ✓ | 0 |
+| ne-09 | presentation | ✓ | 0 |
+| ne-10 | presentation | ✓ | 0 |
 | web-arp.presentation | presentation | ✓ | 0 |
 | web-cables.presentation | presentation | ✓ | 0 |
 | web-cloud-networking.presentation | presentation | ✓ | 0 |
@@ -4816,7 +6341,109 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (13) — heuristic, needs review
+### CRITICAL (25)
+
+**[ASGN-001]** Item assignment for 'signal-tool-arduino-ide' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/arduino-ide.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/arduino-ide.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-balenaetcher' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/balenaetcher.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/balenaetcher.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-clonezilla' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/clonezilla.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/clonezilla.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-coolterm' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/coolterm.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/coolterm.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-dban' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/dban.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/dban.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-gparted' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/gparted.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/gparted.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-hirens-bootcd' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/hirens-bootcd.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/hirens-bootcd.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-memtest86' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/memtest86.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/memtest86.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-minicom' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/minicom.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/minicom.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-nmap' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/nmap.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/nmap.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-platformio' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/platformio.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/platformio.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-putty' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/putty.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/putty.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-raspberry-pi-imager' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/raspberry-pi-imager.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/raspberry-pi-imager.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-retropie' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/retropie.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/retropie.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-rufus' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/rufus.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/rufus.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-screen' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/screen.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/screen.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-thonny' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/thonny.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/thonny.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-ventoy' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/ventoy.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/ventoy.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-vscode' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/vscode.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/vscode.tool.html
+
+**[ASGN-001]** Item assignment for 'signal-tool-wireshark' resolves to nonexistent file: houses/signal-toolkit/signal/toolkit/tools/wireshark.tool.html (houseId='signal-toolkit' is not a real house dir, and no PATH_HOUSE_MAP entry exists)
+  File: `./components/LearningPaths.js`
+  Fix: Either change href to a full path starting with 'houses/', or ensure the file exists at houses/signal-toolkit/signal/toolkit/tools/wireshark.tool.html
+
+**[HEUR-009]** Empty template literal ${} — SyntaxError kills entire <script> block (terminal, event listeners, and init code will not execute)
+  File: `dark-arts/vault/labs/linux/da-linux-log-analysis.lab.html`
+  Fix: Restore the missing expression inside ${}, e.g., ${current.task} or ${obj.task}
+
+**[HEUR-009]** Empty template literal ${} — SyntaxError kills entire <script> block (terminal, event listeners, and init code will not execute)
+  File: `dark-arts/vault/labs/linux/da-linux-log-analysis.lab.html`
+  Fix: Restore the missing expression inside ${}, e.g., ${current.task} or ${obj.task}
+
+**[HEUR-009]** Empty template literal ${} — SyntaxError kills entire <script> block (terminal, event listeners, and init code will not execute)
+  File: `houses/code/quizzes/code-cloudformation.quiz.html`
+  Fix: Restore the missing expression inside ${}, e.g., ${current.task} or ${obj.task}
+
+**[HEUR-009]** Empty template literal ${} — SyntaxError kills entire <script> block (terminal, event listeners, and init code will not execute)
+  File: `houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html`
+  Fix: Restore the missing expression inside ${}, e.g., ${current.task} or ${obj.task}
+
+**[HEUR-009]** Empty template literal ${} — SyntaxError kills entire <script> block (terminal, event listeners, and init code will not execute)
+  File: `houses/script/courses/grep-pipe-mastery/index.html`
+  Fix: Restore the missing expression inside ${}, e.g., ${current.task} or ${obj.task}
+
+### SUSPECT (19) — heuristic, needs review
 
 **[HEUR-006]** Hardcoded relative href in shared renderer: ../../dashboard.html — resolves differently depending on consumer page depth
   File: `components/CertPathRenderer.js`
@@ -4826,9 +6453,29 @@
   File: `components/HouseRenderer.js`
   Fix: Use absolute path from site root (e.g., /houses/shield/index.html) instead of relative path
 
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/IntegrityLockscreen.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/ModuleProgress.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/ModuleProgress.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `admin/console.html`
+  Fix: Remove console.log or replace with proper logging
+
 **[HEUR-005]** Duplicate script include: "../components/AccessGuard.js" loaded 2 times (lines 5, 666)
   File: `career/index.html`
   Fix: Remove duplicate <script src="../components/AccessGuard.js"> tag
+
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `components/hive/hive-redqueen.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
 
 **[HEUR-003]** TODO marker in script: Line 29:  private static final boolean IS_DEBUG = true; // T
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-mobile.html`
@@ -4837,6 +6484,10 @@
 **[HEUR-001]** Excessive inline scripts: 13 <script> blocks without src (threshold: 8)
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-xss.html`
   Fix: Consider extracting inline scripts to external .js files
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/code/armory/compare.html`
+  Fix: Remove console.log or replace with proper logging
 
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
   File: `houses/code/devops/sections/assessments/do-26-fundamentals-quiz.html`
@@ -4870,10 +6521,30 @@
   File: `houses/web/games/web-packet-sniffer.applet.html`
   Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
-### WARNING (590)
+### WARNING (1266)
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge.html`
+  Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `career-quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `components/profile/privacy-settings.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `components/profile/privacy-settings.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `components/profile/profile.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `components/profile/profile.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5237,6 +6908,566 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/adversarial/cx-adv-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/capstone/cx-cap-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cnn/cx-cnn-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/cyber-ml/cx-sec-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/deep-learning/cx-dl-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/foundations/cx-ai-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/generative/cx-gen-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/math/cx-math-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/mlops/cx-ops-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/nlp/cx-nlp-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/rl/cx-rl-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/supervised/cx-sup-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/transformers/cx-rnn-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/ai/cortex/unsupervised/cx-uns-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/ai/games/ai-agent-builder.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -5365,6 +7596,86 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/auth/capi-auth-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/capstone/capi-cap-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/api/cloud-api-002.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -5389,7 +7700,1371 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/cloud-patterns/capi-cloud-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/design/capi-des-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/event-driven/capi-evt-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/owasp/capi-owasp-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/pentest/capi-pen-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/api/rate-limiting/capi-rl-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/capstone/ac-cap-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/challenges/ac-ch-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/dp/ac-dp-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/geometry/ac-geo-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/algorithm-chamber/strings/ac-str-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-02-registers.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-03-arithmetic.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-04-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-05-stack-functions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-06-memory.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-07-syscalls.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-08-debugging.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-09-reverse-engineering.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/assembly/arm-asm-10-exploits.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-03-input-output.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-04-conditionals.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-05-loops.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-06-functions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-07-text-processing.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-08-system-admin.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-09-security-scripts.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/bash/arm-bash-10-advanced.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-02-variables-types.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-03-operators-control.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-04-functions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-05-arrays-strings.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-06-pointers.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-07-memory.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-08-structs-unions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-09-file-io.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/c/arm-c-10-preprocessor.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/compare.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-03-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-04-oop.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-05-inheritance.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-06-templates-stl.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-07-memory.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-08-modern-cpp.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-09-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/cpp/arm-cpp-10-advanced.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-03-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-04-oop.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-05-inheritance.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-06-collections.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-07-exceptions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-08-async.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-09-aspnet.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/csharp/arm-cs-10-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-03-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-04-data-structures.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-05-interfaces.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-06-concurrency.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-07-errors-testing.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-08-stdlib.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-09-cli-cloud.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/go/arm-go-10-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-03-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-04-oop.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-05-inheritance.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-06-collections.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-07-exceptions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-08-threads.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-09-spring.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/java/arm-java-10-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-02-variables-types.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-03-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-04-functions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-05-arrays-objects.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-06-dom.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-07-async.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-08-classes-modules.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-09-typescript-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/javascript/arm-js-10-practical.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-02-lua-basics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-03-lua-apps.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-04-perl-basics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-05-perl-text.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-06-perl-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-07-r-basics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-08-r-analysis.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-09-r-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/lua-perl-r/arm-lpr-10-comparison.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-03-control.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-04-arrays.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-05-oop.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-06-forms.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-07-pdo.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-08-sessions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-09-modern.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/php/arm-php-10-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-02-cmdlets-pipeline.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-03-variables-types.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-04-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-05-objects.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-06-filesystem.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-07-active-directory.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-08-remoting.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-09-scripting.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/powershell/arm-ps-10-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-03-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-04-loops.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-05-functions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-06-data-structures.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-07-strings-io.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-08-oop.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-09-modules-packages.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python/arm-py-10-error-handling.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/python-graphics/pg-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-03-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-04-collections.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-05-oop.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-06-blocks.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-07-file-io.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-08-regex.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-09-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/ruby/arm-rb-10-advanced.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-03-ownership.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-04-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-05-structs-enums.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-06-traits-generics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-07-error-handling.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-08-collections.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-09-concurrency.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/rust/arm-rs-10-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-02-select.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-03-filtering.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-04-joins.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-05-aggregation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-06-subqueries.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-07-crud.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-08-schema.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-09-security.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/sql/arm-sql-10-practical.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-01-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-02-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-03-control-flow.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-04-collections.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-05-oop.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-06-error-handling.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-07-concurrency.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-08-mobile-ui.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-09-networking.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/armory/swift-kotlin/arm-sk-10-security.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6633,11 +10308,691 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/ms-security/ms-sec-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/bgp/bb-bgp-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/capstone/bb-cap-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/carrier/bb-5g-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/datacenter/bb-dc-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/forensics/bb-nf-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/infiniband/bb-ib-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/ipv6/bb-v6-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/mpls/bb-mpls-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/netsec/bb-ns-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/optical/bb-op-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/qos/bb-qos-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/routing/bb-rt-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdn/bb-sdn-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/sdwan/bb-sw-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/backbone/wireless/bb-wl-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/games/web-dns-resolver-race.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/games/web-subnet-siege.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/network-essentials/ne-10.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -7100,10 +11455,14 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-### INFO (339)
+### INFO (349)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7128,6 +11487,22 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `faq.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/cortex/capstone/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/cortex/cnn/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/cortex/rl/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/cortex/unsupervised/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7171,7 +11546,27 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/algorithm-chamber/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/compare.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/armory/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/javascript/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/lua-perl-r/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/python-graphics/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8454,11 +12849,14 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (451)
+### Unregistered Content (1125)
 
 | Path | Type | House |
 |------|------|-------|
+| bot-knowledge.html | applet | - |
 | career-quiz.html | applet | - |
+| components/profile/privacy-settings.html | presentation | - |
+| components/profile/profile.html | presentation | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-ai-exploit.html | presentation | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-api.html | lab | - |
 | dark-arts/vault/bug-hunting/labs/bh-lab-bounty-sim.html | lab | - |
@@ -8549,6 +12947,146 @@
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-rita.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-snitch.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html | presentation | - |
+| houses/ai/cortex/adversarial/cx-adv-01.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-02.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-03.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-04.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-05.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-06.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-07.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-08.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-09.html | presentation | ai |
+| houses/ai/cortex/adversarial/cx-adv-10.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-01.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-02.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-03.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-04.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-05.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-06.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-07.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-08.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-09.html | presentation | ai |
+| houses/ai/cortex/capstone/cx-cap-10.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-01.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-02.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-03.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-04.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-05.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-06.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-07.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-08.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-09.html | presentation | ai |
+| houses/ai/cortex/cnn/cx-cnn-10.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-01.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-02.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-03.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-04.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-05.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-06.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-07.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-08.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-09.html | presentation | ai |
+| houses/ai/cortex/cyber-ml/cx-sec-10.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-01.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-02.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-03.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-04.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-05.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-06.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-07.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-08.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-09.html | presentation | ai |
+| houses/ai/cortex/deep-learning/cx-dl-10.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-01.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-02.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-03.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-04.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-05.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-06.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-07.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-08.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-09.html | presentation | ai |
+| houses/ai/cortex/foundations/cx-ai-10.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-01.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-02.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-03.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-04.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-05.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-06.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-07.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-08.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-09.html | presentation | ai |
+| houses/ai/cortex/generative/cx-gen-10.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-01.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-02.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-03.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-04.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-05.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-06.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-07.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-08.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-09.html | presentation | ai |
+| houses/ai/cortex/math/cx-math-10.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-01.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-02.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-03.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-04.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-05.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-06.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-07.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-08.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-09.html | presentation | ai |
+| houses/ai/cortex/mlops/cx-ops-10.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-01.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-02.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-03.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-04.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-05.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-06.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-07.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-08.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-09.html | presentation | ai |
+| houses/ai/cortex/nlp/cx-nlp-10.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-01.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-02.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-03.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-04.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-05.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-06.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-07.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-08.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-09.html | presentation | ai |
+| houses/ai/cortex/rl/cx-rl-10.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-01.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-02.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-03.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-04.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-05.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-06.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-07.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-08.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-09.html | presentation | ai |
+| houses/ai/cortex/supervised/cx-sup-10.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-01.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-02.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-03.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-04.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-05.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-06.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-07.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-08.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-09.html | presentation | ai |
+| houses/ai/cortex/transformers/cx-rnn-10.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-01.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-02.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-03.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-04.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-05.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-06.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-07.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-08.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-09.html | presentation | ai |
+| houses/ai/cortex/unsupervised/cx-uns-10.html | presentation | ai |
 | houses/ai/games/ai-agent-builder.applet.html | applet | ai |
 | houses/ai/games/ai-triage-trainer.applet.html | presentation | ai |
 | houses/ai/labs/ai-agent-workflow.lab.html | presentation | ai |
@@ -8580,13 +13118,374 @@
 | houses/ai/tools/ai-llm-comparison.tool.html | presentation | ai |
 | houses/ai/tools/ai-prompt-tester.tool.html | presentation | ai |
 | houses/ai/tools/ai-tokenizer.tool.html | applet | ai |
+| houses/cloud/api/auth/capi-auth-01.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-02.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-03.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-04.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-05.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-06.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-07.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-08.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-09.html | presentation | cloud |
+| houses/cloud/api/auth/capi-auth-10.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-01.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-02.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-03.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-04.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-05.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-06.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-07.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-08.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-09.html | presentation | cloud |
+| houses/cloud/api/capstone/capi-cap-10.html | presentation | cloud |
 | houses/cloud/api/cloud-api-002.presentation.html | lab | cloud |
 | houses/cloud/api/cloud-api-003.presentation.html | presentation | cloud |
 | houses/cloud/api/cloud-api-004.presentation.html | lab | cloud |
 | houses/cloud/api/cloud-api-005.presentation.html | lab | cloud |
 | houses/cloud/api/cloud-api-006.lab.html | presentation | cloud |
 | houses/cloud/api/cloud-api-007.presentation.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-01.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-02.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-03.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-04.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-05.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-06.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-07.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-08.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-09.html | presentation | cloud |
+| houses/cloud/api/cloud-patterns/capi-cloud-10.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-01.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-02.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-03.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-04.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-05.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-06.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-07.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-08.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-09.html | presentation | cloud |
+| houses/cloud/api/design/capi-des-10.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-01.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-02.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-03.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-04.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-05.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-06.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-07.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-08.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-09.html | presentation | cloud |
+| houses/cloud/api/event-driven/capi-evt-10.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-01.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-02.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-03.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-04.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-05.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-06.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-07.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-08.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-09.html | presentation | cloud |
+| houses/cloud/api/owasp/capi-owasp-10.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-01.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-02.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-03.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-04.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-05.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-06.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-07.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-08.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-09.html | presentation | cloud |
+| houses/cloud/api/pentest/capi-pen-10.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-01.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-02.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-03.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-04.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-05.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-06.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-07.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-08.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-09.html | presentation | cloud |
+| houses/cloud/api/rate-limiting/capi-rl-10.html | presentation | cloud |
 | houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
+| houses/code/algorithm-chamber/capstone/ac-cap-01.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-02.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-03.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-04.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-05.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-06.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-07.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-08.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-09.html | presentation | code |
+| houses/code/algorithm-chamber/capstone/ac-cap-10.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-01.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-02.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-03.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-04.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-05.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-06.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-07.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-08.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-09.html | presentation | code |
+| houses/code/algorithm-chamber/challenges/ac-ch-10.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-01.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-02.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-03.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-04.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-05.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-06.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-07.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-08.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-09.html | presentation | code |
+| houses/code/algorithm-chamber/complexity/ac-bigo-10.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-01.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-02.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-03.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-04.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-05.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-06.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-07.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-08.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-09.html | presentation | code |
+| houses/code/algorithm-chamber/data-structures/ac-ds-10.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-01.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-02.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-03.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-04.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-05.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-06.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-07.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-08.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-09.html | presentation | code |
+| houses/code/algorithm-chamber/discrete-math/ac-dm-10.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-01.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-02.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-03.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-04.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-05.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-06.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-07.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-08.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-09.html | presentation | code |
+| houses/code/algorithm-chamber/dp/ac-dp-10.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-01.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-02.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-03.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-04.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-05.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-06.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-07.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-08.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-09.html | presentation | code |
+| houses/code/algorithm-chamber/geometry/ac-geo-10.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-01.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-02.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-03.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-04.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-05.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-06.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-07.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-08.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-09.html | presentation | code |
+| houses/code/algorithm-chamber/graphs/ac-gr-10.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-01.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-02.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-03.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-04.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-05.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-06.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-07.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-08.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-09.html | presentation | code |
+| houses/code/algorithm-chamber/greedy/ac-grd-10.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-01.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-02.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-03.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-04.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-05.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-06.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-07.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-08.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-09.html | presentation | code |
+| houses/code/algorithm-chamber/sorting/ac-sort-10.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-01.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-02.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-03.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-04.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-05.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-06.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-07.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-08.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-09.html | presentation | code |
+| houses/code/algorithm-chamber/strings/ac-str-10.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-01-intro.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-02-registers.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-03-arithmetic.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-04-control-flow.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-05-stack-functions.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-06-memory.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-07-syscalls.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-08-debugging.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-09-reverse-engineering.module.html | presentation | code |
+| houses/code/armory/assembly/arm-asm-10-exploits.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-01-intro.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-02-variables.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-03-input-output.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-04-conditionals.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-05-loops.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-06-functions.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-07-text-processing.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-08-system-admin.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-09-security-scripts.module.html | presentation | code |
+| houses/code/armory/bash/arm-bash-10-advanced.module.html | presentation | code |
+| houses/code/armory/c/arm-c-01-intro.module.html | presentation | code |
+| houses/code/armory/c/arm-c-02-variables-types.module.html | presentation | code |
+| houses/code/armory/c/arm-c-03-operators-control.module.html | presentation | code |
+| houses/code/armory/c/arm-c-04-functions.module.html | presentation | code |
+| houses/code/armory/c/arm-c-05-arrays-strings.module.html | presentation | code |
+| houses/code/armory/c/arm-c-06-pointers.module.html | presentation | code |
+| houses/code/armory/c/arm-c-07-memory.module.html | presentation | code |
+| houses/code/armory/c/arm-c-08-structs-unions.module.html | presentation | code |
+| houses/code/armory/c/arm-c-09-file-io.module.html | presentation | code |
+| houses/code/armory/c/arm-c-10-preprocessor.module.html | presentation | code |
+| houses/code/armory/compare.html | applet | code |
+| houses/code/armory/cpp/arm-cpp-01-intro.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-02-variables.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-03-control-flow.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-04-oop.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-05-inheritance.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-06-templates-stl.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-07-memory.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-08-modern-cpp.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-09-security.module.html | presentation | code |
+| houses/code/armory/cpp/arm-cpp-10-advanced.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-01-intro.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-02-variables.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-03-control-flow.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-04-oop.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-05-inheritance.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-06-collections.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-07-exceptions.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-08-async.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-09-aspnet.module.html | presentation | code |
+| houses/code/armory/csharp/arm-cs-10-security.module.html | presentation | code |
+| houses/code/armory/go/arm-go-01-intro.module.html | presentation | code |
+| houses/code/armory/go/arm-go-02-variables.module.html | presentation | code |
+| houses/code/armory/go/arm-go-03-control-flow.module.html | presentation | code |
+| houses/code/armory/go/arm-go-04-data-structures.module.html | presentation | code |
+| houses/code/armory/go/arm-go-05-interfaces.module.html | presentation | code |
+| houses/code/armory/go/arm-go-06-concurrency.module.html | presentation | code |
+| houses/code/armory/go/arm-go-07-errors-testing.module.html | presentation | code |
+| houses/code/armory/go/arm-go-08-stdlib.module.html | presentation | code |
+| houses/code/armory/go/arm-go-09-cli-cloud.module.html | presentation | code |
+| houses/code/armory/go/arm-go-10-security.module.html | presentation | code |
+| houses/code/armory/java/arm-java-01-intro.module.html | presentation | code |
+| houses/code/armory/java/arm-java-02-variables.module.html | presentation | code |
+| houses/code/armory/java/arm-java-03-control-flow.module.html | presentation | code |
+| houses/code/armory/java/arm-java-04-oop.module.html | presentation | code |
+| houses/code/armory/java/arm-java-05-inheritance.module.html | presentation | code |
+| houses/code/armory/java/arm-java-06-collections.module.html | presentation | code |
+| houses/code/armory/java/arm-java-07-exceptions.module.html | presentation | code |
+| houses/code/armory/java/arm-java-08-threads.module.html | presentation | code |
+| houses/code/armory/java/arm-java-09-spring.module.html | presentation | code |
+| houses/code/armory/java/arm-java-10-security.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-01-intro.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-02-variables-types.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-03-control-flow.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-04-functions.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-05-arrays-objects.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-06-dom.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-07-async.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-08-classes-modules.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-09-typescript-intro.module.html | presentation | code |
+| houses/code/armory/javascript/arm-js-10-practical.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-01-intro.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-02-lua-basics.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-03-lua-apps.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-04-perl-basics.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-05-perl-text.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-06-perl-security.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-07-r-basics.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-08-r-analysis.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-09-r-security.module.html | presentation | code |
+| houses/code/armory/lua-perl-r/arm-lpr-10-comparison.module.html | presentation | code |
+| houses/code/armory/php/arm-php-01-intro.module.html | presentation | code |
+| houses/code/armory/php/arm-php-02-variables.module.html | presentation | code |
+| houses/code/armory/php/arm-php-03-control.module.html | presentation | code |
+| houses/code/armory/php/arm-php-04-arrays.module.html | presentation | code |
+| houses/code/armory/php/arm-php-05-oop.module.html | presentation | code |
+| houses/code/armory/php/arm-php-06-forms.module.html | presentation | code |
+| houses/code/armory/php/arm-php-07-pdo.module.html | presentation | code |
+| houses/code/armory/php/arm-php-08-sessions.module.html | presentation | code |
+| houses/code/armory/php/arm-php-09-modern.module.html | presentation | code |
+| houses/code/armory/php/arm-php-10-security.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-01-intro.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-02-cmdlets-pipeline.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-03-variables-types.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-04-control-flow.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-05-objects.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-06-filesystem.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-07-active-directory.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-08-remoting.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-09-scripting.module.html | presentation | code |
+| houses/code/armory/powershell/arm-ps-10-security.module.html | presentation | code |
+| houses/code/armory/python/arm-py-01-intro.module.html | presentation | code |
+| houses/code/armory/python/arm-py-02-variables.module.html | presentation | code |
+| houses/code/armory/python/arm-py-03-control-flow.module.html | presentation | code |
+| houses/code/armory/python/arm-py-04-loops.module.html | presentation | code |
+| houses/code/armory/python/arm-py-05-functions.module.html | presentation | code |
+| houses/code/armory/python/arm-py-06-data-structures.module.html | presentation | code |
+| houses/code/armory/python/arm-py-07-strings-io.module.html | presentation | code |
+| houses/code/armory/python/arm-py-08-oop.module.html | presentation | code |
+| houses/code/armory/python/arm-py-09-modules-packages.module.html | presentation | code |
+| houses/code/armory/python/arm-py-10-error-handling.module.html | presentation | code |
+| houses/code/armory/python-graphics/pg-01.html | presentation | code |
+| houses/code/armory/python-graphics/pg-02.html | presentation | code |
+| houses/code/armory/python-graphics/pg-03.html | presentation | code |
+| houses/code/armory/python-graphics/pg-04.html | presentation | code |
+| houses/code/armory/python-graphics/pg-05.html | presentation | code |
+| houses/code/armory/python-graphics/pg-06.html | presentation | code |
+| houses/code/armory/python-graphics/pg-07.html | presentation | code |
+| houses/code/armory/python-graphics/pg-08.html | presentation | code |
+| houses/code/armory/python-graphics/pg-09.html | presentation | code |
+| houses/code/armory/python-graphics/pg-10.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-01-intro.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-02-variables.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-03-control-flow.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-04-collections.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-05-oop.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-06-blocks.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-07-file-io.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-08-regex.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-09-security.module.html | presentation | code |
+| houses/code/armory/ruby/arm-rb-10-advanced.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-01-intro.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-02-variables.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-03-ownership.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-04-control-flow.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-05-structs-enums.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-06-traits-generics.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-07-error-handling.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-08-collections.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-09-concurrency.module.html | presentation | code |
+| houses/code/armory/rust/arm-rs-10-security.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-01-intro.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-02-select.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-03-filtering.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-04-joins.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-05-aggregation.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-06-subqueries.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-07-crud.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-08-schema.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-09-security.module.html | presentation | code |
+| houses/code/armory/sql/arm-sql-10-practical.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-01-intro.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-02-variables.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-03-control-flow.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-04-collections.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-05-oop.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-06-error-handling.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-07-concurrency.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-08-mobile-ui.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-09-networking.module.html | presentation | code |
+| houses/code/armory/swift-kotlin/arm-sk-10-security.module.html | presentation | code |
 | houses/code/devops/sections/ansible/do-82-ansible-fundamentals.html | presentation | code |
 | houses/code/devops/sections/ansible/do-83-automation-landscape.html | presentation | code |
 | houses/code/devops/sections/ansible/do-88-ansible-inventory.html | presentation | code |
@@ -8893,8 +13792,178 @@
 | houses/shield/games/shield-debugger.applet.html | applet | shield |
 | houses/shield/games/shield-threatdex.applet.html | applet | shield |
 | houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
+| houses/shield/ms-security/ms-sec-01.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-02.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-03.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-04.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-05.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-06.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-07.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-08.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-09.html | presentation | shield |
+| houses/shield/ms-security/ms-sec-10.html | presentation | shield |
+| houses/web/backbone/bgp/bb-bgp-01.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-02.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-03.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-04.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-05.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-06.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-07.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-08.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-09.html | presentation | web |
+| houses/web/backbone/bgp/bb-bgp-10.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-01.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-02.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-03.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-04.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-05.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-06.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-07.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-08.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-09.html | presentation | web |
+| houses/web/backbone/capstone/bb-cap-10.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-01.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-02.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-03.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-04.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-05.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-06.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-07.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-08.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-09.html | presentation | web |
+| houses/web/backbone/carrier/bb-5g-10.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-01.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-02.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-03.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-04.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-05.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-06.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-07.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-08.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-09.html | presentation | web |
+| houses/web/backbone/datacenter/bb-dc-10.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-01.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-02.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-03.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-04.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-05.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-06.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-07.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-08.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-09.html | presentation | web |
+| houses/web/backbone/forensics/bb-nf-10.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-01.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-02.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-03.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-04.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-05.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-06.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-07.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-08.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-09.html | presentation | web |
+| houses/web/backbone/infiniband/bb-ib-10.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-01.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-02.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-03.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-04.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-05.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-06.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-07.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-08.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-09.html | presentation | web |
+| houses/web/backbone/ipv6/bb-v6-10.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-01.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-02.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-03.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-04.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-05.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-06.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-07.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-08.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-09.html | presentation | web |
+| houses/web/backbone/mpls/bb-mpls-10.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-01.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-02.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-03.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-04.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-05.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-06.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-07.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-08.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-09.html | presentation | web |
+| houses/web/backbone/netsec/bb-ns-10.html | presentation | web |
+| houses/web/backbone/optical/bb-op-01.html | presentation | web |
+| houses/web/backbone/optical/bb-op-02.html | presentation | web |
+| houses/web/backbone/optical/bb-op-03.html | presentation | web |
+| houses/web/backbone/optical/bb-op-04.html | presentation | web |
+| houses/web/backbone/optical/bb-op-05.html | presentation | web |
+| houses/web/backbone/optical/bb-op-06.html | presentation | web |
+| houses/web/backbone/optical/bb-op-07.html | presentation | web |
+| houses/web/backbone/optical/bb-op-08.html | presentation | web |
+| houses/web/backbone/optical/bb-op-09.html | presentation | web |
+| houses/web/backbone/optical/bb-op-10.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-01.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-02.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-03.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-04.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-05.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-06.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-07.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-08.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-09.html | presentation | web |
+| houses/web/backbone/qos/bb-qos-10.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-01.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-02.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-03.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-04.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-05.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-06.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-07.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-08.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-09.html | presentation | web |
+| houses/web/backbone/routing/bb-rt-10.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-01.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-02.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-03.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-04.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-05.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-06.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-07.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-08.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-09.html | presentation | web |
+| houses/web/backbone/sdn/bb-sdn-10.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-01.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-02.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-03.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-04.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-05.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-06.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-07.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-08.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-09.html | presentation | web |
+| houses/web/backbone/sdwan/bb-sw-10.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-01.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-02.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-03.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-04.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-05.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-06.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-07.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-08.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-09.html | presentation | web |
+| houses/web/backbone/wireless/bb-wl-10.html | presentation | web |
 | houses/web/games/web-dns-resolver-race.applet.html | applet | web |
 | houses/web/games/web-subnet-siege.applet.html | applet | web |
+| houses/web/network-essentials/ne-01.html | presentation | web |
+| houses/web/network-essentials/ne-02.html | presentation | web |
+| houses/web/network-essentials/ne-03.html | presentation | web |
+| houses/web/network-essentials/ne-04.html | presentation | web |
+| houses/web/network-essentials/ne-05.html | presentation | web |
+| houses/web/network-essentials/ne-06.html | presentation | web |
+| houses/web/network-essentials/ne-07.html | presentation | web |
+| houses/web/network-essentials/ne-08.html | presentation | web |
+| houses/web/network-essentials/ne-09.html | presentation | web |
+| houses/web/network-essentials/ne-10.html | presentation | web |
 | projects/ai-network-anomaly.html | applet | - |
 | projects/cloud-container-checker.html | applet | - |
 | projects/code-serial-console.html | applet | - |

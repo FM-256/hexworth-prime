@@ -678,6 +678,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Main */
 .se-main { max-width: 1000px; margin: 0 auto; padding: 24px 20px 60px; position: relative; z-index: 1; }
+.se-main.se-main-wide { max-width: 100%; padding-left: 30px; padding-right: 30px; }
 
 /* Particles */
 .se-particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
@@ -1184,7 +1185,9 @@ a { color: inherit; text-decoration: none; }
         // ---- Build Guide ----
         const guide = window.SignalGuides && window.SignalGuides[projectId];
         if (guide) {
-            main.appendChild(_buildGuide(guide, color));
+            var builtGuide = _buildGuide(guide, color);
+            main.appendChild(builtGuide);
+            if (guide.wiringSvg) main.classList.add('se-main-wide');
         } else {
             const guideBox = document.createElement('div');
             guideBox.className = 'sp-card sp-guide-card';
@@ -1220,6 +1223,231 @@ a { color: inherit; text-decoration: none; }
     // Build Guide renderer
     // =========================================================================
 
+    function _initBuildAnim(container) {
+        var wrap = container.querySelector('.svg-build-wrap');
+        if (!wrap) return;
+        var svg = wrap.querySelector('svg');
+        var btn = container.querySelector('.svg-build-btn:not(.svg-flow-btn)');
+        var stepEl = wrap.querySelector('.svg-build-step');
+        var flowBtn = wrap.querySelector('.svg-flow-btn');
+        // --- Pin tooltips (always active) ---
+        var tooltip = null;
+        wrap.querySelectorAll('.svg-pin-group[data-tip]').forEach(function (pin) {
+            pin.style.cursor = 'pointer';
+            pin.addEventListener('mouseenter', function (e) {
+                if (!tooltip) {
+                    tooltip = document.createElement('div');
+                    tooltip.className = 'svg-pin-tooltip';
+                    wrap.style.position = 'relative';
+                    wrap.appendChild(tooltip);
+                }
+                tooltip.textContent = pin.getAttribute('data-tip');
+                tooltip.style.display = 'block';
+                var rect = pin.getBoundingClientRect();
+                var wrapRect = wrap.getBoundingClientRect();
+                tooltip.style.left = (rect.left - wrapRect.left + rect.width / 2) + 'px';
+                tooltip.style.top = (rect.top - wrapRect.top - 32) + 'px';
+            });
+            pin.addEventListener('mouseleave', function () {
+                if (tooltip) tooltip.style.display = 'none';
+            });
+        });
+
+        // --- Build animation features (only for guides with build button) ---
+        if (!btn) return;
+
+        var wireData = [
+            { n: '1', label: 'Wire 1/6: 3V3 (red) \u2192 VCC', color: '#ef4444' },
+            { n: '2', label: 'Wire 2/6: GND (black) \u2192 GND', color: '#888' },
+            { n: '3', label: 'Wire 3/6: GP18 (yellow) \u2192 SCK', color: '#eab308' },
+            { n: '4', label: 'Wire 4/6: GP19 (green) \u2192 MOSI', color: '#22c55e' },
+            { n: '5', label: 'Wire 5/6: GP16 (blue) \u2192 MISO', color: '#3b82f6' },
+            { n: '6', label: 'Wire 6/6: GP17 (orange) \u2192 CS', color: '#f97316' }
+        ];
+        var flowAnimId = null;
+
+        // --- Connection checklist ---
+        function showChecklist() {
+            var existing = wrap.querySelector('.svg-checklist');
+            if (existing) existing.remove();
+            var cl = document.createElement('div');
+            cl.className = 'svg-checklist';
+            var checks = [
+                { from: '3V3', to: 'VCC', color: '#ef4444', role: 'Power' },
+                { from: 'GND', to: 'GND', color: '#888', role: 'Ground' },
+                { from: 'GP18', to: 'SCK', color: '#eab308', role: 'Clock' },
+                { from: 'GP19', to: 'MOSI', color: '#22c55e', role: 'Data Out' },
+                { from: 'GP16', to: 'MISO', color: '#3b82f6', role: 'Data In' },
+                { from: 'GP17', to: 'CS', color: '#f97316', role: 'Select' }
+            ];
+            cl.innerHTML = '<div class="svg-checklist-title">Connection Verification</div>' +
+                checks.map(function (c, i) {
+                    return '<div class="svg-check-row" style="animation-delay:' + (i * 0.12) + 's">' +
+                        '<span class="svg-check-icon" style="color:' + c.color + '">\u2713</span>' +
+                        '<span class="svg-check-label"><span style="color:' + c.color + '">' + c.from + '</span> \u2192 <span style="color:' + c.color + '">' + c.to + '</span></span>' +
+                        '<span class="svg-check-role">' + c.role + '</span></div>';
+                }).join('');
+            wrap.appendChild(cl);
+        }
+
+        function hideChecklist() {
+            var existing = wrap.querySelector('.svg-checklist');
+            if (existing) existing.remove();
+        }
+
+        // --- SPI Data Flow Animation ---
+        function startFlow() {
+            if (flowAnimId) return;
+            var ns = 'http://www.w3.org/2000/svg';
+            // Create dot groups for animated wires: SCK, MOSI (L->R), MISO (R->L), CS
+            var flowWires = [
+                { y: 196, color: '#eab308', dir: 1, speed: 1.2 },
+                { y: 220, color: '#22c55e', dir: 1, speed: 1.0 },
+                { y: 244, color: '#3b82f6', dir: -1, speed: 1.0 },
+                { y: 268, color: '#f97316', dir: 0, speed: 0 }
+            ];
+            var dots = [];
+            var flowGroup = document.createElementNS(ns, 'g');
+            flowGroup.setAttribute('class', 'spi-flow-dots');
+
+            // CS: just a steady glow, no moving dots
+            var csGlow = document.createElementNS(ns, 'rect');
+            csGlow.setAttribute('x', '236'); csGlow.setAttribute('y', '265');
+            csGlow.setAttribute('width', '248'); csGlow.setAttribute('height', '6');
+            csGlow.setAttribute('rx', '3'); csGlow.setAttribute('fill', 'rgba(249,115,22,0.15)');
+            flowGroup.appendChild(csGlow);
+
+            flowWires.forEach(function (fw) {
+                if (fw.dir === 0) return; // CS handled above
+                for (var d = 0; d < 4; d++) {
+                    var dot = document.createElementNS(ns, 'circle');
+                    dot.setAttribute('r', '3');
+                    dot.setAttribute('cy', fw.y);
+                    dot.setAttribute('fill', fw.color);
+                    dot.setAttribute('opacity', '0.8');
+                    flowGroup.appendChild(dot);
+                    dots.push({ el: dot, y: fw.y, dir: fw.dir, speed: fw.speed, offset: d * 62 });
+                }
+            });
+            svg.appendChild(flowGroup);
+
+            var startX = 236, endX = 484, range = endX - startX;
+            var lastT = null;
+            function tick(ts) {
+                if (!lastT) lastT = ts;
+                var dt = (ts - lastT) / 1000;
+                lastT = ts;
+                dots.forEach(function (d) {
+                    d.offset += dt * 120 * d.speed;
+                    if (d.offset > range) d.offset -= range;
+                    var x = d.dir === 1 ? startX + d.offset : endX - d.offset;
+                    d.el.setAttribute('cx', x);
+                    // Fade at edges
+                    var edgeDist = Math.min(d.offset, range - d.offset);
+                    d.el.setAttribute('opacity', Math.min(edgeDist / 30, 0.8));
+                });
+                flowAnimId = requestAnimationFrame(tick);
+            }
+            flowAnimId = requestAnimationFrame(tick);
+            stepEl.innerHTML = '<span style="color:#60a5fa">SPI active \u2014 MOSI \u2192 writes to SD | MISO \u2190 reads from SD | SCK pulses clock</span>';
+        }
+
+        function stopFlow() {
+            if (flowAnimId) {
+                cancelAnimationFrame(flowAnimId);
+                flowAnimId = null;
+            }
+            var fg = svg.querySelector('.spi-flow-dots');
+            if (fg) fg.remove();
+        }
+
+        // --- Flow button ---
+        if (flowBtn) {
+            flowBtn.addEventListener('click', function () {
+                var state = flowBtn.dataset.state;
+                if (state === 'idle') {
+                    startFlow();
+                    flowBtn.textContent = 'Stop Data Flow';
+                    flowBtn.dataset.state = 'playing';
+                } else {
+                    stopFlow();
+                    flowBtn.textContent = 'Show Data Flow';
+                    flowBtn.dataset.state = 'idle';
+                    stepEl.innerHTML = '<span style="color:#22c55e">Circuit complete! Ready to flash firmware.</span>';
+                }
+            });
+        }
+
+        // --- Build button ---
+        btn.addEventListener('click', function () {
+            var state = btn.dataset.state;
+
+            // Reset
+            if (state === 'done') {
+                stopFlow();
+                wrap.querySelectorAll('.svg-wire-group').forEach(function (g) {
+                    g.style.opacity = '0';
+                    var line = g.querySelector('.svg-wire');
+                    if (line) line.setAttribute('x2', '236');
+                    g.querySelectorAll('rect, text').forEach(function (e) {
+                        if (e.tagName.toLowerCase() !== 'line') e.setAttribute('opacity', '0');
+                    });
+                });
+                stepEl.textContent = '';
+                btn.textContent = 'Build Circuit';
+                btn.dataset.state = 'idle';
+                if (flowBtn) { flowBtn.style.display = 'none'; flowBtn.dataset.state = 'idle'; flowBtn.textContent = 'Show Data Flow'; }
+                hideChecklist();
+                return;
+            }
+
+            if (state === 'playing') return;
+            btn.dataset.state = 'playing';
+            btn.textContent = 'Building...';
+
+            var i = 0;
+            function nextWire() {
+                if (i >= wireData.length) {
+                    var doneG = wrap.querySelector('[data-wire="done"]');
+                    if (doneG) doneG.style.opacity = '1';
+                    stepEl.innerHTML = '<span style="color:#22c55e">Circuit complete! Ready to flash firmware.</span>';
+                    btn.textContent = 'Reset';
+                    btn.dataset.state = 'done';
+                    if (flowBtn) flowBtn.style.display = '';
+                    showChecklist();
+                    return;
+                }
+
+                var w = wireData[i];
+                var g = wrap.querySelector('[data-wire="' + w.n + '"]');
+                stepEl.innerHTML = '<span style="color:' + w.color + '">' + w.label + '</span>';
+                g.style.opacity = '1';
+
+                // Animate wire drawing left to right
+                var line = g.querySelector('.svg-wire');
+                var startX = 236, endX = 484, dur = 600, startT = null;
+                function drawLine(ts) {
+                    if (!startT) startT = ts;
+                    var p = Math.min((ts - startT) / dur, 1);
+                    p = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+                    line.setAttribute('x2', startX + (endX - startX) * p);
+                    if (p < 1) {
+                        requestAnimationFrame(drawLine);
+                    } else {
+                        g.querySelectorAll('rect, text').forEach(function (e) {
+                            if (e.tagName.toLowerCase() !== 'line') e.setAttribute('opacity', '1');
+                        });
+                    }
+                }
+                requestAnimationFrame(drawLine);
+
+                i++;
+                setTimeout(nextWire, 1200);
+            }
+            nextWire();
+        });
+    }
+
     function _buildGuide(guide, color) {
         const wrap = document.createElement('div');
         wrap.className = 'sp-guide';
@@ -1233,18 +1461,55 @@ a { color: inherit; text-decoration: none; }
         }
 
         // Wiring / circuit
-        if (guide.wiring) {
-            const wireBox = document.createElement('div');
+        var hasBuildAnim = guide.wiringSvg && guide.wiringSvg.indexOf('svg-build-btn') !== -1;
+        var hasStickySvg = !!(hasBuildAnim && guide.steps && guide.steps.length);
+        var wireBox = null;
+        if (guide.wiringSvg || guide.wiring) {
+            wireBox = document.createElement('div');
             wireBox.className = 'sp-card';
-            wireBox.innerHTML = `<div class="sp-card-label">Wiring Diagram</div><pre class="sp-wiring">${_escHtml(guide.wiring)}</pre>`;
+            if (guide.wiringSvg) {
+                wireBox.innerHTML = `<div class="sp-card-label">Wiring Diagram</div><div class="sp-wiring-svg">${guide.wiringSvg}</div>`;
+            } else {
+                wireBox.innerHTML = `<div class="sp-card-label">Wiring Diagram</div><pre class="sp-wiring">${_escHtml(guide.wiring)}</pre>`;
+            }
             if (guide.wiringNotes) {
                 wireBox.innerHTML += `<div class="sp-wiring-notes">${guide.wiringNotes}</div>`;
             }
-            wrap.appendChild(wireBox);
+            if (!hasStickySvg) {
+                wrap.appendChild(wireBox);
+            }
+            if (guide.wiringSvg) _initBuildAnim(wireBox);
         }
 
-        // Steps
+        // Steps (with optional sticky diagram layout)
         if (guide.steps && guide.steps.length) {
+            var stepsContainer;
+            if (hasStickySvg) {
+                // Two-column layout: sticky diagram left, steps right
+                var splitLayout = document.createElement('div');
+                splitLayout.className = 'sp-sticky-layout';
+                var stickyCol = document.createElement('div');
+                stickyCol.className = 'sp-sticky-col';
+                stickyCol.appendChild(wireBox);
+                splitLayout.appendChild(stickyCol);
+                stepsContainer = document.createElement('div');
+                stepsContainer.className = 'sp-steps-col';
+                splitLayout.appendChild(stepsContainer);
+                wrap.appendChild(splitLayout);
+
+                // Mobile: floating "Show Diagram" button
+                var floatBtn = document.createElement('button');
+                floatBtn.className = 'sp-diagram-float-btn';
+                floatBtn.textContent = 'Show Diagram';
+                floatBtn.addEventListener('click', function () {
+                    stickyCol.classList.toggle('sp-sticky-expanded');
+                    floatBtn.textContent = stickyCol.classList.contains('sp-sticky-expanded') ? 'Hide Diagram' : 'Show Diagram';
+                });
+                wrap.appendChild(floatBtn);
+            } else {
+                stepsContainer = wrap;
+            }
+
             guide.steps.forEach((step, i) => {
                 const stepBox = document.createElement('div');
                 stepBox.className = 'sp-card sp-step-card';
@@ -1257,7 +1522,7 @@ a { color: inherit; text-decoration: none; }
                     html += `<div class="sp-tip">${step.tip}</div>`;
                 }
                 stepBox.innerHTML = html;
-                wrap.appendChild(stepBox);
+                stepsContainer.appendChild(stepBox);
             });
         }
 
@@ -1421,6 +1686,9 @@ a { color: inherit; text-decoration: none; }
 
 /* Build guide content */
 .sp-guide { max-width: 700px; margin: 0 auto; }
+.sp-guide:has(.sp-wiring-svg) { max-width: 100%; }
+.sp-guide:has(.sp-wiring-svg) .sp-card { max-width: 100%; }
+.sp-guide:has(.sp-sticky-layout) { padding: 0 20px; }
 .sp-guide .sp-card { margin-bottom: 16px; }
 .sp-guide-intro { font-size: 14px; color: #bbb; line-height: 1.7; }
 .sp-guide-intro p { margin-bottom: 10px; }
@@ -1438,6 +1706,110 @@ a { color: inherit; text-decoration: none; }
     white-space: pre;
 }
 .sp-wiring-notes { font-size: 12px; color: #666; margin-top: 10px; line-height: 1.5; }
+
+/* SVG Wiring Diagram */
+.sp-wiring-svg {
+    background: #0d1117; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px; padding: 20px; overflow-x: auto;
+}
+.sp-wiring-svg svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.sp-wiring-svg .svg-pin-label { opacity: 0; transition: opacity 0.2s ease; pointer-events: none; }
+.sp-wiring-svg .svg-pin-group:hover .svg-pin-label { opacity: 1; }
+.sp-wiring-svg .svg-component:hover { filter: brightness(1.3); cursor: pointer; }
+.sp-wiring-svg .svg-wire { transition: opacity 0.2s ease, stroke-width 0.2s ease; cursor: pointer; }
+.sp-wiring-svg .svg-wire:hover { opacity: 1; stroke-width: 4; }
+.sp-wiring-svg .svg-tooltip {
+    font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 10px;
+    fill: #c9d1d9; pointer-events: none;
+}
+
+/* Build animation controls */
+.svg-build-controls {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 12px;
+}
+.svg-build-btn {
+    background: rgba(159, 122, 234, 0.12); border: 1px solid rgba(159, 122, 234, 0.4);
+    color: #c4b5fd; font-family: inherit; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.08em; padding: 8px 20px; border-radius: 6px; cursor: pointer;
+    transition: all 0.2s ease;
+}
+.svg-build-btn:hover { background: rgba(159, 122, 234, 0.22); border-color: rgba(159, 122, 234, 0.6); }
+.svg-build-btn[data-state="playing"] { opacity: 0.5; cursor: wait; }
+.svg-flow-btn {
+    background: rgba(96, 165, 250, 0.12); border-color: rgba(96, 165, 250, 0.4); color: #93c5fd;
+}
+.svg-flow-btn:hover { background: rgba(96, 165, 250, 0.22); border-color: rgba(96, 165, 250, 0.6); }
+.svg-flow-btn[data-state="playing"] { background: rgba(96, 165, 250, 0.22); border-color: rgba(96, 165, 250, 0.6); opacity: 1; cursor: pointer; }
+.svg-build-step {
+    font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px;
+    color: #8b949e; letter-spacing: 0.03em;
+}
+
+/* Pin tooltips */
+.svg-pin-tooltip {
+    position: absolute; z-index: 10; padding: 6px 12px;
+    background: rgba(0,0,0,0.92); border: 1px solid rgba(159,122,234,0.3);
+    border-radius: 6px; color: #c9d1d9; font-size: 11px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    white-space: nowrap; pointer-events: none; transform: translateX(-50%);
+    display: none;
+}
+
+/* Connection checklist */
+.svg-checklist {
+    margin-top: 16px; padding: 16px 20px;
+    background: rgba(34,197,94,0.04); border: 1px solid rgba(34,197,94,0.15);
+    border-radius: 8px;
+}
+.svg-checklist-title {
+    font-size: 11px; font-weight: 600; color: #22c55e;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px;
+}
+.svg-check-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 0; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px;
+    opacity: 0; animation: checkFadeIn 0.3s ease forwards;
+}
+@keyframes checkFadeIn { to { opacity: 1; } }
+.svg-check-icon { font-size: 14px; font-weight: 700; }
+.svg-check-label { color: #c9d1d9; flex: 1; }
+.svg-check-role { color: #555; font-size: 10px; letter-spacing: 0.05em; }
+
+/* Sticky diagram layout */
+.sp-sticky-layout {
+    display: grid; grid-template-columns: 3fr 2fr; gap: 24px;
+    align-items: start;
+}
+.sp-sticky-col {
+    position: sticky; top: 20px; z-index: 5;
+}
+.sp-sticky-col .sp-card { margin-bottom: 0; }
+.sp-steps-col { min-width: 0; }
+.sp-diagram-float-btn { display: none; }
+
+@media (max-width: 1100px) {
+    .sp-sticky-layout { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 900px) {
+    .sp-sticky-layout { grid-template-columns: 1fr; }
+    .sp-sticky-col {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 999; background: rgba(0,0,0,0.95);
+        padding: 20px; overflow-y: auto;
+        display: none;
+    }
+    .sp-sticky-col.sp-sticky-expanded { display: block; }
+    .sp-diagram-float-btn {
+        display: block; position: fixed; bottom: 20px; right: 20px;
+        z-index: 998; background: rgba(159,122,234,0.2);
+        border: 1px solid rgba(159,122,234,0.5); color: #c4b5fd;
+        font-family: inherit; font-size: 12px; font-weight: 600;
+        padding: 10px 18px; border-radius: 8px; cursor: pointer;
+        letter-spacing: 0.05em;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .sp-diagram-float-btn:hover { background: rgba(159,122,234,0.35); }
+}
 
 /* Steps */
 .sp-step-card { border-left: 3px solid ${color}; }

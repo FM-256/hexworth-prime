@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chiptune Test — I Hope I Get It</title>
+    <style>
+        body {
+            background: #0f1117;
+            color: #e2e8f0;
+            font-family: monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 { font-size: 18px; margin-bottom: 8px; }
+        p { color: #94a3b8; font-size: 13px; margin-bottom: 24px; }
+        button {
+            padding: 12px 32px;
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        button:hover { background: #1d4ed8; }
+        #status { margin-top: 16px; color: #22c55e; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>"I Hope I Get It" — Chiptune Cover</h1>
+    <p>A Chorus Line (1975) — 8-bit rendition</p>
+    <button onclick="playChiptune()">Play</button>
+    <button onclick="stopChiptune()" style="background:#ef4444;margin-left:8px;">Stop</button>
+    <div id="status"></div>
+
+<script>
+// ================================================================
+// Chiptune: "I Hope I Get It" from A Chorus Line
+// Marvin Hamlisch / Edward Kleban
+// 8-bit Web Audio API rendition
+// ================================================================
+
+let ctx = null;
+let masterGain = null;
+let isPlaying = false;
+let scheduledNodes = [];
+
+function stopChiptune() {
+    if (ctx) {
+        scheduledNodes.forEach(n => { try { n.stop(); } catch(e){} });
+        scheduledNodes = [];
+        ctx.close();
+        ctx = null;
+    }
+    isPlaying = false;
+    document.getElementById('status').textContent = 'Stopped.';
+}
+
+function playChiptune() {
+    if (isPlaying) stopChiptune();
+
+    ctx = new AudioContext();
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.3;
+    masterGain.connect(ctx.destination);
+
+    isPlaying = true;
+    document.getElementById('status').textContent = 'Playing...';
+
+    const BPM = 140;
+    const beat = 60 / BPM; // seconds per beat
+    const sixteenth = beat / 4;
+
+    // Note frequencies
+    const N = {
+        C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
+        A3: 220.00, Bb3: 233.08, B3: 246.94,
+        C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
+        A4: 440.00, Bb4: 466.16, B4: 493.88,
+        C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99,
+        A5: 880.00,
+        R: 0 // rest
+    };
+
+    // --- Square wave lead (melody) ---
+    function playSquare(freq, startTime, duration, volume) {
+        if (freq === 0) return; // rest
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(volume * 0.25, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration - 0.01);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+        scheduledNodes.push(osc);
+    }
+
+    // --- Triangle wave bass ---
+    function playBass(freq, startTime, duration) {
+        if (freq === 0) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.2, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration - 0.01);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+        scheduledNodes.push(osc);
+    }
+
+    // --- Noise percussion ---
+    function playNoise(startTime, duration, volume) {
+        const bufferSize = ctx.sampleRate * duration;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 5000;
+        gain.gain.setValueAtTime(volume * 0.15, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration - 0.01);
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(masterGain);
+        source.start(startTime);
+        source.stop(startTime + duration);
+        scheduledNodes.push(source);
+    }
+
+    // --- Kick drum (low sine burst) ---
+    function playKick(startTime) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, startTime);
+        osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.1);
+        gain.gain.setValueAtTime(0.3, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(startTime);
+        osc.stop(startTime + 0.15);
+        scheduledNodes.push(osc);
+    }
+
+    const t0 = ctx.currentTime + 0.1;
+
+    // ================================================================
+    // MELODY — "I Hope I Get It" main vocal melody
+    // The opening is driven, anxious, repetitive — perfect for chiptune
+    //
+    // Structure: Intro vamp (4 bars) -> Verse melody (8 bars) -> repeat
+    // Key of A major, driving 4/4
+    // ================================================================
+
+    // --- INTRO VAMP (anxious repeated figure) ---
+    // The signature nervous energy riff
+    const introMelody = [
+        // Bar 1-2: The urgent repeated note pattern
+        [N.E4, sixteenth * 2], [N.E4, sixteenth * 2], [N.E4, sixteenth * 2], [N.A4, sixteenth * 2],
+        [N.G4, sixteenth * 3], [N.E4, sixteenth * 3], [N.D4, sixteenth * 2],
+        [N.E4, sixteenth * 2], [N.E4, sixteenth * 2], [N.E4, sixteenth * 2], [N.A4, sixteenth * 2],
+        [N.G4, sixteenth * 3], [N.E4, sixteenth * 3], [N.D4, sixteenth * 2],
+        // Bar 3-4: Building tension
+        [N.E4, sixteenth * 2], [N.G4, sixteenth * 2], [N.A4, sixteenth * 2], [N.B4, sixteenth * 2],
+        [N.A4, sixteenth * 3], [N.G4, sixteenth * 3], [N.E4, sixteenth * 2],
+        [N.E4, sixteenth * 2], [N.G4, sixteenth * 2], [N.A4, sixteenth * 4],
+        [N.R, sixteenth * 2], [N.E4, sixteenth * 2], [N.D4, sixteenth * 2],
+    ];
+
+    // --- VERSE: "God I hope I get it, I hope I get it" ---
+    const verseMelody = [
+        // "God, I hope I get it" — syncopated, anxious
+        [N.A4, beat * 0.5], [N.R, sixteenth], [N.A4, sixteenth * 3],
+        [N.B4, sixteenth * 2], [N.A4, sixteenth * 2], [N.G4, sixteenth * 2], [N.E4, sixteenth * 2],
+        [N.D4, beat], [N.R, beat * 0.5], [N.E4, sixteenth * 2],
+
+        // "I hope I get it"
+        [N.A4, sixteenth * 3], [N.B4, sixteenth * 2], [N.A4, sixteenth * 2],
+        [N.G4, sixteenth * 3], [N.E4, beat],
+        [N.R, beat * 0.5], [N.D4, sixteenth * 2],
+
+        // "How many people does he need?"
+        [N.E4, sixteenth * 2], [N.E4, sixteenth * 2], [N.G4, sixteenth * 2],
+        [N.A4, sixteenth * 2], [N.A4, sixteenth * 2], [N.B4, sixteenth * 2],
+        [N.A4, sixteenth * 3], [N.G4, sixteenth * 3],
+        [N.E4, beat], [N.R, sixteenth * 2],
+
+        // "How many boys, how many girls?"
+        [N.E4, sixteenth * 2], [N.G4, sixteenth * 2], [N.A4, sixteenth * 2],
+        [N.B4, sixteenth * 2], [N.C5, sixteenth * 3],
+        [N.B4, sixteenth * 2], [N.A4, sixteenth * 2],
+        [N.G4, sixteenth * 3], [N.A4, beat],
+        [N.R, beat],
+    ];
+
+    // --- BRIDGE: Builds up ---
+    const bridgeMelody = [
+        [N.C5, beat * 0.75], [N.B4, sixteenth * 2], [N.A4, sixteenth * 2],
+        [N.G4, beat], [N.E4, beat * 0.5], [N.D4, sixteenth * 2],
+        [N.E4, beat * 1.5], [N.R, beat * 0.5],
+        [N.C5, beat * 0.75], [N.D5, sixteenth * 2], [N.C5, sixteenth * 2],
+        [N.B4, beat], [N.A4, beat * 0.5], [N.G4, sixteenth * 2],
+        [N.A4, beat * 1.5], [N.R, beat * 0.5],
+        // Climax phrase
+        [N.E5, beat * 0.75], [N.D5, sixteenth * 2], [N.C5, sixteenth * 2],
+        [N.B4, sixteenth * 2], [N.A4, sixteenth * 2], [N.G4, sixteenth * 2], [N.A4, sixteenth * 2],
+        [N.B4, beat], [N.A4, beat],
+        [N.R, beat],
+    ];
+
+    // Combine all melody sections
+    const fullMelody = [...introMelody, ...verseMelody, ...introMelody, ...bridgeMelody, ...verseMelody];
+
+    // Schedule melody
+    let melodyTime = t0;
+    fullMelody.forEach(([freq, dur]) => {
+        playSquare(freq, melodyTime, dur, 1.0);
+        melodyTime += dur;
+    });
+
+    const totalDuration = melodyTime - t0;
+
+    // --- BASS LINE (root notes, driving pulse) ---
+    // A minor pentatonic feel
+    const bassPattern = [N.A3, N.A3, N.E3, N.E3, N.G3, N.G3, N.D3, N.E3];
+    let bassTime = t0;
+    let bassIdx = 0;
+    while (bassTime < melodyTime) {
+        playBass(bassPattern[bassIdx % bassPattern.length], bassTime, beat * 0.9);
+        bassIdx++;
+        bassTime += beat;
+    }
+
+    // --- DRUMS (kick + hihat pattern) ---
+    let drumTime = t0;
+    let drumBeat = 0;
+    while (drumTime < melodyTime) {
+        // Kick on 1 and 3
+        if (drumBeat % 4 === 0 || drumBeat % 4 === 2) {
+            playKick(drumTime);
+        }
+        // Hihat on every eighth
+        playNoise(drumTime, sixteenth * 1.5, 0.6);
+        // Extra hihat on off-beats for drive
+        playNoise(drumTime + sixteenth * 2, sixteenth, 0.3);
+
+        drumBeat++;
+        drumTime += beat;
+    }
+
+    // --- ARPEGGIO LAYER (adds chiptune sparkle) ---
+    function playArp(freq, startTime, duration) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.06, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration - 0.01);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+        scheduledNodes.push(osc);
+    }
+
+    const arpNotes = [N.A4, N.C5, N.E5, N.C5];
+    let arpTime = t0;
+    let arpIdx = 0;
+    while (arpTime < melodyTime) {
+        playArp(arpNotes[arpIdx % arpNotes.length], arpTime, sixteenth * 1.5);
+        arpIdx++;
+        arpTime += sixteenth * 2;
+    }
+
+    // Show duration
+    document.getElementById('status').textContent =
+        'Playing... Duration: ' + totalDuration.toFixed(1) + 's';
+}
+</script>
+</body>
+</html>

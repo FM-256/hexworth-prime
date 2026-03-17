@@ -760,18 +760,19 @@
             startDir: '/home/learner',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
-                if (cmd === 'review') {
+                var ok = !output || !output.includes('lt-error');
+                if (cmd === 'review' && args.length > 0 && ok) {
                     LinuxTerminal.print('Linux Mastery Course Review\n============================\nSections completed:\n  1. Terminal Basics (LM-01 to LM-05)\n  2. File System (LM-06 to LM-12)\n  3. Text Processing (LM-13 to LM-20)\n  4. Users & Permissions (LM-21 to LM-27)\n  5. Process Management (LM-28 to LM-34)\n  6. Networking (LM-35 to LM-40)\n  7. Shell Scripting (LM-41 to LM-48)\n  8. Advanced Topics (LM-49 to LM-53)\n\nYou\'ve covered 53 modules. Well done!');
                     completeTask('review');
                     return true;
                 }
-                if (cmd === 'claim-badge') {
+                if (cmd === 'claim-badge' && args.length > 0 && ok) {
                     LinuxTerminal.print('Linux Apprentice badge unlocked!\nThis badge has been saved to your profile.');
                     saveBadge();
                     completeTask('badge');
                     return true;
                 }
-                if (cmd === 'explore-paths') {
+                if (cmd === 'explore-paths' && args.length > 0 && ok) {
                     LinuxTerminal.print('Recommended Learning Paths\n==========================\n  > CompTIA Linux+ certification prep\n  > Advanced shell scripting & automation\n  > System administration & server management\n  > Network security & hardening\n  > Docker & container fundamentals\n  > Cloud infrastructure (AWS/GCP/Azure CLI)\n\nCheck the Course Home page for more modules.');
                     completeTask('paths');
                     return true;
@@ -865,6 +866,10 @@
                 lastAccess: Date.now(),
                 ...(allDone && { completedAt: new Date().toISOString() })
             };
+            if (allDone) {
+                const longKey = 'script-' + MODULE_ID;
+                progress.script[longKey] = { ...progress.script[longKey], completed: true, completedAt: new Date().toISOString() };
+            }
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
@@ -877,13 +882,22 @@
 
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const saved = progress.script?.[MODULE_ID];
+            const saved = progress.script?.[MODULE_ID] || progress.script?.['script-' + MODULE_ID];
             if (saved) {
                 const taskList = saved.completedTasks || (Array.isArray(saved.completed) ? saved.completed : (saved.completed === true ? Object.keys(tasks) : []));
                 taskList.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
                 updateProgress();
             }
-            const next = getNextIncompleteTask();
+            
+            // Repair: if all tasks done but long key missing, trigger silent completion
+            if (Object.values(tasks).every(v => v) && Object.keys(tasks).length > 0) {
+                const longKey = 'script-' + MODULE_ID;
+                const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!p.script?.[longKey]?.completed) {
+                    ModuleProgress.complete('script', longKey, { silent: true, returnToDashboard: false });
+                }
+            }
+const next = getNextIncompleteTask();
             if (next) showTaskInstruction(next);
         })();
     </script>

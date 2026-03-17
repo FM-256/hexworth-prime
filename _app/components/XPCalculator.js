@@ -53,6 +53,11 @@ const XPCalculator = (function () {
      * Returns integrity object if violated, null otherwise.
      */
     function _checkIntegrity(progress) {
+        // DISABLED: Roxy deactivated pending investigation into false positives.
+        // TripWire log accumulation was causing re-lockout loops.
+        // Re-enable after fixing trigger logic.
+        return null;
+
         let garbageCount = 0;
 
         // Check completedModules for invalid IDs

@@ -14,6 +14,155 @@ window.SignalGuides = {
                '<p>All you need is a USB flash drive (8GB minimum, 32GB+ recommended for multi-boot) and a computer. No special hardware.</p>' +
                '<p><strong>Software needed:</strong> <a href="../../toolkit/index.html" style="color:#ff6b35">Rufus, Ventoy, and balenaEtcher</a> &mdash; all available from the Signal Toolkit page.</p>',
 
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 720 440" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+            '<defs>' +
+            '<pattern id="bg-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<linearGradient id="usb-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
+            '</defs>' +
+            '<rect width="720" height="440" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="420" fill="url(#bg-grid)" rx="4"/>' +
+
+            '<!-- Title -->' +
+            '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">BOOT PROCESS FLOW</text>' +
+
+            '<!-- USB Drive shape -->' +
+            '<g class="svg-component">' +
+            '<rect x="40" y="60" width="180" height="90" rx="8" fill="url(#usb-grad)" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="40" y="60" width="180" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<rect x="40" y="76" width="180" height="8" fill="rgba(59,130,246,0.12)"/>' +
+            '<text x="130" y="77" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">USB DRIVE</text>' +
+            '<!-- USB connector tab -->' +
+            '<rect x="16" y="82" width="28" height="28" rx="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+            '<rect x="22" y="88" width="5" height="16" rx="1" fill="#3b82f6" opacity="0.4"/>' +
+            '<rect x="32" y="88" width="5" height="16" rx="1" fill="#3b82f6" opacity="0.4"/>' +
+            '<!-- Partition layout inside drive -->' +
+            '<rect x="52" y="100" width="40" height="38" rx="3" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="72" y="115" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">MBR</text>' +
+            '<text x="72" y="127" text-anchor="middle" fill="#ef4444" font-size="5" opacity="0.7">512 bytes</text>' +
+            '<rect x="98" y="100" width="50" height="38" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+            '<text x="123" y="115" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">EFI/Boot</text>' +
+            '<text x="123" y="127" text-anchor="middle" fill="#22c55e" font-size="5" opacity="0.7">FAT32</text>' +
+            '<rect x="154" y="100" width="56" height="38" rx="3" fill="rgba(168,85,247,0.12)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+            '<text x="182" y="115" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">OS Data</text>' +
+            '<text x="182" y="127" text-anchor="middle" fill="#a855f7" font-size="5" opacity="0.7">NTFS/ext4</text>' +
+            '</g>' +
+
+            '<!-- Firmware block -->' +
+            '<g class="svg-component">' +
+            '<rect x="280" y="55" width="160" height="50" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+            '<rect x="280" y="55" width="160" height="20" rx="8" fill="rgba(234,179,8,0.1)"/>' +
+            '<rect x="280" y="68" width="160" height="7" fill="rgba(234,179,8,0.1)"/>' +
+            '<text x="360" y="70" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">FIRMWARE</text>' +
+            '<text x="320" y="92" text-anchor="middle" fill="#fde68a" font-size="8" opacity="0.7">BIOS</text>' +
+            '<text x="360" y="92" text-anchor="middle" fill="#555" font-size="8">|</text>' +
+            '<text x="400" y="92" text-anchor="middle" fill="#fde68a" font-size="8" opacity="0.7">UEFI</text>' +
+            '</g>' +
+
+            '<!-- Bootloader block -->' +
+            '<g class="svg-component">' +
+            '<rect x="500" y="55" width="190" height="50" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<rect x="500" y="55" width="190" height="20" rx="8" fill="rgba(34,197,94,0.1)"/>' +
+            '<rect x="500" y="68" width="190" height="7" fill="rgba(34,197,94,0.1)"/>' +
+            '<text x="595" y="70" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">BOOTLOADER</text>' +
+            '<text x="545" y="92" text-anchor="middle" fill="#86efac" font-size="7" opacity="0.7">GRUB</text>' +
+            '<text x="595" y="92" text-anchor="middle" fill="#86efac" font-size="7" opacity="0.7">Windows BM</text>' +
+            '<text x="650" y="92" text-anchor="middle" fill="#86efac" font-size="7" opacity="0.7">Ventoy</text>' +
+            '</g>' +
+
+            '<!-- Flow arrows -->' +
+            '<line x1="220" y1="80" x2="276" y2="80" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<polygon points="276,76 284,80 276,84" fill="#3b82f6" opacity="0.5"/>' +
+            '<line x1="440" y1="80" x2="496" y2="80" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>' +
+            '<polygon points="496,76 504,80 496,84" fill="#eab308" opacity="0.5"/>' +
+
+            '<!-- THREE METHODS section -->' +
+            '<text x="360" y="150" text-anchor="middle" fill="#444" font-size="10" letter-spacing="0.15em">THREE METHODS TO CREATE BOOTABLE USB</text>' +
+
+            '<!-- Method 1: Rufus -->' +
+            '<g class="svg-component">' +
+            '<rect x="40" y="170" width="200" height="150" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="40" y="170" width="200" height="24" rx="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<rect x="40" y="186" width="200" height="8" fill="rgba(249,115,22,0.12)"/>' +
+            '<text x="140" y="186" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="600">RUFUS</text>' +
+            '<text x="140" y="210" text-anchor="middle" fill="#8b949e" font-size="8">Windows GUI</text>' +
+            '<text x="140" y="225" text-anchor="middle" fill="#8b949e" font-size="8">Single ISO per drive</text>' +
+            '<text x="140" y="240" text-anchor="middle" fill="#8b949e" font-size="8">GPT or MBR auto-config</text>' +
+            '<text x="140" y="255" text-anchor="middle" fill="#8b949e" font-size="8">Win11 TPM bypass option</text>' +
+            '<!-- Speed badge -->' +
+            '<rect x="95" y="270" width="90" height="18" rx="4" fill="rgba(249,115,22,0.15)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+            '<text x="140" y="282" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="600">FASTEST</text>' +
+            '<!-- Difficulty -->' +
+            '<rect x="88" y="295" width="104" height="14" rx="3" fill="rgba(34,197,94,0.08)"/>' +
+            '<text x="140" y="305" text-anchor="middle" fill="#4ade80" font-size="7">Beginner Friendly</text>' +
+            '</g>' +
+
+            '<!-- Method 2: Ventoy -->' +
+            '<g class="svg-component">' +
+            '<rect x="260" y="170" width="200" height="150" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<rect x="260" y="170" width="200" height="24" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<rect x="260" y="186" width="200" height="8" fill="rgba(168,85,247,0.12)"/>' +
+            '<text x="360" y="186" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="600">VENTOY</text>' +
+            '<text x="360" y="210" text-anchor="middle" fill="#8b949e" font-size="8">Windows / Linux</text>' +
+            '<text x="360" y="225" text-anchor="middle" fill="#8b949e" font-size="8">Multi-ISO drag &amp; drop</text>' +
+            '<text x="360" y="240" text-anchor="middle" fill="#8b949e" font-size="8">Install once, add ISOs anytime</text>' +
+            '<text x="360" y="255" text-anchor="middle" fill="#8b949e" font-size="8">Boot menu auto-generated</text>' +
+            '<!-- Speed badge -->' +
+            '<rect x="315" y="270" width="90" height="18" rx="4" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+            '<text x="360" y="282" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="600">MOST VERSATILE</text>' +
+            '<!-- Difficulty -->' +
+            '<rect x="308" y="295" width="104" height="14" rx="3" fill="rgba(34,197,94,0.08)"/>' +
+            '<text x="360" y="305" text-anchor="middle" fill="#4ade80" font-size="7">Beginner Friendly</text>' +
+            '</g>' +
+
+            '<!-- Method 3: dd -->' +
+            '<g class="svg-component">' +
+            '<rect x="480" y="170" width="200" height="150" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+            '<rect x="480" y="170" width="200" height="24" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<rect x="480" y="186" width="200" height="8" fill="rgba(239,68,68,0.12)"/>' +
+            '<text x="580" y="186" text-anchor="middle" fill="#f87171" font-size="11" font-weight="600">dd (disk destroyer)</text>' +
+            '<text x="580" y="210" text-anchor="middle" fill="#8b949e" font-size="8">Linux CLI only</text>' +
+            '<text x="580" y="225" text-anchor="middle" fill="#8b949e" font-size="8">Raw byte-for-byte copy</text>' +
+            '<text x="580" y="240" text-anchor="middle" fill="#8b949e" font-size="8">No safety net</text>' +
+            '<text x="580" y="255" text-anchor="middle" fill="#8b949e" font-size="8">Built into every Linux</text>' +
+            '<!-- Speed badge -->' +
+            '<rect x="535" y="270" width="90" height="18" rx="4" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+            '<text x="580" y="282" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">MOST POWERFUL</text>' +
+            '<!-- Difficulty -->' +
+            '<rect x="528" y="295" width="104" height="14" rx="3" fill="rgba(239,68,68,0.08)"/>' +
+            '<text x="580" y="305" text-anchor="middle" fill="#f87171" font-size="7">Advanced \u2014 Use Caution</text>' +
+            '</g>' +
+
+            '<!-- What you need section -->' +
+            '<rect x="40" y="340" width="640" height="85" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+            '<text x="60" y="360" fill="#555" font-size="9" font-weight="600" letter-spacing="0.1em">WHAT YOU NEED</text>' +
+
+            '<!-- Items -->' +
+            '<g>' +
+            '<rect x="55" y="372" width="120" height="40" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+            '<text x="115" y="389" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">USB Drive</text>' +
+            '<text x="115" y="402" text-anchor="middle" fill="#555" font-size="6">8GB min / USB 3.0</text>' +
+            '</g>' +
+            '<g>' +
+            '<rect x="185" y="372" width="120" height="40" rx="5" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+            '<text x="245" y="389" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">PC or Laptop</text>' +
+            '<text x="245" y="402" text-anchor="middle" fill="#555" font-size="6">Win / Linux / macOS</text>' +
+            '</g>' +
+            '<g>' +
+            '<rect x="315" y="372" width="120" height="40" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+            '<text x="375" y="389" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">Internet</text>' +
+            '<text x="375" y="402" text-anchor="middle" fill="#555" font-size="6">To download ISOs</text>' +
+            '</g>' +
+            '<g>' +
+            '<rect x="445" y="372" width="225" height="40" rx="5" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+            '<text x="558" y="389" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">ISO Files</text>' +
+            '<text x="558" y="402" text-anchor="middle" fill="#555" font-size="6">Ubuntu / Win11 / Kali / Hiren\'s / Clonezilla</text>' +
+            '</g>' +
+
+            '</svg>' +
+            '</div>',
+
         wiring: '    No wiring required — this is a software build.\n' +
                 '\n' +
                 '    WHAT YOU NEED:\n' +
@@ -173,6 +322,136 @@ window.SignalGuides = {
                '<p>We use a Raspberry Pi Pico (RP2040 microcontroller) as the USB controller, a MicroSD card as the storage medium, and the TinyUSB library to implement the USB Mass Storage Class protocol. When you plug the finished device into any computer, it appears as a standard USB drive. You can format it, copy files to it, and eject it &mdash; just like any store-bought flash drive.</p>' +
                '<p>Along the way, you will learn how USB enumeration works, what device descriptors are, how SPI communication connects the controller to storage, and why a $4 microcontroller can replace a dedicated flash drive controller IC.</p>' +
                '<p><strong>Hardware needed:</strong> Raspberry Pi Pico (or RP2040-Zero), MicroSD breakout board, MicroSD card, jumper wires, breadboard, and a USB cable. Total cost: ~$12.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap" id="sg32-build">' +
+            '<div class="svg-build-controls">' +
+            '<button class="svg-build-btn" data-state="idle">Build Circuit</button>' +
+            '<button class="svg-build-btn svg-flow-btn" data-state="idle" style="display:none">Show Data Flow</button>' +
+            '<span class="svg-build-step"></span>' +
+            '</div>' +
+            '<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+
+            '<defs>' +
+            '<pattern id="bg-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+            '<circle id="spi-dot" r="3"/>' +
+            '</defs>' +
+            '<rect width="720" height="380" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="700" height="360" fill="url(#bg-grid)" rx="4"/>' +
+
+            '<!-- Breadboard base -->' +
+            '<rect x="60" y="60" width="600" height="220" rx="6" fill="#1a1f2b" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+            '<text x="360" y="45" text-anchor="middle" fill="#444" font-size="10" letter-spacing="0.15em">BREADBOARD LAYOUT</text>' +
+
+            '<!-- Pico board -->' +
+            '<g class="svg-component">' +
+            '<rect x="90" y="100" width="140" height="160" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<rect x="90" y="100" width="140" height="28" rx="8" fill="rgba(59,130,246,0.15)"/>' +
+            '<rect x="90" y="120" width="140" height="8" fill="rgba(59,130,246,0.15)"/>' +
+            '<text x="160" y="117" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">RP2040 Pico</text>' +
+            '<rect x="140" y="88" width="40" height="16" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="160" y="99" text-anchor="middle" fill="#666" font-size="7">USB</text>' +
+            '<!-- Component callouts -->' +
+            '<rect x="105" y="138" width="44" height="22" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<text x="127" y="152" text-anchor="middle" fill="#4488cc" font-size="6.5">RP2040</text>' +
+            '<rect x="105" y="165" width="44" height="14" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+            '<text x="127" y="175" text-anchor="middle" fill="#555" font-size="5.5">133MHz</text>' +
+            '<circle cx="175" cy="250" r="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+            '<text x="175" y="252" text-anchor="middle" fill="#555" font-size="4">12MHz</text>' +
+            '</g>' +
+
+            '<!-- Pico pins with tooltips -->' +
+            '<g class="svg-pin-group" data-tip="3.3V regulated output — powers the SD card"><circle cx="232" cy="148" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text x="218" y="148" text-anchor="end" fill="#8b949e" font-size="9" dominant-baseline="middle">3V3</text></g>' +
+            '<g class="svg-pin-group" data-tip="Ground — common reference for both boards"><circle cx="232" cy="172" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="218" y="172" text-anchor="end" fill="#8b949e" font-size="9" dominant-baseline="middle">GND</text></g>' +
+            '<g class="svg-pin-group" data-tip="SPI0 Clock — Pico sets the data transfer speed"><circle cx="232" cy="196" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/><text x="218" y="196" text-anchor="end" fill="#8b949e" font-size="9" dominant-baseline="middle">GP18</text></g>' +
+            '<g class="svg-pin-group" data-tip="SPI0 MOSI — data flows FROM Pico TO SD card"><circle cx="232" cy="220" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="218" y="220" text-anchor="end" fill="#8b949e" font-size="9" dominant-baseline="middle">GP19</text></g>' +
+            '<g class="svg-pin-group" data-tip="SPI0 MISO — data flows FROM SD card TO Pico"><circle cx="232" cy="244" r="4" fill="#3b82f6" stroke="#93c5fd" stroke-width="0.5"/><text x="218" y="244" text-anchor="end" fill="#8b949e" font-size="9" dominant-baseline="middle">GP16</text></g>' +
+            '<g class="svg-pin-group" data-tip="SPI0 Chip Select — tells SD card it is being addressed"><circle cx="232" cy="268" r="4" fill="#f97316" stroke="#fdba74" stroke-width="0.5"/><text x="218" y="268" text-anchor="end" fill="#8b949e" font-size="9" dominant-baseline="middle">GP17</text></g>' +
+
+            '<!-- SD Breakout board -->' +
+            '<g class="svg-component">' +
+            '<rect x="490" y="100" width="140" height="160" rx="8" fill="#1e2736" stroke="#f97316" stroke-width="1.5"/>' +
+            '<rect x="490" y="100" width="140" height="28" rx="8" fill="rgba(249,115,22,0.15)"/>' +
+            '<rect x="490" y="120" width="140" height="8" fill="rgba(249,115,22,0.15)"/>' +
+            '<text x="560" y="117" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="600">MicroSD Breakout</text>' +
+            '<rect x="520" y="228" width="55" height="28" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+            '<text x="548" y="245" text-anchor="middle" fill="#666" font-size="7">SD CARD</text>' +
+            '<!-- Component callouts -->' +
+            '<rect x="505" y="138" width="54" height="14" rx="2" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.15)" stroke-width="0.5"/>' +
+            '<text x="532" y="148" text-anchor="middle" fill="#b8702a" font-size="6">Level Shifter</text>' +
+            '<rect x="505" y="156" width="54" height="14" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+            '<text x="532" y="166" text-anchor="middle" fill="#555" font-size="5.5">3.3V SPI</text>' +
+            '</g>' +
+
+            '<!-- SD Breakout pins with tooltips -->' +
+            '<g class="svg-pin-group" data-tip="Voltage in — receives 3.3V power from the Pico"><circle cx="488" cy="148" r="4" fill="#ef4444" stroke="#fca5a5" stroke-width="0.5"/><text x="502" y="148" fill="#8b949e" font-size="9" dominant-baseline="middle">VCC</text></g>' +
+            '<g class="svg-pin-group" data-tip="Ground — return path for current"><circle cx="488" cy="172" r="4" fill="#333" stroke="#888" stroke-width="0.5"/><text x="502" y="172" fill="#8b949e" font-size="9" dominant-baseline="middle">GND</text></g>' +
+            '<g class="svg-pin-group" data-tip="Serial Clock — receives clock signal from Pico"><circle cx="488" cy="196" r="4" fill="#eab308" stroke="#fde68a" stroke-width="0.5"/><text x="502" y="196" fill="#8b949e" font-size="9" dominant-baseline="middle">SCK</text></g>' +
+            '<g class="svg-pin-group" data-tip="Master Out Slave In — receives write data from Pico"><circle cx="488" cy="220" r="4" fill="#22c55e" stroke="#86efac" stroke-width="0.5"/><text x="502" y="220" fill="#8b949e" font-size="9" dominant-baseline="middle">MOSI</text></g>' +
+            '<g class="svg-pin-group" data-tip="Master In Slave Out — sends read data to Pico"><circle cx="488" cy="244" r="4" fill="#3b82f6" stroke="#93c5fd" stroke-width="0.5"/><text x="502" y="244" fill="#8b949e" font-size="9" dominant-baseline="middle">MISO</text></g>' +
+            '<g class="svg-pin-group" data-tip="Chip Select — goes LOW when Pico selects this device"><circle cx="488" cy="268" r="4" fill="#f97316" stroke="#fdba74" stroke-width="0.5"/><text x="502" y="268" fill="#8b949e" font-size="9" dominant-baseline="middle">CS</text></g>' +
+
+            '<!-- Wire groups: each wire + its label, hidden by default -->' +
+            '<g class="svg-wire-group" data-wire="1" style="opacity:0">' +
+            '<line class="svg-wire" x1="236" y1="148" x2="236" y2="148" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>' +
+            '<rect x="335" y="139" width="50" height="16" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5" opacity="0"/>' +
+            '<text x="360" y="150" text-anchor="middle" fill="#fca5a5" font-size="8" dominant-baseline="middle" opacity="0">3V3</text>' +
+            '</g>' +
+
+            '<g class="svg-wire-group" data-wire="2" style="opacity:0">' +
+            '<line class="svg-wire" x1="236" y1="172" x2="236" y2="172" stroke="#666" stroke-width="3" stroke-linecap="round"/>' +
+            '<rect x="335" y="163" width="50" height="16" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(136,136,136,0.3)" stroke-width="0.5" opacity="0"/>' +
+            '<text x="360" y="174" text-anchor="middle" fill="#aaa" font-size="8" dominant-baseline="middle" opacity="0">GND</text>' +
+            '</g>' +
+
+            '<g class="svg-wire-group" data-wire="3" style="opacity:0">' +
+            '<line class="svg-wire" x1="236" y1="196" x2="236" y2="196" stroke="#eab308" stroke-width="3" stroke-linecap="round"/>' +
+            '<rect x="335" y="187" width="50" height="16" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5" opacity="0"/>' +
+            '<text x="360" y="198" text-anchor="middle" fill="#fde68a" font-size="8" dominant-baseline="middle" opacity="0">SCK</text>' +
+            '</g>' +
+
+            '<g class="svg-wire-group" data-wire="4" style="opacity:0">' +
+            '<line class="svg-wire" x1="236" y1="220" x2="236" y2="220" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>' +
+            '<rect x="335" y="211" width="50" height="16" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5" opacity="0"/>' +
+            '<text x="360" y="222" text-anchor="middle" fill="#86efac" font-size="8" dominant-baseline="middle" opacity="0">MOSI</text>' +
+            '</g>' +
+
+            '<g class="svg-wire-group" data-wire="5" style="opacity:0">' +
+            '<line class="svg-wire" x1="236" y1="244" x2="236" y2="244" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>' +
+            '<rect x="335" y="235" width="50" height="16" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5" opacity="0"/>' +
+            '<text x="360" y="246" text-anchor="middle" fill="#93c5fd" font-size="8" dominant-baseline="middle" opacity="0">MISO</text>' +
+            '</g>' +
+
+            '<g class="svg-wire-group" data-wire="6" style="opacity:0">' +
+            '<line class="svg-wire" x1="236" y1="268" x2="236" y2="268" stroke="#f97316" stroke-width="3" stroke-linecap="round"/>' +
+            '<rect x="335" y="259" width="50" height="16" rx="3" fill="rgba(0,0,0,0.8)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5" opacity="0"/>' +
+            '<text x="360" y="270" text-anchor="middle" fill="#fdba74" font-size="8" dominant-baseline="middle" opacity="0">CS</text>' +
+            '</g>' +
+
+            '<!-- SPI bus label (shown at end) -->' +
+            '<g class="svg-wire-group" data-wire="done" style="opacity:0">' +
+            '<rect x="290" y="300" width="140" height="22" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+            '<text x="360" y="314" text-anchor="middle" fill="#555" font-size="9" dominant-baseline="middle">SPI0 Bus \u2014 6 wires</text>' +
+            '</g>' +
+
+            '<!-- Legend -->' +
+            '<g transform="translate(60,335)">' +
+            '<text fill="#555" font-size="8" y="8">WIRE COLORS:</text>' +
+            '<circle cx="82" cy="5" r="3" fill="#ef4444"/><text fill="#8b949e" font-size="7" x="88" y="8">Power</text>' +
+            '<circle cx="120" cy="5" r="3" fill="#555"/><text fill="#8b949e" font-size="7" x="126" y="8">Ground</text>' +
+            '<circle cx="166" cy="5" r="3" fill="#eab308"/><text fill="#8b949e" font-size="7" x="172" y="8">Clock</text>' +
+            '<circle cx="202" cy="5" r="3" fill="#22c55e"/><text fill="#8b949e" font-size="7" x="208" y="8">MOSI</text>' +
+            '<circle cx="240" cy="5" r="3" fill="#3b82f6"/><text fill="#8b949e" font-size="7" x="246" y="8">MISO</text>' +
+            '<circle cx="278" cy="5" r="3" fill="#f97316"/><text fill="#8b949e" font-size="7" x="284" y="8">CS</text>' +
+            '</g>' +
+
+            '<!-- USB cable indicator -->' +
+            '<g transform="translate(110,80)">' +
+            '<line x1="0" y1="8" x2="50" y2="8" stroke="#555" stroke-width="1" stroke-dasharray="3,3"/>' +
+            '<text x="-4" y="11" text-anchor="end" fill="#555" font-size="7">To PC</text>' +
+            '</g>' +
+
+            '</svg>' +
+            '</div>',
 
         wiring: '    RP2040 Pico / RP2040-Zero          MicroSD Breakout\n' +
                 '    ========================          =================\n' +

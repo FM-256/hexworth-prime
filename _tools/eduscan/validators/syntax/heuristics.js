@@ -14,6 +14,8 @@
  * - HEUR-006: Hardcoded relative href in shared JS renderer (fragile back links)
  * - HEUR-007: Code block CSS missing white-space: pre/pre-wrap (commands render as paragraph)
  * - HEUR-008: position:fixed in dynamically created overlay (breaks when body has filter/transform)
+ * - HEUR-009: Empty template literal ${} in inline scripts (SyntaxError kills entire script block)
+ * - HEUR-010: querySelector targets heading tag not present in HTML (e.g., h3 in selector but h2 in markup — null crash)
  */
 
 const fs = require('fs');
@@ -79,6 +81,8 @@ class HeuristicsValidator {
         issues.push(...this.checkUnguardedParseInt(file));
         issues.push(...this.checkUnguardedLocalStorageArithmetic(file));
         issues.push(...this.checkCodeBlockWhitespace(file));
+        issues.push(...this.checkEmptyTemplateLiterals(file));
+        issues.push(...this.checkHeadingTagMismatch(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -416,6 +420,110 @@ class HeuristicsValidator {
                         fix: 'Wrap with Number(): Number(localStorage.getItem(...))'
                     });
                 }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-009: Empty template literal ${} in inline scripts
+     *
+     * Detects empty expressions inside template literals within <script> blocks.
+     * An empty ${} is a JavaScript SyntaxError that prevents the entire script
+     * block from parsing — killing all constructors, event listeners, and
+     * initialization code in that block. This pattern was introduced when
+     * automated tag conversion (e.g., h4→h3) stripped template expressions
+     * from inside heading tags: <h4>${current.task}</h4> → <h3>${}</h3>.
+     */
+    checkEmptyTemplateLiterals(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Extract inline <script> blocks (no src attribute)
+        const scriptPattern = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+        let scriptMatch;
+
+        while ((scriptMatch = scriptPattern.exec(content)) !== null) {
+            const scriptContent = scriptMatch[1];
+            const scriptStart = scriptMatch.index;
+
+            // Find empty template expressions: ${}
+            const emptyExprPattern = /\$\{\s*\}/g;
+            let exprMatch;
+
+            while ((exprMatch = emptyExprPattern.exec(scriptContent)) !== null) {
+                // Skip if inside a comment
+                const lineStart = scriptContent.lastIndexOf('\n', exprMatch.index) + 1;
+                const lineText = scriptContent.substring(lineStart, scriptContent.indexOf('\n', exprMatch.index) || scriptContent.length);
+                if (lineText.trim().startsWith('//') || lineText.trim().startsWith('*')) continue;
+
+                const absolutePos = scriptStart + scriptMatch[0].indexOf(scriptContent) + exprMatch.index;
+                const lineNum = this.getLineNumber(content, absolutePos);
+
+                issues.push({
+                    code: 'HEUR-009',
+                    severity: 'critical',
+                    category: 'heuristic',
+                    message: 'Empty template literal ${} — SyntaxError kills entire <script> block (terminal, event listeners, and init code will not execute)',
+                    file: file.path,
+                    line: lineNum,
+                    fix: 'Restore the missing expression inside ${}, e.g., ${current.task} or ${obj.task}'
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-010: querySelector targets heading tag not in HTML
+     *
+     * Detects when a querySelector() call references a heading level
+     * (e.g., .mission-header h3) that doesn't match the actual heading
+     * tag in the HTML (e.g., <h2>). querySelector returns null, and
+     * accessing .textContent on null throws a TypeError that crashes the
+     * function. Common after automated semantic tag conversion (h3→h2, h4→h3).
+     */
+    checkHeadingTagMismatch(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files with both <style> and <script> blocks
+        if (!file.path.endsWith('.html')) return issues;
+
+        // Find querySelector calls that target parent + heading combinator
+        // e.g., querySelector('.mission-header h3')
+        const qsPattern = /querySelector\s*\(\s*['"]([^'"]+\s+h([2-6]))['"]\s*\)/g;
+        let qsMatch;
+
+        while ((qsMatch = qsPattern.exec(content)) !== null) {
+            const selector = qsMatch[1];
+            const headingLevel = qsMatch[2];
+
+            // Extract the parent class from the selector (e.g., ".mission-header" from ".mission-header h3")
+            const parentMatch = selector.match(/\.([a-zA-Z0-9_-]+)\s+h[2-6]/);
+            if (!parentMatch) continue;
+            const parentClass = parentMatch[1];
+
+            // Check if the HTML contains that parent class with a DIFFERENT heading level
+            const htmlPattern = new RegExp(
+                `class\\s*=\\s*["'][^"']*\\b${parentClass}\\b[^"']*["'][\\s\\S]*?<h([2-6])>`,
+                'i'
+            );
+            const htmlMatch = content.match(htmlPattern);
+
+            if (htmlMatch && htmlMatch[1] !== headingLevel) {
+                const lineNum = this.getLineNumber(content, qsMatch.index);
+                issues.push({
+                    code: 'HEUR-010',
+                    severity: 'high',
+                    category: 'heuristic',
+                    message: `querySelector targets .${parentClass} h${headingLevel} but HTML has <h${htmlMatch[1]}> — returns null, crashes on property access`,
+                    file: file.path,
+                    line: lineNum,
+                    fix: `Change selector to '.${parentClass} h${htmlMatch[1]}' to match the actual HTML heading level`
+                });
             }
         }
 
