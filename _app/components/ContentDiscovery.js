@@ -180,6 +180,9 @@ const ContentDiscovery = (function() {
         // Bind event listeners
         bindDiscoveryEvents(currentHouse, primaryColor);
 
+        // Inject Platform Hubs grid — cross-house hub cards visible by default
+        renderPlatformHubs(currentHouse);
+
         // Inject favorite heart buttons on module cards
         injectFavoriteButtons(currentHouse);
 
@@ -193,6 +196,69 @@ const ContentDiscovery = (function() {
         }
 
         const hasGlobal = typeof ContentCatalog !== 'undefined';
+    }
+
+    // ========================================
+    // PLATFORM HUBS — Cross-House Hub Cards
+    // ========================================
+    //
+    // These are the major content hubs that appear in every house's Explore All tab.
+    // Each card links to a standalone hub page (not inside any house directory).
+    // Hrefs are relative to the house page location (../../ goes up from houses/X/).
+    // To add a new hub: add an entry to PLATFORM_HUBS and it appears everywhere.
+
+    const PLATFORM_HUBS = [
+        { name: 'THE ARCTIC',          desc: 'Linux Content Hub',           icon: '/assets/images/categories/linux.webp',              fallback: '/assets/images/icons/icon-penguin.webp',    href: 'arctic/index.html' },
+        { name: 'THE ARENA',           desc: 'CTF Challenge Platform',      icon: '/assets/images/categories/ctf.webp',                fallback: '/assets/images/icons/icon-scales.webp',     href: 'arena/index.html' },
+        { name: 'THE HIVE',            desc: 'Dungeon Crawler',             icon: '/assets/images/categories/games.webp',              fallback: '/assets/images/icons/icon-siren.webp',      href: 'hive/index.html' },
+        { name: 'THE FORGE',           desc: 'DevOps Hub',                  icon: '/assets/images/categories/devops-automation.webp',   fallback: '/assets/images/icons/icon-refresh.webp',    href: 'houses/code/devops/index.html' },
+        { name: 'BUG HUNTING HUB',     desc: 'Security Research',           icon: '/assets/images/icons/icon-spider.webp',             fallback: '/assets/images/icons/icon-target.webp',     href: 'dark-arts/vault/bug-hunting/index.html' },
+        { name: 'OPERATOR',            desc: 'Command Trainer',             icon: '/assets/images/categories/command-line.webp',        fallback: '/assets/images/icons/icon-terminal.webp',   href: 'operator/index.html' },
+        { name: 'FORENSICS HUB',       desc: 'Digital Investigation',       icon: '/assets/images/icons/icon-detective.webp',           fallback: '/assets/images/icons/icon-microscope.webp', href: 'forensics/index.html' },
+        { name: 'PROJECTS',            desc: 'Build & Ship',                icon: '/assets/images/icons/icon-construction.webp',        fallback: '/assets/images/icons/icon-tools.webp',      href: 'projects/index.html' },
+        { name: 'DISPATCH',            desc: 'Troubleshooting Ops',         icon: '/assets/images/icons/icon-wrench.webp',              fallback: '/assets/images/icons/icon-tools.webp',      href: 'dispatch/index.html' },
+        { name: 'THE SIGNAL',          desc: 'Hardware Projects',           icon: '/assets/images/icons/icon-antenna.webp',             fallback: '/assets/images/icons/icon-signal.webp',     href: 'signal/index.html' },
+        { name: 'CODE ARMORY',         desc: 'Programming Languages',       icon: '/assets/images/icons/icon-swords.webp',              fallback: '/assets/images/icons/icon-code.webp',       href: 'houses/code/armory/index.html' },
+        { name: 'THE BACKBONE',        desc: 'Advanced Networking',         icon: '/assets/images/icons/icon-network.webp',             fallback: '/assets/images/icons/icon-globe.webp',      href: 'houses/web/backbone/index.html' },
+        { name: 'ALGORITHM CHAMBER',   desc: 'Data Structures & Algorithms',icon: '/assets/images/icons/icon-dna.webp',                fallback: '/assets/images/icons/icon-lightning.webp',  href: 'houses/code/algorithms/index.html' },
+        { name: 'THE CORTEX',          desc: 'AI & Machine Learning',       icon: '/assets/images/icons/icon-brain.webp',               fallback: '/assets/images/icons/icon-robot.webp',      href: 'houses/code/cortex/index.html' },
+        { name: 'CAREER LAUNCHPAD',    desc: 'Jobs & Interview Prep',       icon: '/assets/images/icons/icon-rocket.webp',              fallback: '/assets/images/icons/icon-graduation.webp', href: 'career/index.html' }
+    ];
+
+    /**
+     * Render the Platform Hubs grid in the Explore All tab.
+     * Injects after the discovery panel, before search results.
+     * Hrefs are resolved relative to the current house page (../../ goes to _app/).
+     */
+    function renderPlatformHubs(currentHouse) {
+        const resultsContainer = document.getElementById('discoveryResultsContainer');
+        if (!resultsContainer) return;
+
+        // Compute relative path prefix: from houses/X/index.html up to _app/
+        const prefix = '../../';
+
+        const cards = PLATFORM_HUBS.map(hub => `
+            <div class="cd-hub-card" tabindex="0" role="link"
+                 onclick="window.location.href='${prefix}${hub.href}'"
+                 onkeydown="if(event.key==='Enter'){window.location.href='${prefix}${hub.href}'}">
+                <div class="cd-hub-card-icon">
+                    <img src="${hub.icon}" alt="${hub.name}" onerror="this.onerror=null;this.src='${hub.fallback}'">
+                </div>
+                <div class="cd-hub-card-name">${hub.name}</div>
+                <div class="cd-hub-card-desc">${hub.desc}</div>
+            </div>
+        `).join('');
+
+        const hubSection = document.createElement('div');
+        hubSection.className = 'cd-platform-hubs';
+        hubSection.id = 'cdPlatformHubs';
+        hubSection.innerHTML = `
+            <div class="cd-platform-hubs-title">Platform Hubs</div>
+            <div class="cd-platform-hubs-grid">${cards}</div>
+        `;
+
+        // Insert before the results container so hubs show above search results
+        resultsContainer.parentNode.insertBefore(hubSection, resultsContainer);
     }
 
     // ========================================
@@ -1955,6 +2021,87 @@ const ContentDiscovery = (function() {
                 background: ${pc}44;
                 padding: 0 2px;
                 border-radius: 2px;
+            }
+
+            /* ═══════════════════════════════════════════
+               Platform Hubs — cross-house hub card grid
+               Shown by default in every house's Explore All tab.
+               Mirrors the dashboard Explore All mini-house-card pattern.
+               ═══════════════════════════════════════════ */
+
+            .cd-platform-hubs {
+                margin-bottom: 24px;
+            }
+
+            .cd-platform-hubs-title {
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.6);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            }
+
+            .cd-platform-hubs-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 10px;
+            }
+
+            .cd-hub-card {
+                background: rgba(15, 15, 20, 0.5);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 10px;
+                padding: 16px 12px;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .cd-hub-card:hover {
+                background: rgba(20, 20, 25, 0.8);
+                border-color: ${pc};
+                transform: translateY(-3px);
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            }
+
+            .cd-hub-card:focus-visible {
+                outline: 2px solid ${pc};
+                outline-offset: 2px;
+            }
+
+            .cd-hub-card-icon {
+                margin-bottom: 8px;
+            }
+
+            .cd-hub-card-icon img {
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+                object-fit: contain;
+            }
+
+            .cd-hub-card-name {
+                font-size: 0.78rem;
+                font-weight: 600;
+                color: #e0e0e0;
+                margin-bottom: 3px;
+            }
+
+            .cd-hub-card-desc {
+                font-size: 0.65rem;
+                color: #8a8a8a;
+            }
+
+            @media (max-width: 768px) {
+                .cd-platform-hubs-grid {
+                    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                    gap: 8px;
+                }
+                .cd-hub-card { padding: 12px 8px; }
+                .cd-hub-card:hover { transform: none; }
             }
         `;
         document.head.appendChild(styleSheet);
