@@ -4,6 +4,41 @@
  * Manages mascot configs, idle animations, reactions, seasonal variants,
  * and state machine transitions. CSS-animation based, no canvas/WebGL.
  *
+ * ===== TWO-LAYER ANIMATION ARCHITECTURE =====
+ *
+ * The mascot DOM uses a two-layer approach so idle animations loop
+ * continuously and reactions layer on top without interruption:
+ *
+ *   .mascot-entity              <-- holds idle class (e.g. mascot-idle-breathe)
+ *   |                               and reaction class (e.g. mascot-react-happy)
+ *   |-- .mascot-reaction-layer  <-- CSS reaction keyframes target this wrapper
+ *   |   |-- .mascot-body        <-- CSS idle keyframes target this (breathe/float/sway)
+ *   |   |-- .mascot-eyes        <-- blink animation runs independently forever
+ *   |   |-- .mascot-detail      <-- per-house accent shape
+ *   |-- .mascot-name-tag        <-- outside reaction layer, stays stable
+ *
+ * WHY: Previously, idle and reaction both animated the same element via
+ * class swaps. Removing the idle class to play a reaction caused the
+ * mascot to "jump" (animation reset to keyframe 0%). The two-layer split
+ * means idle runs on .mascot-body (never removed), while reactions run
+ * on .mascot-reaction-layer above it. CSS transform stacking handles the rest.
+ *
+ * MAINTENANCE NOTES:
+ * - Adding a new idle animation: define @keyframes in mascot-animations.css,
+ *   add `.mascot-idle-YOURNAME .mascot-body { animation: ... }` selector
+ * - Adding a new reaction: define @keyframes, add
+ *   `.mascot-react-YOURNAME > .mascot-reaction-layer { animation: ... }` selector
+ * - Reaction cleanup uses animationend event with a 2s fallback timeout
+ * - Speech bubbles fade out via .speech-leaving CSS class (400ms transition)
+ *
+ * RELATED FILES:
+ * - mascot-animations.css  — all keyframes, idle/reaction selectors, shapes
+ * - mascot-effects.css     — per-house signature FX (glow, shimmer, etc.)
+ * - mascot-encounters.js   — cross-mascot dialogue system
+ * - mascot-seasonal.js     — date-based seasonal overlays
+ * - mascot-widget.html     — demo/embeddable widget
+ * - mascot-terrarium.html  — full terrarium view
+ *
  * Usage:
  *   const mgr = MascotManager.getInstance();
  *   const mascot = mgr.getMascot('shield');
@@ -11,7 +46,7 @@
  *   const idle = mgr.getIdleAnimation();
  *   const season = mgr.getSeasonalVariant();
  *
- * @version 1.0.0
+ * @version 2.0.0 — Two-layer animation architecture
  */
 
 const MascotManager = (function () {
@@ -216,7 +251,16 @@ const MascotManager = (function () {
     // ========================================
     // STATE MACHINE
     // ========================================
-
+    //
+    // States:
+    //   IDLE          — mascot is looping its idle animation, ready for reactions
+    //   REACTING      — a reaction animation is playing on .mascot-reaction-layer
+    //   TRANSITIONING — reserved for future use (e.g. house-swap crossfade)
+    //
+    // Transitions:
+    //   IDLE --[triggerReaction]--> REACTING --[animationend]--> IDLE
+    //   IDLE --[triggerReaction while REACTING]--> queued, plays after current
+    //
     const STATES = { IDLE: 'idle', REACTING: 'reacting', TRANSITIONING: 'transitioning' };
 
     // ========================================
@@ -224,11 +268,11 @@ const MascotManager = (function () {
     // ========================================
 
     function Manager() {
-        this.state = STATES.IDLE;
-        this.currentMascot = null;
-        this.reactionQueue = [];
-        this.activeElement = null;
-        this._reactionTimer = null;
+        this.state = STATES.IDLE;           // Current animation state
+        this.currentMascot = null;          // Bound mascot config object
+        this.reactionQueue = [];            // Queued reactions waiting to play
+        this.activeElement = null;          // DOM element bound for animations
+        this._reactionTimer = null;         // Fallback timeout for cleanup
     }
 
     /**
@@ -316,46 +360,74 @@ const MascotManager = (function () {
 
     /**
      * Play a reaction (internal)
+     *
+     * Architecture: Reactions animate .mascot-reaction-layer (wrapper),
+     * while idle animations run on .mascot-body (child). This means the
+     * idle breathe/float/sway NEVER stops — reactions layer on top.
+     * Speech bubbles get a fade-out transition before removal.
      */
     Manager.prototype._playReaction = function (reaction, el) {
         var self = this;
         this.state = STATES.REACTING;
 
-        // Remove idle animation
-        var idleClass = this.currentMascot ? this.currentMascot.idleAnimation : '';
-        if (idleClass) el.classList.remove(idleClass);
+        // Idle animation stays on .mascot-body — we do NOT remove it.
+        // Reaction class goes on the entity, CSS targets > .mascot-reaction-layer
 
-        // Add reaction animation
+        // Add reaction class to the entity (CSS rule targets the reaction-layer child)
         el.classList.add(reaction.anim);
 
         // Show speech bubble
         this._showSpeech(el, reaction.text);
 
-        // Clear after animation ends
-        clearTimeout(this._reactionTimer);
-        this._reactionTimer = setTimeout(function () {
-            el.classList.remove(reaction.anim);
-            self._hideSpeech(el);
+        // Find the reaction layer to listen for animationend
+        var reactionLayer = el.querySelector('.mascot-reaction-layer');
 
-            // Restore idle
-            if (idleClass) el.classList.add(idleClass);
+        // Use animationend for precise timing, with a fallback timeout
+        var cleaned = false;
+        function cleanup() {
+            if (cleaned) return;
+            cleaned = true;
+
+            // Remove reaction class — reaction layer returns to neutral
+            el.classList.remove(reaction.anim);
+
+            // Fade out speech bubble smoothly (400ms transition in CSS)
+            self._fadeSpeech(el);
+
             self.state = STATES.IDLE;
 
-            // Process queue
+            // Process queued reactions
             if (self.reactionQueue.length > 0) {
                 var next = self.reactionQueue.shift();
                 var nextReaction = self.currentMascot.reactions[next.event];
                 if (nextReaction) {
-                    self._playReaction(nextReaction, next.el);
+                    // Small delay between queued reactions so they don't blur together
+                    setTimeout(function () {
+                        self._playReaction(nextReaction, next.el);
+                    }, 300);
                 }
             }
-        }, 1500);
+        }
+
+        // Listen for animationend on the reaction layer
+        if (reactionLayer) {
+            var onEnd = function () {
+                reactionLayer.removeEventListener('animationend', onEnd);
+                cleanup();
+            };
+            reactionLayer.addEventListener('animationend', onEnd);
+        }
+
+        // Fallback timeout in case animationend doesn't fire (e.g. display:none)
+        clearTimeout(this._reactionTimer);
+        this._reactionTimer = setTimeout(cleanup, 2000);
     };
 
     /**
-     * Show speech bubble on element
+     * Show speech bubble on element (instant appear with CSS animation)
      */
     Manager.prototype._showSpeech = function (el, text) {
+        // Remove any existing bubble immediately (no fade for replacement)
         this._hideSpeech(el);
         var bubble = document.createElement('div');
         bubble.className = 'mascot-speech';
@@ -365,7 +437,7 @@ const MascotManager = (function () {
     };
 
     /**
-     * Remove speech bubble
+     * Remove speech bubble immediately (used when replacing with new bubble)
      */
     Manager.prototype._hideSpeech = function (el) {
         var existing = el.querySelector('.mascot-speech');
@@ -373,7 +445,35 @@ const MascotManager = (function () {
     };
 
     /**
+     * Fade out speech bubble smoothly, then remove from DOM.
+     * Adds .speech-leaving class (opacity 0 over 400ms), then removes element.
+     */
+    Manager.prototype._fadeSpeech = function (el) {
+        var existing = el.querySelector('.mascot-speech');
+        if (!existing) return;
+        // Add leaving class to trigger CSS opacity transition
+        existing.classList.add('speech-leaving');
+        // Remove from DOM after the fade completes
+        setTimeout(function () {
+            if (existing.parentNode) existing.remove();
+        }, 450);
+    };
+
+    /**
      * Render a mascot entity as DOM element
+     *
+     * DOM structure (for smooth continuous animation):
+     *   .mascot-entity            — outer container, holds idle class + house class
+     *     .mascot-reaction-layer  — wrapper for reaction animations (transform layer)
+     *       .mascot-body          — the visual shape, carries the idle animation
+     *       .mascot-eyes          — blinking eyes (always animating)
+     *       .mascot-detail        — per-house accent element
+     *     .mascot-name-tag        — label (outside reaction layer so it doesn't bounce)
+     *
+     * Idle animation runs on .mascot-body via the idle class on .mascot-entity.
+     * Reaction animations run on .mascot-reaction-layer via reaction class on .mascot-entity.
+     * This separation means the mascot NEVER stops breathing/floating — it continuously loops.
+     *
      * @param {string} house — house key
      * @param {object} [opts] — { showName: bool, size: 'sm'|'md'|'lg' }
      * @returns {HTMLElement}
@@ -383,6 +483,7 @@ const MascotManager = (function () {
         var m = this.getMascot(house);
         if (!m) return document.createElement('div');
 
+        // Outer entity container
         var entity = document.createElement('div');
         entity.className = 'mascot-entity ' + m.cssClass;
         entity.style.setProperty('--mascot-color', m.color);
@@ -390,12 +491,17 @@ const MascotManager = (function () {
         var scale = opts.size === 'sm' ? 0.7 : opts.size === 'lg' ? 1.4 : 1;
         entity.style.transform = 'scale(' + scale + ')';
 
-        // Body
+        // Reaction layer — wrapper that receives reaction animations
+        // Keeps reaction transforms separate from idle body transforms
+        var reactionLayer = document.createElement('div');
+        reactionLayer.className = 'mascot-reaction-layer';
+
+        // Body — carries the idle animation (breathe/float/sway/etc.)
         var body = document.createElement('div');
         body.className = 'mascot-body';
-        entity.appendChild(body);
+        reactionLayer.appendChild(body);
 
-        // Eyes
+        // Eyes — always blinking, nested inside reaction layer
         var eyes = document.createElement('div');
         eyes.className = 'mascot-eyes';
         var eyeL = document.createElement('div');
@@ -406,14 +512,16 @@ const MascotManager = (function () {
         eyeR.style.setProperty('--blink-offset', String(Math.random() * 2 + 1));
         eyes.appendChild(eyeL);
         eyes.appendChild(eyeR);
-        entity.appendChild(eyes);
+        reactionLayer.appendChild(eyes);
 
-        // Detail (shape-specific accent)
+        // Detail — per-house shape accent
         var detail = document.createElement('div');
         detail.className = 'mascot-detail';
-        entity.appendChild(detail);
+        reactionLayer.appendChild(detail);
 
-        // Name tag
+        entity.appendChild(reactionLayer);
+
+        // Name tag — outside reaction layer so it stays stable during reactions
         if (opts.showName !== false) {
             var tag = document.createElement('div');
             tag.className = 'mascot-name-tag';
@@ -421,7 +529,7 @@ const MascotManager = (function () {
             entity.appendChild(tag);
         }
 
-        // Idle animation
+        // Idle animation class — stays on the entity forever, CSS targets .mascot-body
         entity.classList.add(m.idleAnimation);
 
         // Seasonal overlay

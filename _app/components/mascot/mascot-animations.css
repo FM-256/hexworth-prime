@@ -4,7 +4,40 @@
  * All mascot animations: idle, reactions, seasonal overlays, per-mascot color schemes.
  * Pure CSS — no canvas, no WebGL.
  *
- * @version 1.0.0
+ * ===== TWO-LAYER ANIMATION ARCHITECTURE =====
+ *
+ * The mascot uses separate DOM layers for idle and reaction animations so they
+ * never conflict. CSS transform stacking keeps everything smooth and continuous.
+ *
+ * DOM STRUCTURE (rendered by MascotManager.renderMascot):
+ *   .mascot-entity              <-- outer container
+ *     .mascot-reaction-layer    <-- REACTION animations target this
+ *       .mascot-body            <-- IDLE animations target this (never stops)
+ *       .mascot-eyes            <-- blink runs independently
+ *       .mascot-detail          <-- house-specific accent
+ *     .mascot-name-tag          <-- stable label, not animated
+ *
+ * IDLE SELECTORS:     .mascot-idle-XXX .mascot-body { animation: ... infinite; }
+ * REACTION SELECTORS: .mascot-react-XXX > .mascot-reaction-layer { animation: ...; }
+ *
+ * WHY TWO LAYERS:
+ * CSS can only run one animation per property per element. If idle uses
+ * transform: scale() and a reaction also uses transform: translateY(), they
+ * overwrite each other on the same element. By splitting them across parent
+ * (reaction-layer) and child (body), both transforms compose via the CSS
+ * stacking context. The mascot breathes while bouncing, floats while shaking, etc.
+ *
+ * ADDING NEW ANIMATIONS:
+ * 1. Define @keyframes (see existing examples below)
+ * 2. For idle: add .mascot-idle-YOURNAME .mascot-body { animation: ... infinite; }
+ * 3. For reaction: add .mascot-react-YOURNAME > .mascot-reaction-layer { animation: ...; }
+ * 4. Register in MascotManager.js MASCOTS[house].idleAnimation or reactions[event].anim
+ *
+ * SPEECH BUBBLES:
+ * - Appear via speech-appear keyframe (0.3s fade+slide in)
+ * - Disappear via .speech-leaving class (0.4s opacity transition, then DOM removal)
+ *
+ * @version 2.0.0 — Two-layer architecture for continuous looping
  */
 
 /* ========================================
@@ -27,7 +60,14 @@
 
 /* ========================================
    BASE MASCOT CONTAINER
-   ======================================== */
+   ========================================
+   DOM hierarchy (rendered by MascotManager.renderMascot):
+     .mascot-entity              <-- outer, holds idle + reaction + house classes
+       .mascot-reaction-layer    <-- reaction transforms animate HERE
+         .mascot-body            <-- idle transforms animate HERE (never stops)
+         .mascot-eyes            <-- blink loop (independent)
+         .mascot-detail          <-- house-specific accent
+       .mascot-name-tag          <-- stable label, won't bounce with reactions */
 
 .mascot-entity {
     position: relative;
@@ -35,6 +75,18 @@
     align-items: center;
     justify-content: center;
     transition: filter 0.3s ease;
+}
+
+/* Reaction wrapper — sits between entity and body.
+   Receives reaction animation transforms (bounce, shake, spin, etc.)
+   while the body inside it keeps running its idle animation uninterrupted.
+   The transition property provides smooth settle-back after reactions end. */
+.mascot-entity .mascot-reaction-layer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease, filter 0.3s ease;
 }
 
 .mascot-entity .mascot-body {
@@ -77,67 +129,90 @@
 }
 
 /* ========================================
-   IDLE ANIMATIONS
-   ======================================== */
+   IDLE ANIMATIONS — @keyframes
+   ========================================
+   These define the looping motions applied to .mascot-body.
+   All use transform or opacity only (GPU-composited, no layout cost).
+   Each runs infinitely — the idle class is NEVER removed from the entity. */
 
+/* Float: gentle vertical bob — used by Cloud/Nimbus, Key/Cipher */
 @keyframes mascot-float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
 }
 
+/* Pulse: opacity fade — used by Eye/Watcher, AI/Neural */
 @keyframes mascot-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
 }
 
+/* Breathe: subtle scale — used by Shield/Guardian, Code/Logic, Script/Terminal */
 @keyframes mascot-breathe {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.05); }
 }
 
+/* Sway: gentle rotation — used by Dark Arts/Shadow, Web/Weaver, Matrix/Architect */
 @keyframes mascot-sway {
     0%, 100% { transform: rotate(-3deg); }
     50% { transform: rotate(3deg); }
 }
 
+/* Blink: eye squint — runs independently on every .mascot-eye element */
 @keyframes mascot-blink {
     0%, 45%, 55%, 100% { transform: scaleY(1); }
     50% { transform: scaleY(0.1); }
 }
 
+/* Glow pulse: box-shadow throb — used by Forge/Ember */
 @keyframes mascot-glow-pulse {
     0%, 100% { box-shadow: 0 0 10px var(--mascot-color, #60a5fa), 0 0 20px transparent; }
     50% { box-shadow: 0 0 15px var(--mascot-color, #60a5fa), 0 0 30px var(--mascot-color, #60a5fa); }
 }
 
-.mascot-idle-float {
+/* ----------------------------------------
+   IDLE SELECTORS — Target .mascot-body
+   ----------------------------------------
+   These selectors apply idle animations to .mascot-body so they NEVER stop.
+   Reactions animate the .mascot-reaction-layer wrapper above, not the body.
+   The idle class stays on .mascot-entity permanently. */
+
+.mascot-idle-float .mascot-body {
     animation: mascot-float 3s ease-in-out infinite;
 }
 
-.mascot-idle-pulse {
+.mascot-idle-pulse .mascot-body {
     animation: mascot-pulse 2.5s ease-in-out infinite;
 }
 
-.mascot-idle-breathe {
+.mascot-idle-breathe .mascot-body {
     animation: mascot-breathe 4s ease-in-out infinite;
 }
 
-.mascot-idle-sway {
+.mascot-idle-sway .mascot-body {
     animation: mascot-sway 3.5s ease-in-out infinite;
 }
 
-.mascot-idle-glow {
+.mascot-idle-glow .mascot-body {
     animation: mascot-glow-pulse 2s ease-in-out infinite;
 }
 
+/* Eye blink — independent infinite loop on each eye.
+   --blink-offset CSS var staggers left/right eyes so they don't sync. */
 .mascot-entity .mascot-eye {
     animation: mascot-blink 4s ease-in-out infinite;
     animation-delay: calc(var(--blink-offset, 0) * 1s);
 }
 
 /* ========================================
-   REACTION ANIMATIONS
-   ======================================== */
+   REACTION ANIMATIONS — @keyframes + selectors
+   ========================================
+   Reactions target > .mascot-reaction-layer (direct child of .mascot-entity).
+   This keeps reaction transforms SEPARATE from idle body transforms.
+   The body continues its idle loop underneath while the wrapper bounces/shakes/spins.
+   Each reaction plays once — cleanup is handled by MascotManager._playReaction()
+   via animationend event. */
 
 /* Happy — bounce + glow */
 @keyframes mascot-happy {
@@ -148,7 +223,7 @@
     80% { transform: translateY(-3px) scale(1.02); }
 }
 
-.mascot-react-happy {
+.mascot-react-happy > .mascot-reaction-layer {
     animation: mascot-happy 0.8s ease-out;
 }
 
@@ -159,7 +234,8 @@
     100% { transform: translateY(3px); filter: brightness(0.7); }
 }
 
-.mascot-react-sad {
+/* Sad — reactions target the reaction-layer wrapper so idle body anim keeps running */
+.mascot-react-sad > .mascot-reaction-layer {
     animation: mascot-sad 1s ease-out forwards;
 }
 
@@ -177,11 +253,12 @@
     50% { opacity: 1; transform: scale(1); }
 }
 
-.mascot-react-achievement {
+/* Achievement — spin + sparkle on the reaction layer */
+.mascot-react-achievement > .mascot-reaction-layer {
     animation: mascot-achievement 1s ease-in-out;
 }
 
-.mascot-react-achievement::after {
+.mascot-react-achievement > .mascot-reaction-layer::after {
     content: '*';
     position: absolute;
     top: -10px;
@@ -203,7 +280,8 @@
     50% { filter: brightness(0.5) sepia(1) hue-rotate(-30deg) saturate(5); }
 }
 
-.mascot-react-failure {
+/* Failure — shake + flash on the reaction layer */
+.mascot-react-failure > .mascot-reaction-layer {
     animation: mascot-failure 0.6s ease-in-out, mascot-flash-red 0.3s ease-in-out 2;
 }
 
@@ -215,7 +293,8 @@
     100% { transform: translateY(0) scale(1); filter: brightness(1); }
 }
 
-.mascot-react-levelup {
+/* Level up — rise + expand on the reaction layer */
+.mascot-react-levelup > .mascot-reaction-layer {
     animation: mascot-levelup 1.2s ease-out;
 }
 
@@ -229,7 +308,8 @@
     75% { transform: rotate(10deg); }
 }
 
-.mascot-react-wave {
+/* Wave / greeting — on the reaction layer */
+.mascot-react-wave > .mascot-reaction-layer {
     animation: mascot-wave 1s ease-in-out;
 }
 
@@ -363,7 +443,16 @@
 
 /* ========================================
    PER-MASCOT SHAPES & ACCENTS
-   ======================================== */
+   ========================================
+   Each house mascot has a unique body shape defined via CSS on .mascot-body.
+   These use descendant selectors (.mascot-HOUSE .mascot-body) which work
+   regardless of the .mascot-reaction-layer wrapper between them.
+
+   To add a new house shape:
+   1. Add .mascot-YOURHOUSE .mascot-body { width, height, background, clip-path/border-radius }
+   2. Optionally add .mascot-YOURHOUSE .mascot-detail { position accents }
+   3. Optionally override .mascot-YOURHOUSE .mascot-eye { custom eye shape }
+   4. Register cssClass: 'mascot-YOURHOUSE' in MascotManager.js MASCOTS object */
 
 /* Shield - Guardian: hexagonal sentinel */
 .mascot-guardian .mascot-body {
@@ -595,6 +684,7 @@
    ENCOUNTER SPEECH BUBBLE
    ======================================== */
 
+/* Speech bubbles — smooth fade in, smooth fade out via .speech-leaving class */
 .mascot-speech {
     position: absolute;
     bottom: calc(100% + 10px);
@@ -609,8 +699,16 @@
     color: rgba(255, 255, 255, 0.8);
     white-space: nowrap;
     pointer-events: none;
-    animation: speech-appear 0.3s ease-out;
+    animation: speech-appear 0.3s ease-out forwards;
     z-index: 10;
+    opacity: 1;
+    transition: opacity 0.4s ease;
+}
+
+/* Fade-out class — added before removal so the bubble doesn't just vanish */
+.mascot-speech.speech-leaving {
+    opacity: 0;
+    transition: opacity 0.4s ease;
 }
 
 .mascot-speech::after {
