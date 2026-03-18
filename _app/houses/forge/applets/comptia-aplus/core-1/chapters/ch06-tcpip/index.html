@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chapter 6: Introduction to TCP/IP | CompTIA A+ Core 1</title>
     <style>
@@ -1833,31 +1835,29 @@
         }
 
         // ============ QUIZ SYSTEM ============
+        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+        // Answer key stored in Firestore quiz_keys/aplus-core1-ch06
+        const QUIZ_ID = 'aplus-core1-ch06';
         const quizQuestions = [
             {
                 question: "Which port is used by HTTPS for secure web traffic?",
-                options: ["80", "443", "8080", "22"],
-                correct: 1
+                options: ["80", "443", "8080", "22"]
             },
             {
                 question: "What protocol is connectionless and provides 'best effort' delivery?",
-                options: ["TCP", "IP", "UDP", "ICMP"],
-                correct: 2
+                options: ["TCP", "IP", "UDP", "ICMP"]
             },
             {
                 question: "Which IP address range is reserved for APIPA (automatic addressing when DHCP fails)?",
-                options: ["10.0.0.0/8", "169.254.0.0/16", "192.168.0.0/16", "172.16.0.0/12"],
-                correct: 1
+                options: ["10.0.0.0/8", "169.254.0.0/16", "192.168.0.0/16", "172.16.0.0/12"]
             },
             {
                 question: "What is the default subnet mask for a Class B address?",
-                options: ["255.0.0.0", "255.255.0.0", "255.255.255.0", "255.255.255.128"],
-                correct: 1
+                options: ["255.0.0.0", "255.255.0.0", "255.255.255.0", "255.255.255.128"]
             },
             {
                 question: "Which port is used by SSH for secure remote access?",
-                options: ["21", "22", "23", "25"],
-                correct: 1
+                options: ["21", "22", "23", "25"]
             },
             {
                 question: "What does DHCP provide to network clients? (Select the most complete answer)",
@@ -1866,33 +1866,27 @@
                     "IP address and subnet mask only",
                     "IP address, subnet mask, gateway, and DNS",
                     "MAC address and IP address"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "Which DNS record type maps a hostname to an IPv6 address?",
-                options: ["A", "AAAA", "MX", "CNAME"],
-                correct: 1
+                options: ["A", "AAAA", "MX", "CNAME"]
             },
             {
                 question: "What is the CIDR notation equivalent of subnet mask 255.255.255.0?",
-                options: ["/8", "/16", "/24", "/32"],
-                correct: 2
+                options: ["/8", "/16", "/24", "/32"]
             },
             {
                 question: "Which IP address class has a first octet range of 192-223?",
-                options: ["Class A", "Class B", "Class C", "Class D"],
-                correct: 2
+                options: ["Class A", "Class B", "Class C", "Class D"]
             },
             {
                 question: "What protocol uses ports 67 and 68?",
-                options: ["DNS", "DHCP", "HTTP", "TFTP"],
-                correct: 1
+                options: ["DNS", "DHCP", "HTTP", "TFTP"]
             },
             {
                 question: "In the TCP/IP model, which layer corresponds to the OSI Transport layer?",
-                options: ["Process/Application", "Host-to-Host", "Internet", "Network Access"],
-                correct: 1
+                options: ["Process/Application", "Host-to-Host", "Internet", "Network Access"]
             },
             {
                 question: "Which private IP address range belongs to Class A?",
@@ -1901,18 +1895,15 @@
                     "172.16.0.0 - 172.31.255.255",
                     "10.0.0.0 - 10.255.255.255",
                     "169.254.0.0 - 169.254.255.255"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "What is the IPv6 loopback address?",
-                options: ["127.0.0.1", "::1", "FE80::1", "FF00::1"],
-                correct: 1
+                options: ["127.0.0.1", "::1", "FE80::1", "FF00::1"]
             },
             {
                 question: "Which protocol performs name resolution, translating domain names to IP addresses?",
-                options: ["DHCP", "NAT", "DNS", "ARP"],
-                correct: 2
+                options: ["DHCP", "NAT", "DNS", "ARP"]
             },
             {
                 question: "What is the purpose of NAT (Network Address Translation)?",
@@ -1921,8 +1912,7 @@
                     "Converts private IPs to public IPs for internet access",
                     "Assigns IP addresses automatically",
                     "Resolves MAC addresses to IP addresses"
-                ],
-                correct: 1
+                ]
             }
         ];
 
@@ -1975,28 +1965,59 @@
             }
         }
 
-        function submitQuiz() {
-            let correct = 0;
-            quizState.answers.forEach((ans, idx) => {
-                if (ans === quizQuestions[idx].correct) correct++;
-            });
+        /**
+         * submitQuiz — Server-side graded (QC-21)
+         *
+         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
+         * The server looks up quiz_keys/aplus-core1-ch06 in Firestore, compares answers,
+         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
+         *
+         * Falls back to a "grading unavailable" message if Firebase isn't loaded
+         * (e.g. offline mode or SDK failure).
+         */
+        async function submitQuiz() {
+            const nextBtn = document.getElementById('nextBtn');
+            nextBtn.disabled = true;
+            nextBtn.textContent = 'Grading...';
 
-            const percentage = Math.round((correct / quizQuestions.length) * 100);
+            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+            const answerMap = {};
+            quizState.answers.forEach((ans, i) => { answerMap[String(i)] = ans; });
+
+            let score = 0;
+            let results = null;
+
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    results = response.data.results;
+                    score = response.data.score;
+                }
+            } catch (e) {
+                console.warn('Server grading failed, showing submission without grading:', e.message);
+            }
+
+            const percentage = Math.round((score / quizQuestions.length) * 100);
             const passed = percentage >= 70;
 
             document.getElementById('quizContent').style.display = 'none';
-            const results = document.getElementById('quizResults');
-            results.style.display = 'block';
-            results.className = `results-container ${passed ? 'passed' : 'failed'}`;
+            const resultsDiv = document.getElementById('quizResults');
+            resultsDiv.style.display = 'block';
+            resultsDiv.className = `results-container ${passed ? 'passed' : 'failed'}`;
 
-            results.innerHTML = `
+            resultsDiv.innerHTML = `
                 <h2>${passed ? 'Congratulations!' : 'Keep Studying!'}</h2>
-                <p class="final-score">${correct}/${quizQuestions.length}</p>
+                <p class="final-score">${score}/${quizQuestions.length}</p>
                 <p style="font-size: 1.5rem; margin-bottom: 20px;">${percentage}%</p>
                 <p>${passed ? 'You passed! Great understanding of TCP/IP fundamentals.' : 'You need 70% to pass. Review the material and try again.'}</p>
                 <button class="nav-btn" onclick="retakeQuiz()" style="margin-top: 20px;">
                     ${passed ? 'Review Quiz' : 'Retake Quiz'}
                 </button>
+                <a href="../ch07-wireless/index.html" class="nav-btn" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 7 — Wireless &rsaquo;</a>
             `;
 
             // Save progress if passed
@@ -2021,8 +2042,7 @@
                 let progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
                 progress.ch06 = {
                     completed: true,
-                    date: new Date().toISOString(),
-                    score: quizState.answers.filter((ans, idx) => ans === quizQuestions[idx].correct).length
+                    date: new Date().toISOString()
                 };
                 localStorage.setItem('aplus-core1-progress', JSON.stringify(progress));
             } catch (e) {

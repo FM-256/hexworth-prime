@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chapter 3: Peripherals, Cables and Connectors - A+ Core 1</title>
     <style>
@@ -1286,88 +1288,76 @@
                     <div class="score"><span id="finalScore">0</span>/15</div>
                     <p id="scoreMessage"></p>
                     <button class="quiz-btn" onclick="resetQuiz()" style="background: white; color: var(--forge-primary); margin-top: 15px;">Try Again</button>
+                    <a href="../ch04-printers/index.html" class="quiz-btn" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 4 — Printers &rsaquo;</a>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Quiz Data
+        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+        // Answer key stored in Firestore quiz_keys/aplus-core1-ch03
+        const QUIZ_ID = 'aplus-core1-ch03';
         const quizQuestions = [
             {
                 q: "What color is a USB 3.0 port?",
-                options: ["Black", "White", "Blue", "Red"],
-                correct: 2
+                options: ["Black", "White", "Blue", "Red"]
             },
             {
                 q: "What is the maximum speed of USB 2.0?",
-                options: ["12 Mbps", "480 Mbps", "5 Gbps", "10 Gbps"],
-                correct: 1
+                options: ["12 Mbps", "480 Mbps", "5 Gbps", "10 Gbps"]
             },
             {
                 q: "Which display technology does NOT require a backlight?",
-                options: ["LCD", "LED", "OLED", "TN"],
-                correct: 2
+                options: ["LCD", "LED", "OLED", "TN"]
             },
             {
                 q: "What type of signal does VGA carry?",
-                options: ["Digital", "Analog", "Both analog and digital", "Fiber optic"],
-                correct: 1
+                options: ["Digital", "Analog", "Both analog and digital", "Fiber optic"]
             },
             {
                 q: "What connector does Thunderbolt 3 use?",
-                options: ["Mini DisplayPort", "USB Type-A", "USB-C", "HDMI"],
-                correct: 2
+                options: ["Mini DisplayPort", "USB Type-A", "USB-C", "HDMI"]
             },
             {
                 q: "Which DVI type supports ONLY digital signals?",
-                options: ["DVI-A", "DVI-D", "DVI-I", "DVI-E"],
-                correct: 1
+                options: ["DVI-A", "DVI-D", "DVI-I", "DVI-E"]
             },
             {
                 q: "What is the speed of SATA 3.0?",
-                options: ["1.5 Gbps", "3 Gbps", "6 Gbps", "12 Gbps"],
-                correct: 2
+                options: ["1.5 Gbps", "3 Gbps", "6 Gbps", "12 Gbps"]
             },
             {
                 q: "What does a KVM switch do?",
-                options: ["Boosts Wi-Fi signal", "Shares keyboard, video, mouse between computers", "Converts video signals", "Provides backup power"],
-                correct: 1
+                options: ["Boosts Wi-Fi signal", "Shares keyboard, video, mouse between computers", "Converts video signals", "Provides backup power"]
             },
             {
                 q: "What is native resolution?",
-                options: ["The lowest supported resolution", "The highest supported resolution", "The resolution with best image quality", "The default factory resolution"],
-                correct: 2
+                options: ["The lowest supported resolution", "The highest supported resolution", "The resolution with best image quality", "The default factory resolution"]
             },
             {
                 q: "Which LCD panel type is best for color accuracy?",
-                options: ["TN", "VA", "IPS", "OLED"],
-                correct: 2
+                options: ["TN", "VA", "IPS", "OLED"]
             },
             {
                 q: "What is the maximum speed of Thunderbolt 4?",
-                options: ["10 Gbps", "20 Gbps", "40 Gbps", "80 Gbps"],
-                correct: 2
+                options: ["10 Gbps", "20 Gbps", "40 Gbps", "80 Gbps"]
             },
             {
                 q: "Which connector is Apple's proprietary mobile connector?",
-                options: ["USB-C", "Micro-USB", "Lightning", "Mini-USB"],
-                correct: 2
+                options: ["USB-C", "Micro-USB", "Lightning", "Mini-USB"]
             },
             {
                 q: "What does eSATA provide that regular SATA doesn't?",
-                options: ["Faster speeds", "External connectivity", "Power delivery", "RAID support"],
-                correct: 1
+                options: ["Faster speeds", "External connectivity", "Power delivery", "RAID support"]
             },
             {
                 q: "What is the color code for USB 3.1 ports?",
-                options: ["Blue", "Black", "Teal", "Red"],
-                correct: 2
+                options: ["Blue", "Black", "Teal", "Red"]
             },
             {
                 q: "Which video interface is a VESA standard?",
-                options: ["HDMI", "VGA", "DisplayPort", "DVI"],
-                correct: 2
+                options: ["HDMI", "VGA", "DisplayPort", "DVI"]
             }
         ];
 
@@ -1514,39 +1504,75 @@
             element.classList.add('selected');
         }
 
-        function submitQuiz() {
+        /**
+         * submitQuiz — Server-side graded (QC-21)
+         *
+         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
+         * The server looks up quiz_keys/aplus-core1-ch03 in Firestore, compares answers,
+         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
+         *
+         * Falls back to a "grading unavailable" message if Firebase isn't loaded
+         * (e.g. offline mode or SDK failure).
+         */
+        async function submitQuiz() {
             if (userAnswers.includes(null)) {
                 alert('Please answer all questions before submitting.');
                 return;
             }
 
             quizSubmitted = true;
-            let score = 0;
+            const submitBtn = document.getElementById('submitQuiz');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Grading...';
 
+            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+            const answerMap = {};
+            userAnswers.forEach((ans, i) => { answerMap[String(i)] = ans; });
+
+            let score = 0;
+            let results = null;
+
+            try {
+                // Call server-side grading via FirebaseAuth bridge
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    results = response.data.results;
+                    score = response.data.score;
+                }
+            } catch (e) {
+                console.warn('Server grading failed, showing submission without grading:', e.message);
+            }
+
+            // Render results
             quizQuestions.forEach((q, index) => {
                 const options = document.querySelectorAll(`#mainQuiz .quiz-question:nth-child(${index + 1}) li`);
                 const feedback = document.getElementById(`feedback-${index}`);
+                const isCorrect = results ? results[index].correct : null;
 
                 options.forEach((opt, optIndex) => {
                     opt.classList.remove('selected');
-                    if (optIndex === q.correct) {
-                        opt.classList.add('correct');
-                    } else if (optIndex === userAnswers[index] && userAnswers[index] !== q.correct) {
-                        opt.classList.add('incorrect');
+                    if (optIndex === userAnswers[index]) {
+                        opt.classList.add(isCorrect ? 'correct' : 'incorrect');
                     }
                 });
 
-                if (userAnswers[index] === q.correct) {
-                    score++;
+                if (isCorrect === true) {
                     feedback.textContent = '✓ Correct!';
                     feedback.className = 'quiz-feedback show correct';
-                } else {
-                    feedback.textContent = `✗ Incorrect. The correct answer is: ${q.options[q.correct]}`;
+                } else if (isCorrect === false) {
+                    feedback.textContent = '✗ Incorrect.';
                     feedback.className = 'quiz-feedback show incorrect';
+                } else {
+                    feedback.textContent = 'Grading unavailable — try again when online.';
+                    feedback.className = 'quiz-feedback show';
                 }
             });
 
-            document.getElementById('submitQuiz').style.display = 'none';
+            submitBtn.style.display = 'none';
             document.getElementById('quizResults').style.display = 'block';
             document.getElementById('finalScore').textContent = score;
 

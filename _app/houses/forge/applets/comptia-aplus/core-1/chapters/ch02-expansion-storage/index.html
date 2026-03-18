@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chapter 2: Expansion Cards, Storage, and Power - A+ Core 1</title>
     <style>
@@ -1365,88 +1367,76 @@
                     <div class="score"><span id="finalScore">0</span>/15</div>
                     <p id="scoreMessage"></p>
                     <button class="quiz-btn" onclick="resetQuiz()" style="background: white; color: var(--forge-primary); margin-top: 15px;">Try Again</button>
+                    <a href="../ch03-peripherals/index.html" class="quiz-btn" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 3 — Peripherals &rsaquo;</a>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Quiz Data
+        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+        // Answer key stored in Firestore quiz_keys/aplus-core1-ch02
+        const QUIZ_ID = 'aplus-core1-ch02';
         const quizQuestions = [
             {
                 q: "Which expansion card slot is typically used for graphics cards?",
-                options: ["PCIe x1", "PCIe x4", "PCIe x16", "PCI"],
-                correct: 2
+                options: ["PCIe x1", "PCIe x4", "PCIe x16", "PCI"]
             },
             {
                 q: "What is the maximum speed of SATA III?",
-                options: ["150 MB/s", "300 MB/s", "600 MB/s", "1200 MB/s"],
-                correct: 2
+                options: ["150 MB/s", "300 MB/s", "600 MB/s", "1200 MB/s"]
             },
             {
                 q: "Which RAID level provides striping with NO redundancy?",
-                options: ["RAID 0", "RAID 1", "RAID 5", "RAID 10"],
-                correct: 0
+                options: ["RAID 0", "RAID 1", "RAID 5", "RAID 10"]
             },
             {
                 q: "How many pins does a SATA power connector have?",
-                options: ["4", "7", "15", "24"],
-                correct: 2
+                options: ["4", "7", "15", "24"]
             },
             {
                 q: "What does NVMe stand for?",
-                options: ["New Volume Memory Express", "Non-Volatile Memory Express", "Network Virtual Memory Extension", "Nano-Volt Magnetic Express"],
-                correct: 1
+                options: ["New Volume Memory Express", "Non-Volatile Memory Express", "Network Virtual Memory Extension", "Nano-Volt Magnetic Express"]
             },
             {
                 q: "Which M.2 key type is used for NVMe SSDs (fastest speeds)?",
-                options: ["A Key", "B Key", "E Key", "M Key"],
-                correct: 3
+                options: ["A Key", "B Key", "E Key", "M Key"]
             },
             {
                 q: "What is the minimum number of drives for RAID 5?",
-                options: ["2", "3", "4", "5"],
-                correct: 1
+                options: ["2", "3", "4", "5"]
             },
             {
                 q: "Which connector provides main power to the motherboard?",
-                options: ["4-pin Molex", "8-pin EPS", "15-pin SATA", "24-pin ATX"],
-                correct: 3
+                options: ["4-pin Molex", "8-pin EPS", "15-pin SATA", "24-pin ATX"]
             },
             {
                 q: "What is a disadvantage of SSDs compared to HDDs?",
-                options: ["Slower speeds", "More noise", "Higher cost per GB", "Less reliable"],
-                correct: 2
+                options: ["Slower speeds", "More noise", "Higher cost per GB", "Less reliable"]
             },
             {
                 q: "What voltage rail primarily powers the CPU and GPU?",
-                options: ["+3.3V", "+5V", "+12V", "+24V"],
-                correct: 2
+                options: ["+3.3V", "+5V", "+12V", "+24V"]
             },
             {
                 q: "RAID 1 is also known as:",
-                options: ["Striping", "Mirroring", "Parity", "Spanning"],
-                correct: 1
+                options: ["Striping", "Mirroring", "Parity", "Spanning"]
             },
             {
                 q: "What does UPS stand for?",
-                options: ["Universal Power Switch", "Uninterruptible Power Supply", "Unified Power System", "Ultra Power Source"],
-                correct: 1
+                options: ["Universal Power Switch", "Uninterruptible Power Supply", "Unified Power System", "Ultra Power Source"]
             },
             {
                 q: "Which connector replaced the 4-pin Molex for SATA drives?",
-                options: ["6-pin PCIe", "8-pin EPS", "15-pin SATA power", "20-pin ATX"],
-                correct: 2
+                options: ["6-pin PCIe", "8-pin EPS", "15-pin SATA power", "20-pin ATX"]
             },
             {
                 q: "What is the typical speed of a desktop HDD?",
-                options: ["3,600 RPM", "5,400 RPM", "7,200 RPM", "15,000 RPM"],
-                correct: 2
+                options: ["3,600 RPM", "5,400 RPM", "7,200 RPM", "15,000 RPM"]
             },
             {
                 q: "Which expansion card is used for recording video from external sources?",
-                options: ["Sound card", "Network card", "Capture card", "USB expansion card"],
-                correct: 2
+                options: ["Sound card", "Network card", "Capture card", "USB expansion card"]
             }
         ];
 
@@ -1584,7 +1574,17 @@
             element.classList.add('selected');
         }
 
-        function submitQuiz() {
+        /**
+         * submitQuiz — Server-side graded (QC-21)
+         *
+         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
+         * The server looks up quiz_keys/aplus-core1-ch02 in Firestore, compares answers,
+         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
+         *
+         * Falls back to a "grading unavailable" message if Firebase isn't loaded
+         * (e.g. offline mode or SDK failure).
+         */
+        async function submitQuiz() {
             // Check if all questions answered
             if (userAnswers.includes(null)) {
                 alert('Please answer all questions before submitting.');
@@ -1592,33 +1592,60 @@
             }
 
             quizSubmitted = true;
-            let score = 0;
+            const submitBtn = document.getElementById('submitQuiz');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Grading...';
 
+            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+            const answerMap = {};
+            userAnswers.forEach((ans, i) => { answerMap[String(i)] = ans; });
+
+            let score = 0;
+            let results = null;
+
+            try {
+                // Call server-side grading via FirebaseAuth bridge
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    results = response.data.results;
+                    score = response.data.score;
+                }
+            } catch (e) {
+                console.warn('Server grading failed, showing submission without grading:', e.message);
+            }
+
+            // Render results
             quizQuestions.forEach((q, index) => {
                 const options = document.querySelectorAll(`#mainQuiz .quiz-question:nth-child(${index + 1}) li`);
                 const feedback = document.getElementById(`feedback-${index}`);
+                const isCorrect = results ? results[index].correct : null;
 
                 options.forEach((opt, optIndex) => {
                     opt.classList.remove('selected');
-                    if (optIndex === q.correct) {
-                        opt.classList.add('correct');
-                    } else if (optIndex === userAnswers[index] && userAnswers[index] !== q.correct) {
-                        opt.classList.add('incorrect');
+                    // When server grades, we only know right/wrong — highlight the user's pick
+                    if (optIndex === userAnswers[index]) {
+                        opt.classList.add(isCorrect ? 'correct' : 'incorrect');
                     }
                 });
 
-                if (userAnswers[index] === q.correct) {
-                    score++;
+                if (isCorrect === true) {
                     feedback.textContent = '✓ Correct!';
                     feedback.className = 'quiz-feedback show correct';
-                } else {
-                    feedback.textContent = `✗ Incorrect. The correct answer is: ${q.options[q.correct]}`;
+                } else if (isCorrect === false) {
+                    feedback.textContent = '✗ Incorrect.';
                     feedback.className = 'quiz-feedback show incorrect';
+                } else {
+                    feedback.textContent = 'Grading unavailable — try again when online.';
+                    feedback.className = 'quiz-feedback show';
                 }
             });
 
             // Show results
-            document.getElementById('submitQuiz').style.display = 'none';
+            submitBtn.style.display = 'none';
             document.getElementById('quizResults').style.display = 'block';
             document.getElementById('finalScore').textContent = score;
 

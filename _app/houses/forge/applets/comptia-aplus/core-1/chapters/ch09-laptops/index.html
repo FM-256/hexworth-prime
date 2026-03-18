@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <!-- Progress & Achievements -->
     <script src="../../../../../../../components/AchievementManager.js"></script>
     <script src="../../../../../../../components/ModuleProgress.js"></script>
@@ -1778,6 +1780,7 @@
                 <div class="results-message" id="results-message"></div>
                 <div class="results-details" id="results-details"></div>
                 <button class="quiz-btn primary" onclick="retakeQuiz()">Retake Quiz</button>
+                <a href="../ch10-mobile/index.html" class="quiz-btn primary" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 10 — Mobile &rsaquo;</a>
             </div>
         </div>
     </div>
@@ -1990,81 +1993,69 @@
         // =====================
         // QUIZ
         // =====================
+        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+        // Answer key stored in Firestore quiz_keys/aplus-core1-ch09
+        const QUIZ_ID = 'aplus-core1-ch09';
         const quizQuestions = [
             {
                 question: "What is the primary form factor for laptop memory?",
-                options: ["DIMM", "SODIMM", "SIMM", "RIMM"],
-                correct: 1
+                options: ["DIMM", "SODIMM", "SIMM", "RIMM"]
             },
             {
                 question: "Which display panel type offers the BEST viewing angles?",
-                options: ["TN", "VA", "IPS", "CRT"],
-                correct: 2
+                options: ["TN", "VA", "IPS", "CRT"]
             },
             {
                 question: "What component converts DC to AC power for CCFL backlights?",
-                options: ["Transformer", "Inverter", "Rectifier", "Capacitor"],
-                correct: 1
+                options: ["Transformer", "Inverter", "Rectifier", "Capacitor"]
             },
             {
                 question: "What is the standard width of a laptop hard drive?",
-                options: ["1.8 inches", "2.5 inches", "3.5 inches", "5.25 inches"],
-                correct: 1
+                options: ["1.8 inches", "2.5 inches", "3.5 inches", "5.25 inches"]
             },
             {
                 question: "Which expansion slot is commonly used for laptop WiFi cards?",
-                options: ["PCIe x16", "Mini PCIe or M.2", "AGP", "ISA"],
-                correct: 1
+                options: ["PCIe x16", "Mini PCIe or M.2", "AGP", "ISA"]
             },
             {
                 question: "What distinguishes a docking station from a port replicator?",
-                options: ["Docking stations use USB only", "Docking stations provide full functionality and power", "Port replicators charge the laptop", "There is no difference"],
-                correct: 1
+                options: ["Docking stations use USB only", "Docking stations provide full functionality and power", "Port replicators charge the laptop", "There is no difference"]
             },
             {
                 question: "Which display technology can achieve true black by turning off individual pixels?",
-                options: ["LED LCD", "IPS", "OLED", "TN"],
-                correct: 2
+                options: ["LED LCD", "IPS", "OLED", "TN"]
             },
             {
                 question: "What type of connector do laptop ribbon cables typically use?",
-                options: ["SATA", "ZIF (Zero Insertion Force)", "Molex", "Berg"],
-                correct: 1
+                options: ["SATA", "ZIF (Zero Insertion Force)", "Molex", "Berg"]
             },
             {
                 question: "How many pins does a DDR4 SODIMM have?",
-                options: ["200 pins", "204 pins", "240 pins", "260 pins"],
-                correct: 3
+                options: ["200 pins", "204 pins", "240 pins", "260 pins"]
             },
             {
                 question: "What is the Fn key used for on laptop keyboards?",
-                options: ["Function keys only", "Activating secondary key functions", "Numeric keypad", "Caps Lock"],
-                correct: 1
+                options: ["Function keys only", "Activating secondary key functions", "Numeric keypad", "Caps Lock"]
             },
             {
                 question: "Which panel type has the FASTEST response time but POOREST viewing angles?",
-                options: ["IPS", "VA", "TN", "OLED"],
-                correct: 2
+                options: ["IPS", "VA", "TN", "OLED"]
             },
             {
                 question: "What should you do FIRST before disassembling a laptop?",
-                options: ["Remove the keyboard", "Disconnect external devices", "Remove the battery", "Open the display"],
-                correct: 2
+                options: ["Remove the keyboard", "Disconnect external devices", "Remove the battery", "Open the display"]
             },
             {
                 question: "A swollen laptop battery should be:",
-                options: ["Recharged to fix it", "Punctured to release pressure", "Replaced immediately", "Ignored if still working"],
-                correct: 2
+                options: ["Recharged to fix it", "Punctured to release pressure", "Replaced immediately", "Ignored if still working"]
             },
             {
                 question: "What type of cable lock uses a standard slot found on most laptops?",
-                options: ["USB lock", "Kensington lock", "HDMI lock", "Ethernet lock"],
-                correct: 1
+                options: ["USB lock", "Kensington lock", "HDMI lock", "Ethernet lock"]
             },
             {
                 question: "Which M.2 key type supports the fastest NVMe SSDs with PCIe x4?",
-                options: ["A-Key", "B-Key", "M-Key", "E-Key"],
-                correct: 2
+                options: ["A-Key", "B-Key", "M-Key", "E-Key"]
             }
         ];
 
@@ -2119,14 +2110,43 @@
             }
         }
 
-        function submitQuiz() {
-            let correct = 0;
-            quizQuestions.forEach((q, i) => {
-                if (userAnswers[i] === q.correct) correct++;
-            });
+        /**
+         * submitQuiz — Server-side graded (QC-21)
+         *
+         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
+         * The server looks up quiz_keys/aplus-core1-ch09 in Firestore, compares answers,
+         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
+         *
+         * Falls back to a "grading unavailable" message if Firebase isn't loaded
+         * (e.g. offline mode or SDK failure).
+         */
+        async function submitQuiz() {
+            const nextBtn = document.getElementById('next-btn');
+            nextBtn.disabled = true;
+            nextBtn.textContent = 'Grading...';
 
-            const percentage = Math.round((correct / quizQuestions.length) * 100);
-            const passed = percentage >= 70;
+            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+            const answerMap = {};
+            userAnswers.forEach((ans, i) => { answerMap[String(i)] = ans; });
+
+            let score = 0;
+            let percentage = 0;
+            let passed = false;
+
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    score = response.data.score;
+                    percentage = Math.round((score / quizQuestions.length) * 100);
+                    passed = percentage >= 70;
+                }
+            } catch (e) {
+                console.warn('Server grading failed, showing submission without grading:', e.message);
+            }
 
             // Update progress
             updateProgress(passed, percentage);
@@ -2142,7 +2162,7 @@
                 'Congratulations! You passed!' :
                 'Keep studying and try again!';
             document.getElementById('results-details').textContent =
-                `You got ${correct} out of ${quizQuestions.length} questions correct. (70% required to pass)`;
+                `You got ${score} out of ${quizQuestions.length} questions correct. (70% required to pass)`;
         }
 
         function retakeQuiz() {

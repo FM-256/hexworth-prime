@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <!-- Progress & Achievements -->
     <script src="../../../../../../../components/AchievementManager.js"></script>
     <script src="../../../../../../../components/ModuleProgress.js"></script>
@@ -1920,6 +1922,7 @@
                 <div class="results-message" id="results-message"></div>
                 <div class="results-details" id="results-details"></div>
                 <button class="quiz-btn primary" onclick="retakeQuiz()">Retake Quiz</button>
+                <a href="../ch09-laptops/index.html" class="quiz-btn primary" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 9 — Laptops &rsaquo;</a>
             </div>
         </div>
     </div>
@@ -2153,81 +2156,69 @@
         // =====================
         // QUIZ
         // =====================
+        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+        // Answer key stored in Firestore quiz_keys/aplus-core1-ch08
+        const QUIZ_ID = 'aplus-core1-ch08';
         const quizQuestions = [
             {
                 question: "Which DNS record type maps a hostname to an IPv4 address?",
-                options: ["AAAA", "MX", "A", "PTR"],
-                correct: 2
+                options: ["AAAA", "MX", "A", "PTR"]
             },
             {
                 question: "What does DORA stand for in DHCP?",
-                options: ["Distribute, Offer, Request, Accept", "Discover, Offer, Request, Acknowledge", "Download, Open, Run, Activate", "Direct, Obtain, Return, Assign"],
-                correct: 1
+                options: ["Distribute, Offer, Request, Accept", "Discover, Offer, Request, Acknowledge", "Download, Open, Run, Activate", "Direct, Obtain, Return, Assign"]
             },
             {
                 question: "Which cloud service model provides the MOST control to the customer?",
-                options: ["SaaS", "PaaS", "IaaS", "FaaS"],
-                correct: 2
+                options: ["SaaS", "PaaS", "IaaS", "FaaS"]
             },
             {
                 question: "Google Docs and Microsoft 365 are examples of which cloud service model?",
-                options: ["IaaS", "PaaS", "SaaS", "DaaS"],
-                correct: 2
+                options: ["IaaS", "PaaS", "SaaS", "DaaS"]
             },
             {
                 question: "Which hypervisor type runs directly on hardware without a host operating system?",
-                options: ["Type 1", "Type 2", "Type 3", "Type 0"],
-                correct: 0
+                options: ["Type 1", "Type 2", "Type 3", "Type 0"]
             },
             {
                 question: "VMware Workstation and VirtualBox are examples of which hypervisor type?",
-                options: ["Type 1 (Bare Metal)", "Type 2 (Hosted)", "Type 3 (Hybrid)", "Type 0 (Firmware)"],
-                correct: 1
+                options: ["Type 1 (Bare Metal)", "Type 2 (Hosted)", "Type 3 (Hybrid)", "Type 0 (Firmware)"]
             },
             {
                 question: "Which AAA protocol is Cisco proprietary and encrypts the entire packet?",
-                options: ["RADIUS", "TACACS+", "Kerberos", "LDAP"],
-                correct: 1
+                options: ["RADIUS", "TACACS+", "Kerberos", "LDAP"]
             },
             {
                 question: "What is the severity level for a Syslog Emergency message?",
-                options: ["7", "0", "1", "3"],
-                correct: 1
+                options: ["7", "0", "1", "3"]
             },
             {
                 question: "Which cloud deployment model combines private and public cloud resources?",
-                options: ["Private cloud", "Public cloud", "Hybrid cloud", "Community cloud"],
-                correct: 2
+                options: ["Private cloud", "Public cloud", "Hybrid cloud", "Community cloud"]
             },
             {
                 question: "A network area between the internal network and internet hosting public-facing servers is called a:",
-                options: ["VLAN", "DMZ", "VPN", "NAT"],
-                correct: 1
+                options: ["VLAN", "DMZ", "VPN", "NAT"]
             },
             {
                 question: "Which cloud characteristic allows resources to scale up or down based on demand?",
-                options: ["Broad network access", "Resource pooling", "Rapid elasticity", "Measured service"],
-                correct: 2
+                options: ["Broad network access", "Resource pooling", "Rapid elasticity", "Measured service"]
             },
             {
                 question: "Which DNS record type is used for reverse lookups (IP to hostname)?",
-                options: ["A", "AAAA", "CNAME", "PTR"],
-                correct: 3
+                options: ["A", "AAAA", "CNAME", "PTR"]
             },
             {
                 question: "What appliance combines firewall, IDS/IPS, antivirus, and VPN into a single device?",
-                options: ["Load Balancer", "Proxy Server", "UTM", "Spam Gateway"],
-                correct: 2
+                options: ["Load Balancer", "Proxy Server", "UTM", "Spam Gateway"]
             },
             {
                 question: "Which server role automatically assigns IP addresses to network clients?",
-                options: ["DNS Server", "DHCP Server", "File Server", "Web Server"],
-                correct: 1
+                options: ["DNS Server", "DHCP Server", "File Server", "Web Server"]
             },
             {
                 question: "In the cloud service responsibility model, which layer does the customer ALWAYS manage regardless of service type?",
-                options: ["Operating System", "Network", "Data", "Virtualization"],
-                correct: 2
+                options: ["Operating System", "Network", "Data", "Virtualization"]
             }
         ];
 
@@ -2282,14 +2273,43 @@
             }
         }
 
-        function submitQuiz() {
-            let correct = 0;
-            quizQuestions.forEach((q, i) => {
-                if (userAnswers[i] === q.correct) correct++;
-            });
+        /**
+         * submitQuiz — Server-side graded (QC-21)
+         *
+         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
+         * The server looks up quiz_keys/aplus-core1-ch08 in Firestore, compares answers,
+         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
+         *
+         * Falls back to a "grading unavailable" message if Firebase isn't loaded
+         * (e.g. offline mode or SDK failure).
+         */
+        async function submitQuiz() {
+            const nextBtn = document.getElementById('next-btn');
+            nextBtn.disabled = true;
+            nextBtn.textContent = 'Grading...';
 
-            const percentage = Math.round((correct / quizQuestions.length) * 100);
-            const passed = percentage >= 70;
+            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+            const answerMap = {};
+            userAnswers.forEach((ans, i) => { answerMap[String(i)] = ans; });
+
+            let score = 0;
+            let percentage = 0;
+            let passed = false;
+
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    score = response.data.score;
+                    percentage = Math.round((score / quizQuestions.length) * 100);
+                    passed = percentage >= 70;
+                }
+            } catch (e) {
+                console.warn('Server grading failed, showing submission without grading:', e.message);
+            }
 
             // Update progress
             updateProgress(passed);
@@ -2305,7 +2325,7 @@
                 'Congratulations! You passed!' :
                 'Keep studying and try again!';
             document.getElementById('results-details').textContent =
-                `You got ${correct} out of ${quizQuestions.length} questions correct. (70% required to pass)`;
+                `You got ${score} out of ${quizQuestions.length} questions correct. (70% required to pass)`;
         }
 
         function retakeQuiz() {
@@ -2323,7 +2343,6 @@
                     let progress = JSON.parse(localStorage.getItem(progressKey) || '{}');
                     progress.ch08 = {
                         completed: true,
-                        score: Math.round((userAnswers.filter((a, i) => a === quizQuestions[i].correct).length / quizQuestions.length) * 100),
                         completedAt: new Date().toISOString()
                     };
                     localStorage.setItem(progressKey, JSON.stringify(progress));

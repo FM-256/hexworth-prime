@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chapter 11: Troubleshooting Methodology | CompTIA A+ Core 1</title>
     <style>
@@ -1525,6 +1527,9 @@
         }
 
         // ==================== CHAPTER QUIZ ====================
+        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+        // Answer key stored in Firestore quiz_keys/aplus-core1-ch11
+        const QUIZ_ID = 'aplus-core1-ch11';
         const quizQuestions = [
             {
                 question: "According to the CompTIA troubleshooting methodology, what should you do FIRST when resolving a problem?",
@@ -1533,8 +1538,7 @@
                     "Identify the problem",
                     "Test the theory",
                     "Document the findings"
-                ],
-                correct: 1
+                ]
             },
             {
                 question: "A user reports their computer won't turn on. After identifying the problem, what is the NEXT step?",
@@ -1543,8 +1547,7 @@
                     "Test the theory to determine cause",
                     "Establish a theory of probable cause",
                     "Document findings"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "What should you always do BEFORE making changes to resolve a computer problem?",
@@ -1553,8 +1556,7 @@
                     "Run antivirus scan",
                     "Create a backup",
                     "Reinstall the operating system"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "During POST, a computer produces one short beep. What does this typically indicate?",
@@ -1563,8 +1565,7 @@
                     "Video card failure",
                     "Successful POST - system OK",
                     "CPU failure"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "A user's computer keeps resetting to the wrong date and time. What is the most likely cause?",
@@ -1573,8 +1574,7 @@
                     "Dead CMOS battery",
                     "Corrupted BIOS",
                     "Faulty RAM"
-                ],
-                correct: 1
+                ]
             },
             {
                 question: "You smell something burning coming from inside a computer case. What should you do FIRST?",
@@ -1583,8 +1583,7 @@
                     "Run hardware diagnostics",
                     "Shut down and disconnect power immediately",
                     "Check the event logs"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "A computer works fine for a few minutes, then suddenly locks up. After cooling down, it works again. What is the most likely cause?",
@@ -1593,8 +1592,7 @@
                     "Bad RAM",
                     "Overheating/cooling issue",
                     "Corrupted operating system"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "What tool would you use to test if a serial port is functioning correctly?",
@@ -1603,8 +1601,7 @@
                     "POST card",
                     "Loopback plug",
                     "Cable tester"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "A motherboard shows bulging capacitors. What action should be taken?",
@@ -1613,8 +1610,7 @@
                     "Replace the motherboard",
                     "Add more cooling",
                     "Update the BIOS"
-                ],
-                correct: 1
+                ]
             },
             {
                 question: "You hear a clicking noise coming from a computer. What component is most likely failing?",
@@ -1623,8 +1619,7 @@
                     "CPU cooler",
                     "Hard disk drive",
                     "Optical drive"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "What is the LAST step in the CompTIA troubleshooting methodology?",
@@ -1633,8 +1628,7 @@
                     "Implement preventive measures",
                     "Document findings, actions, and outcomes",
                     "Establish a plan of action"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "A computer's PSU fan spins but the system doesn't boot. What could this indicate?",
@@ -1643,8 +1637,7 @@
                     "Motherboard or power connection issue",
                     "Hard drive failure",
                     "RAM is working correctly"
-                ],
-                correct: 1
+                ]
             },
             {
                 question: "RAM problems often manifest as which of the following?",
@@ -1653,8 +1646,7 @@
                     "Clicking sounds",
                     "Blue Screen of Death (BSOD)",
                     "Burning smell"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "If your theory about the cause of a problem is NOT confirmed after testing, what should you do?",
@@ -1663,8 +1655,7 @@
                     "Document that the problem cannot be fixed",
                     "Re-establish a new theory or escalate",
                     "Skip to verifying functionality"
-                ],
-                correct: 2
+                ]
             },
             {
                 question: "What should you always consider BEFORE implementing changes according to the troubleshooting methodology?",
@@ -1673,8 +1664,7 @@
                     "Corporate policies, procedures, and impacts",
                     "If the user can afford repairs",
                     "Your lunch break schedule"
-                ],
-                correct: 1
+                ]
             }
         ];
 
@@ -1737,21 +1727,50 @@
             }
         }
 
-        function submitQuiz() {
-            let correct = 0;
-            quizQuestions.forEach((q, i) => {
-                if (userAnswers[i] === q.correct) correct++;
-            });
+        /**
+         * submitQuiz — Server-side graded (QC-21)
+         *
+         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
+         * The server looks up quiz_keys/aplus-core1-ch11 in Firestore, compares answers,
+         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
+         *
+         * Falls back to a "grading unavailable" message if Firebase isn't loaded
+         * (e.g. offline mode or SDK failure).
+         */
+        async function submitQuiz() {
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Grading...';
 
-            const percentage = Math.round((correct / quizQuestions.length) * 100);
-            const passed = percentage >= 70;
+            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+            const answerMap = {};
+            Object.keys(userAnswers).forEach(key => { answerMap[String(key)] = userAnswers[key]; });
+
+            let score = 0;
+            let percentage = 0;
+            let passed = false;
+
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    score = response.data.score;
+                    percentage = Math.round((score / quizQuestions.length) * 100);
+                    passed = percentage >= 70;
+                }
+            } catch (e) {
+                console.warn('Server grading failed, showing submission without grading:', e.message);
+            }
 
             const resultDiv = document.getElementById('quiz-result');
             resultDiv.style.display = 'block';
             resultDiv.className = `score-display ${passed ? 'passed' : 'failed'}`;
 
             resultDiv.innerHTML = `
-                <span class="score">${correct}/${quizQuestions.length} (${percentage}%)</span>
+                <span class="score">${score}/${quizQuestions.length} (${percentage}%)</span>
                 <br>
                 ${passed ?
                     '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Congratulations! You passed! You understand the troubleshooting methodology.' :
@@ -1759,6 +1778,7 @@
                 }
                 <br><br>
                 <button class="btn btn-secondary" onclick="retakeQuiz()">Retake Quiz</button>
+                <a href="../ch12-hw-network-troubleshooting/index.html" class="btn btn-primary" style="display: inline-block; text-decoration: none; text-align: center; margin-top: 10px;">Next: Chapter 12 — HW/Network Troubleshooting &rsaquo;</a>
             `;
 
             // Save progress
