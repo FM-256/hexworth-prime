@@ -211,15 +211,67 @@ const WSAQuiz = (() => {
         showResults();
     }
 
-    function showResults() {
+    /**
+     * showResults — Server-side grading when available (QC-21).
+     *
+     * The quiz shuffles both question ORDER and answer ORDER. The server
+     * stores keys in ORIGINAL order. So we need to:
+     *   1. Map each shuffled question back to its original index in config.questions
+     *   2. Map the user's shuffled answer index back to the original option index
+     *   3. Send { originalQuestionIndex: originalAnswerIndex } to the server
+     *
+     * If FirebaseAuth isn't available, falls back to local grading (the
+     * shuffledQuestions still have correct: for offline/preview mode).
+     */
+    async function showResults() {
         let correct = 0;
-        shuffledQuestions.forEach((q, i) => {
-            if (userAnswers[i] === q.correct) correct++;
-        });
-
         const total = shuffledQuestions.length;
-        const pct = Math.round((correct / total) * 100);
-        const passed = pct >= 70;
+        let pct = 0;
+        let passed = false;
+        let serverGraded = false;
+
+        // Try server-side grading first
+        const quizId = 'wsa-' + config.moduleId;
+        try {
+            if (typeof FirebaseAuth !== 'undefined') {
+                await FirebaseAuth.waitForAuth();
+
+                // Build answer map in ORIGINAL question/answer order
+                // shuffledQuestions were drawn from config.questions, so find original index
+                const answerMap = {};
+                shuffledQuestions.forEach((sq, i) => {
+                    if (userAnswers[i] === null) return;
+                    // Find which original question this shuffled question came from
+                    const origIdx = config.questions.findIndex(oq => oq.question === sq.question);
+                    if (origIdx === -1) return;
+                    // Map shuffled answer index back to original option index
+                    // sq.options[userAnswers[i]] is the text the user selected
+                    // Find that text in the original question's options
+                    const selectedText = sq.options[userAnswers[i]];
+                    const origAnswerIdx = config.questions[origIdx].options.indexOf(selectedText);
+                    answerMap[String(origIdx)] = origAnswerIdx;
+                });
+
+                const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                    quizId: quizId, answers: answerMap
+                });
+                correct = response.data.score;
+                pct = response.data.percentage;
+                passed = response.data.passed;
+                serverGraded = true;
+            }
+        } catch (e) {
+            console.warn('WSAQuiz: Server grading failed, falling back to local:', e.message);
+        }
+
+        // Fallback: local grading if server unavailable
+        if (!serverGraded) {
+            shuffledQuestions.forEach((q, i) => {
+                if (userAnswers[i] === q.correct) correct++;
+            });
+            pct = Math.round((correct / total) * 100);
+            passed = pct >= 70;
+        }
 
         // Track progress
         if (passed && typeof WSAProgress !== 'undefined') {
