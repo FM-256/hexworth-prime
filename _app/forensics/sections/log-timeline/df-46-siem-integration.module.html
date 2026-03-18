@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DF-46: SIEM Integration | Forensics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #fbbf24; --accent-dim: rgba(251,191,36,0.12); --accent-border: rgba(251,191,36,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .fh-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .fh-header-left { display: flex; align-items: center; gap: 14px; }
+        .fh-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .fh-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .fh-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .fh-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .fh-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .fh-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .fh-breadcrumb a:hover { opacity: 0.8; }
+        .fh-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .evidence-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .evidence-table th { background: rgba(251,191,36,0.08); color: var(--accent); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid rgba(251,191,36,0.2); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .evidence-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .evidence-table tr:hover td { background: rgba(251,191,36,0.04); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--accent); }
+        .try-it { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; }
+        .try-it ol { padding-left: 20px; }
+        .takeaways { background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(251,191,36,0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { filter: brightness(1.1); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header">
+        <div class="fh-header-left">
+            <span class="fh-badge">DF-46</span>
+            <h1>SIEM Integration</h1>
+        </div>
+        <a href="../../index.html" class="fh-back">&lt; Forensics Hub</a>
+    </header>
+    <nav class="fh-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard.html">Dashboard</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Forensics Hub</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Log &amp; Timeline Analysis</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        DF-46: SIEM Integration
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand SIEM architecture and its role in forensic investigations</li>
+                <li>Write Splunk SPL queries for forensic analysis</li>
+                <li>Write Elasticsearch/Kibana KQL queries for evidence retrieval</li>
+                <li>Design correlation rules for common attack patterns</li>
+                <li>Define log retention policies that support forensic requirements</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">SIEM Architecture</h2>
+            <p class="content-text">A Security Information and Event Management (SIEM) system collects, normalizes, correlates, and stores log data from across the enterprise. For forensic investigators, a properly configured SIEM is a force multiplier -- it provides pre-indexed, searchable, correlated data that would otherwise require hours of manual log parsing.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Collection</strong>
+                    <span>Agents, syslog forwarding, API integrations, file monitoring. Collects logs from endpoints, servers, network devices, cloud services, and applications into a central repository.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Normalization</strong>
+                    <span>Parses raw log formats into structured fields. A "source IP" is extracted regardless of whether the original log called it src_ip, client, or RemoteAddress.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Correlation</strong>
+                    <span>Rules engine that links events across sources. Detects patterns like "failed login from IP X on host A, followed by successful login from IP X on host B within 5 minutes."</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Storage & Search</strong>
+                    <span>Indexed storage enabling fast full-text and field-based searches across millions of events. Retention periods from 90 days to 7+ years depending on policy.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Splunk SPL for Forensics</h2>
+            <p class="content-text">Splunk's Search Processing Language (SPL) is widely used in enterprise SOCs. These queries demonstrate forensic analysis patterns:</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Splunk SPL -- Forensic Queries</div>
+                <pre><span class="cm">| Find all events from a specific IP across all indexes</span>
+index=* src_ip="203.0.113.77" OR dest_ip="203.0.113.77"
+| sort _time
+| table _time, index, sourcetype, src_ip, dest_ip, action, user
+
+<span class="cm">| Brute force detection -- failed logins followed by success</span>
+index=windows sourcetype=WinEventLog:Security EventCode=4625 OR EventCode=4624
+| sort _time
+| transaction src_ip maxspan=30m
+| where eventcount > 5
+| search EventCode=4624
+| table _time, src_ip, user, eventcount
+
+<span class="cm">| Suspicious process creation (living off the land binaries)</span>
+index=sysmon EventCode=1
+| search (process_name="powershell.exe" OR process_name="cmd.exe"
+    OR process_name="certutil.exe" OR process_name="mshta.exe"
+    OR process_name="regsvr32.exe" OR process_name="wmic.exe")
+| stats count by process_name, parent_process_name, user, CommandLine
+| sort -count
+
+<span class="cm">| Data exfiltration -- large outbound transfers</span>
+index=firewall action=allowed direction=outbound
+| stats sum(bytes_out) as total_bytes by src_ip, dest_ip
+| where total_bytes > 104857600
+| sort -total_bytes
+| eval total_MB = round(total_bytes/1048576, 2)
+| table src_ip, dest_ip, total_MB
+
+<span class="cm">| Account creation and privilege escalation timeline</span>
+index=windows sourcetype=WinEventLog:Security
+    (EventCode=4720 OR EventCode=4722 OR EventCode=4732 OR EventCode=4672)
+| sort _time
+| table _time, EventCode, Account_Name, Group_Name, Logon_ID</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Elasticsearch / Kibana KQL</h2>
+            <p class="content-text">The Elastic Stack (ELK) is the most common open-source SIEM platform. Kibana Query Language (KQL) provides a simplified search syntax for forensic analysis.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Kibana KQL -- Forensic Queries</div>
+                <pre><span class="cm"># All events from a suspect IP in the last 7 days</span>
+source.ip: "203.0.113.77" or destination.ip: "203.0.113.77"
+
+<span class="cm"># Failed SSH logins</span>
+event.action: "ssh_login" and event.outcome: "failure"
+
+<span class="cm"># PowerShell execution events</span>
+process.name: "powershell.exe" and event.category: "process"
+
+<span class="cm"># File creation in suspicious directories</span>
+event.action: "creation" and file.path: (*\\Temp\\* or *\\tmp\\* or *\\Downloads\\*)
+
+<span class="cm"># DNS queries to suspicious TLDs</span>
+dns.question.name: (*.tk or *.xyz or *.top or *.buzz) and network.direction: "outbound"</pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Elasticsearch DSL -- Aggregation Query</div>
+                <pre>GET /logs-*/_search
+{
+  "size": 0,
+  "query": {
+    "bool": {
+      "must": [
+        { "term": { "event.action": "authentication_failure" } },
+        { "range": { "@timestamp": { "gte": "now-24h" } } }
+      ]
+    }
+  },
+  "aggs": {
+    "by_source": {
+      "terms": { "field": "source.ip", "size": 20 },
+      "aggs": {
+        "by_user": {
+          "terms": { "field": "user.name", "size": 10 }
+        }
+      }
+    }
+  }
+}</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Correlation Rules</h2>
+            <p class="content-text">Effective SIEM correlation rules codify known attack patterns. These rules automatically flag suspicious activity for investigation.</p>
+
+            <table class="evidence-table">
+                <thead>
+                    <tr>
+                        <th>Rule Name</th>
+                        <th>Correlation Logic</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Brute Force Success</td>
+                        <td>5+ failed logins from same source IP within 10 minutes, followed by successful login from same IP within 5 minutes</td>
+                        <td>High</td>
+                    </tr>
+                    <tr>
+                        <td>Impossible Travel</td>
+                        <td>Successful logins from two geographically distant locations within a timeframe shorter than possible travel time</td>
+                        <td>High</td>
+                    </tr>
+                    <tr>
+                        <td>Service Account Interactive Login</td>
+                        <td>Service accounts (svc_*) performing interactive (Type 2) or RDP (Type 10) logon</td>
+                        <td>Critical</td>
+                    </tr>
+                    <tr>
+                        <td>Log Source Silence</td>
+                        <td>Expected log source stops sending events for > 15 minutes during business hours</td>
+                        <td>Medium</td>
+                    </tr>
+                    <tr>
+                        <td>Lateral Movement Chain</td>
+                        <td>Authentication from host A to B, then B to C, within 30 minutes using the same credentials</td>
+                        <td>Critical</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Log Retention Policies</h2>
+            <p class="content-text">Retention policies determine how long evidence is available in the SIEM. Different regulatory frameworks impose different requirements:</p>
+
+            <table class="evidence-table">
+                <thead>
+                    <tr>
+                        <th>Framework</th>
+                        <th>Minimum Retention</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>PCI DSS</td><td>1 year (3 months online)</td><td>Audit trail for cardholder data access</td></tr>
+                    <tr><td>HIPAA</td><td>6 years</td><td>All security-related logs</td></tr>
+                    <tr><td>SOX</td><td>7 years</td><td>Financial system audit trails</td></tr>
+                    <tr><td>NIST 800-171</td><td>Not specified (3+ years recommended)</td><td>CUI access and security events</td></tr>
+                    <tr><td>GDPR</td><td>As short as possible</td><td>Data minimization principle -- balance with security needs</td></tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout--danger">
+                <h4>Retention vs. Storage Cost</h4>
+                <p>A SIEM ingesting 500GB/day requires 182TB for one year of hot storage. Most organizations use tiered retention: 90 days hot (searchable), 1 year warm (archived, slower search), 7 years cold (compliance archive, manual retrieval). Define retention tiers based on regulatory requirements and investigation needs.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="try-it">
+                <h3>Practice: Write SIEM Queries</h3>
+                <p>Write Splunk SPL or KQL queries for the following forensic scenarios:</p>
+                <ol>
+                    <li>Find all RDP (LogonType 10) connections to domain controllers in the last 48 hours</li>
+                    <li>Identify the top 10 source IPs generating authentication failures</li>
+                    <li>Find all instances where PowerShell downloaded content from the internet</li>
+                    <li>Detect event log clearing (Event ID 1102) across all Windows hosts</li>
+                </ol>
+                <p><strong style="color:var(--green)">Sample SPL Answers:</strong></p>
+                <div class="code-block">
+                    <pre><span class="cm">| 1. RDP to domain controllers</span>
+index=windows EventCode=4624 LogonType=10 dest_category="domain_controller"
+| table _time, src_ip, user, dest
+
+<span class="cm">| 2. Top failed auth sources</span>
+index=* tag=authentication action=failure earliest=-48h
+| stats count by src_ip | sort -count | head 10
+
+<span class="cm">| 3. PowerShell downloads</span>
+index=sysmon EventCode=1 process_name="powershell.exe"
+| search CommandLine="*Net.WebClient*" OR CommandLine="*Invoke-WebRequest*"
+    OR CommandLine="*wget*" OR CommandLine="*curl*" OR CommandLine="*DownloadFile*"
+
+<span class="cm">| 4. Log clearing events</span>
+index=windows EventCode=1102
+| table _time, host, user, Message</pre>
+                </div>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>SIEMs provide pre-indexed, normalized, correlated data that accelerates forensic analysis</li>
+                <li>Splunk SPL and Elasticsearch KQL are the two most common SIEM query languages</li>
+                <li>Correlation rules automate detection of multi-stage attack patterns</li>
+                <li>Log retention policies must balance regulatory requirements against storage costs</li>
+                <li>Tiered retention (hot/warm/cold) manages the cost of long-term log storage</li>
+                <li>SIEM data is only as good as the sources feeding it -- coverage gaps mean evidence gaps</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="df-45-timeline-lab.module.html" class="nav-btn">&larr; Previous: Timeline Construction Simulation</a>
+            <a href="df-47-browser-forensics.module.html" class="nav-btn primary">Next: Browser Forensics &rarr;</a>
+        </div>
+    </div>
+
+    <script>
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.init({ moduleId: 'df-46', hubKey: 'hexworth_forensics_progress' });
+        }
+    </script>
+</body>
+</html>

