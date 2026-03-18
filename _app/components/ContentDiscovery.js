@@ -231,6 +231,9 @@ const ContentDiscovery = (function() {
      * Hrefs are resolved relative to the current house page (../../ goes to _app/).
      */
     function renderPlatformHubs(currentHouse) {
+        // Guard: don't render twice
+        if (document.getElementById('cdPlatformHubs')) return;
+
         const resultsContainer = document.getElementById('discoveryResultsContainer');
         if (!resultsContainer) return;
 
