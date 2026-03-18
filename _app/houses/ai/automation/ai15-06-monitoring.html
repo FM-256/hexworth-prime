@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../components/ModuleProgress.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitoring and Error Handling -- House of the Machine</title>
+  <style>
+    :root {
+      --accent: #8b5cf6;
+      --accent-dim: #6d28d9;
+      --bg: #0a0a0f;
+      --surface: #1a1a24;
+      --surface2: #22223a;
+      --border: #2e2e48;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; line-height: 1.7; }
+    @media (prefers-reduced-motion: reduce) {
+      .cx-particle { animation: none !important; opacity: 0.05 !important; }
+      .cx-progress-bar { transition: none !important; }
+    }
+    .cx-particle-field { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .cx-particle { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--accent); opacity: var(--o, 0.15); animation: cx-drift 20s linear infinite; }
+    @keyframes cx-drift { from { transform: translateY(100vh); } to { transform: translateY(-10vh) translateX(40px); } }
+    .cx-module-wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    .cx-breadcrumb { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 2rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .cx-breadcrumb a { color: var(--text-muted); text-decoration: none; }
+    .cx-breadcrumb a:hover { color: var(--accent); }
+    .cx-breadcrumb span { color: var(--accent); }
+    .cx-module-header { margin-bottom: 2.5rem; }
+    .cx-module-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.5rem; }
+    .cx-module-title { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.75rem; }
+    .cx-module-subtitle { color: var(--text-muted); font-size: 1rem; }
+    .objectives { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; }
+    .objectives h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.75rem; }
+    .objectives ul { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+    .objectives ul li::before { content: '-> '; color: var(--accent); font-weight: 700; }
+    .objectives ul li { font-size: 0.95rem; }
+    .section-title { font-size: 1.3rem; font-weight: 700; color: var(--accent); margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+    .content-text { color: var(--text-muted); margin-bottom: 1rem; font-size: 0.97rem; }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 1.25rem 0; }
+    .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; }
+    .feature-card h4 { font-size: 0.9rem; color: var(--accent); margin-bottom: 0.4rem; }
+    .feature-card p { font-size: 0.87rem; color: var(--text-muted); }
+    .code-block { background: #0d0d14; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.4rem; margin: 1.25rem 0; overflow-x: auto; }
+    .code-block pre { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.84rem; line-height: 1.65; white-space: pre; }
+    .kw { color: #f87171; } .str { color: #60a5fa; } .cm { color: #6b7280; font-style: italic; }
+    .num { color: #60a5fa; } .out { color: #34d399; }
+    .hl { background: rgba(139,92,246,0.15); border-radius: 3px; padding: 0 2px; }
+    .diagram-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin: 1.25rem 0; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.8; color: var(--text-muted); overflow-x: auto; }
+    .diagram-box .d-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 1rem; font-family: 'Segoe UI', sans-serif; }
+    .diagram-box .d-hl { color: var(--accent); font-weight: 700; }
+    .diagram-box .d-green { color: var(--green); }
+    .diagram-box .d-yellow { color: var(--yellow); }
+    .callout--info { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); border-radius: 6px; padding: 1rem 1.25rem; margin: 1.25rem 0; font-size: 0.93rem; color: var(--text-muted); }
+    .callout--warn { background: rgba(245,158,11,0.08); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 1rem 1.25rem; margin: 1.25rem 0; font-size: 0.93rem; color: var(--text-muted); }
+    .callout--info strong, .callout--warn strong { color: var(--text); display: block; margin-bottom: 0.3rem; }
+    .state-table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: 0.88rem; }
+    .state-table th { background: var(--surface2); color: var(--accent); text-align: left; padding: 0.6rem 0.9rem; border: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .state-table td { padding: 0.55rem 0.9rem; border: 1px solid var(--border); color: var(--text-muted); vertical-align: top; }
+    .state-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .try-it { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+    .try-it h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--green); margin-bottom: 0.75rem; }
+    .try-it ol { padding-left: 1.2rem; color: var(--text-muted); font-size: 0.92rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .takeaways { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; margin: 2rem 0; }
+    .takeaways h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.75rem; }
+    .takeaways ul { list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
+    .takeaways ul li::before { content: '[+] '; color: var(--accent); font-family: monospace; }
+    .takeaways ul li { font-size: 0.93rem; color: var(--text-muted); }
+    .nav-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .nav-btn { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; padding: 0.6rem 1.1rem; border-radius: 6px; font-size: 0.88rem; transition: all 0.2s; }
+    .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .nav-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .nav-btn.primary:hover { background: var(--accent-dim); }
+    .cx-progress-bar { position: absolute; top: 0; left: 0; height: 3px; background: var(--accent); width: 0%; z-index: 100; transition: width 0.2s; }
+  </style>
+</head>
+<body>
+  <div class="cx-progress-bar" id="progressBar"></div>
+  <div class="cx-particle-field" aria-hidden="true">
+    <span class="cx-particle" style="left:8%;animation-delay:0s;--o:0.1"></span>
+    <span class="cx-particle" style="left:22%;animation-delay:5s;--o:0.12"></span>
+    <span class="cx-particle" style="left:39%;animation-delay:9s;--o:0.08"></span>
+    <span class="cx-particle" style="left:54%;animation-delay:3s;--o:0.14"></span>
+    <span class="cx-particle" style="left:68%;animation-delay:7s;--o:0.1"></span>
+    <span class="cx-particle" style="left:83%;animation-delay:1s;--o:0.11"></span>
+  </div>
+  <div class="cx-module-wrap">
+    <nav class="cx-breadcrumb" aria-label="breadcrumb">
+      <a href="../../../../index.html">Home</a><span>/</span>
+      <a href="../index.html">AI House</a><span>/</span>
+      <a href="index.html">N8N and Automation</a><span>/</span>
+      <span>Monitoring and Error Handling</span>
+    </nav>
+    <header class="cx-module-header">
+      <div class="cx-module-label">Module 6 of 6 -- N8N and Automation</div>
+      <h1 class="cx-module-title">Monitoring and Error Handling</h1>
+      <p class="cx-module-subtitle">Retry logic, dead letter queues, alerting, and production workflow reliability for AI workflows.</p>
+    </header>
+    <div class="objectives">
+      <h3>Learning Objectives</h3>
+      <ul>
+        <li>Implement retry logic with exponential backoff for API failures in N8N</li>
+        <li>Build dead letter queue patterns for failed workflow executions</li>
+        <li>Set up alerting for failures, budget overruns, and quality degradation</li>
+        <li>Version and test workflows before deploying to production</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title">1. Why AI Workflows Fail</h2>
+    <p class="content-text">AI workflows have unique failure modes: API rate limits, model timeouts, context length exceeded, content filter blocks, non-deterministic outputs, and cost overruns.</p>
+    <div class="feature-grid">
+      <div class="feature-card"><h4>API Failures</h4><p>Rate limits (429), timeouts, service outages.</p></div>
+      <div class="feature-card"><h4>Quality Failures</h4><p>Hallucinations, wrong format, content filter blocks.</p></div>
+      <div class="feature-card"><h4>Data Failures</h4><p>Unexpected input format, missing fields, encoding issues.</p></div>
+      <div class="feature-card"><h4>Cost Failures</h4><p>Runaway loops, unexpectedly long prompts, model version changes.</p></div>
+    </div>
+
+    <h2 class="section-title">2. Retry Logic</h2>
+    <div class="code-block"><pre><span class="cm">// Custom retry with exponential backoff (Code node)</span>
+<span class="kw">for</span> (let attempt = <span class="num">0</span>; attempt < <span class="num">3</span>; attempt++) {
+  <span class="kw">try</span> {
+    const response = await $http.request({
+      method: <span class="str">'POST'</span>, url: <span class="str">'https://api.openai.com/v1/chat/completions'</span>,
+      body: { model: <span class="str">'gpt-4o-mini'</span>, messages: [...], max_tokens: <span class="num">500</span> }
+    });
+    return [{ json: { success: <span class="kw">true</span>, result: response.choices[<span class="num">0</span>].message.content } }];
+  } <span class="kw">catch</span> (error) {
+    await new Promise(r => setTimeout(r, Math.pow(<span class="num">2</span>, attempt) * <span class="num">1000</span>));
+  }
+}</pre></div>
+
+    <h2 class="section-title">3. Dead Letter Queue</h2>
+    <div class="diagram-box">
+      <div class="d-title">Dead Letter Queue Architecture</div>
+<span class="d-hl">Main Workflow</span>
+   +-- [Success] --> continue
+   +-- [Fail after retries] --> <span class="d-yellow">Error Workflow</span>
+                                    --> [Log to Database]
+                                    --> [Send Alert]
+                                    --> [Queue for Manual Review]
+    </div>
+
+    <h2 class="section-title">4. Budget Monitoring</h2>
+    <div class="code-block"><pre><span class="cm">// Track costs per execution</span>
+const INPUT_COST = <span class="num">5.00</span> / <span class="num">1_000_000</span>;   <span class="cm">// GPT-4o per token</span>
+const OUTPUT_COST = <span class="num">15.00</span> / <span class="num">1_000_000</span>;
+
+const cost = (usage.prompt_tokens * INPUT_COST) + (usage.completion_tokens * OUTPUT_COST);
+<span class="kw">if</span> (todayCost + cost > dailyBudget) {
+  return [{ json: { alert: <span class="str">'BUDGET_EXCEEDED'</span> } }];
+}</pre></div>
+
+    <h2 class="section-title">5. Workflow Versioning</h2>
+    <div class="code-block"><pre><span class="cm"># Export workflow JSON before changes</span>
+<span class="out">curl http://localhost:5678/api/v1/workflows/ID -H "X-N8N-API-KEY: key" > v1.json</span>
+
+<span class="cm"># Rollback if needed</span>
+<span class="out">curl -X PUT http://localhost:5678/api/v1/workflows/ID -d @v1.json</span></pre></div>
+    <div class="callout--warn"><strong>Production Checklist</strong>Before activating: (1) Retry logic on all nodes, (2) Error workflow configured, (3) Budget limits set, (4) Input validation on triggers, (5) Logging captures execution details, (6) Alerts for failures and budget, (7) Workflow JSON exported as backup.</div>
+    <div class="try-it">
+      <h3>Try It</h3>
+      <ol>
+        <li>Add retry logic (3 attempts, exponential backoff) to an AI workflow node.</li>
+        <li>Build an error workflow that catches failures, logs them, and sends alerts.</li>
+        <li>Implement budget monitoring: track token usage/costs per execution with daily limits.</li>
+        <li>Export a workflow as JSON, make changes, test, and practice rolling back.</li>
+      </ol>
+    </div>
+    <div class="takeaways">
+      <h3>Key Takeaways</h3>
+      <ul>
+        <li>AI workflows have unique failure modes: rate limits, timeouts, content filters, hallucinations, cost overruns</li>
+        <li>Retry logic with exponential backoff is mandatory for any workflow calling external APIs</li>
+        <li>Dead letter queues capture failed executions for debugging and manual recovery</li>
+        <li>Budget monitoring with daily limits prevents cost explosions from runaway loops</li>
+        <li>Version workflows as JSON exports and test changes before activating in production</li>
+      </ul>
+    </div>
+    <div class="nav-footer">
+      <a href="ai15-05-content-generation.html" class="nav-btn">&larr; Automated Content Generation Pipelines</a>
+      <a href="index.html" class="nav-btn primary">Back to Hub</a>
+    </div>
+  </div>
+  <script src="../../../components/FluxCapacitor.js"></script>
+  <script>
+    const MODULE_ID = 'ai15-monitoring';
+    const HOUSE_ID  = 'ai';
+    let completed   = false;
+    window.addEventListener('scroll', () => {
+      const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+      document.getElementById('progressBar').style.width = pct + '%';
+      if (!completed && pct >= 80) {
+        completed = true;
+        ModuleProgress.complete(HOUSE_ID, MODULE_ID);
+      }
+    });
+  </script>
+</body>
+</html>
