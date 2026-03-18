@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
     <script src="../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../components/FirebaseAuth.js"></script>
     <script src="../../../components/AchievementManager.js"></script>
     <script src="../../../components/ModuleProgress.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -414,42 +416,45 @@
 </footer>
 
 <script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/web-networking-midterm
+const QUIZ_ID = 'web-networking-midterm';
 const examData = [
   // Chapter 7: IP Addressing
-  {q: "Which IPv4 address range is reserved for APIPA (Automatic Private IP Addressing)?", a: ["10.0.0.0 - 10.255.255.255", "172.16.0.0 - 172.31.255.255", "169.254.0.0 - 169.254.255.255", "192.168.0.0 - 192.168.255.255"], c: 2},
-  {q: "How many bits are in an IPv6 address?", a: ["32 bits", "64 bits", "128 bits", "256 bits"], c: 2},
+  {q: "Which IPv4 address range is reserved for APIPA (Automatic Private IP Addressing)?", a: ["10.0.0.0 - 10.255.255.255", "172.16.0.0 - 172.31.255.255", "169.254.0.0 - 169.254.255.255", "192.168.0.0 - 192.168.255.255"]},
+  {q: "How many bits are in an IPv6 address?", a: ["32 bits", "64 bits", "128 bits", "256 bits"]},
 
   // Chapter 8: Subnetting
-  {q: "What is the subnet mask for a /26 network?", a: ["255.255.255.128", "255.255.255.192", "255.255.255.224", "255.255.255.240"], c: 1},
-  {q: "How many usable host addresses are available in a /28 subnet?", a: ["14", "16", "30", "62"], c: 0},
-  {q: "If ping to 127.0.0.1 fails, what does this indicate?", a: ["DNS failure", "Default gateway issue", "TCP/IP stack problem", "Firewall blocking"], c: 2},
+  {q: "What is the subnet mask for a /26 network?", a: ["255.255.255.128", "255.255.255.192", "255.255.255.224", "255.255.255.240"]},
+  {q: "How many usable host addresses are available in a /28 subnet?", a: ["14", "16", "30", "62"]},
+  {q: "If ping to 127.0.0.1 fails, what does this indicate?", a: ["DNS failure", "Default gateway issue", "TCP/IP stack problem", "Firewall blocking"]},
 
   // Chapter 9: IP Routing
-  {q: "What type of route is manually configured by an administrator?", a: ["Dynamic route", "Static route", "Default route", "Connected route"], c: 1},
-  {q: "Which routing metric represents the number of routers a packet must traverse?", a: ["Bandwidth", "Cost", "Hop count", "Delay"], c: 2},
+  {q: "What type of route is manually configured by an administrator?", a: ["Dynamic route", "Static route", "Default route", "Connected route"]},
+  {q: "Which routing metric represents the number of routers a packet must traverse?", a: ["Bandwidth", "Cost", "Hop count", "Delay"]},
 
   // Chapter 10: Routing Protocols
-  {q: "Which routing protocol uses hop count as its metric and has a maximum limit of 15 hops?", a: ["OSPF", "BGP", "RIP", "EIGRP"], c: 2},
-  {q: "Which protocol is classified as an Exterior Gateway Protocol (EGP)?", a: ["RIP", "OSPF", "EIGRP", "BGP"], c: 3},
-  {q: "What algorithm does OSPF use to calculate the shortest path?", a: ["Bellman-Ford", "Dijkstra SPF", "Distance Vector", "Path Vector"], c: 1},
+  {q: "Which routing protocol uses hop count as its metric and has a maximum limit of 15 hops?", a: ["OSPF", "BGP", "RIP", "EIGRP"]},
+  {q: "Which protocol is classified as an Exterior Gateway Protocol (EGP)?", a: ["RIP", "OSPF", "EIGRP", "BGP"]},
+  {q: "What algorithm does OSPF use to calculate the shortest path?", a: ["Bellman-Ford", "Dijkstra SPF", "Distance Vector", "Path Vector"]},
 
   // Chapter 11: Switching & VLANs
-  {q: "Which IEEE standard defines VLAN tagging?", a: ["802.3", "802.11", "802.1Q", "802.1X"], c: 2},
-  {q: "What protocol prevents Layer 2 switching loops?", a: ["VTP", "STP", "LACP", "CDP"], c: 1},
-  {q: "What happens when port security detects an unauthorized MAC address?", a: ["Port forwards traffic normally", "Port triggers a security violation", "Port enables DHCP snooping", "Port creates a new VLAN"], c: 1},
+  {q: "Which IEEE standard defines VLAN tagging?", a: ["802.3", "802.11", "802.1Q", "802.1X"]},
+  {q: "What protocol prevents Layer 2 switching loops?", a: ["VTP", "STP", "LACP", "CDP"]},
+  {q: "What happens when port security detects an unauthorized MAC address?", a: ["Port forwards traffic normally", "Port triggers a security violation", "Port enables DHCP snooping", "Port creates a new VLAN"]},
 
   // Chapter 12: Wireless
-  {q: "Which 2.4 GHz Wi-Fi channels are non-overlapping?", a: ["1, 5, 9", "1, 6, 11", "2, 6, 10", "3, 7, 11"], c: 1},
-  {q: "Which wireless security protocol is considered obsolete and easily cracked?", a: ["WPA2", "WPA3", "WEP", "SAE"], c: 2},
-  {q: "Which 802.11 standard first introduced 5 GHz frequency support?", a: ["802.11a", "802.11b", "802.11g", "802.11n"], c: 0},
+  {q: "Which 2.4 GHz Wi-Fi channels are non-overlapping?", a: ["1, 5, 9", "1, 6, 11", "2, 6, 10", "3, 7, 11"]},
+  {q: "Which wireless security protocol is considered obsolete and easily cracked?", a: ["WPA2", "WPA3", "WEP", "SAE"]},
+  {q: "Which 802.11 standard first introduced 5 GHz frequency support?", a: ["802.11a", "802.11b", "802.11g", "802.11n"]},
 
   // Chapter 13: Monitoring & SNMP
-  {q: "Which SNMP message type is sent by an agent to alert the manager of an event?", a: ["GET", "SET", "Trap", "Walk"], c: 2},
-  {q: "What metric measures the percentage of time a system is operational?", a: ["Latency", "Throughput", "Uptime", "Jitter"], c: 2},
+  {q: "Which SNMP message type is sent by an agent to alert the manager of an event?", a: ["GET", "SET", "Trap", "Walk"]},
+  {q: "What metric measures the percentage of time a system is operational?", a: ["Latency", "Throughput", "Uptime", "Jitter"]},
 
   // Chapter 14-15: Docs & High Availability
-  {q: "Which documentation type shows the physical layout of network equipment?", a: ["Logical diagram", "Physical diagram", "Wiring schematic", "Rack diagram"], c: 1},
-  {q: "What is the primary purpose of NIC teaming?", a: ["Increase security", "Reduce power consumption", "Provide redundancy and increased bandwidth", "Enable VLAN tagging"], c: 2}
+  {q: "Which documentation type shows the physical layout of network equipment?", a: ["Logical diagram", "Physical diagram", "Wiring schematic", "Rack diagram"]},
+  {q: "What is the primary purpose of NIC teaming?", a: ["Increase security", "Reduce power consumption", "Provide redundancy and increased bandwidth", "Enable VLAN tagging"]}
 ];
 
 // Shuffle array
@@ -519,43 +524,51 @@ document.querySelectorAll('input[type="radio"]').forEach(input => {
   });
 });
 
-// Submit exam
-function submitExam() {
+// Submit exam — server-side graded (QC-21)
+async function submitExam() {
   clearInterval(timerInterval);
   document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
 
-  let score = 0;
   const total = shuffledData.length;
 
+  // Build answer map — questions were shuffled, so we need to map
+  // shuffled position back to original examData index for the server
+  const answerMap = {};
   shuffledData.forEach((item, i) => {
-    const qDiv = document.querySelector(`.question[data-q="${i}"]`);
-    const labels = qDiv.querySelectorAll('label');
     const selected = document.querySelector(`input[name="q${i}"]:checked`);
-
-    // Clear previous classes
-    labels.forEach(lbl => lbl.classList.remove('correct', 'wrong'));
-
-    // Find and mark correct answer
-    labels.forEach(lbl => {
-      const input = lbl.querySelector('input');
-      if (parseInt(input.value) === item.c) {
-        lbl.classList.add('correct');
-      }
-    });
-
-    // Check user's answer
     if (selected) {
-      const userAnswer = parseInt(selected.value);
-      if (userAnswer === item.c) {
-        score++;
-      } else {
-        selected.parentElement.classList.add('wrong');
-      }
+      // Find this item's original index in examData
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
     }
   });
 
-  const percent = Math.round((score / total) * 100);
-  const passed = score >= 14; // 70% of 20
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Mark user selections as correct/incorrect based on server results
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
 
   // Save result to localStorage
   if (passed) {

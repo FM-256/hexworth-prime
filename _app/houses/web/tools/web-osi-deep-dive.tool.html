@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <!-- Access Control -->
     <script src="../../../components/AccessGuard.js"></script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../components/FirebaseAuth.js"></script>
     <script>
         AccessGuard.require('sorted');
     </script>
@@ -1049,37 +1051,29 @@
         // Initialize protocol mapper
         renderProtocolPool();
 
-        // Quiz
+        // Quiz — server-side graded (QC-21)
+        // Answer key stored in Firestore quiz_keys/web-osi-deep-dive
+        const QUIZ_ID = 'web-osi-deep-dive';
         const quizQuestions = [
             {
                 question: "Which layer is responsible for logical addressing using IP addresses?",
                 options: ["Layer 2 - Data Link", "Layer 3 - Network", "Layer 4 - Transport", "Layer 7 - Application"],
-                correct: 1,
-                explanation: "Layer 3 (Network) handles logical addressing with IP addresses and routing between networks."
             },
             {
                 question: "What is the PDU (Protocol Data Unit) at Layer 2?",
                 options: ["Bits", "Frames", "Packets", "Segments"],
-                correct: 1,
-                explanation: "Layer 2 uses Frames as its PDU. It adds MAC addresses and error detection."
             },
             {
                 question: "Which protocol operates at Layer 7?",
                 options: ["TCP", "IP", "HTTP", "Ethernet"],
-                correct: 2,
-                explanation: "HTTP is an Application layer (Layer 7) protocol used for web browsing."
             },
             {
                 question: "What does Layer 4 use to identify different applications?",
                 options: ["IP addresses", "MAC addresses", "Port numbers", "Domain names"],
-                correct: 2,
-                explanation: "Layer 4 uses port numbers to identify applications. For example, HTTP uses port 80."
             },
             {
                 question: "Which device operates at Layer 2?",
                 options: ["Router", "Hub", "Switch", "Repeater"],
-                correct: 2,
-                explanation: "Switches operate at Layer 2, forwarding frames based on MAC addresses. Routers are Layer 3."
             },
             {
                 question: "What is the correct order of encapsulation when SENDING data?",
@@ -1089,26 +1083,18 @@
                     "Bits → Frames → Packets → Segments → Data",
                     "Data → Packets → Segments → Frames → Bits"
                 ],
-                correct: 1,
-                explanation: "When sending, data goes through: Application (Data) → Transport (Segments) → Network (Packets) → Data Link (Frames) → Physical (Bits)."
             },
             {
                 question: "Which layer handles encryption and compression?",
                 options: ["Layer 5 - Session", "Layer 6 - Presentation", "Layer 7 - Application", "Layer 4 - Transport"],
-                correct: 1,
-                explanation: "Layer 6 (Presentation) handles data formatting, encryption/decryption, and compression."
             },
             {
                 question: "TCP operates at which layer?",
                 options: ["Layer 3", "Layer 4", "Layer 5", "Layer 7"],
-                correct: 1,
-                explanation: "TCP is a Layer 4 (Transport) protocol that provides reliable, connection-oriented communication."
             },
             {
                 question: "What layer do routers primarily operate at?",
                 options: ["Layer 1", "Layer 2", "Layer 3", "Layer 7"],
-                correct: 2,
-                explanation: "Routers operate at Layer 3 (Network), making routing decisions based on IP addresses."
             },
             {
                 question: "Which mnemonic helps remember the OSI layers from bottom to top?",
@@ -1118,8 +1104,6 @@
                     "A Penguin Said To Never Drop Peanuts",
                     "Please Do Not Tell Secret Passwords Aloud"
                 ],
-                correct: 1,
-                explanation: "Please Do Not Throw Sausage Pizza Away = Physical, Data Link, Network, Transport, Session, Presentation, Application (bottom to top)."
             }
         ];
 
@@ -1160,38 +1144,24 @@
             document.querySelector(`.quiz-option[data-index="${index}"]`).classList.add('selected');
         }
 
+        // Track user selections for server grading
+        const userSelections = {};
+
         function nextQuestion() {
             if (!answered) {
-                // Check answer
+                // Record answer — no local grading
                 const selected = document.querySelector('.quiz-option.selected');
                 if (!selected) {
                     alert('Please select an answer!');
                     return;
                 }
 
-                const selectedIndex = parseInt(selected.dataset.index);
-                const q = quizQuestions[currentQuestion];
-                const feedback = document.getElementById('quiz-feedback');
-
-                document.querySelectorAll('.quiz-option').forEach((opt, i) => {
-                    if (i === q.correct) {
-                        opt.classList.add('correct');
-                    } else if (i === selectedIndex && selectedIndex !== q.correct) {
-                        opt.classList.add('incorrect');
-                    }
-                });
-
-                if (selectedIndex === q.correct) {
-                    score++;
-                    feedback.className = 'quiz-feedback show correct';
-                    feedback.innerHTML = `<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Correct! ${q.explanation}`;
-                } else {
-                    feedback.className = 'quiz-feedback show incorrect';
-                    feedback.innerHTML = `<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Incorrect. ${q.explanation}`;
-                }
-
+                userSelections[currentQuestion] = parseInt(selected.dataset.index);
                 answered = true;
-                updateScore();
+
+                const feedback = document.getElementById('quiz-feedback');
+                feedback.className = 'quiz-feedback show';
+                feedback.innerHTML = 'Answer recorded.';
 
                 if (currentQuestion < quizQuestions.length - 1) {
                     document.getElementById('next-btn').textContent = 'Next Question →';
@@ -1213,22 +1183,41 @@
             document.getElementById('score-display').textContent = `Score: ${score}/${answered ? currentQuestion + 1 : currentQuestion}`;
         }
 
-        function showResults() {
+        /**
+         * showResults — Server-side grading (QC-21)
+         */
+        async function showResults() {
             const area = document.getElementById('quiz-area');
-            const percentage = Math.round((score / quizQuestions.length) * 100);
-            let message, color;
+            area.innerHTML = '<div style="text-align:center;padding:40px;"><h3>Grading...</h3></div>';
 
+            // Build answer map
+            const answerMap = {};
+            Object.keys(userSelections).forEach(k => { answerMap[String(k)] = userSelections[k]; });
+
+            let percentage = 0;
+            try {
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID, answers: answerMap
+                    });
+                    score = response.data.score;
+                    percentage = response.data.percentage;
+                }
+            } catch (e) { console.warn('Server grading failed:', e.message); }
+
+            let message, color;
             if (percentage >= 90) {
-                message = "<img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Excellent! You've mastered the OSI model!";
+                message = "<img src='/assets/images/icons/icon-trophy.webp' alt='' style='width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain'> Excellent! You've mastered the OSI model!";
                 color = "#10b981";
             } else if (percentage >= 70) {
-                message = "<img src="/assets/images/icons/icon-thumbsup.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Good job! You have a solid understanding of the OSI model.";
+                message = "<img src='/assets/images/icons/icon-thumbsup.webp' alt='' style='width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain'> Good job! You have a solid understanding of the OSI model.";
                 color = "#4f46e5";
             } else if (percentage >= 50) {
-                message = "<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Not bad, but review the layers and their functions again.";
+                message = "<img src='/assets/images/icons/icon-books.webp' alt='' style='width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain'> Not bad, but review the layers and their functions again.";
                 color = "#f59e0b";
             } else {
-                message = "<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Keep studying! Review each layer's PDU, protocols, and devices.";
+                message = "<img src='/assets/images/icons/icon-books.webp' alt='' style='width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain'> Keep studying! Review each layer's PDU, protocols, and devices.";
                 color = "#ef4444";
             }
 
