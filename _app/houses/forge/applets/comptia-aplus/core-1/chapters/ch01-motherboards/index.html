@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <script src="../../../../../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../../../../components/FirebaseAuth.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chapter 1: Motherboards, Processors, and Memory - A+ Core 1</title>
     <style>
@@ -1109,82 +1111,69 @@
     </div>
 
     <script>
-        // Quiz Data
+        // Quiz Data — answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+        // Answer key stored in Firestore quiz_keys/aplus-core1-ch01
+        const QUIZ_ID = 'aplus-core1-ch01';
         const quizQuestions = [
             {
                 q: "Which motherboard form factor is the largest?",
-                options: ["Micro-ATX", "Mini-ITX", "ATX", "Nano-ITX"],
-                correct: 2
+                options: ["Micro-ATX", "Mini-ITX", "ATX", "Nano-ITX"]
             },
             {
                 q: "What does PCIe x16 typically connect?",
-                options: ["Sound cards", "Graphics cards", "Network cards", "USB hubs"],
-                correct: 1
+                options: ["Sound cards", "Graphics cards", "Network cards", "USB hubs"]
             },
             {
                 q: "Which socket type has pins on the motherboard?",
-                options: ["PGA", "LGA", "ZIF", "DIP"],
-                correct: 1
+                options: ["PGA", "LGA", "ZIF", "DIP"]
             },
             {
                 q: "DDR4 desktop memory has how many pins?",
-                options: ["184", "240", "260", "288"],
-                correct: 3
+                options: ["184", "240", "260", "288"]
             },
             {
                 q: "What maintains BIOS settings when the computer is off?",
-                options: ["CMOS battery", "SRAM", "Flash memory", "Cache"],
-                correct: 0
+                options: ["CMOS battery", "SRAM", "Flash memory", "Cache"]
             },
             {
                 q: "Which chip handles communication between CPU and memory in traditional designs?",
-                options: ["Southbridge", "Northbridge", "PCH", "GPU"],
-                correct: 1
+                options: ["Southbridge", "Northbridge", "PCH", "GPU"]
             },
             {
                 q: "What is the purpose of thermal paste?",
-                options: ["Insulate the CPU", "Improve heat transfer", "Reduce electricity", "Protect from ESD"],
-                correct: 1
+                options: ["Insulate the CPU", "Improve heat transfer", "Reduce electricity", "Protect from ESD"]
             },
             {
                 q: "Which technology allows one CPU core to handle two threads?",
-                options: ["Multicore", "Hyper-Threading", "Overclocking", "Throttling"],
-                correct: 1
+                options: ["Multicore", "Hyper-Threading", "Overclocking", "Throttling"]
             },
             {
                 q: "ECC memory is primarily used in:",
-                options: ["Gaming PCs", "Laptops", "Servers and workstations", "Tablets"],
-                correct: 2
+                options: ["Gaming PCs", "Laptops", "Servers and workstations", "Tablets"]
             },
             {
                 q: "What is the main advantage of UEFI over BIOS?",
-                options: ["Lower cost", "Supports drives over 2TB", "Uses less power", "Simpler interface"],
-                correct: 1
+                options: ["Lower cost", "Supports drives over 2TB", "Uses less power", "Simpler interface"]
             },
             {
                 q: "Which connector provides the main power to the motherboard?",
-                options: ["4-pin Molex", "SATA power", "24-pin ATX", "8-pin EPS"],
-                correct: 2
+                options: ["4-pin Molex", "SATA power", "24-pin ATX", "8-pin EPS"]
             },
             {
                 q: "What does TPM stand for?",
-                options: ["Thermal Processing Module", "Trusted Platform Module", "Total Power Management", "Transfer Protocol Manager"],
-                correct: 1
+                options: ["Thermal Processing Module", "Trusted Platform Module", "Total Power Management", "Transfer Protocol Manager"]
             },
             {
                 q: "Which DDR generation has the lowest voltage?",
-                options: ["DDR3 (1.5V)", "DDR4 (1.2V)", "DDR5 (1.1V)", "DDR2 (1.8V)"],
-                correct: 2
+                options: ["DDR3 (1.5V)", "DDR4 (1.2V)", "DDR5 (1.1V)", "DDR2 (1.8V)"]
             },
             {
                 q: "What is 'up-plugging' in PCIe?",
-                options: ["Overclocking the slot", "Using a smaller card in a larger slot", "Adding more lanes", "Hot-swapping cards"],
-                correct: 1
+                options: ["Overclocking the slot", "Using a smaller card in a larger slot", "Adding more lanes", "Hot-swapping cards"]
             },
             {
                 q: "Which architecture is used in most mobile devices?",
-                options: ["x86", "x64", "ARM", "MIPS"],
-                correct: 2
+                options: ["x86", "x64", "ARM", "MIPS"]
             }
         ];
 
@@ -1315,7 +1304,17 @@
             element.classList.add('selected');
         }
 
-        function submitQuiz() {
+        /**
+         * submitQuiz — Server-side graded (QC-21)
+         *
+         * Sends answers to the gradeQuiz() Cloud Function via FirebaseAuth.callFunction().
+         * The server looks up quiz_keys/aplus-core1-ch01 in Firestore, compares answers,
+         * and returns {correct: true/false} per question. The client NEVER sees correct answers.
+         *
+         * Falls back to a "grading unavailable" message if Firebase isn't loaded
+         * (e.g. offline mode or SDK failure).
+         */
+        async function submitQuiz() {
             // Check if all questions answered
             if (userAnswers.includes(null)) {
                 alert('Please answer all questions before submitting.');
@@ -1323,33 +1322,60 @@
             }
 
             quizSubmitted = true;
-            let score = 0;
+            const submitBtn = document.getElementById('submitQuiz');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Grading...';
 
+            // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+            const answerMap = {};
+            userAnswers.forEach((ans, i) => { answerMap[String(i)] = ans; });
+
+            let score = 0;
+            let results = null;
+
+            try {
+                // Call server-side grading via FirebaseAuth bridge
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.waitForAuth();
+                    const response = await FirebaseAuth.callFunction('gradeQuiz', {
+                        quizId: QUIZ_ID,
+                        answers: answerMap
+                    });
+                    results = response.data.results;
+                    score = response.data.score;
+                }
+            } catch (e) {
+                console.warn('Server grading failed, showing submission without grading:', e.message);
+            }
+
+            // Render results
             quizQuestions.forEach((q, index) => {
                 const options = document.querySelectorAll(`#mainQuiz .quiz-question:nth-child(${index + 1}) li`);
                 const feedback = document.getElementById(`feedback-${index}`);
+                const isCorrect = results ? results[index].correct : null;
 
                 options.forEach((opt, optIndex) => {
                     opt.classList.remove('selected');
-                    if (optIndex === q.correct) {
-                        opt.classList.add('correct');
-                    } else if (optIndex === userAnswers[index] && userAnswers[index] !== q.correct) {
-                        opt.classList.add('incorrect');
+                    // When server grades, we only know right/wrong — highlight the user's pick
+                    if (optIndex === userAnswers[index]) {
+                        opt.classList.add(isCorrect ? 'correct' : 'incorrect');
                     }
                 });
 
-                if (userAnswers[index] === q.correct) {
-                    score++;
+                if (isCorrect === true) {
                     feedback.textContent = '✓ Correct!';
                     feedback.className = 'quiz-feedback show correct';
-                } else {
-                    feedback.textContent = `✗ Incorrect. The correct answer is: ${q.options[q.correct]}`;
+                } else if (isCorrect === false) {
+                    feedback.textContent = '✗ Incorrect.';
                     feedback.className = 'quiz-feedback show incorrect';
+                } else {
+                    feedback.textContent = 'Grading unavailable — try again when online.';
+                    feedback.className = 'quiz-feedback show';
                 }
             });
 
             // Show results
-            document.getElementById('submitQuiz').style.display = 'none';
+            submitBtn.style.display = 'none';
             document.getElementById('quizResults').style.display = 'block';
             document.getElementById('finalScore').textContent = score;
 
