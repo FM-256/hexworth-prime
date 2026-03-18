@@ -59,7 +59,8 @@ class SoundToggle {
     createElement() {
         this.element = document.createElement('button');
         this.element.className = 'sound-toggle';
-        this.element.setAttribute('aria-label', 'Toggle sound');
+        this.element.setAttribute('aria-label', this.isEnabled ? 'Sound enabled, click to mute' : 'Sound muted, click to enable');
+        this.element.setAttribute('aria-pressed', String(this.isEnabled));
         this.element.setAttribute('title', 'Toggle sound');
 
         // Icon container for animation
@@ -80,7 +81,16 @@ class SoundToggle {
         // Keep pinned to viewport (position:fixed is broken when body has filter)
         if (this.options.position === 'bottom-right') {
             const el = this.element;
-            function pinSound() { el.style.top = (window.scrollY + window.innerHeight - 136) + 'px'; el.style.bottom = 'auto'; }
+            el.style.transition = 'top 0.15s ease-out';
+            let soundRaf = 0;
+            function pinSound() {
+                if (soundRaf) return;
+                soundRaf = requestAnimationFrame(() => {
+                    el.style.top = (window.scrollY + window.innerHeight - 136) + 'px';
+                    el.style.bottom = 'auto';
+                    soundRaf = 0;
+                });
+            }
             pinSound();
             window.addEventListener('scroll', pinSound, { passive: true });
             window.addEventListener('resize', pinSound, { passive: true });
@@ -126,6 +136,10 @@ class SoundToggle {
         // Update class for styling
         this.element.classList.toggle('sound-enabled', this.isEnabled);
         this.element.classList.toggle('sound-disabled', !this.isEnabled);
+
+        // Update accessibility state
+        this.element.setAttribute('aria-pressed', String(this.isEnabled));
+        this.element.setAttribute('aria-label', this.isEnabled ? 'Sound enabled, click to mute' : 'Sound muted, click to enable');
     }
 
     /**
@@ -283,6 +297,11 @@ class SoundToggle {
                 box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
             }
 
+            .sound-toggle:focus-visible {
+                outline: 2px solid #06b6d4;
+                outline-offset: 2px;
+            }
+
             .sound-toggle.clicked {
                 transform: scale(0.95);
             }
@@ -344,13 +363,28 @@ class SoundToggle {
                 border-color: rgba(0, 255, 65, 0.5);
             }
 
+            /* Reduced motion */
+            @media (prefers-reduced-motion: reduce) {
+                .sound-toggle { transition: none; }
+                .sound-toggle:hover { transform: none; }
+                .sound-toggle.clicked { transform: none; }
+                .sound-toggle-icon { transition: none; }
+                .sound-toggle-pulse.animate { animation: none; }
+            }
+
+            /* High contrast */
+            @media (prefers-contrast: more) {
+                .sound-toggle { border-color: rgba(255, 255, 255, 0.5); }
+                .sound-toggle.sound-enabled { border-color: rgba(100, 200, 150, 0.7); }
+            }
+
             /* Mobile: Stack above FluxCapacitor (50px button + 16px margin + 10px gap = 76px) */
             @media (max-width: 500px) {
                 .sound-toggle {
                     bottom: 76px !important;
                     right: 16px !important;
-                    width: 40px;
-                    height: 40px;
+                    width: 44px;
+                    height: 44px;
                 }
 
                 .sound-toggle-icon {

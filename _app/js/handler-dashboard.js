@@ -179,33 +179,125 @@
         // ═══════════════════════════════════════════════════════════════
 
         document.addEventListener('DOMContentLoaded', async () => {
-            if (typeof AccountFrame === 'undefined' || AccountFrame.getAccountType() !== 'handler') {
-                window.location.href = 'dashboard.html';
+            // Wait for Firebase auth to fully resolve
+            var authUser = await FirebaseAuth.waitForAuth();
+            var user = FirebaseAuth.getUser();
+
+            // Not signed in at all — show sign-in message
+            if (!authUser || !user) {
+                showHandlerActivation(null);
                 return;
             }
 
-            // Remove guard - page is authorized
-            const guard = document.getElementById('handler-guard');
-            if (guard) guard.remove();
+            // Check access: must have activated handler code
+            // Admin alone is NOT enough — handler code must be entered separately
+            var accountType = (typeof AccountFrame !== 'undefined') ? AccountFrame.getAccountType() : null;
+            var isHandler = accountType === 'handler';
 
-            // Initialize Firebase
-            await FirebaseAuth.init();
+            // Also check Firestore handlerActivated flag (covers admins who entered a handler code)
+            if (!isHandler && typeof FirestoreManager !== 'undefined') {
+                try {
+                    var profile = await FirestoreManager.getUserProfile(user.uid);
+                    if (profile && profile.handlerActivated) isHandler = true;
+                } catch (e) { /* proceed with local check */ }
+            }
 
-            // Wait for auth state
-            const user = FirebaseAuth.getUser();
-            if (!user) {
-                // Wait a moment for cached auth
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                const retryUser = FirebaseAuth.getUser();
-                if (!retryUser) {
-                    window.location.href = 'dashboard.html';
-                    return;
-                }
-                setupUI(retryUser);
-            } else {
+            if (isHandler) {
+                var guard = document.getElementById('handler-guard');
+                if (guard) guard.remove();
                 setupUI(user);
+            } else {
+                showHandlerActivation(user);
             }
         });
+
+        function showHandlerActivation(user) {
+            var guard = document.getElementById('handler-guard');
+            if (guard) guard.remove();
+
+            var signedIn = user && user.uid;
+            var innerContent = signedIn ? `
+                        <h1 style="color:#d4a017;font-size:1.3rem;margin-bottom:8px;">Handler Activation</h1>
+                        <p style="color:#888;font-size:0.85rem;margin-bottom:24px;">
+                            Enter a handler activation code to unlock the Handler Dashboard. Codes are issued by an administrator.
+                        </p>
+                        <input type="text" id="handlerCodeInput" placeholder="XXXX-XXXX" maxlength="9"
+                            style="width:100%;padding:14px;border-radius:8px;border:1px solid #333;background:#12121f;color:#e2e8f0;font-size:1.1rem;text-align:center;letter-spacing:0.15em;outline:none;text-transform:uppercase;"
+                            onfocus="this.style.borderColor='#d4a017'" onblur="this.style.borderColor='#333'"
+                            onkeydown="if(event.key==='Enter')document.getElementById('activateBtn').click()">
+                        <button id="activateBtn" onclick="submitHandlerCode()"
+                            style="width:100%;margin-top:14px;padding:13px;border-radius:8px;border:none;background:linear-gradient(135deg,#b8860b,#d4a017);color:#fff;font-size:0.95rem;font-weight:600;cursor:pointer;transition:opacity 0.2s;">
+                            Activate
+                        </button>
+                        <div id="activationMsg" style="margin-top:14px;font-size:0.82rem;display:none;"></div>
+            ` : `
+                        <h1 style="color:#d4a017;font-size:1.3rem;margin-bottom:8px;">Handler Dashboard</h1>
+                        <p style="color:#888;font-size:0.85rem;margin-bottom:24px;">
+                            You must be signed in to access the Handler Dashboard.
+                        </p>
+            `;
+
+            document.body.innerHTML = `
+                <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                    <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #333;border-radius:16px;padding:40px;max-width:420px;width:90%;text-align:center;">
+                        <div style="font-size:2rem;margin-bottom:12px;">
+                            <img src="/assets/images/icons/icon-unlock.webp" alt="" style="width:48px;height:48px;object-fit:contain;">
+                        </div>
+                        ${innerContent}
+                        <a href="/dashboard.html" style="display:inline-block;margin-top:20px;color:#666;font-size:0.8rem;text-decoration:none;">
+                            &larr; Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.submitHandlerCode = async function() {
+            const input = document.getElementById('handlerCodeInput');
+            const btn = document.getElementById('activateBtn');
+            const msg = document.getElementById('activationMsg');
+            const code = input.value.trim().toUpperCase();
+
+            if (!code) {
+                msg.style.display = 'block';
+                msg.style.color = '#ef4444';
+                msg.textContent = 'Please enter an activation code.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Activating...';
+            msg.style.display = 'none';
+
+            try {
+                const result = await FirebaseAuth.callFunction('validateActivationCode', { code: code });
+                const role = result.data.role;
+
+                if (role === 'handler' || role === 'admin') {
+                    msg.style.display = 'block';
+                    msg.style.color = '#22c55e';
+                    msg.textContent = 'Activated! Reloading...';
+                    // Force token refresh so claims are picked up
+                    const authMod = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js');
+                    const currentAuth = authMod.getAuth();
+                    if (currentAuth.currentUser) {
+                        await currentAuth.currentUser.getIdToken(true);
+                    }
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    msg.style.display = 'block';
+                    msg.style.color = '#ef4444';
+                    msg.textContent = 'Invalid activation code. Please check and try again.';
+                }
+            } catch (e) {
+                msg.style.display = 'block';
+                msg.style.color = '#ef4444';
+                msg.textContent = e.message || 'Activation failed. Please try again.';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Activate';
+            }
+        };
 
         async function setupUI(user) {
             // Set header user info

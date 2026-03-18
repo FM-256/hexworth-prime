@@ -161,7 +161,10 @@ const MessagingManager = (function() {
         conversationsListener = onSnapshot(q, (snapshot) => {
             conversations = [];
             snapshot.forEach((doc) => {
-                conversations.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Filter out conversations hidden by this user
+                if (data.hiddenBy && data.hiddenBy.includes(currentUid)) return;
+                conversations.push({ id: doc.id, ...data });
             });
 
             if (onConversationsUpdate) {
@@ -303,6 +306,29 @@ const MessagingManager = (function() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // HIDE CONVERSATION
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Hide a conversation from the user's inbox.
+     * Calls the hideConversation Cloud Function.
+     * Conversation reappears if the other user sends a new message.
+     *
+     * @param {string} conversationId - Conversation document ID
+     * @returns {Promise<object>} - Result from Cloud Function
+     */
+    async function hideConversation(conversationId) {
+        if (!initialized) await init();
+
+        const { getFunctions, httpsCallable } = window.firebaseFunctions;
+        const functions = getFunctions(window.firebaseApp.getApps()[0], 'us-central1');
+        const hideConvFn = httpsCallable(functions, 'hideConversation');
+
+        const result = await hideConvFn({ conversationId });
+        return result.data;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // UNREAD COUNT
     // ═══════════════════════════════════════════════════════════════
 
@@ -428,6 +454,7 @@ const MessagingManager = (function() {
         getMessages,
         markAsRead,
         markConversationRead,
+        hideConversation,
         reportMessage,
         getUnreadCount,
         buildConversationId,

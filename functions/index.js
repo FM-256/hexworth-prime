@@ -14,7 +14,7 @@ initializeApp();
 const db = getFirestore();
 
 // ─── Configuration ───────────────────────────────────────────────
-const ADMIN_EMAILS = ['f.mora80@gmail.com'];
+const ADMIN_EMAILS = ['f.mora80@gmail.com', 'jorden@hexworth.com'];
 const FLAG_SECRET = crypto.randomBytes(32).toString('hex'); // per-deploy secret
 
 // App Check: Set to true after configuring reCAPTCHA v3 in Firebase Console
@@ -459,20 +459,51 @@ exports.validateActivationCode = onCall(cfOptions, async (request) => {
         return { role: 'admin' };
     }
 
-    // Check handler code
-    if (codeHash === HANDLER_CODE_HASH) {
-        // Set custom claims
+    // Helper: activate handler for this user (preserves admin if already admin)
+    async function grantHandler() {
+        const isAlreadyAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email.toLowerCase());
         await getAuth().setCustomUserClaims(uid, {
             handler: true,
-            admin: request.auth.token.admin || false
+            admin: isAlreadyAdmin
         });
 
-        // Update Firestore
-        await db.doc(`users/${uid}`).set({
-            accountType: 'handler',
+        const updates = {
+            handlerActivated: true,
             activatedAt: FieldValue.serverTimestamp()
-        }, { merge: true });
+        };
+        // Only set accountType to handler if not already admin
+        if (!isAlreadyAdmin) {
+            updates.accountType = 'handler';
+        }
+        await db.doc(`users/${uid}`).set(updates, { merge: true });
+    }
 
+    // Check handler code (hardcoded)
+    if (codeHash === HANDLER_CODE_HASH) {
+        await grantHandler();
+        return { role: 'handler' };
+    }
+
+    // Check dynamically generated handler codes from admin console
+    const codesSnap = await db.collection('handler_codes')
+        .where('hash', '==', codeHash)
+        .where('expired', '==', false)
+        .limit(1)
+        .get();
+
+    if (!codesSnap.empty) {
+        const codeDoc = codesSnap.docs[0];
+        if (codeDoc.data().usedBy) {
+            return { role: null }; // already used
+        }
+
+        // Mark code as used
+        await codeDoc.ref.update({
+            usedBy: email || uid,
+            usedAt: FieldValue.serverTimestamp()
+        });
+
+        await grantHandler();
         return { role: 'handler' };
     }
 
@@ -1789,7 +1820,10 @@ function requireAdmin(request) {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
-    if (request.auth.token.admin !== true) {
+    const hasAdminClaim = request.auth.token.admin === true;
+    const email = (request.auth.token.email || '').toLowerCase();
+    const inAllowlist = ADMIN_EMAILS.includes(email);
+    if (!hasAdminClaim && !inAllowlist) {
         throw new HttpsError('permission-denied', 'Admin privileges required.');
     }
 }
@@ -1862,6 +1896,53 @@ exports.adminSearchUsers = onCall(cfOptions, async (request) => {
         accountType: u.accountType || 'operative',
         integrity: u.integrity || null,
         isActive: u.isActive !== false
+    }));
+
+    return { users };
+});
+
+/**
+ * searchUsers — Public user search for messaging (any authenticated user).
+ * Returns limited fields: uid, displayName, callsign, accountType.
+ * No email, no sensitive data exposed.
+ */
+exports.searchUsers = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { query: searchQuery } = request.data || {};
+    if (!searchQuery || typeof searchQuery !== 'string' || searchQuery.length < 2) {
+        throw new HttpsError('invalid-argument', 'Search query must be at least 2 characters.');
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    const original = searchQuery.trim();
+    const results = new Map();
+
+    // Scan all users and filter in-memory (small user base, reliable)
+    try {
+        const allSnap = await db.collection('users').limit(200).get();
+        allSnap.forEach(d => {
+            const data = d.data();
+            const callsign = (data.callsign || '').toLowerCase();
+            const displayName = (data.displayName || '').toLowerCase();
+            const email = (data.email || '').toLowerCase();
+            if (callsign.includes(q) || displayName.includes(q) || email.includes(q)) {
+                results.set(d.id, { uid: d.id, ...data });
+            }
+        });
+    } catch (e) {
+        console.error('[searchUsers] Query failed:', e);
+    }
+
+    // Return limited fields only — no sensitive data
+    const users = Array.from(results.values()).slice(0, 15).map(u => ({
+        uid: u.uid,
+        displayName: u.displayName || null,
+        callsign: u.callsign || null,
+        photoURL: u.photoURL || null,
+        accountType: u.accountType || 'operative'
     }));
 
     return { users };
@@ -1991,6 +2072,79 @@ exports.adminGenerateHandlerCode = onCall(cfOptions, async (request) => {
 });
 
 /**
+ * adminSetRole — Grant or revoke admin/handler role on a user by UID.
+ * Sets Firebase Auth custom claims and updates Firestore profile.
+ */
+exports.adminSetRole = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { uid, role, grant } = request.data || {};
+    if (!uid || typeof uid !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing uid.');
+    }
+    if (!['admin', 'handler'].includes(role)) {
+        throw new HttpsError('invalid-argument', 'Role must be "admin" or "handler".');
+    }
+
+    // Prevent removing own admin
+    if (uid === request.auth.uid && role === 'admin' && grant === false) {
+        throw new HttpsError('failed-precondition', 'Cannot remove your own admin role.');
+    }
+
+    // Get current claims
+    const userRecord = await getAuth().getUser(uid);
+    const currentClaims = userRecord.customClaims || {};
+
+    // Update claims
+    const newClaims = { ...currentClaims, [role]: grant !== false };
+    await getAuth().setCustomUserClaims(uid, newClaims);
+
+    // Update Firestore profile
+    const accountType = newClaims.admin ? 'admin' : newClaims.handler ? 'handler' : 'student';
+    await db.doc(`users/${uid}`).update({
+        accountType: accountType,
+        roleUpdatedAt: FieldValue.serverTimestamp(),
+        roleUpdatedBy: request.auth.uid
+    });
+
+    return {
+        success: true,
+        uid,
+        role,
+        granted: grant !== false,
+        claims: newClaims,
+        email: userRecord.email || null
+    };
+});
+
+/**
+ * adminListAdmins — List all users with admin custom claims.
+ */
+exports.adminListAdmins = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    // Query Firestore for admin/handler accounts
+    const adminsSnap = await db.collection('users')
+        .where('accountType', 'in', ['admin', 'handler'])
+        .get();
+
+    const admins = [];
+    adminsSnap.forEach(doc => {
+        const data = doc.data();
+        admins.push({
+            uid: doc.id,
+            email: data.email || '',
+            displayName: data.displayName || data.callsign || '',
+            accountType: data.accountType || 'unknown',
+            roleUpdatedAt: data.roleUpdatedAt || null
+        });
+    });
+
+    // Also check the hardcoded ADMIN_EMAILS list
+    return { admins, hardcodedEmails: ADMIN_EMAILS };
+});
+
+/**
  * adminGetStats — Aggregate platform statistics for the admin dashboard.
  */
 exports.adminGetStats = onCall(cfOptions, async (request) => {
@@ -2082,31 +2236,39 @@ exports.sendMessage = onCall(cfOptions, async (request) => {
         .limit(1)
         .get();
     if (!blockSnap.empty) {
-        throw new HttpsError('permission-denied', 'You are blocked from messaging in this class.');
+        throw new HttpsError('permission-denied', 'You are blocked from messaging in this context.');
     }
 
-    // ── Verify class exists and both users are members ──
-    const classDoc = await db.doc(`classes/${classId}`).get();
-    if (!classDoc.exists) {
-        throw new HttpsError('not-found', 'Class not found.');
-    }
+    // ── Verify class/DM context ──
+    if (classId !== 'dm') {
+        const classDoc = await db.doc(`classes/${classId}`).get();
+        if (!classDoc.exists) {
+            throw new HttpsError('not-found', 'Class not found.');
+        }
 
-    const classData = classDoc.data();
-    const handlerId = classData.handlerId;
+        const classData = classDoc.data();
+        const handlerId = classData.handlerUid;
 
-    // Check membership: both users must be members OR the handler
-    const [fromMember, toMember] = await Promise.all([
-        fromUid === handlerId ? Promise.resolve({ exists: true }) :
-            db.doc(`classes/${classId}/members/${fromUid}`).get(),
-        toUid === handlerId ? Promise.resolve({ exists: true }) :
-            db.doc(`classes/${classId}/members/${toUid}`).get()
-    ]);
+        // Check membership: both users must be members OR the handler
+        const [fromMember, toMember] = await Promise.all([
+            fromUid === handlerId ? Promise.resolve({ exists: true }) :
+                db.doc(`classes/${classId}/members/${fromUid}`).get(),
+            toUid === handlerId ? Promise.resolve({ exists: true }) :
+                db.doc(`classes/${classId}/members/${toUid}`).get()
+        ]);
 
-    if (!fromMember.exists) {
-        throw new HttpsError('permission-denied', 'You are not a member of this class.');
-    }
-    if (!toMember.exists) {
-        throw new HttpsError('permission-denied', 'Recipient is not in this class.');
+        if (!fromMember.exists) {
+            throw new HttpsError('permission-denied', 'You are not a member of this class.');
+        }
+        if (!toMember.exists) {
+            throw new HttpsError('permission-denied', 'Recipient is not in this class.');
+        }
+    } else {
+        // DM: just verify the recipient exists
+        const recipientDoc = await db.doc(`users/${toUid}`).get();
+        if (!recipientDoc.exists) {
+            throw new HttpsError('not-found', 'Recipient not found.');
+        }
     }
 
     // ── Rate limiting: 10 messages per minute ──
@@ -2140,12 +2302,14 @@ exports.sendMessage = onCall(cfOptions, async (request) => {
     });
 
     // ── Update or create conversation document ──
+    // Clear hiddenBy so the conversation reappears for both users when a new message arrives
     const preview = trimmedText.length > 80 ? trimmedText.substring(0, 80) + '...' : trimmedText;
     await db.doc(`conversations/${conversationId}`).set({
         participants: sortedUids,
         lastMessage: preview,
         lastTimestamp: FieldValue.serverTimestamp(),
-        classId: classId
+        classId: classId,
+        hiddenBy: []
     }, { merge: true });
 
     return { success: true, messageId: messageRef.id, conversationId };
@@ -2265,4 +2429,43 @@ exports.purgeOldMessages = onSchedule({
     }
 
     console.log(`[purgeOldMessages] Deleted ${deleteCount} messages, checked ${affectedConversations.size} conversations`);
+});
+
+/**
+ * hideConversation — Callable: hide a conversation from a user's inbox.
+ * Adds the user's UID to the conversation's hiddenBy array.
+ * The conversation reappears if a new message is sent (sendMessage removes from hiddenBy).
+ */
+exports.hideConversation = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { conversationId } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!conversationId || typeof conversationId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Invalid conversation ID.');
+    }
+
+    const convRef = db.doc(`conversations/${conversationId}`);
+    const convDoc = await convRef.get();
+
+    if (!convDoc.exists) {
+        throw new HttpsError('not-found', 'Conversation not found.');
+    }
+
+    const convData = convDoc.data();
+
+    // Only participants can hide their own conversations
+    if (!convData.participants || !convData.participants.includes(uid)) {
+        throw new HttpsError('permission-denied', 'You are not a participant in this conversation.');
+    }
+
+    // Add to hiddenBy array
+    await convRef.update({
+        hiddenBy: FieldValue.arrayUnion(uid)
+    });
+
+    return { success: true };
 });

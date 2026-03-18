@@ -174,7 +174,239 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: BLE GATT Server</strong> &mdash; Add a BLE GATT server that exposes a custom characteristic. Write a phone app (or use nRF Connect) to read the ESP32\'s sensor data over BLE. This is how BLE fitness trackers and smart home devices work.</p>' +
                     '<p><strong>Challenge 2: NVS Configuration</strong> &mdash; Store WiFi credentials in NVS instead of hardcoding them. On first boot, start a WiFi AP with a captive portal where the user enters their SSID/password. Save to NVS and reboot into STA mode. This is the standard provisioning flow for IoT devices.</p>' +
-                    '<p><strong>Challenge 3: Dual-Core Workload</strong> &mdash; Create two tasks: one on Core 0 that reads sensors, one on Core 1 that handles WiFi/BLE communication. Use a FreeRTOS queue to pass data between them. This is the producer-consumer pattern used in real embedded systems.</p>'
+                    '<p><strong>Challenge 3: Dual-Core Workload</strong> &mdash; Create two tasks: one on Core 0 that reads sensors, one on Core 1 that handles WiFi/BLE communication. Use a FreeRTOS queue to pass data between them. This is the producer-consumer pattern used in real embedded systems.</p>',
+
+        stepVisuals: {
+            // Step 1 (index 1): ESP-IDF vs Arduino abstraction layers
+            1: '<svg viewBox="0 0 620 230" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg21-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="220" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="620" height="230" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="218" fill="url(#sg21-sv1-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">ABSTRACTION LAYERS: ARDUINO vs ESP-IDF</text>' +
+               // Arduino column
+               '<text x="155" y="50" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Arduino Framework</text>' +
+               '<rect x="40" y="58" width="230" height="34" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+               '<text x="155" y="80" text-anchor="middle" fill="#4ade80" font-size="9">Your Sketch (setup/loop)</text>' +
+               '<rect x="40" y="97" width="230" height="30" rx="4" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>' +
+               '<text x="155" y="116" text-anchor="middle" fill="#22c55e" font-size="8">Arduino Core (ESP32 port)</text>' +
+               '<rect x="40" y="133" width="230" height="30" rx="4" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.15)" stroke-width="1"/>' +
+               '<text x="155" y="152" text-anchor="middle" fill="#555" font-size="8">ESP-IDF (hidden underneath)</text>' +
+               '<rect x="40" y="169" width="230" height="30" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+               '<text x="155" y="188" text-anchor="middle" fill="#444" font-size="8">FreeRTOS</text>' +
+               '<rect x="40" y="205" width="230" height="18" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+               '<text x="155" y="217" text-anchor="middle" fill="#333" font-size="7">ESP32 Hardware</text>' +
+               // ESP-IDF column
+               '<text x="465" y="50" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">ESP-IDF Native</text>' +
+               '<rect x="350" y="58" width="230" height="34" rx="4" fill="rgba(255,107,53,0.1)" stroke="rgba(255,107,53,0.4)" stroke-width="1.5"/>' +
+               '<text x="465" y="80" text-anchor="middle" fill="#ff6b35" font-size="9">Your app_main() — full control</text>' +
+               '<rect x="350" y="97" width="230" height="30" rx="4" fill="rgba(255,107,53,0.08)" stroke="rgba(255,107,53,0.35)" stroke-width="1.5"/>' +
+               '<text x="465" y="116" text-anchor="middle" fill="#ff6b35" font-size="8">ESP-IDF drivers (WiFi, BLE, NVS, OTA)</text>' +
+               '<rect x="350" y="133" width="230" height="30" rx="4" fill="rgba(255,107,53,0.06)" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>' +
+               '<text x="465" y="152" text-anchor="middle" fill="#fb923c" font-size="8">FreeRTOS task scheduler</text>' +
+               '<rect x="350" y="169" width="230" height="30" rx="4" fill="rgba(255,107,53,0.04)" stroke="rgba(255,107,53,0.15)" stroke-width="1"/>' +
+               '<text x="465" y="188" text-anchor="middle" fill="#555" font-size="8">Partition table / bootloader</text>' +
+               '<rect x="350" y="205" width="230" height="18" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+               '<text x="465" y="217" text-anchor="middle" fill="#333" font-size="7">ESP32 Hardware</text>' +
+               // Arrow / divider
+               '<line x1="305" y1="50" x2="305" y2="218" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="4,4"/>' +
+               '<text x="305" y="140" text-anchor="middle" fill="#555" font-size="8" transform="rotate(-90 305 140)">same chip</text>' +
+               '</svg>',
+
+            // Step 2 (index 2): Partition table layout
+            2: '<svg viewBox="0 0 620 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg21-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="620" height="190" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="178" fill="url(#sg21-sv2-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">ESP32 FLASH PARTITION TABLE (4MB default)</text>' +
+               // Flash bar
+               '<rect x="30" y="45" width="560" height="50" rx="4" fill="#1a1f2b" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+               // Bootloader - 28KB
+               '<rect x="32" y="47" width="36" height="46" rx="2" fill="rgba(255,107,53,0.2)" stroke="rgba(255,107,53,0.5)" stroke-width="0.5"/>' +
+               '<text x="50" y="73" text-anchor="middle" fill="#ff6b35" font-size="6">Boot</text>' +
+               '<text x="50" y="82" text-anchor="middle" fill="#ff6b35" font-size="5">28KB</text>' +
+               // NVS - 20KB
+               '<rect x="70" y="47" width="30" height="46" rx="2" fill="rgba(234,179,8,0.2)" stroke="rgba(234,179,8,0.4)" stroke-width="0.5"/>' +
+               '<text x="85" y="73" text-anchor="middle" fill="#eab308" font-size="6">NVS</text>' +
+               '<text x="85" y="82" text-anchor="middle" fill="#eab308" font-size="5">20KB</text>' +
+               // PHY init - 4KB
+               '<rect x="102" y="47" width="16" height="46" rx="2" fill="rgba(168,85,247,0.2)" stroke="rgba(168,85,247,0.4)" stroke-width="0.5"/>' +
+               '<text x="110" y="72" text-anchor="middle" fill="#a855f7" font-size="5">PHY</text>' +
+               '<text x="110" y="81" text-anchor="middle" fill="#a855f7" font-size="4">4KB</text>' +
+               // OTA data - 8KB
+               '<rect x="120" y="47" width="18" height="46" rx="2" fill="rgba(6,182,212,0.2)" stroke="rgba(6,182,212,0.4)" stroke-width="0.5"/>' +
+               '<text x="129" y="72" text-anchor="middle" fill="#06b6d4" font-size="5">OTA</text>' +
+               '<text x="129" y="81" text-anchor="middle" fill="#06b6d4" font-size="4">8KB</text>' +
+               // OTA_0 app - 1.5MB
+               '<rect x="140" y="47" width="200" height="46" rx="2" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.4)" stroke-width="0.5"/>' +
+               '<text x="240" y="70" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">OTA_0 (app)</text>' +
+               '<text x="240" y="82" text-anchor="middle" fill="#60a5fa" font-size="6">1.5 MB — active firmware</text>' +
+               // OTA_1 app - 1.5MB
+               '<rect x="342" y="47" width="200" height="46" rx="2" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+               '<text x="442" y="70" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">OTA_1 (standby)</text>' +
+               '<text x="442" y="82" text-anchor="middle" fill="#3b82f6" font-size="6">1.5 MB — receives OTA updates</text>' +
+               // SPIFFS/FS at end
+               '<rect x="544" y="47" width="44" height="46" rx="2" fill="rgba(34,197,94,0.15)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+               '<text x="566" y="70" text-anchor="middle" fill="#22c55e" font-size="6">SPIFFS</text>' +
+               '<text x="566" y="81" text-anchor="middle" fill="#22c55e" font-size="5">~256KB</text>' +
+               // Labels below
+               '<text x="50" y="115" text-anchor="middle" fill="#ff6b35" font-size="7">ROM</text>' +
+               '<text x="240" y="115" text-anchor="middle" fill="#60a5fa" font-size="7">Current running firmware</text>' +
+               '<text x="442" y="115" text-anchor="middle" fill="#3b82f6" font-size="7">OTA target writes here</text>' +
+               '<text x="566" y="115" text-anchor="middle" fill="#22c55e" font-size="7">Files / web</text>' +
+               // OTA swap arrow
+               '<path d="M 240,125 Q 342,145 442,125" fill="none" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+               '<text x="342" y="160" text-anchor="middle" fill="#ff6b35" font-size="8">OTA update: writes to OTA_1, swaps active on reboot</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+                 '<defs><pattern id="sg21-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="580" height="280" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="568" height="268" fill="url(#sg21-cc-grid)" rx="4"/>' +
+                 '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-21</text>' +
+                 // ESP32 DevKit
+                 '<g id="sg21-comp-esp">' +
+                 '<rect x="30" y="50" width="160" height="200" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<rect x="30" y="50" width="160" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+                 '<text x="110" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 DevKit V1</text>' +
+                 '<rect x="46" y="82" width="128" height="50" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+                 '<text x="110" y="101" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">ESP32-WROOM-32</text>' +
+                 '<text x="110" y="114" text-anchor="middle" fill="#555" font-size="7">240 MHz dual Xtensa LX6</text>' +
+                 '<rect x="46" y="138" width="60" height="26" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+                 '<text x="76" y="155" text-anchor="middle" fill="#4ade80" font-size="7">WiFi 802.11</text>' +
+                 '<rect x="112" y="138" width="60" height="26" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+                 '<text x="142" y="155" text-anchor="middle" fill="#a855f7" font-size="7">BT 4.2 + BLE</text>' +
+                 '<rect x="46" y="170" width="128" height="22" rx="3" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+                 '<text x="110" y="185" text-anchor="middle" fill="#eab308" font-size="7">4MB Flash + 520KB SRAM</text>' +
+                 '<rect x="46" y="198" width="128" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+                 '<text x="110" y="213" text-anchor="middle" fill="#555" font-size="7">USB-UART (CP2102 / CH340)</text>' +
+                 '<rect x="66" y="228" width="88" height="16" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+                 '<text x="110" y="239" text-anchor="middle" fill="#888" font-size="7">Micro-USB</text>' +
+                 '<circle id="sg21-dot-esp" cx="110" cy="112" r="7" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<text x="110" y="116" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">1</text>' +
+                 '</g>' +
+                 // PlatformIO
+                 '<g id="sg21-comp-pio">' +
+                 '<rect x="215" y="50" width="150" height="100" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<rect x="215" y="50" width="150" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+                 '<text x="290" y="66" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">PlatformIO</text>' +
+                 '<text x="290" y="88" text-anchor="middle" fill="#8b949e" font-size="7">VS Code extension</text>' +
+                 '<text x="290" y="103" text-anchor="middle" fill="#555" font-size="7">platformio.ini config</text>' +
+                 '<text x="290" y="118" text-anchor="middle" fill="#555" font-size="7">framework = espidf</text>' +
+                 '<text x="290" y="133" text-anchor="middle" fill="#555" font-size="7">pio run / upload / monitor</text>' +
+                 '<circle id="sg21-dot-pio" cx="290" cy="65" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="290" y="69" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">2</text>' +
+                 '</g>' +
+                 // FreeRTOS
+                 '<g id="sg21-comp-rtos">' +
+                 '<rect x="215" y="168" width="150" height="80" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<rect x="215" y="168" width="150" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+                 '<text x="290" y="184" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">FreeRTOS</text>' +
+                 '<text x="290" y="205" text-anchor="middle" fill="#8b949e" font-size="7">xTaskCreate() for each task</text>' +
+                 '<text x="290" y="220" text-anchor="middle" fill="#555" font-size="7">Queue, semaphore, mutex</text>' +
+                 '<text x="290" y="235" text-anchor="middle" fill="#555" font-size="7">Core 0 + Core 1 affinity</text>' +
+                 '<circle id="sg21-dot-rtos" cx="290" cy="183" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="290" y="187" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">3</text>' +
+                 '</g>' +
+                 // OTA
+                 '<g id="sg21-comp-ota">' +
+                 '<rect x="390" y="50" width="165" height="90" rx="8" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+                 '<rect x="390" y="50" width="165" height="22" rx="8" fill="rgba(255,107,53,0.12)"/>' +
+                 '<text x="473" y="66" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">OTA Updates</text>' +
+                 '<text x="473" y="86" text-anchor="middle" fill="#8b949e" font-size="7">esp_https_ota() download</text>' +
+                 '<text x="473" y="101" text-anchor="middle" fill="#555" font-size="7">writes to inactive partition</text>' +
+                 '<text x="473" y="116" text-anchor="middle" fill="#555" font-size="7">esp_restart() to swap</text>' +
+                 '<circle id="sg21-dot-ota" cx="473" cy="65" r="7" fill="rgba(255,107,53,0.2)" stroke="#ff6b35" stroke-width="1.5"/>' +
+                 '<text x="473" y="69" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="700">4</text>' +
+                 '</g>' +
+                 // NVS
+                 '<g id="sg21-comp-nvs">' +
+                 '<rect x="390" y="158" width="165" height="90" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+                 '<rect x="390" y="158" width="165" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+                 '<text x="473" y="174" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">NVS Storage</text>' +
+                 '<text x="473" y="194" text-anchor="middle" fill="#8b949e" font-size="7">Persistent key-value store</text>' +
+                 '<text x="473" y="209" text-anchor="middle" fill="#555" font-size="7">Survives power cycles</text>' +
+                 '<text x="473" y="224" text-anchor="middle" fill="#555" font-size="7">Stores WiFi creds, counters</text>' +
+                 '<circle id="sg21-dot-nvs" cx="473" cy="173" r="7" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+                 '<text x="473" y="177" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">5</text>' +
+                 '</g>' +
+                 '</svg>',
+
+            components: [
+                {
+                    id: 'esp',
+                    name: 'ESP32 DevKit V1',
+                    purpose: 'The target hardware. Contains the ESP32-WROOM-32 module with dual-core 240 MHz CPU, 4MB flash, 520KB SRAM, WiFi, and BLE. The USB-to-UART bridge (CP2102 or CH340) enables flashing and serial monitoring from your computer without any additional programmer hardware.',
+                    specs: ['ESP32-WROOM-32 (Xtensa LX6 dual-core)', '240 MHz (overclockable to 320 MHz)', '520 KB SRAM + 4 MB Flash', 'WiFi 802.11 b/g/n + Bluetooth 4.2/BLE', 'Micro-USB (UART bridge for flash + debug)']
+                },
+                {
+                    id: 'pio',
+                    name: 'PlatformIO + VS Code',
+                    purpose: 'The development environment. PlatformIO manages the ESP-IDF toolchain installation, board definitions, library dependencies, compilation, flashing, and serial monitoring — all from within VS Code. The platformio.ini file defines your board, framework, and build settings.',
+                    specs: ['VS Code extension (marketplace)', 'platformio.ini: framework = espidf', 'Auto-downloads ESP-IDF toolchain', 'pio run (build), pio run --target upload (flash)', 'pio device monitor (serial) at 115200']
+                },
+                {
+                    id: 'rtos',
+                    name: 'FreeRTOS (Built into ESP-IDF)',
+                    purpose: 'The real-time OS underneath everything. ESP-IDF exposes FreeRTOS task management, queues, semaphores, and event groups. Unlike Arduino\'s single-threaded loop, you can create multiple tasks pinned to specific CPU cores — enabling true concurrent execution of WiFi handling, sensor reading, and UI updates.',
+                    specs: ['xTaskCreate() / xTaskCreatePinnedToCore()', 'Queue for inter-task communication', 'Semaphore / mutex for shared resource protection', 'Core 0: WiFi + BLE (default)', 'Core 1: application tasks (recommended)']
+                },
+                {
+                    id: 'ota',
+                    name: 'OTA (Over-The-Air) Update System',
+                    purpose: 'Firmware update over WiFi. The device downloads a new binary from an HTTPS server, writes it to the inactive OTA partition, validates the checksum, then reboots into the new firmware. If the new firmware fails to start, the bootloader automatically falls back to the previous version.',
+                    specs: ['esp_https_ota() function', 'Writes to OTA_1 (inactive partition)', 'Rollback on failed startup', 'Requires two equal-size app partitions', 'WiFi connection required at update time']
+                },
+                {
+                    id: 'nvs',
+                    name: 'NVS (Non-Volatile Storage)',
+                    purpose: 'Persistent key-value storage in a dedicated flash partition. Survives power cycles and OTA updates. Used for storing WiFi credentials, device configuration, calibration data, and counters. Each key-value pair is stored in a namespace for organization.',
+                    specs: ['Dedicated flash partition (20 KB default)', 'Key: up to 15 chars', 'Value types: int, string, blob, float', 'nvs_flash_init() / nvs_open() / nvs_set_*()', 'Wear-leveling built in']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Calling Serial.print (Arduino) in ESP-IDF — it does not exist',
+                correct: 'Use ESP_LOGI(), ESP_LOGE(), ESP_LOGW() from <esp_log.h>. These are the ESP-IDF logging macros. Set the log level via idf.py menuconfig or at runtime with esp_log_level_set(). Output appears on UART0 at the configured baud rate.',
+                incorrect: 'Writing Serial.begin(115200); and Serial.println("hello"); in an ESP-IDF project. These are Arduino functions. In ESP-IDF, Serial does not exist. The code will fail to compile with "Serial not declared in scope."',
+                consequence: 'Compilation error on first build. Common confusion for developers migrating from Arduino. The equivalent is ESP_LOGI(TAG, "hello") where TAG is a char* identifying the module.',
+                svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — ESP-IDF logging</text>' +
+                         '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="8">#include &lt;esp_log.h&gt;</text>' +
+                         '<text x="132" y="68" text-anchor="middle" fill="#4ade80" font-size="8">ESP_LOGI(TAG, "value: %d", x);</text>' +
+                         '<text x="132" y="86" text-anchor="middle" fill="#22c55e" font-size="7">Compiles and runs correctly</text>' +
+                         '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Arduino Serial</text>' +
+                         '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="8">Serial.begin(115200);</text>' +
+                         '<text x="407" y="68" text-anchor="middle" fill="#ef4444" font-size="8">Serial.println("value");</text>' +
+                         '<text x="407" y="86" text-anchor="middle" fill="#ef4444" font-size="7">ERROR: Serial not declared in scope</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'Blocking in an ESP-IDF task without yielding to the RTOS',
+                correct: 'Use vTaskDelay(pdMS_TO_TICKS(1000)) to delay for 1000ms. This yields control back to the FreeRTOS scheduler, allowing other tasks to run. Do not use busy-wait loops (while(ms < 1000)) which starve other tasks.',
+                incorrect: 'Using Arduino\'s delay(1000) (does not exist in ESP-IDF) or writing a busy-wait spin loop. Without yielding, the watchdog timer detects the task is not releasing the CPU and triggers a reset after several seconds.',
+                consequence: 'WDT (watchdog timer) reset and boot loop. The serial output shows "Task watchdog got triggered" or "Guru Meditation Error" repeatedly. The device never stays running longer than a few seconds.',
+                svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — RTOS yield</text>' +
+                         '<text x="132" y="52" text-anchor="middle" fill="#4ade80" font-size="8">vTaskDelay(pdMS_TO_TICKS(1000));</text>' +
+                         '<text x="132" y="70" text-anchor="middle" fill="#8b949e" font-size="7">Yields to scheduler for 1000ms</text>' +
+                         '<text x="132" y="86" text-anchor="middle" fill="#22c55e" font-size="7">Other tasks run during delay</text>' +
+                         '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Busy wait / delay()</text>' +
+                         '<text x="407" y="52" text-anchor="middle" fill="#ef4444" font-size="8">delay(1000); // Arduino only</text>' +
+                         '<text x="407" y="68" text-anchor="middle" fill="#ef4444" font-size="7">No yield: WDT timeout in seconds</text>' +
+                         '<text x="407" y="86" text-anchor="middle" fill="#ef4444" font-size="7">"Guru Meditation Error" boot loop</text>' +
+                         '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -376,7 +608,240 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Badge Scoreboard</strong> &mdash; Track how many unique badges each badge discovers. When two badges meet, they exchange their discovery counts over a BLE write characteristic. Display a leaderboard on the OLED showing the top badge collectors at the conference.</p>' +
                     '<p><strong>Challenge 2: Multi-Layer CTF</strong> &mdash; Add 3 CTF levels: Level 1 is the XOR flag (easy). Level 2 requires connecting to a hidden WiFi AP the badge creates and accessing a webpage. Level 3 requires two badges to collaborate &mdash; each holds half of a key that must be combined.</p>' +
-                    '<p><strong>Challenge 3: SAO Connector</strong> &mdash; Design your badge to support the Shitty Add-On (SAO) standard used at DEF CON. Add a 2x3 pin header that provides I2C, power, and GPIO. Build a small SAO accessory (extra LEDs, a sensor, or a mini display) that the badge detects and integrates.</p>'
+                    '<p><strong>Challenge 3: SAO Connector</strong> &mdash; Design your badge to support the Shitty Add-On (SAO) standard used at DEF CON. Add a 2x3 pin header that provides I2C, power, and GPIO. Build a small SAO accessory (extra LEDs, a sensor, or a mini display) that the badge detects and integrates.</p>',
+
+        stepVisuals: {
+            // Step 0 (index 0): OLED display layout diagram
+            0: '<svg viewBox="0 0 620 210" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg22-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="620" height="210" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="198" fill="url(#sg22-sv0-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">SSD1306 OLED — 128x64 PIXEL LAYOUT</text>' +
+               // OLED screen border
+               '<rect x="30" y="40" width="260" height="140" rx="6" fill="#0a0a0a" stroke="#555" stroke-width="1.5"/>' +
+               '<text x="160" y="57" text-anchor="middle" fill="#555" font-size="8">128 pixels</text>' +
+               // Screen content (pixelated text simulation)
+               '<rect x="38" y="62" width="244" height="12" rx="0" fill="#1a1a1a"/>' +
+               '<text x="50" y="72" fill="#ffffff" font-size="8" font-weight="600">HEXWORTH BADGE v1.0</text>' +
+               '<line x1="38" y1="76" x2="282" y2="76" stroke="rgba(255,255,255,0.2)" stroke-width="0.5"/>' +
+               '<text x="50" y="92" fill="#ffffff" font-size="7">[ MENU ]</text>' +
+               '<text x="50" y="107" fill="#555" font-size="7">  LED Animations</text>' +
+               '<text x="50" y="120" fill="#555" font-size="7">  BLE Discover</text>' +
+               '<text x="50" y="133" fill="#555" font-size="7">  CTF Challenge</text>' +
+               '<text x="50" y="146" fill="#ffffff" font-size="7">&gt; Badge Info</text>' +
+               '<rect x="38" y="140" width="244" height="1" fill="rgba(255,255,255,0.3)"/>' +
+               '<text x="50" y="160" fill="#555" font-size="6">Btn: UP/DOWN/SELECT</text>' +
+               // Dimensions
+               '<text x="300" y="75" fill="#555" font-size="7">64 pixels</text>' +
+               '<line x1="295" y1="62" x2="295" y2="168" stroke="#555" stroke-width="0.5"/>' +
+               '<polygon points="295,62 292,68 298,68" fill="#555"/>' +
+               '<polygon points="295,168 292,162 298,162" fill="#555"/>' +
+               // I2C connection detail
+               '<rect x="320" y="40" width="270" height="140" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+               '<text x="455" y="60" text-anchor="middle" fill="#8b949e" font-size="8" font-weight="600">I2C WIRING</text>' +
+               '<text x="340" y="82" fill="#555" font-size="7">SSD1306 Pin</text><text x="460" y="82" fill="#555" font-size="7">ESP32 Pin</text>' +
+               '<line x1="330" y1="88" x2="582" y2="88" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+               '<text x="340" y="103" fill="#8b949e" font-size="7">VCC</text><text x="460" y="103" fill="#ef4444" font-size="7">3.3V</text>' +
+               '<text x="340" y="118" fill="#8b949e" font-size="7">GND</text><text x="460" y="118" fill="#888" font-size="7">GND</text>' +
+               '<text x="340" y="133" fill="#8b949e" font-size="7">SDA</text><text x="460" y="133" fill="#22c55e" font-size="7">GPIO 21 (default I2C SDA)</text>' +
+               '<text x="340" y="148" fill="#8b949e" font-size="7">SCL</text><text x="460" y="148" fill="#eab308" font-size="7">GPIO 22 (default I2C SCL)</text>' +
+               '<text x="455" y="168" text-anchor="middle" fill="#555" font-size="7">Address: 0x3C (most modules)</text>' +
+               '</svg>',
+
+            // Step 3 (index 3): BLE advertising data structure
+            3: '<svg viewBox="0 0 620 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg22-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="620" height="200" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="188" fill="url(#sg22-sv3-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">BLE ADVERTISING PACKET — BADGE DISCOVERY</text>' +
+               // Packet bytes visualization
+               '<text x="30" y="52" fill="#555" font-size="8" font-weight="600">BLE ADV PDU (31 bytes max):</text>' +
+               // Field blocks
+               '<rect x="30" y="60" width="50" height="36" rx="3" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>' +
+               '<text x="55" y="75" text-anchor="middle" fill="#60a5fa" font-size="7">Flags</text>' +
+               '<text x="55" y="88" text-anchor="middle" fill="#60a5fa" font-size="6">0x02 0x01 0x06</text>' +
+               '<rect x="84" y="60" width="70" height="36" rx="3" fill="rgba(168,85,247,0.12)" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>' +
+               '<text x="119" y="75" text-anchor="middle" fill="#a855f7" font-size="7">Complete Name</text>' +
+               '<text x="119" y="88" text-anchor="middle" fill="#a855f7" font-size="6">"HEX-BADGE-42"</text>' +
+               '<rect x="158" y="60" width="100" height="36" rx="3" fill="rgba(255,107,53,0.12)" stroke="rgba(255,107,53,0.3)" stroke-width="1"/>' +
+               '<text x="208" y="75" text-anchor="middle" fill="#ff6b35" font-size="7">Manufacturer Data</text>' +
+               '<text x="208" y="88" text-anchor="middle" fill="#ff6b35" font-size="6">0xFF [badge_id][badge_ver]</text>' +
+               '<rect x="262" y="60" width="50" height="36" rx="3" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+               '<text x="287" y="75" text-anchor="middle" fill="#22c55e" font-size="7">TX Power</text>' +
+               '<text x="287" y="88" text-anchor="middle" fill="#22c55e" font-size="6">0 dBm</text>' +
+               // Discovery flow
+               '<text x="30" y="120" fill="#8b949e" font-size="8" font-weight="600">Discovery flow:</text>' +
+               '<rect x="30" y="130" width="110" height="44" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+               '<text x="85" y="148" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">Your Badge</text>' +
+               '<text x="85" y="163" text-anchor="middle" fill="#555" font-size="7">scanning + advertising</text>' +
+               '<line x1="142" y1="152" x2="200" y2="152" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+               '<text x="171" y="145" text-anchor="middle" fill="#a855f7" font-size="7">ADV_IND</text>' +
+               '<line x1="200" y1="152" x2="142" y2="152" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3" marker-start="url(#sg22-arr)"/>' +
+               '<rect x="202" y="130" width="110" height="44" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+               '<text x="257" y="148" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Another Badge</text>' +
+               '<text x="257" y="163" text-anchor="middle" fill="#555" font-size="7">detected! handshake anim</text>' +
+               // UUID for CTF
+               '<rect x="340" y="130" width="250" height="44" rx="4" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+               '<text x="465" y="148" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">CTF Hidden Characteristic UUID</text>' +
+               '<text x="465" y="163" text-anchor="middle" fill="#555" font-size="6.5">4fafc201-1fb5-459e-8fcc-c5c9c331914b</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+                 '<defs><pattern id="sg22-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="580" height="280" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="568" height="268" fill="url(#sg22-cc-grid)" rx="4"/>' +
+                 '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-22</text>' +
+                 // ESP32 DevKit
+                 '<g id="sg22-comp-esp">' +
+                 '<rect x="30" y="50" width="140" height="200" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<rect x="30" y="50" width="140" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+                 '<text x="100" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 DevKit</text>' +
+                 '<rect x="46" y="82" width="108" height="40" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+                 '<text x="100" y="100" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">ESP32-WROOM</text>' +
+                 '<text x="100" y="114" text-anchor="middle" fill="#555" font-size="7">WiFi + BLE 4.2</text>' +
+                 '<rect x="46" y="128" width="108" height="22" rx="3" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+                 '<text x="100" y="142" text-anchor="middle" fill="#4ade80" font-size="7">I2C: GPIO 21/22</text>' +
+                 '<rect x="46" y="155" width="108" height="22" rx="3" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+                 '<text x="100" y="169" text-anchor="middle" fill="#a855f7" font-size="7">BLE advertising</text>' +
+                 '<rect x="46" y="182" width="108" height="22" rx="3" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+                 '<text x="100" y="196" text-anchor="middle" fill="#eab308" font-size="7">NeoPixel: GPIO 15</text>' +
+                 '<rect x="46" y="210" width="108" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+                 '<text x="100" y="224" text-anchor="middle" fill="#555" font-size="7">Button: GPIO 0</text>' +
+                 '<circle id="sg22-dot-esp" cx="100" cy="100" r="7" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<text x="100" y="104" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">1</text>' +
+                 '</g>' +
+                 // OLED
+                 '<g id="sg22-comp-oled">' +
+                 '<rect x="195" y="50" width="130" height="90" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<rect x="195" y="50" width="130" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+                 '<text x="260" y="66" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">SSD1306 OLED</text>' +
+                 '<text x="260" y="88" text-anchor="middle" fill="#8b949e" font-size="7">128x64 monochrome</text>' +
+                 '<text x="260" y="103" text-anchor="middle" fill="#555" font-size="7">I2C (address 0x3C)</text>' +
+                 '<text x="260" y="118" text-anchor="middle" fill="#555" font-size="7">Adafruit SSD1306 lib</text>' +
+                 '<circle id="sg22-dot-oled" cx="260" cy="65" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="260" y="69" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">2</text>' +
+                 '</g>' +
+                 // NeoPixels
+                 '<g id="sg22-comp-neo">' +
+                 '<rect x="195" y="160" width="130" height="90" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<rect x="195" y="160" width="130" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+                 '<text x="260" y="176" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">NeoPixels</text>' +
+                 '<text x="260" y="198" text-anchor="middle" fill="#8b949e" font-size="7">WS2812B (FastLED lib)</text>' +
+                 '<text x="260" y="213" text-anchor="middle" fill="#555" font-size="7">4-8 LEDs typical</text>' +
+                 '<text x="260" y="228" text-anchor="middle" fill="#555" font-size="7">5V power / 3.3V data OK</text>' +
+                 '<circle id="sg22-dot-neo" cx="260" cy="175" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="260" y="179" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">3</text>' +
+                 '</g>' +
+                 // BLE
+                 '<g id="sg22-comp-ble">' +
+                 '<rect x="350" y="50" width="200" height="100" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+                 '<rect x="350" y="50" width="200" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+                 '<text x="450" y="66" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">BLE Stack</text>' +
+                 '<text x="450" y="90" text-anchor="middle" fill="#8b949e" font-size="7">Advertising: badge name + ID</text>' +
+                 '<text x="450" y="105" text-anchor="middle" fill="#555" font-size="7">Scanning: finds nearby badges</text>' +
+                 '<text x="450" y="120" text-anchor="middle" fill="#555" font-size="7">GATT server: CTF characteristic</text>' +
+                 '<text x="450" y="135" text-anchor="middle" fill="#555" font-size="7">ESP32 BLE library</text>' +
+                 '<circle id="sg22-dot-ble" cx="450" cy="65" r="7" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+                 '<text x="450" y="69" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">4</text>' +
+                 '</g>' +
+                 // CTF
+                 '<g id="sg22-comp-ctf">' +
+                 '<rect x="350" y="168" width="200" height="80" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+                 '<rect x="350" y="168" width="200" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+                 '<text x="450" y="184" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">CTF Challenge</text>' +
+                 '<text x="450" y="206" text-anchor="middle" fill="#8b949e" font-size="7">Hidden BLE characteristic</text>' +
+                 '<text x="450" y="221" text-anchor="middle" fill="#555" font-size="7">XOR-encoded flag</text>' +
+                 '<text x="450" y="236" text-anchor="middle" fill="#555" font-size="7">Read requires knowing UUID</text>' +
+                 '<circle id="sg22-dot-ctf" cx="450" cy="183" r="7" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.5"/>' +
+                 '<text x="450" y="187" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">5</text>' +
+                 '</g>' +
+                 '</svg>',
+
+            components: [
+                {
+                    id: 'esp',
+                    name: 'ESP32 DevKit V1',
+                    purpose: 'The badge MCU. Runs the display, LED animations, BLE advertising/scanning, button menu, and CTF logic simultaneously using FreeRTOS. The built-in BLE radio handles badge-to-badge discovery without any external hardware.',
+                    specs: ['GPIO 21/22: I2C (SDA/SCL) for OLED', 'GPIO 15: NeoPixel data line', 'GPIO 0: BOOT button (repurposed as menu button)', 'BLE: advertising + scanning simultaneous', 'Battery (LiPo) via 3.3V regulator']
+                },
+                {
+                    id: 'oled',
+                    name: 'SSD1306 OLED Display (128x64)',
+                    purpose: 'The badge display. Shows menus, badge name, BLE discovery status, and CTF challenge interface. Monochrome white-on-black display draws very little power (<20mA). Communicates via I2C — only 2 signal wires needed.',
+                    specs: ['128x64 pixels, monochrome', 'I2C interface (address 0x3C or 0x3D)', 'VCC: 3.3V (most modules have regulator)', 'Adafruit SSD1306 + GFX libraries', 'Power draw: 15-20mA at full brightness']
+                },
+                {
+                    id: 'neo',
+                    name: 'NeoPixel LEDs (WS2812B)',
+                    purpose: 'The badge bling. Each LED contains a built-in controller IC — the ESP32 sends color data for all LEDs over a single GPIO using a precise timing protocol. FastLED library handles the timing. Power consumption matters: 4 LEDs at full white = 240mA.',
+                    specs: ['WS2812B individually addressable RGB', 'Single data wire protocol (800 kHz)', 'FastLED or Adafruit NeoPixel library', 'Power: 60mA per LED at full white', '330Ω resistor on data line recommended']
+                },
+                {
+                    id: 'ble',
+                    name: 'BLE Stack (Badge Discovery)',
+                    purpose: 'The social layer. The badge simultaneously advertises its name and ID (so others can find it) and scans for other badges (to discover them). When manufacturer data matching the badge signature is found in an advertisement, a handshake animation plays and the badge is counted.',
+                    specs: ['BLEDevice::init(), BLEServer, BLEClient', 'Advertising: BLEAdvertisementData with manufacturer', 'Scan: BLEScan every 5 seconds', 'Filter: check manufacturer data for badge signature', 'Store: discovered badges in array (max 20)']
+                },
+                {
+                    id: 'ctf',
+                    name: 'CTF Challenge (Hidden BLE Characteristic)',
+                    purpose: 'The puzzle. A BLE GATT server exposes a characteristic at a non-obvious UUID. The value is XOR-encoded. Finding the UUID, reading the characteristic, and decoding the value gives the flag. This mimics real-world BLE vulnerability research.',
+                    specs: ['GATT server with custom service UUID', 'Hidden characteristic (READ property)', 'Value: XOR(flag, secret_key)', 'Flag format: FLAG{...}', 'Discoverable with nRF Connect app']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'OLED showing garbage — I2C address mismatch',
+                correct: 'Use I2C address 0x3C for most SSD1306 modules (common for 128x64 blue/white OLED breakouts). Some modules use 0x3D. Run an I2C scanner sketch first to confirm: Wire.begin(); for address 1..127: Wire.beginTransmission(addr); if endTransmission() == 0 → found it.',
+                incorrect: 'Using Adafruit_SSD1306(128, 64, &Wire, -1) and calling display.begin(SSD1306_SWITCHCAPVCC, 0x3D) when the module is at 0x3C. The begin() call returns false silently in some library versions — the display shows nothing but the sketch continues running.',
+                consequence: 'Blank or garbage display. No error message is printed. The rest of the sketch runs fine. Many developers spend time debugging LEDs and BLE before realizing the OLED address is wrong.',
+                svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Scanner first</text>' +
+                         '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">Run I2C scanner sketch</text>' +
+                         '<text x="132" y="65" text-anchor="middle" fill="#4ade80" font-size="7">Found device at: 0x3C</text>' +
+                         '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">display.begin(SSD1306_, 0x3C)</text>' +
+                         '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Display works immediately</text>' +
+                         '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Wrong address</text>' +
+                         '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">Assume 0x3D from tutorial</text>' +
+                         '<text x="407" y="65" text-anchor="middle" fill="#ef4444" font-size="7">display.begin(..., 0x3D) — wrong!</text>' +
+                         '<text x="407" y="80" text-anchor="middle" fill="#8b949e" font-size="7">Sketch runs, no error</text>' +
+                         '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">Display: blank / frozen</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'NeoPixels flickering — missing 300-500 ohm data resistor',
+                correct: 'Place a 300-500 ohm resistor between GPIO 15 and the NeoPixel DIN pin, physically close to the LED strip. This limits the rise time of the data signal, preventing signal reflections from causing spurious color bits in the first LED.',
+                incorrect: 'Wiring GPIO 15 directly to DIN with no resistor. At 3.3V ESP32 driving 5V LEDs, the signal is technically at the margin. In bench testing it may work fine — but in a badge enclosure with longer wires, the reflected signal from the LED strip corrupts the first pixel.',
+                consequence: 'The first LED displays a random color regardless of what you set. Sometimes only when running on battery (lower voltage, marginal signal). Intermittent and hard to diagnose without knowing about signal integrity.',
+                svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Resistor on data line</text>' +
+                         '<text x="50" y="68" fill="#8b949e" font-size="7">GPIO15</text>' +
+                         '<line x1="92" y1="65" x2="112" y2="65" stroke="#22c55e" stroke-width="2"/>' +
+                         '<rect x="112" y="58" width="30" height="14" rx="3" fill="#1e2736" stroke="#eab308" stroke-width="1"/>' +
+                         '<text x="127" y="68" text-anchor="middle" fill="#eab308" font-size="6">330&Omega;</text>' +
+                         '<line x1="142" y1="65" x2="162" y2="65" stroke="#22c55e" stroke-width="2"/>' +
+                         '<rect x="162" y="55" width="50" height="24" rx="3" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+                         '<text x="187" y="70" text-anchor="middle" fill="#a855f7" font-size="7">DIN</text>' +
+                         '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Signal integrity maintained</text>' +
+                         '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Direct GPIO to DIN</text>' +
+                         '<text x="325" y="68" fill="#8b949e" font-size="7">GPIO15</text>' +
+                         '<line x1="367" y1="65" x2="417" y2="65" stroke="#ef4444" stroke-width="2"/>' +
+                         '<rect x="417" y="55" width="50" height="24" rx="3" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+                         '<text x="442" y="70" text-anchor="middle" fill="#a855f7" font-size="7">DIN</text>' +
+                         '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">First pixel: random color / flicker</text>' +
+                         '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -580,7 +1045,232 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: GPS Wardriving</strong> &mdash; Add a GPS module (NEO-6M, ~$5). Log WiFi scan results with GPS coordinates to a CSV. Import into Google Earth or Wigle.net to create a wireless coverage map of your neighborhood.</p>' +
                     '<p><strong>Challenge 2: Mesh Networking</strong> &mdash; Deploy 3 field terminals. Use ESP-NOW (ESP32 peer-to-peer protocol) to form a mesh network. When one terminal detects a deauth attack, it alerts the other two. Distributed detection system.</p>' +
-                    '<p><strong>Challenge 3: 3D Printed Enclosure</strong> &mdash; Design a custom case in Fusion 360 or TinkerCAD. Include slots for the display, cutouts for USB-C and SD card, a battery compartment, and a belt clip mount. Print and assemble for a professional field tool.</p>'
+                    '<p><strong>Challenge 3: 3D Printed Enclosure</strong> &mdash; Design a custom case in Fusion 360 or TinkerCAD. Include slots for the display, cutouts for USB-C and SD card, a battery compartment, and a belt clip mount. Print and assemble for a professional field tool.</p>',
+
+        stepVisuals: {
+            // Step 0 (index 0): State machine architecture diagram
+            0: '<svg viewBox="0 0 620 230" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg23-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+               '<marker id="sg23-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ff6b35"/></marker></defs>' +
+               '<rect width="620" height="230" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="218" fill="url(#sg23-sv0-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">FIELD TERMINAL STATE MACHINE</text>' +
+               // Menu state (center)
+               '<rect x="245" y="80" width="130" height="70" rx="8" fill="#1e2736" stroke="#ff6b35" stroke-width="2"/>' +
+               '<text x="310" y="110" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">MENU</text>' +
+               '<text x="310" y="126" text-anchor="middle" fill="#555" font-size="7">Touch to select mode</text>' +
+               '<text x="310" y="138" text-anchor="middle" fill="#555" font-size="7">Back btn returns here</text>' +
+               // WiFi scan state
+               '<rect x="30" y="55" width="130" height="60" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="95" y="80" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">WiFi Scan</text>' +
+               '<text x="95" y="96" text-anchor="middle" fill="#555" font-size="7">SSID list, RSSI, channel</text>' +
+               '<text x="95" y="108" text-anchor="middle" fill="#555" font-size="7">log to SD card</text>' +
+               // Arrow menu -> wifi
+               '<line x1="243" y1="100" x2="162" y2="86" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg23-arr)"/>' +
+               '<line x1="162" y1="100" x2="243" y2="113" stroke="#ff6b35" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sg23-arr)"/>' +
+               // BLE scan
+               '<rect x="30" y="145" width="130" height="60" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<text x="95" y="170" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">BLE Scan</text>' +
+               '<text x="95" y="186" text-anchor="middle" fill="#555" font-size="7">MAC, RSSI, name, services</text>' +
+               '<text x="95" y="198" text-anchor="middle" fill="#555" font-size="7">log to SD card</text>' +
+               '<line x1="243" y1="120" x2="162" y2="166" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg23-arr)"/>' +
+               '<line x1="162" y1="155" x2="243" y2="130" stroke="#ff6b35" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sg23-arr)"/>' +
+               // Deauth detect
+               '<rect x="460" y="55" width="130" height="60" rx="6" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+               '<text x="525" y="78" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">Deauth Detect</text>' +
+               '<text x="525" y="94" text-anchor="middle" fill="#555" font-size="7">promiscuous mode</text>' +
+               '<text x="525" y="106" text-anchor="middle" fill="#555" font-size="7">count type-0xA0 frames</text>' +
+               '<line x1="377" y1="100" x2="458" y2="86" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg23-arr)"/>' +
+               '<line x1="458" y1="100" x2="377" y2="113" stroke="#ff6b35" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sg23-arr)"/>' +
+               // Packet monitor
+               '<rect x="460" y="145" width="130" height="60" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="525" y="168" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">Packet Mon</text>' +
+               '<text x="525" y="184" text-anchor="middle" fill="#555" font-size="7">frame type breakdown</text>' +
+               '<text x="525" y="196" text-anchor="middle" fill="#555" font-size="7">per-channel RSSI</text>' +
+               '<line x1="377" y1="120" x2="458" y2="166" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg23-arr)"/>' +
+               '<line x1="458" y1="155" x2="377" y2="130" stroke="#ff6b35" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sg23-arr)"/>' +
+               // Battery bar at bottom
+               '<rect x="30" y="210" width="560" height="14" rx="3" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+               '<text x="310" y="220" text-anchor="middle" fill="#555" font-size="7">Status bar: battery icon + current mode + SD card indicator — always visible</text>' +
+               '</svg>',
+
+            // Step 3 (index 3): SD card logging structure
+            3: '<svg viewBox="0 0 620 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg23-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="620" height="190" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="178" fill="url(#sg23-sv3-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">SD CARD LOG FILE STRUCTURE</text>' +
+               // SD card icon
+               '<rect x="30" y="45" width="80" height="120" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<rect x="30" y="45" width="80" height="20" rx="6" fill="rgba(34,197,94,0.12)"/>' +
+               '<text x="70" y="59" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">SD Card</text>' +
+               '<text x="70" y="82" text-anchor="middle" fill="#555" font-size="7">wifi_log.csv</text>' +
+               '<text x="70" y="97" text-anchor="middle" fill="#555" font-size="7">ble_log.csv</text>' +
+               '<text x="70" y="112" text-anchor="middle" fill="#555" font-size="7">deauth.csv</text>' +
+               '<text x="70" y="127" text-anchor="middle" fill="#555" font-size="7">pkt_mon.csv</text>' +
+               '<text x="70" y="147" text-anchor="middle" fill="#555" font-size="6">FAT32 format</text>' +
+               // CSV structure boxes
+               '<rect x="130" y="45" width="460" height="50" rx="4" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+               '<text x="150" y="63" fill="#22c55e" font-size="7" font-weight="600">wifi_log.csv:</text>' +
+               '<text x="150" y="80" fill="#555" font-size="7">timestamp_ms, ssid, bssid, channel, rssi, encryption, is_hidden</text>' +
+               '<rect x="130" y="100" width="460" height="50" rx="4" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+               '<text x="150" y="118" fill="#a855f7" font-size="7" font-weight="600">ble_log.csv:</text>' +
+               '<text x="150" y="135" fill="#555" font-size="7">timestamp_ms, mac_address, rssi, device_name, service_uuids</text>' +
+               '<rect x="130" y="155" width="460" height="28" rx="4" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+               '<text x="150" y="172" fill="#ef4444" font-size="7" font-weight="600">deauth.csv: </text>' +
+               '<text x="218" y="172" fill="#555" font-size="7">timestamp_ms, target_mac, ap_bssid, deauth_count_in_window</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+                 '<defs><pattern id="sg23-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="580" height="280" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="568" height="268" fill="url(#sg23-cc-grid)" rx="4"/>' +
+                 '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-23</text>' +
+                 // CYD
+                 '<g id="sg23-comp-cyd">' +
+                 '<rect x="30" y="50" width="155" height="200" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<rect x="30" y="50" width="155" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+                 '<text x="108" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 CYD</text>' +
+                 '<rect x="46" y="82" width="123" height="50" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+                 '<text x="108" y="101" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">ILI9341 TFT</text>' +
+                 '<text x="108" y="116" text-anchor="middle" fill="#555" font-size="7">touch UI + mode display</text>' +
+                 '<rect x="46" y="138" width="123" height="30" rx="3" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+                 '<text x="108" y="157" text-anchor="middle" fill="#a855f7" font-size="7">WiFi + BLE radio</text>' +
+                 '<rect x="46" y="174" width="123" height="30" rx="3" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+                 '<text x="108" y="193" text-anchor="middle" fill="#eab308" font-size="7">Buzzer (GPIO 26)</text>' +
+                 '<rect x="46" y="210" width="123" height="30" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+                 '<text x="108" y="228" text-anchor="middle" fill="#555" font-size="7">USB-C power</text>' +
+                 '<circle id="sg23-dot-cyd" cx="108" cy="110" r="7" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<text x="108" y="114" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">1</text>' +
+                 '</g>' +
+                 // SD card module
+                 '<g id="sg23-comp-sd">' +
+                 '<rect x="210" y="50" width="145" height="90" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<rect x="210" y="50" width="145" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+                 '<text x="283" y="66" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">SD Card Module</text>' +
+                 '<text x="283" y="88" text-anchor="middle" fill="#8b949e" font-size="7">SPI (HSPI: GPIO 12-15)</text>' +
+                 '<text x="283" y="103" text-anchor="middle" fill="#555" font-size="7">CS: GPIO 5</text>' +
+                 '<text x="283" y="118" text-anchor="middle" fill="#555" font-size="7">Log WiFi, BLE, deauth, pkt</text>' +
+                 '<circle id="sg23-dot-sd" cx="283" cy="65" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="283" y="69" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">2</text>' +
+                 '</g>' +
+                 // LiPo battery
+                 '<g id="sg23-comp-batt">' +
+                 '<rect x="210" y="160" width="145" height="90" rx="8" fill="#1e2736" stroke="#f59e0b" stroke-width="1.5"/>' +
+                 '<rect x="210" y="160" width="145" height="22" rx="8" fill="rgba(245,158,11,0.12)"/>' +
+                 '<text x="283" y="176" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="600">LiPo Battery</text>' +
+                 '<text x="283" y="198" text-anchor="middle" fill="#8b949e" font-size="7">1000-2000 mAh</text>' +
+                 '<text x="283" y="213" text-anchor="middle" fill="#555" font-size="7">TP4056 charger module</text>' +
+                 '<text x="283" y="228" text-anchor="middle" fill="#555" font-size="7">ADC read via GPIO for %</text>' +
+                 '<circle id="sg23-dot-batt" cx="283" cy="175" r="7" fill="rgba(245,158,11,0.2)" stroke="#f59e0b" stroke-width="1.5"/>' +
+                 '<text x="283" y="179" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="700">3</text>' +
+                 '</g>' +
+                 // Touch screen
+                 '<g id="sg23-comp-touch">' +
+                 '<rect x="380" y="50" width="170" height="90" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<rect x="380" y="50" width="170" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+                 '<text x="465" y="66" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Touch Controller</text>' +
+                 '<text x="465" y="88" text-anchor="middle" fill="#8b949e" font-size="7">XPT2046 on CYD</text>' +
+                 '<text x="465" y="103" text-anchor="middle" fill="#555" font-size="7">Touch zones = menu buttons</text>' +
+                 '<text x="465" y="118" text-anchor="middle" fill="#555" font-size="7">Tap to switch modes</text>' +
+                 '<circle id="sg23-dot-touch" cx="465" cy="65" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="465" y="69" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">4</text>' +
+                 '</g>' +
+                 // Auto-dimming
+                 '<g id="sg23-comp-pwr">' +
+                 '<rect x="380" y="160" width="170" height="90" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+                 '<rect x="380" y="160" width="170" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+                 '<text x="465" y="176" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">Power Manager</text>' +
+                 '<text x="465" y="198" text-anchor="middle" fill="#8b949e" font-size="7">Backlight PWM (GPIO 21)</text>' +
+                 '<text x="465" y="213" text-anchor="middle" fill="#555" font-size="7">Auto-dim after 30s idle</text>' +
+                 '<text x="465" y="228" text-anchor="middle" fill="#555" font-size="7">Light sleep between scans</text>' +
+                 '<circle id="sg23-dot-pwr" cx="465" cy="175" r="7" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.5"/>' +
+                 '<text x="465" y="179" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">5</text>' +
+                 '</g>' +
+                 '</svg>',
+
+            components: [
+                {
+                    id: 'cyd',
+                    name: 'ESP32 CYD (Field Terminal Core)',
+                    purpose: 'The all-in-one field tool platform. The TFT shows the current mode\'s data. The touch controller handles mode switching. The WiFi radio switches between scan mode and promiscuous mode depending on the active mode. The BLE stack handles BLE scanning. No external hardware required for basic operation.',
+                    specs: ['ILI9341 TFT: mode-specific data display', 'XPT2046: touch menu interaction', 'WiFi: scan + promiscuous mode', 'BLE: passive scanner', 'Buzzer GPIO 26: alert on deauth detection']
+                },
+                {
+                    id: 'sd',
+                    name: 'MicroSD Card Module',
+                    purpose: 'The field logging storage. Each mode writes its own CSV log file. WiFi scans create wifi_log.csv with SSID, RSSI, and encryption type. BLE scans write ble_log.csv with MAC and device names. Deauth detection logs time-stamped events. Connect via HSPI (separate SPI bus from TFT to avoid conflicts).',
+                    specs: ['HSPI bus: MOSI GPIO 13, MISO 12, SCK 14', 'CS: GPIO 5 (separate from TFT CS)', 'FAT32 formatted MicroSD', 'Append mode — never overwrites', 'SD.h library (included with ESP32 Arduino core)']
+                },
+                {
+                    id: 'batt',
+                    name: 'LiPo Battery + TP4056 Charger',
+                    purpose: 'The portable power supply. A 1000-2000mAh 3.7V LiPo powers the CYD for 3-6 hours of continuous operation. The TP4056 module provides USB charging and battery protection (overcharge/over-discharge cutoff). Battery voltage is read through a voltage divider on an ADC pin.',
+                    specs: ['3.7V LiPo 1000-2000mAh', 'TP4056: Micro-USB or USB-C charging', 'Voltage divider: 100k/100k to ADC', 'ADC pin: GPIO 34 (input only)', 'Low battery alert at <3.3V measured']
+                },
+                {
+                    id: 'touch',
+                    name: 'XPT2046 Touch Controller (Built into CYD)',
+                    purpose: 'The touch interface. The XPT2046 reports raw touch coordinates that are mapped to rectangular touch zones for the menu system. Each mode shows "Back" as a touch zone. The main menu shows 4 rectangular buttons for the 4 modes.',
+                    specs: ['XPT2046 SPI controller (CYD built-in)', 'Resistive touch (pressure-sensitive)', 'Touch zones defined as pixel rectangles', 'TFT_eSPI library includes XPT2046 support', 'Calibrate with TFT_eSPI calibration sketch']
+                },
+                {
+                    id: 'pwr',
+                    name: 'Power Manager (Auto-Dim + Sleep)',
+                    purpose: 'The battery extender. After 30 seconds without a touch event, the firmware dims the backlight by 80% via PWM. After 5 minutes, it enters light sleep (the ESP32\'s lowest-power state that wakes on touch interrupt). This extends battery life 2-3x compared to always-on.',
+                    specs: ['Backlight: GPIO 21 PWM (ledcWrite)', 'Idle timer: millis() delta tracking', 'Dim at 30s: ledcWrite(0, 50)', 'Light sleep at 5min: esp_light_sleep_start()', 'Wake: touch interrupt on XPT2046 IRQ pin']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'SD card and TFT sharing the same SPI bus and conflicting',
+                correct: 'Use HSPI for the SD card module (GPIO 12/13/14 + CS on GPIO 5) while the CYD TFT uses VSPI (the default SPI). Initialize SPIClass sdSPI(HSPI); and pass it to SD.begin(5, sdSPI). The two devices operate completely independently.',
+                incorrect: 'Adding the SD card on the same SPI bus as the TFT without separate chip-select management. The TFT and SD card share MOSI/MISO/SCK, and if CS is not driven correctly, both devices respond to commands simultaneously — corrupting both.',
+                consequence: 'TFT shows garbage or goes blank. SD card writes fail silently or with "SD not mounted" errors. The system appears to work intermittently, making the issue very hard to diagnose without an oscilloscope.',
+                svgDiff: '<svg viewBox="0 0 540 130" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="130" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="110" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Separate SPI buses</text>' +
+                         '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">TFT: VSPI (default)</text>' +
+                         '<text x="132" y="65" text-anchor="middle" fill="#4ade80" font-size="7">SD: HSPI (SPIClass sdSPI(HSPI))</text>' +
+                         '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">SD.begin(5, sdSPI)</text>' +
+                         '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Both work simultaneously</text>' +
+                         '<text x="132" y="110" text-anchor="middle" fill="#555" font-size="7">No CS conflicts</text>' +
+                         '<rect x="285" y="10" width="245" height="110" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Shared SPI bus</text>' +
+                         '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">TFT + SD on same VSPI pins</text>' +
+                         '<text x="407" y="65" text-anchor="middle" fill="#ef4444" font-size="7">CS management missing</text>' +
+                         '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">Both devices respond at once</text>' +
+                         '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">TFT corruption + SD errors</text>' +
+                         '<text x="407" y="110" text-anchor="middle" fill="#ef4444" font-size="7">Intermittent — hard to debug</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'Reading LiPo voltage with raw ADC and getting wrong results',
+                correct: 'The ESP32 ADC is non-linear. Use esp_adc_cal_characterize() and esp_adc_cal_raw_to_voltage() for calibrated readings. Add analogRead() averaging (16 samples, discard outliers). Use a 100k/100k voltage divider so 4.2V battery reads as 2.1V on the ADC pin.',
+                incorrect: 'Calling analogRead(34) and assuming 4095 = 3.3V = 100% battery. The ESP32 ADC has severe non-linearity in the 0-0.15V and 2.9-3.3V ranges. Raw analogRead() can be off by 200-500mV — enough to show 85% when the battery is actually at 30%.',
+                consequence: 'Inaccurate battery percentage display. The device shows battery "full" right up until it dies suddenly. In the field, you get no warning before the tool powers off mid-scan, potentially corrupting the SD log file.',
+                svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Calibrated ADC</text>' +
+                         '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">esp_adc_cal_characterize()</text>' +
+                         '<text x="132" y="65" text-anchor="middle" fill="#4ade80" font-size="7">16-sample average</text>' +
+                         '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">Voltage divider: 100k/100k</text>' +
+                         '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Accurate ±50mV</text>' +
+                         '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Raw analogRead</text>' +
+                         '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">analogRead(34) direct</text>' +
+                         '<text x="407" y="65" text-anchor="middle" fill="#ef4444" font-size="7">Linear map 0-4095 to 0-100%</text>' +
+                         '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">ADC non-linearity: ±500mV error</text>' +
+                         '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">Device dies with "85% battery"</text>' +
+                         '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -791,7 +1481,251 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Protocol Fingerprinting</strong> &mdash; Parse the 802.11 management frame subtypes (beacon, probe request, probe response, authentication, association, deauthentication) and track their ratios independently. A spike in probe requests means someone is actively scanning. A spike in authentication frames could indicate a brute-force attack.</p>' +
                     '<p><strong>Challenge 2: Time-of-Day Profiling</strong> &mdash; If you add an RTC module (DS3231, ~$2), build separate baselines for different times of day. A network that is quiet at 3AM and busy at 2PM should have different "normal" profiles. An alert at 3AM for traffic that would be normal at 2PM is a stronger signal.</p>' +
-                    '<p><strong>Challenge 3: Integration with SG-25</strong> &mdash; Connect this ESP32 monitor to the Raspberry Pi IDS (SG-25) via WiFi. When the anomaly score exceeds a threshold, send an HTTP POST to the Pi\'s alert dashboard with the anomaly details. The ESP32 handles lightweight monitoring; the Pi handles deep packet inspection.</p>'
+                    '<p><strong>Challenge 3: Integration with SG-25</strong> &mdash; Connect this ESP32 monitor to the Raspberry Pi IDS (SG-25) via WiFi. When the anomaly score exceeds a threshold, send an HTTP POST to the Pi\'s alert dashboard with the anomaly details. The ESP32 handles lightweight monitoring; the Pi handles deep packet inspection.</p>',
+
+        stepVisuals: {
+            // Step 2 (index 2): EWMA anomaly detection math
+            2: '<svg viewBox="0 0 620 220" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg24-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="620" height="220" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="208" fill="url(#sg24-sv2-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">EWMA ANOMALY DETECTION ENGINE</text>' +
+               // EWMA formula box
+               '<rect x="30" y="40" width="270" height="80" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.25)" stroke-width="1"/>' +
+               '<text x="165" y="60" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">EWMA Baseline Update</text>' +
+               '<text x="165" y="80" text-anchor="middle" fill="#8b949e" font-size="8">mean = alpha * sample + (1-alpha) * mean</text>' +
+               '<text x="165" y="96" text-anchor="middle" fill="#555" font-size="7">alpha = 0.1 (slow adaptation)</text>' +
+               '<text x="165" y="109" text-anchor="middle" fill="#555" font-size="7">new sample weighted only 10%</text>' +
+               // Z-score box
+               '<rect x="320" y="40" width="270" height="80" rx="5" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.25)" stroke-width="1"/>' +
+               '<text x="455" y="60" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">Z-Score Anomaly Check</text>' +
+               '<text x="455" y="80" text-anchor="middle" fill="#8b949e" font-size="8">z = (sample - mean) / std_dev</text>' +
+               '<text x="455" y="96" text-anchor="middle" fill="#555" font-size="7">z &gt; 2.0 = anomalous (95th percentile)</text>' +
+               '<text x="455" y="109" text-anchor="middle" fill="#555" font-size="7">std_dev tracked via EWMA variance</text>' +
+               // Timeline showing anomaly detection
+               '<text x="30" y="142" fill="#555" font-size="7" font-weight="600">Anomaly score timeline:</text>' +
+               '<line x1="30" y1="195" x2="590" y2="195" stroke="#555" stroke-width="1"/>' +
+               // Normal region
+               '<rect x="30" y="155" width="200" height="40" rx="0" fill="rgba(34,197,94,0.06)"/>' +
+               '<polyline points="30,185 60,180 90,182 120,183 140,180 160,184 200,183 230,185" fill="none" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="115" y="152" text-anchor="middle" fill="#22c55e" font-size="7">normal (z &lt; 2.0)</text>' +
+               // Anomaly spike
+               '<rect x="230" y="155" width="80" height="40" rx="0" fill="rgba(239,68,68,0.08)"/>' +
+               '<polyline points="230,185 250,160 270,148 290,158 310,185" fill="none" stroke="#ef4444" stroke-width="2"/>' +
+               '<text x="270" y="152" text-anchor="middle" fill="#ef4444" font-size="7">anomaly z &gt; 2</text>' +
+               // Return to normal
+               '<rect x="310" y="155" width="280" height="40" rx="0" fill="rgba(34,197,94,0.04)"/>' +
+               '<polyline points="310,185 350,183 390,181 430,182 470,183 510,184 550,183 590,182" fill="none" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="450" y="152" text-anchor="middle" fill="#22c55e" font-size="7">normal resumed</text>' +
+               // Alert threshold line
+               '<line x1="30" y1="162" x2="590" y2="162" stroke="#ff6b35" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>' +
+               '<text x="596" y="165" fill="#ff6b35" font-size="6">z=2.0</text>' +
+               '</svg>',
+
+            // Step 4 (index 4): TFT anomaly dashboard layout
+            4: '<svg viewBox="0 0 620 210" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg24-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="620" height="210" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="198" fill="url(#sg24-sv4-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">TFT ANOMALY DASHBOARD LAYOUT (320x240)</text>' +
+               // TFT border
+               '<rect x="30" y="40" width="380" height="158" rx="6" fill="#0f1117" stroke="#555" stroke-width="1.5"/>' +
+               // Status bar
+               '<rect x="30" y="40" width="380" height="18" rx="6" fill="#1a1f2b"/>' +
+               '<text x="50" y="52" fill="#22c55e" font-size="7">MONITOR ACTIVE</text>' +
+               '<text x="320" y="52" text-anchor="end" fill="#8b949e" font-size="7">12 devices | CH:6</text>' +
+               // Anomaly score gauge
+               '<rect x="38" y="65" width="100" height="60" rx="3" fill="#1a2030"/>' +
+               '<text x="88" y="82" text-anchor="middle" fill="#8b949e" font-size="7">ANOMALY</text>' +
+               '<text x="88" y="104" text-anchor="middle" fill="#22c55e" font-size="20" font-weight="700">0.3</text>' +
+               '<text x="88" y="118" text-anchor="middle" fill="#22c55e" font-size="7">NORMAL</text>' +
+               // Device count
+               '<rect x="143" y="65" width="80" height="60" rx="3" fill="#1a2030"/>' +
+               '<text x="183" y="82" text-anchor="middle" fill="#8b949e" font-size="7">DEVICES</text>' +
+               '<text x="183" y="104" text-anchor="middle" fill="#60a5fa" font-size="20" font-weight="700">12</text>' +
+               '<text x="183" y="118" text-anchor="middle" fill="#60a5fa" font-size="7">+0 new</text>' +
+               // Traffic
+               '<rect x="228" y="65" width="80" height="60" rx="3" fill="#1a2030"/>' +
+               '<text x="268" y="82" text-anchor="middle" fill="#8b949e" font-size="7">PKTS/10s</text>' +
+               '<text x="268" y="104" text-anchor="middle" fill="#a855f7" font-size="20" font-weight="700">847</text>' +
+               '<text x="268" y="118" text-anchor="middle" fill="#a855f7" font-size="7">+2.1%</text>' +
+               // Alerts
+               '<rect x="313" y="65" width="90" height="60" rx="3" fill="#1a2030"/>' +
+               '<text x="358" y="82" text-anchor="middle" fill="#8b949e" font-size="7">ALERTS 24h</text>' +
+               '<text x="358" y="104" text-anchor="middle" fill="#eab308" font-size="20" font-weight="700">3</text>' +
+               '<text x="358" y="118" text-anchor="middle" fill="#eab308" font-size="7">last: 14m ago</text>' +
+               // Scrolling graph
+               '<rect x="38" y="132" width="365" height="55" rx="3" fill="#1a2030"/>' +
+               '<text x="220" y="145" text-anchor="middle" fill="#555" font-size="6">ANOMALY SCORE — 30 MIN HISTORY</text>' +
+               '<polyline points="38,178 70,177 100,176 130,177 160,155 190,152 220,154 250,177 280,176 300,177 330,178 360,177 395,177 403,176" fill="none" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<line x1="38" y1="165" x2="403" y2="165" stroke="#ff6b35" stroke-width="0.5" stroke-dasharray="3,2" opacity="0.5"/>' +
+               // Layout labels on right
+               '<rect x="425" y="40" width="175" height="158" rx="5" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+               '<text x="512" y="60" text-anchor="middle" fill="#8b949e" font-size="8" font-weight="600">Layout Zones</text>' +
+               '<rect x="435" y="70" width="12" height="10" rx="1" fill="rgba(34,197,94,0.4)"/>' +
+               '<text x="455" y="79" fill="#22c55e" font-size="7">Anomaly score</text>' +
+               '<rect x="435" y="88" width="12" height="10" rx="1" fill="rgba(59,130,246,0.4)"/>' +
+               '<text x="455" y="97" fill="#60a5fa" font-size="7">Device count</text>' +
+               '<rect x="435" y="106" width="12" height="10" rx="1" fill="rgba(168,85,247,0.4)"/>' +
+               '<text x="455" y="115" fill="#a855f7" font-size="7">Traffic rate</text>' +
+               '<rect x="435" y="124" width="12" height="10" rx="1" fill="rgba(234,179,8,0.4)"/>' +
+               '<text x="455" y="133" fill="#eab308" font-size="7">Alert count</text>' +
+               '<rect x="435" y="142" width="12" height="10" rx="1" fill="rgba(34,197,94,0.2)"/>' +
+               '<text x="455" y="151" fill="#555" font-size="7">Score graph (30m)</text>' +
+               '<text x="512" y="180" text-anchor="middle" fill="#555" font-size="7">Colors: green=normal</text>' +
+               '<text x="512" y="192" text-anchor="middle" fill="#555" font-size="7">yellow=elevated, red=alert</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+                 '<defs><pattern id="sg24-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="580" height="280" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="568" height="268" fill="url(#sg24-cc-grid)" rx="4"/>' +
+                 '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-24</text>' +
+                 // CYD main
+                 '<g id="sg24-comp-cyd">' +
+                 '<rect x="30" y="50" width="155" height="200" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<rect x="30" y="50" width="155" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+                 '<text x="108" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 CYD</text>' +
+                 '<rect x="46" y="82" width="123" height="40" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+                 '<text x="108" y="105" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Promiscuous WiFi</text>' +
+                 '<rect x="46" y="128" width="123" height="40" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+                 '<text x="108" y="151" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Channel Hopper</text>' +
+                 '<rect x="46" y="174" width="123" height="40" rx="4" fill="rgba(255,107,53,0.08)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>' +
+                 '<text x="108" y="197" text-anchor="middle" fill="#ff6b35" font-size="7" font-weight="600">EWMA Engine</text>' +
+                 '<rect x="46" y="220" width="123" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+                 '<text x="108" y="234" text-anchor="middle" fill="#555" font-size="7">ILI9341 TFT dashboard</text>' +
+                 '<circle id="sg24-dot-cyd" cx="108" cy="112" r="7" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<text x="108" y="116" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">1</text>' +
+                 '</g>' +
+                 // SD card
+                 '<g id="sg24-comp-sd">' +
+                 '<rect x="210" y="50" width="145" height="90" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<rect x="210" y="50" width="145" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+                 '<text x="283" y="66" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">SD Card Module</text>' +
+                 '<text x="283" y="88" text-anchor="middle" fill="#8b949e" font-size="7">Baseline persistence</text>' +
+                 '<text x="283" y="103" text-anchor="middle" fill="#555" font-size="7">baseline.json (EWMA state)</text>' +
+                 '<text x="283" y="118" text-anchor="middle" fill="#555" font-size="7">alerts.csv (event log)</text>' +
+                 '<circle id="sg24-dot-sd" cx="283" cy="65" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="283" y="69" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">2</text>' +
+                 '</g>' +
+                 // MAC tracker
+                 '<g id="sg24-comp-mac">' +
+                 '<rect x="210" y="158" width="145" height="90" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+                 '<rect x="210" y="158" width="145" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+                 '<text x="283" y="174" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">MAC Tracker</text>' +
+                 '<text x="283" y="196" text-anchor="middle" fill="#8b949e" font-size="7">128-device array in SRAM</text>' +
+                 '<text x="283" y="211" text-anchor="middle" fill="#555" font-size="7">first_seen, last_seen</text>' +
+                 '<text x="283" y="226" text-anchor="middle" fill="#555" font-size="7">New device = alert event</text>' +
+                 '<circle id="sg24-dot-mac" cx="283" cy="173" r="7" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+                 '<text x="283" y="177" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">3</text>' +
+                 '</g>' +
+                 // EWMA engine detail
+                 '<g id="sg24-comp-ewma">' +
+                 '<rect x="380" y="50" width="170" height="130" rx="8" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+                 '<rect x="380" y="50" width="170" height="22" rx="8" fill="rgba(255,107,53,0.12)"/>' +
+                 '<text x="465" y="66" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">EWMA Engine</text>' +
+                 '<text x="465" y="88" text-anchor="middle" fill="#8b949e" font-size="7">mean[ch] per channel</text>' +
+                 '<text x="465" y="103" text-anchor="middle" fill="#555" font-size="7">variance[ch] per channel</text>' +
+                 '<text x="465" y="118" text-anchor="middle" fill="#555" font-size="7">alpha = 0.1 (slow adapt)</text>' +
+                 '<text x="465" y="133" text-anchor="middle" fill="#555" font-size="7">z-score alert at z &gt; 2.0</text>' +
+                 '<text x="465" y="150" text-anchor="middle" fill="#ff6b35" font-size="7">anomaly_score composite</text>' +
+                 '<text x="465" y="165" text-anchor="middle" fill="#555" font-size="7">displayed on TFT gauge</text>' +
+                 '<circle id="sg24-dot-ewma" cx="465" cy="65" r="7" fill="rgba(255,107,53,0.2)" stroke="#ff6b35" stroke-width="1.5"/>' +
+                 '<text x="465" y="69" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="700">4</text>' +
+                 '</g>' +
+                 // Baseline persistence
+                 '<g id="sg24-comp-persist">' +
+                 '<rect x="380" y="198" width="170" height="50" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<rect x="380" y="198" width="170" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+                 '<text x="465" y="214" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Baseline Persistence</text>' +
+                 '<text x="465" y="234" text-anchor="middle" fill="#555" font-size="7">Save to SD every 10 min</text>' +
+                 '<circle id="sg24-dot-persist" cx="465" cy="213" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="465" y="217" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">5</text>' +
+                 '</g>' +
+                 '</svg>',
+
+            components: [
+                {
+                    id: 'cyd',
+                    name: 'ESP32 CYD (Network Monitor Core)',
+                    purpose: 'The 24/7 passive monitor. Runs continuously in WiFi promiscuous mode, hopping across all 2.4 GHz channels. Collects packet count and RSSI per channel per 10-second window. Feeds the EWMA engine. Displays the composite anomaly score, device count, and alert history on the TFT.',
+                    specs: ['Promiscuous mode: all 802.11 frames', 'Channel hop: 1-13, 10s dwell each', '~130s full channel sweep cycle', 'TFT: real-time anomaly dashboard', 'Buzzer: alert when z-score > 2.0']
+                },
+                {
+                    id: 'sd',
+                    name: 'SD Card Module (Baseline + Alert Log)',
+                    purpose: 'Two-purpose storage. Saves the learned EWMA baseline to baseline.json every 10 minutes — so the device remembers your network across reboots without re-learning. Logs every anomaly alert to alerts.csv with timestamp, channel, measured value, baseline value, and z-score.',
+                    specs: ['baseline.json: mean[], variance[] per channel', 'alerts.csv: timestamp, channel, value, z-score', 'Load baseline.json on boot', 'Save baseline.json every 10 minutes', 'HSPI bus (GPIO 12-15, CS GPIO 5)']
+                },
+                {
+                    id: 'mac',
+                    name: 'MAC Address Tracker',
+                    purpose: 'Maintains an inventory of every device seen on the network. Each new MAC address discovered triggers a "new device" alert. Tracks first_seen and last_seen timestamps for each device. Array is stored in SRAM (128 devices max) and optionally serialized to SD.',
+                    specs: ['Fixed array: DeviceEntry[128] in SRAM', 'Fields: mac[6], first_seen_ms, last_seen_ms', 'New device = HIGH severity alert', 'MAC lookup: O(n) linear scan', 'Randomized MACs (iOS/Android) detected as new each time']
+                },
+                {
+                    id: 'ewma',
+                    name: 'EWMA Anomaly Engine',
+                    purpose: 'The statistical brain. Maintains an exponentially weighted moving average of packet count per channel. Also tracks EWMA variance to estimate standard deviation. When the z-score of a new observation exceeds 2.0 standard deviations from the mean, it flags an anomaly. Composite score aggregates all channels into one display value.',
+                    specs: ['EWMA alpha = 0.1 (weights recent vs history)', 'mean[13], variance[13] — one per channel', 'z = (sample - mean) / sqrt(variance)', 'Alert: z > 2.0 (configurable)', 'Composite score: max z across all channels']
+                },
+                {
+                    id: 'persist',
+                    name: 'Baseline Persistence (SD Save)',
+                    purpose: 'The learning memory. Without persistence, the device re-learns from scratch every boot — taking 30+ minutes to converge. With persistence, it loads the saved EWMA state and is ready to detect anomalies within seconds of boot. Saves periodically to avoid losing hours of learning on power loss.',
+                    specs: ['Save interval: every 10 minutes', 'File: /baseline.json on SD card', 'JSON format: {"mean": [...], "variance": [...]}', 'Load on boot: if file exists', 'Falls back to fresh start if file missing/corrupt']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'EWMA alpha too high — baseline tracks anomalies instead of flagging them',
+                correct: 'Use alpha = 0.05 to 0.1. This means new samples contribute only 5-10% to the baseline. The baseline changes very slowly, so a 3AM traffic spike stands out sharply even after 30 minutes of elevated traffic. The baseline stays anchored to historical norms.',
+                incorrect: 'Setting alpha = 0.5 or higher for "faster learning." With alpha = 0.5, each new sample contributes 50% to the baseline. An anomaly (like a DDoS attack) causes the baseline to rapidly rise to meet the anomalous traffic level — the z-score drops back to 0 and the alert clears within a few cycles.',
+                consequence: 'The anomaly detector learns the anomaly as the new normal. It raises the alert for 2-3 cycles, then the EWMA baseline catches up and clears the alert — even though the attack is still ongoing. The detector goes blind to sustained attacks.',
+                svgDiff: '<svg viewBox="0 0 540 130" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="130" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="110" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — alpha = 0.1</text>' +
+                         '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">Slow baseline adaptation</text>' +
+                         '<text x="132" y="65" text-anchor="middle" fill="#4ade80" font-size="7">Anomaly stays z &gt; 2.0 for entire event</text>' +
+                         '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">Alert persists while attack is active</text>' +
+                         '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Baseline anchored to true normal</text>' +
+                         '<text x="132" y="110" text-anchor="middle" fill="#555" font-size="7">Catches sustained attacks</text>' +
+                         '<rect x="285" y="10" width="245" height="110" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — alpha = 0.5</text>' +
+                         '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">Fast baseline adaptation</text>' +
+                         '<text x="407" y="65" text-anchor="middle" fill="#ef4444" font-size="7">Alert fires 2-3 cycles</text>' +
+                         '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">Baseline catches up to attack level</text>' +
+                         '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">z-score drops to 0 — alert clears</text>' +
+                         '<text x="407" y="110" text-anchor="middle" fill="#ef4444" font-size="7">Ongoing attack: undetected</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'Calling complex functions inside the promiscuous mode callback',
+                correct: 'Keep the promiscuous callback as minimal as possible: increment packet counter, read RSSI, update MAC tracker. All complex logic (EWMA calculation, TFT updates, SD writes) must happen in the main loop, reading from volatile counters set by the callback.',
+                incorrect: 'Calling Serial.println(), SD.open(), or display.print() from inside the promiscuous mode callback. The callback runs in an interrupt-like context. These functions are not interrupt-safe and can corrupt memory, deadlock on mutexes, or cause a crash.',
+                consequence: 'Guru Meditation Error (stack overflow or mutex deadlock) or silent data corruption. The device reboots randomly, often only under heavy traffic. Stack traces will point to the callback, but the root cause is calling non-ISR-safe functions in an ISR context.',
+                svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Minimal callback</text>' +
+                         '<text x="132" y="48" text-anchor="middle" fill="#4ade80" font-size="7">callback: pktCount[ch]++;</text>' +
+                         '<text x="132" y="62" text-anchor="middle" fill="#4ade80" font-size="7">callback: rssiSum[ch] += rssi;</text>' +
+                         '<text x="132" y="76" text-anchor="middle" fill="#8b949e" font-size="7">loop(): run EWMA, update TFT</text>' +
+                         '<text x="132" y="90" text-anchor="middle" fill="#22c55e" font-size="7">Stable — no crashes</text>' +
+                         '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Complex callback</text>' +
+                         '<text x="407" y="48" text-anchor="middle" fill="#ef4444" font-size="7">callback: Serial.println(rssi);</text>' +
+                         '<text x="407" y="62" text-anchor="middle" fill="#ef4444" font-size="7">callback: display.print(count);</text>' +
+                         '<text x="407" y="76" text-anchor="middle" fill="#8b949e" font-size="7">ISR context: not safe</text>' +
+                         '<text x="407" y="90" text-anchor="middle" fill="#ef4444" font-size="7">Guru Meditation Error crash</text>' +
+                         '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -1012,7 +1946,232 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Automated Threat Intelligence</strong> &mdash; Write a cron job that runs <code>suricata-update</code> daily to pull fresh rules, then reloads Suricata. Add the Abuse.ch URLhaus and SSLBL rule sources for malware URL and SSL certificate blocklist detection. Log update results to a file the dashboard can display.</p>' +
                     '<p><strong>Challenge 2: Alert Correlation</strong> &mdash; Modify the Python parser to correlate alerts: if the same source IP triggers 3+ different rule categories within 5 minutes, escalate it as a "multi-stage attack" with a combined severity score. Display correlated incidents as a separate section in the dashboard.</p>' +
-                    '<p><strong>Challenge 3: SG-24 Integration</strong> &mdash; Add an API endpoint to the Flask dashboard that receives anomaly alerts from the ESP32 Network Anomaly Monitor (SG-24). When the ESP32 detects a traffic anomaly, it sends an HTTP POST to the Pi. The dashboard correlates the anomaly with any Suricata alerts from the same timeframe, giving you both statistical anomaly detection and signature-based detection in one view.</p>'
+                    '<p><strong>Challenge 3: SG-24 Integration</strong> &mdash; Add an API endpoint to the Flask dashboard that receives anomaly alerts from the ESP32 Network Anomaly Monitor (SG-24). When the ESP32 detects a traffic anomaly, it sends an HTTP POST to the Pi. The dashboard correlates the anomaly with any Suricata alerts from the same timeframe, giving you both statistical anomaly detection and signature-based detection in one view.</p>',
+
+        stepVisuals: {
+            // Step 1 (index 1): Network bridge diagram (transparent inline tap)
+            1: '<svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:640px">' +
+               '<defs><pattern id="sg25-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+               '<marker id="sg25-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ff6b35"/></marker></defs>' +
+               '<rect width="640" height="220" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="628" height="208" fill="url(#sg25-sv1-grid)" rx="4"/>' +
+               '<text x="320" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">TRANSPARENT NETWORK TAP — BRIDGE MODE</text>' +
+               // Internet/router
+               '<rect x="20" y="80" width="90" height="60" rx="5" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="65" y="107" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">ROUTER</text>' +
+               '<text x="65" y="122" text-anchor="middle" fill="#555" font-size="7">(internet)</text>' +
+               // Arrow: router -> eth0
+               '<line x1="112" y1="110" x2="148" y2="110" stroke="#ff6b35" stroke-width="2" marker-end="url(#sg25-arr)"/>' +
+               '<line x1="148" y1="110" x2="112" y2="110" stroke="#ff6b35" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sg25-arr)"/>' +
+               // Pi bridge
+               '<rect x="150" y="55" width="200" height="110" rx="8" fill="#1e2736" stroke="#ff6b35" stroke-width="2"/>' +
+               '<rect x="150" y="55" width="200" height="22" rx="8" fill="rgba(255,107,53,0.12)"/>' +
+               '<text x="250" y="71" text-anchor="middle" fill="#ff6b35" font-size="9" font-weight="600">Raspberry Pi 4 (Bridge)</text>' +
+               '<rect x="162" y="82" width="80" height="22" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+               '<text x="202" y="96" text-anchor="middle" fill="#60a5fa" font-size="7">eth0 (built-in)</text>' +
+               '<rect x="248" y="82" width="90" height="22" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+               '<text x="293" y="96" text-anchor="middle" fill="#22c55e" font-size="7">eth1 (USB adapter)</text>' +
+               '<rect x="162" y="112" width="176" height="22" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+               '<text x="250" y="126" text-anchor="middle" fill="#a855f7" font-size="7">br0 bridge — Suricata inspects here</text>' +
+               '<text x="250" y="148" text-anchor="middle" fill="#555" font-size="7">no IP on br0 — invisible to other devices</text>' +
+               // Arrow: eth1 -> switch
+               '<line x1="352" y1="110" x2="388" y2="110" stroke="#ff6b35" stroke-width="2" marker-end="url(#sg25-arr)"/>' +
+               '<line x1="388" y1="110" x2="352" y2="110" stroke="#ff6b35" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sg25-arr)"/>' +
+               // Network / clients
+               '<rect x="390" y="65" width="230" height="90" rx="5" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="505" y="88" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">Internal Network</text>' +
+               '<text x="505" y="105" text-anchor="middle" fill="#555" font-size="7">Laptops, phones, IoT devices</text>' +
+               '<text x="505" y="118" text-anchor="middle" fill="#555" font-size="7">Get DHCP from router (normal)</text>' +
+               '<text x="505" y="131" text-anchor="middle" fill="#555" font-size="7">traceroute: Pi not visible as hop</text>' +
+               // Suricata label
+               '<rect x="150" y="175" width="200" height="30" rx="4" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+               '<text x="250" y="194" text-anchor="middle" fill="#a855f7" font-size="8">Suricata: listens on br0 (all traffic)</text>' +
+               '</svg>',
+
+            // Step 5 (index 5): EVE JSON alert parsing flow
+            5: '<svg viewBox="0 0 620 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+               '<defs><pattern id="sg25-sv5-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+               '<marker id="sg25-arr2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#a855f7"/></marker></defs>' +
+               '<rect width="620" height="190" fill="#0d1117" rx="6"/>' +
+               '<rect x="6" y="6" width="608" height="178" fill="url(#sg25-sv5-grid)" rx="4"/>' +
+               '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">EVE JSON ALERT PIPELINE</text>' +
+               // Suricata -> EVE JSON
+               '<rect x="20" y="50" width="110" height="60" rx="5" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+               '<text x="75" y="74" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">Suricata</text>' +
+               '<text x="75" y="90" text-anchor="middle" fill="#555" font-size="7">rule match</text>' +
+               '<text x="75" y="102" text-anchor="middle" fill="#555" font-size="7">write EVE JSON</text>' +
+               '<line x1="132" y1="80" x2="168" y2="80" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg25-arr2)"/>' +
+               // EVE log file
+               '<rect x="170" y="50" width="130" height="60" rx="5" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<text x="235" y="70" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">eve.json</text>' +
+               '<text x="235" y="85" text-anchor="middle" fill="#555" font-size="7">/var/log/suricata/</text>' +
+               '<text x="235" y="100" text-anchor="middle" fill="#555" font-size="7">append-only, NDJSON</text>' +
+               '<line x1="302" y1="80" x2="338" y2="80" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg25-arr2)"/>' +
+               // Python parser
+               '<rect x="340" y="50" width="120" height="60" rx="5" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="400" y="70" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">eve_parser.py</text>' +
+               '<text x="400" y="85" text-anchor="middle" fill="#555" font-size="7">tail + json.loads()</text>' +
+               '<text x="400" y="100" text-anchor="middle" fill="#555" font-size="7">severity classify</text>' +
+               '<line x1="462" y1="80" x2="498" y2="80" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg25-arr2)"/>' +
+               // Flask dashboard
+               '<rect x="500" y="50" width="100" height="60" rx="5" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<text x="550" y="70" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="600">Flask</text>' +
+               '<text x="550" y="85" text-anchor="middle" fill="#555" font-size="7">web dashboard</text>' +
+               '<text x="550" y="100" text-anchor="middle" fill="#555" font-size="7">:5000</text>' +
+               // EVE JSON sample
+               '<rect x="20" y="130" width="580" height="44" rx="4" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5"/>' +
+               '<text x="30" y="148" fill="#a855f7" font-size="7" font-weight="600">EVE alert record:</text>' +
+               '<text x="30" y="164" fill="#555" font-size="6.5">{"timestamp":"2025-01-15T03:42:11","event_type":"alert","src_ip":"192.168.1.44","alert":{"signature":"ET SCAN Nmap","severity":2,"category":"Attempted Information Leak"}}</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+                 '<defs><pattern id="sg25-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="580" height="280" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="568" height="268" fill="url(#sg25-cc-grid)" rx="4"/>' +
+                 '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-25</text>' +
+                 // Pi 4
+                 '<g id="sg25-comp-pi">' +
+                 '<rect x="30" y="50" width="150" height="200" rx="8" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+                 '<rect x="30" y="50" width="150" height="22" rx="8" fill="rgba(255,107,53,0.12)"/>' +
+                 '<text x="105" y="66" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">Raspberry Pi 4</text>' +
+                 '<rect x="46" y="82" width="118" height="36" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+                 '<text x="105" y="103" text-anchor="middle" fill="#60a5fa" font-size="7">eth0 (WAN side)</text>' +
+                 '<rect x="46" y="123" width="118" height="36" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+                 '<text x="105" y="144" text-anchor="middle" fill="#22c55e" font-size="7">eth1 USB (LAN side)</text>' +
+                 '<rect x="46" y="164" width="118" height="36" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+                 '<text x="105" y="185" text-anchor="middle" fill="#a855f7" font-size="7">br0 bridge interface</text>' +
+                 '<rect x="46" y="205" width="118" height="36" rx="4" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+                 '<text x="105" y="226" text-anchor="middle" fill="#555" font-size="7">WiFi: dashboard only</text>' +
+                 '<circle id="sg25-dot-pi" cx="105" cy="100" r="7" fill="rgba(255,107,53,0.2)" stroke="#ff6b35" stroke-width="1.5"/>' +
+                 '<text x="105" y="104" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="700">1</text>' +
+                 '</g>' +
+                 // Suricata
+                 '<g id="sg25-comp-suri">' +
+                 '<rect x="205" y="50" width="155" height="100" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+                 '<rect x="205" y="50" width="155" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+                 '<text x="283" y="66" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">Suricata IDS</text>' +
+                 '<text x="283" y="88" text-anchor="middle" fill="#8b949e" font-size="7">Listens on br0</text>' +
+                 '<text x="283" y="103" text-anchor="middle" fill="#555" font-size="7">8M+ signatures (ET rules)</text>' +
+                 '<text x="283" y="118" text-anchor="middle" fill="#555" font-size="7">EVE JSON output</text>' +
+                 '<text x="283" y="133" text-anchor="middle" fill="#555" font-size="7">400+ Mbps on Pi 4</text>' +
+                 '<circle id="sg25-dot-suri" cx="283" cy="65" r="7" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+                 '<text x="283" y="69" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">2</text>' +
+                 '</g>' +
+                 // USB Ethernet
+                 '<g id="sg25-comp-eth">' +
+                 '<rect x="205" y="168" width="155" height="80" rx="8" fill="#1e2736" stroke="#06b6d4" stroke-width="1.5"/>' +
+                 '<rect x="205" y="168" width="155" height="22" rx="8" fill="rgba(6,182,212,0.12)"/>' +
+                 '<text x="283" y="184" text-anchor="middle" fill="#06b6d4" font-size="10" font-weight="600">USB Ethernet Adapter</text>' +
+                 '<text x="283" y="206" text-anchor="middle" fill="#8b949e" font-size="7">Provides eth1 (LAN side)</text>' +
+                 '<text x="283" y="221" text-anchor="middle" fill="#555" font-size="7">USB 3.0 preferred (&gt;400Mbps)</text>' +
+                 '<text x="283" y="236" text-anchor="middle" fill="#555" font-size="7">ASIX AX88179 chip recommended</text>' +
+                 '<circle id="sg25-dot-eth" cx="283" cy="183" r="7" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="1.5"/>' +
+                 '<text x="283" y="187" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="700">3</text>' +
+                 '</g>' +
+                 // EVE parser
+                 '<g id="sg25-comp-parser">' +
+                 '<rect x="385" y="50" width="170" height="90" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<rect x="385" y="50" width="170" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+                 '<text x="470" y="66" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Python EVE Parser</text>' +
+                 '<text x="470" y="88" text-anchor="middle" fill="#8b949e" font-size="7">tail -f eve.json</text>' +
+                 '<text x="470" y="103" text-anchor="middle" fill="#555" font-size="7">json.loads() each line</text>' +
+                 '<text x="470" y="118" text-anchor="middle" fill="#555" font-size="7">severity classify + count</text>' +
+                 '<circle id="sg25-dot-parser" cx="470" cy="65" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="470" y="69" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">4</text>' +
+                 '</g>' +
+                 // Flask dashboard
+                 '<g id="sg25-comp-flask">' +
+                 '<rect x="385" y="158" width="170" height="90" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<rect x="385" y="158" width="170" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+                 '<text x="470" y="174" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Flask Dashboard</text>' +
+                 '<text x="470" y="196" text-anchor="middle" fill="#8b949e" font-size="7">Live alerts table</text>' +
+                 '<text x="470" y="211" text-anchor="middle" fill="#555" font-size="7">Severity breakdown chart</text>' +
+                 '<text x="470" y="226" text-anchor="middle" fill="#555" font-size="7">Port 5000 — any device on WiFi</text>' +
+                 '<circle id="sg25-dot-flask" cx="470" cy="173" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="470" y="177" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">5</text>' +
+                 '</g>' +
+                 '</svg>',
+
+            components: [
+                {
+                    id: 'pi',
+                    name: 'Raspberry Pi 4 (IDS Appliance)',
+                    purpose: 'The physical network tap. The Pi sits between your router (eth0) and the rest of your network (eth1 via USB adapter), forming a transparent bridge (br0). All traffic crossing the bridge is available to Suricata. The bridge has no IP address on the monitored segment — it is invisible to other devices.',
+                    specs: ['BCM2711 1.5 GHz quad-core Cortex-A72', 'eth0: connects to router', 'eth1: USB Ethernet (connects to switch/devices)', 'br0: kernel bridge, no IP', 'WiFi: separate management interface for dashboard']
+                },
+                {
+                    id: 'suri',
+                    name: 'Suricata IDS/IPS Engine',
+                    purpose: 'The inspection engine. Suricata monitors all traffic on br0 and compares it against 8+ million rules from the Emerging Threats ruleset. Detects port scans, SQL injection, malware C2 callbacks, brute force, DNS anomalies, and thousands of other attack patterns. Writes structured JSON alerts to eve.json.',
+                    specs: ['Version: 7.x (install from PPA)', 'Interface: br0 in AF_PACKET mode', 'Rules: Emerging Threats Free (suricata-update)', '8M+ signatures', 'Throughput: 400+ Mbps on Pi 4 (4-thread mode)']
+                },
+                {
+                    id: 'eth',
+                    name: 'USB Ethernet Adapter (eth1)',
+                    purpose: 'Provides the second Ethernet port. The Pi 4 only has one built-in Ethernet port (eth0). A USB 3.0 Ethernet adapter provides eth1. Both interfaces are added to the Linux kernel bridge (br0) using brctl. All traffic passing between the two interfaces is captured by Suricata.',
+                    specs: ['USB 3.0 (not 2.0 — need the bandwidth)', 'ASIX AX88179 chipset (recommended)', 'Plug into USB 3.0 (blue) port on Pi 4', 'Linux auto-detects as eth1 or enx...', 'No additional drivers needed in Pi OS']
+                },
+                {
+                    id: 'parser',
+                    name: 'Python EVE JSON Parser',
+                    purpose: 'The alert processor. Reads Suricata\'s eve.json log file line by line using tail-style reading. Each line is a complete JSON record (NDJSON format). The parser extracts alert fields, classifies severity (1=high, 2=medium, 3=low), counts by category and source IP, and feeds the Flask dashboard.',
+                    specs: ['Reads /var/log/suricata/eve.json', 'json.loads() each newline-delimited record', 'Filter: event_type == "alert"', 'Severity: 1=critical, 2=major, 3=informational', 'In-memory deque for last 1000 alerts']
+                },
+                {
+                    id: 'flask',
+                    name: 'Flask Real-Time Dashboard',
+                    purpose: 'The alert interface. A Flask web app served on port 5000 shows live alerts in a table, severity breakdown, top source IPs, and rule category distribution. Accessible from any device on the WiFi network. No authentication by default — add HTTP basic auth before exposing to untrusted networks.',
+                    specs: ['Flask 3.x + Jinja2 templates', 'Port 5000, all interfaces (0.0.0.0)', 'Auto-refresh every 30 seconds', 'Alert table: timestamp, src_ip, signature, severity', 'Summary cards: total, critical, major, info counts']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'HOME_NET not configured — Suricata alerts on its own traffic',
+                correct: 'Set HOME_NET: "[192.168.1.0/24]" in suricata.yaml to match your actual LAN subnet. HOME_NET tells Suricata which IP addresses belong to your internal network. Rules that fire on "external -> internal" traffic use HOME_NET to determine direction.',
+                incorrect: 'Leaving HOME_NET as the default value "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]" when your actual network is 192.168.1.0/24. Suricata treats traffic incorrectly, and some directional rules fire when they should not — or fail to fire when they should.',
+                consequence: 'Thousands of false positives from your own devices scanning each other, or directional rules (like "external IP scanning internal host") missing entirely. The alert dashboard fills with noise and real alerts are buried.',
+                svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Specific HOME_NET</text>' +
+                         '<text x="132" y="52" text-anchor="middle" fill="#4ade80" font-size="7">vars:</text>' +
+                         '<text x="132" y="67" text-anchor="middle" fill="#4ade80" font-size="8">  HOME_NET: "[192.168.1.0/24]"</text>' +
+                         '<text x="132" y="84" text-anchor="middle" fill="#8b949e" font-size="7">Matches your actual LAN</text>' +
+                         '<text x="132" y="99" text-anchor="middle" fill="#22c55e" font-size="7">Rules fire correctly</text>' +
+                         '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Default HOME_NET</text>' +
+                         '<text x="407" y="52" text-anchor="middle" fill="#ef4444" font-size="7">HOME_NET: "[192.168.0.0/16,...]"</text>' +
+                         '<text x="407" y="67" text-anchor="middle" fill="#8b949e" font-size="7">Too broad — captures everything</text>' +
+                         '<text x="407" y="84" text-anchor="middle" fill="#ef4444" font-size="7">Directional rules misfiring</text>' +
+                         '<text x="407" y="99" text-anchor="middle" fill="#ef4444" font-size="7">Alert storm: false positives</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'Suricata listening on eth0 or eth1 instead of br0',
+                correct: 'Configure Suricata to listen on br0 (the bridge interface): "af-packet: - interface: br0" in suricata.yaml. The bridge interface sees ALL traffic passing between both sides — traffic that goes eth0 -> br0 -> eth1 and vice versa.',
+                incorrect: 'Configuring Suricata to listen on eth0 only. Suricata then sees only traffic between the router and the Pi itself (management traffic, DHCP, etc.). It misses all the client device traffic that passes through the bridge from eth1.',
+                consequence: 'Suricata appears to be running fine (no errors) but generates almost no alerts. A port scan of your network from outside produces zero detections. The IDS is blind to 95% of your actual traffic.',
+                svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                         '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Listen on br0</text>' +
+                         '<text x="132" y="52" text-anchor="middle" fill="#4ade80" font-size="7">af-packet:</text>' +
+                         '<text x="132" y="67" text-anchor="middle" fill="#4ade80" font-size="8">  - interface: br0</text>' +
+                         '<text x="132" y="84" text-anchor="middle" fill="#8b949e" font-size="7">Sees all bridged traffic</text>' +
+                         '<text x="132" y="99" text-anchor="middle" fill="#22c55e" font-size="7">Full coverage</text>' +
+                         '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Listen on eth0</text>' +
+                         '<text x="407" y="52" text-anchor="middle" fill="#ef4444" font-size="7">af-packet:</text>' +
+                         '<text x="407" y="67" text-anchor="middle" fill="#ef4444" font-size="8">  - interface: eth0</text>' +
+                         '<text x="407" y="84" text-anchor="middle" fill="#8b949e" font-size="7">Only sees Pi mgmt traffic</text>' +
+                         '<text x="407" y="99" text-anchor="middle" fill="#ef4444" font-size="7">Misses 95% of network traffic</text>' +
+                         '</svg>'
+            }
+        ]
     }
 
 };

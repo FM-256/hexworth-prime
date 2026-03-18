@@ -52,6 +52,11 @@ const MessagingWidget = (function() {
                 color: #06b6d4;
             }
 
+            .msg-header-btn:focus-visible {
+                outline: 2px solid #06b6d4;
+                outline-offset: 2px;
+            }
+
             .msg-header-btn .msg-icon {
                 width: 16px;
                 height: 16px;
@@ -140,6 +145,11 @@ const MessagingWidget = (function() {
 
             .msg-panel-close:hover {
                 color: #e6edf3;
+            }
+
+            .msg-panel-close:focus-visible {
+                outline: 2px solid #06b6d4;
+                outline-offset: 2px;
             }
 
             .msg-panel-body {
@@ -246,6 +256,11 @@ const MessagingWidget = (function() {
             .msg-panel-footer a:hover {
                 background: rgba(6,182,212,0.2);
             }
+
+            .msg-panel-footer a:focus-visible {
+                outline: 2px solid #06b6d4;
+                outline-offset: 2px;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -309,6 +324,23 @@ const MessagingWidget = (function() {
 
         document.getElementById('msgPanelClose').addEventListener('click', closePanel);
 
+        // Keyboard: Escape to close, focus trap within panel
+        document.addEventListener('keydown', function(e) {
+            if (!panelOpen) return;
+            if (e.key === 'Escape') { closePanel(); return; }
+            if (e.key === 'Tab') {
+                const focusable = panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (!focusable.length) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+                } else {
+                    if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+                }
+            }
+        });
+
         return true;
     }
 
@@ -324,17 +356,28 @@ const MessagingWidget = (function() {
         }
     }
 
+    let _panelTrigger = null;
+
     function openPanel() {
+        _panelTrigger = document.activeElement;
         panelOpen = true;
         document.getElementById('msgPanelOverlay').classList.add('open');
         document.getElementById('msgPanel').classList.add('open');
         loadRecentConversations();
+        // Focus the close button for keyboard users
+        const closeBtn = document.getElementById('msgPanelClose');
+        if (closeBtn) closeBtn.focus();
     }
 
     function closePanel() {
         panelOpen = false;
         document.getElementById('msgPanelOverlay').classList.remove('open');
         document.getElementById('msgPanel').classList.remove('open');
+        // Return focus to trigger
+        if (_panelTrigger && typeof _panelTrigger.focus === 'function') {
+            _panelTrigger.focus();
+            _panelTrigger = null;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -383,7 +426,18 @@ const MessagingWidget = (function() {
 
             body.innerHTML = '';
 
-            for (const doc of snap.docs) {
+            // Filter out conversations hidden by this user
+            const visibleDocs = snap.docs.filter(d => {
+                const data = d.data();
+                return !data.hiddenBy || !data.hiddenBy.includes(currentUid);
+            });
+
+            if (visibleDocs.length === 0) {
+                body.innerHTML = '<div class="msg-panel-empty">No messages yet.</div>';
+                return;
+            }
+
+            for (const doc of visibleDocs) {
                 const conv = doc.data();
                 const otherUid = conv.participants.find(uid => uid !== currentUid);
 

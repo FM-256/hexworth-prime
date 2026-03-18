@@ -527,7 +527,287 @@ sudo /usr/local/bin/lock-vault.sh`,
             <li><strong>Two-factor dead drop</strong> — Require a one-time password to access the drop. Generate TOTP codes using <code>pyotp</code> and display a QR code for the recipient to scan into their authenticator app.</li>
             <li><strong>Steganographic mode</strong> — Instead of storing files directly, embed them inside innocent-looking images using LSB steganography. The vault looks like a folder of vacation photos, but each image contains a hidden payload.</li>
         </ul>
-    `
+    `,
+
+    stepVisuals: {
+        // Step 1 (index 1): LUKS encryption layer diagram
+        1: '<svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:640px">' +
+           '<defs><pattern id="sg16-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="640" height="220" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="628" height="208" fill="url(#sg16-sv1-grid)" rx="4"/>' +
+           '<text x="320" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">LUKS2 DISK ENCRYPTION LAYERS</text>' +
+           // Raw USB block device
+           '<rect x="30" y="45" width="120" height="140" rx="6" fill="#1a1f2b" stroke="#555" stroke-width="1"/>' +
+           '<rect x="30" y="45" width="120" height="22" rx="6" fill="rgba(255,255,255,0.05)"/>' +
+           '<text x="90" y="60" text-anchor="middle" fill="#8b949e" font-size="9" font-weight="600">/dev/sda</text>' +
+           '<text x="90" y="78" text-anchor="middle" fill="#555" font-size="7">Raw block device</text>' +
+           '<text x="90" y="92" text-anchor="middle" fill="#555" font-size="7">USB flash drive</text>' +
+           '<rect x="45" y="105" width="90" height="28" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+           '<text x="90" y="122" text-anchor="middle" fill="#ef4444" font-size="7">LUKS2 header</text>' +
+           '<text x="90" y="133" text-anchor="middle" fill="#ef4444" font-size="5.5">16 MB metadata</text>' +
+           '<rect x="45" y="138" width="90" height="34" rx="3" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+           '<text x="90" y="157" text-anchor="middle" fill="#a855f7" font-size="7">Encrypted payload</text>' +
+           '<text x="90" y="168" text-anchor="middle" fill="#a855f7" font-size="5.5">AES-256-XTS</text>' +
+           // Arrow
+           '<line x1="152" y1="110" x2="190" y2="110" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>' +
+           '<polygon points="190,106 198,110 190,114" fill="#ff6b35" opacity="0.7"/>' +
+           '<text x="171" y="105" text-anchor="middle" fill="#ff6b35" font-size="7">unlock</text>' +
+           // Unlocked view
+           '<rect x="200" y="45" width="140" height="140" rx="6" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<rect x="200" y="45" width="140" height="22" rx="6" fill="rgba(34,197,94,0.1)"/>' +
+           '<text x="270" y="60" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">/dev/mapper/vault</text>' +
+           '<text x="270" y="78" text-anchor="middle" fill="#8b949e" font-size="7">Decrypted block device</text>' +
+           '<rect x="215" y="90" width="110" height="24" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+           '<text x="270" y="105" text-anchor="middle" fill="#4ade80" font-size="7">/drops/  (files)</text>' +
+           '<rect x="215" y="120" width="110" height="24" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+           '<text x="270" y="135" text-anchor="middle" fill="#eab308" font-size="7">/messages/ (self-destruct)</text>' +
+           '<rect x="215" y="150" width="110" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+           '<text x="270" y="164" text-anchor="middle" fill="#555" font-size="7">ext4 filesystem</text>' +
+           // Arrow 2
+           '<line x1="342" y1="110" x2="380" y2="110" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>' +
+           '<polygon points="380,106 388,110 380,114" fill="#ff6b35" opacity="0.7"/>' +
+           '<text x="361" y="105" text-anchor="middle" fill="#ff6b35" font-size="7">mount</text>' +
+           // Mount point
+           '<rect x="390" y="45" width="130" height="140" rx="6" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<rect x="390" y="45" width="130" height="22" rx="6" fill="rgba(59,130,246,0.1)"/>' +
+           '<text x="455" y="60" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">/mnt/vault</text>' +
+           '<text x="455" y="78" text-anchor="middle" fill="#8b949e" font-size="7">Flask reads/writes here</text>' +
+           '<text x="455" y="96" text-anchor="middle" fill="#555" font-size="7">Normal directory</text>' +
+           '<text x="455" y="111" text-anchor="middle" fill="#555" font-size="7">transparent to Python</text>' +
+           '<rect x="405" y="130" width="100" height="22" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+           '<text x="455" y="145" text-anchor="middle" fill="#ef4444" font-size="7">locked on shutdown</text>' +
+           // Key icon
+           '<rect x="534" y="88" width="96" height="40" rx="4" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.25)" stroke-width="0.5"/>' +
+           '<text x="582" y="104" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">Keyfile</text>' +
+           '<text x="582" y="118" text-anchor="middle" fill="#a3860f" font-size="6">/root/.vault.key</text>' +
+           '</svg>',
+
+        // Step 3 (index 3): Flask dead drop app data flow
+        3: '<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:640px">' +
+           '<defs><pattern id="sg16-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg16-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ff6b35"/></marker></defs>' +
+           '<rect width="640" height="200" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="628" height="188" fill="url(#sg16-sv3-grid)" rx="4"/>' +
+           '<text x="320" y="24" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">DEAD DROP FLASK APP — DATA FLOW</text>' +
+           // Client
+           '<rect x="20" y="50" width="110" height="110" rx="6" fill="#1e2736" stroke="#06b6d4" stroke-width="1.5"/>' +
+           '<rect x="20" y="50" width="110" height="20" rx="6" fill="rgba(6,182,212,0.1)"/>' +
+           '<text x="75" y="64" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="600">CLIENT</text>' +
+           '<text x="75" y="84" text-anchor="middle" fill="#8b949e" font-size="7">Phone / Laptop</text>' +
+           '<text x="75" y="97" text-anchor="middle" fill="#555" font-size="7">browser on</text>' +
+           '<text x="75" y="109" text-anchor="middle" fill="#555" font-size="7">Pi WiFi AP</text>' +
+           '<text x="75" y="145" text-anchor="middle" fill="#22c55e" font-size="7">192.168.4.2</text>' +
+           // Arrow: upload
+           '<line x1="132" y1="80" x2="195" y2="80" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg16-arr)"/>' +
+           '<text x="163" y="74" text-anchor="middle" fill="#22c55e" font-size="7">POST /upload</text>' +
+           // Arrow: download
+           '<line x1="195" y1="110" x2="132" y2="110" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#sg16-arr)"/>' +
+           '<text x="163" y="130" text-anchor="middle" fill="#3b82f6" font-size="7">GET /download</text>' +
+           // Flask server
+           '<rect x="197" y="40" width="140" height="130" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<rect x="197" y="40" width="140" height="20" rx="6" fill="rgba(34,197,94,0.1)"/>' +
+           '<text x="267" y="54" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">FLASK :5000</text>' +
+           '<rect x="210" y="68" width="114" height="20" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+           '<text x="267" y="81" text-anchor="middle" fill="#8b949e" font-size="7">/upload (POST)</text>' +
+           '<rect x="210" y="92" width="114" height="20" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+           '<text x="267" y="105" text-anchor="middle" fill="#8b949e" font-size="7">/download (GET)</text>' +
+           '<rect x="210" y="116" width="114" height="20" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+           '<text x="267" y="129" text-anchor="middle" fill="#eab308" font-size="7">/message (self-destruct)</text>' +
+           '<text x="267" y="158" text-anchor="middle" fill="#555" font-size="7">Pi Zero 2 W :5000</text>' +
+           // Arrow to vault
+           '<line x1="339" y1="95" x2="395" y2="95" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg16-arr)"/>' +
+           '<text x="367" y="88" text-anchor="middle" fill="#ff6b35" font-size="7">read/write</text>' +
+           // Vault
+           '<rect x="397" y="40" width="120" height="130" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+           '<rect x="397" y="40" width="120" height="20" rx="6" fill="rgba(168,85,247,0.1)"/>' +
+           '<text x="457" y="54" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">LUKS VAULT</text>' +
+           '<text x="457" y="75" text-anchor="middle" fill="#555" font-size="7">/mnt/vault/</text>' +
+           '<rect x="410" y="82" width="94" height="20" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+           '<text x="457" y="95" text-anchor="middle" fill="#4ade80" font-size="7">drops/</text>' +
+           '<rect x="410" y="106" width="94" height="20" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+           '<text x="457" y="119" text-anchor="middle" fill="#ef4444" font-size="7">messages/ (delete after read)</text>' +
+           '<text x="457" y="157" text-anchor="middle" fill="#555" font-size="7">AES-256-XTS encrypted</text>' +
+           // Self-destruct note
+           '<rect x="520" y="88" width="110" height="38" rx="4" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+           '<text x="575" y="103" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">Self-Destruct</text>' +
+           '<text x="575" y="116" text-anchor="middle" fill="#ef4444" font-size="6">os.unlink() after</text>' +
+           '<text x="575" y="126" text-anchor="middle" fill="#ef4444" font-size="6">first read</text>' +
+           '</svg>'
+    },
+
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 580 300" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+             '<defs><pattern id="sg16-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="580" height="300" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="568" height="288" fill="url(#sg16-cc-grid)" rx="4"/>' +
+             '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-16</text>' +
+             // Pi Zero 2 W board
+             '<g id="sg16-comp-pi">' +
+             '<rect x="30" y="50" width="160" height="200" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<rect x="30" y="50" width="160" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+             '<text x="110" y="66" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Pi Zero 2 W</text>' +
+             '<rect x="50" y="85" width="60" height="44" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+             '<text x="80" y="103" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">RP3A0-AU</text>' +
+             '<text x="80" y="116" text-anchor="middle" fill="#555" font-size="5.5">64-bit quad-core</text>' +
+             '<rect x="120" y="85" width="56" height="44" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+             '<text x="148" y="103" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">WiFi</text>' +
+             '<text x="148" y="116" text-anchor="middle" fill="#555" font-size="5.5">802.11 b/g/n</text>' +
+             // USB OTG port
+             '<rect x="48" y="145" width="44" height="22" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+             '<text x="70" y="159" text-anchor="middle" fill="#eab308" font-size="6">USB OTG</text>' +
+             // MicroSD slot
+             '<rect x="48" y="175" width="44" height="22" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+             '<text x="70" y="189" text-anchor="middle" fill="#a855f7" font-size="6">MicroSD</text>' +
+             // GPIO
+             '<rect x="100" y="145" width="74" height="52" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="137" y="175" text-anchor="middle" fill="#555" font-size="6">40-pin GPIO</text>' +
+             // Callout dots
+             '<circle id="sg16-dot-pi" cx="110" cy="120" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<text x="110" y="124" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">1</text>' +
+             '</g>' +
+             // USB Drive
+             '<g id="sg16-comp-usb">' +
+             '<rect x="220" y="80" width="140" height="80" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+             '<rect x="220" y="80" width="140" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+             '<text x="290" y="96" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">USB Drive (LUKS2)</text>' +
+             '<rect x="232" y="110" width="50" height="36" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+             '<text x="257" y="132" text-anchor="middle" fill="#ef4444" font-size="6.5">LUKS hdr</text>' +
+             '<rect x="288" y="110" width="58" height="36" rx="3" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+             '<text x="317" y="132" text-anchor="middle" fill="#a855f7" font-size="6.5">enc. ext4</text>' +
+             '<circle id="sg16-dot-usb" cx="290" cy="95" r="7" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>' +
+             '<text x="290" y="99" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">2</text>' +
+             '</g>' +
+             // OTG Adapter
+             '<g id="sg16-comp-otg">' +
+             '<rect x="220" y="185" width="140" height="60" rx="8" fill="#1e2736" stroke="#f59e0b" stroke-width="1.5"/>' +
+             '<rect x="220" y="185" width="140" height="22" rx="8" fill="rgba(245,158,11,0.12)"/>' +
+             '<text x="290" y="200" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="600">USB OTG Adapter</text>' +
+             '<text x="290" y="225" text-anchor="middle" fill="#8b949e" font-size="7">Micro-USB to USB-A</text>' +
+             '<circle id="sg16-dot-otg" cx="290" cy="200" r="7" fill="rgba(245,158,11,0.2)" stroke="#f59e0b" stroke-width="1.5"/>' +
+             '<text x="290" y="204" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="700">3</text>' +
+             '</g>' +
+             // Flask box
+             '<g id="sg16-comp-flask">' +
+             '<rect x="390" y="80" width="160" height="80" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<rect x="390" y="80" width="160" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+             '<text x="470" y="96" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Flask App</text>' +
+             '<text x="470" y="116" text-anchor="middle" fill="#8b949e" font-size="7">Python web server</text>' +
+             '<text x="470" y="131" text-anchor="middle" fill="#555" font-size="7">binds 0.0.0.0:5000</text>' +
+             '<text x="470" y="148" text-anchor="middle" fill="#555" font-size="7">serves WiFi AP clients</text>' +
+             '<circle id="sg16-dot-flask" cx="470" cy="96" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<text x="470" y="100" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">4</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'pi',
+                name: 'Raspberry Pi Zero 2 W',
+                purpose: 'The server brain. Hosts the Flask web app, manages LUKS key unlocking, and broadcasts the WiFi access point. Consumes under 1W at idle — runs indefinitely on a power bank.',
+                specs: ['ARM Cortex-A53 quad-core 1 GHz', '512 MB LPDDR2 RAM', '802.11 b/g/n 2.4 GHz WiFi', 'USB OTG (host/device)', '~$15']
+            },
+            {
+                id: 'usb',
+                name: 'LUKS2-Encrypted USB Drive',
+                purpose: 'The vault. Stores all dead drop files inside a LUKS2 encrypted container using AES-256-XTS. Without the keyfile stored on the Pi, the data is unreadable — even with physical access to the drive.',
+                specs: ['LUKS2 header (16 MB)', 'AES-256-XTS cipher', 'Argon2 KDF (memory-hard)', 'ext4 inner filesystem']
+            },
+            {
+                id: 'otg',
+                name: 'USB OTG Adapter',
+                purpose: 'The Pi Zero only has one Micro-USB data port, and it defaults to device mode. The OTG adapter switches it to host mode so the Pi can act as a USB controller and recognize the plugged-in flash drive.',
+                specs: ['Micro-USB (male) to USB-A (female)', 'Enables USB host mode', 'No active components — pure passive adapter', 'Essential — Pi Zero cannot detect drives without it']
+            },
+            {
+                id: 'flask',
+                name: 'Flask Web Application',
+                purpose: 'The interface. Provides file upload, download, and self-destructing message endpoints. Runs as a systemd service. Only accessible to devices connected to the Pi\'s WiFi AP — not the internet.',
+                specs: ['Python Flask 3.x', 'Binds on 0.0.0.0:5000', 'File uploads stored to /mnt/vault/drops/', 'Messages deleted on first read (os.unlink)']
+            }
+        ]
+    },
+
+    commonMistakes: [
+        {
+            title: 'Storing the keyfile on the encrypted drive itself',
+            correct: 'Keep the keyfile on the Pi\'s SD card at /root/.vault.key (or better, derive it from a passphrase). The security model depends on the key being physically separate from the encrypted data.',
+            incorrect: 'Placing the keyfile inside /mnt/vault/ or on the USB drive itself means the key and the lock are in the same place — anyone with the USB drive can unlock it without the Pi.',
+            consequence: 'Complete security failure. The LUKS encryption is bypassed because the attacker finds the key alongside the ciphertext.',
+            svgDiff: '<svg viewBox="0 0 540 160" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="160" fill="#0d1117" rx="6"/>' +
+                     // Correct side
+                     '<rect x="10" y="10" width="245" height="140" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT</text>' +
+                     '<rect x="25" y="40" width="80" height="50" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+                     '<text x="65" y="59" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Pi SD Card</text>' +
+                     '<rect x="35" y="65" width="60" height="18" rx="2" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.5"/>' +
+                     '<text x="65" y="77" text-anchor="middle" fill="#eab308" font-size="6">.vault.key</text>' +
+                     '<rect x="125" y="40" width="80" height="50" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="165" y="59" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">USB Drive</text>' +
+                     '<rect x="135" y="65" width="60" height="18" rx="2" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.4)" stroke-width="0.5"/>' +
+                     '<text x="165" y="77" text-anchor="middle" fill="#a855f7" font-size="6">enc. data</text>' +
+                     '<line x1="107" y1="65" x2="123" y2="65" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+                     '<text x="132" y="115" text-anchor="middle" fill="#4ade80" font-size="7">Key and data physically separate</text>' +
+                     '<text x="132" y="130" text-anchor="middle" fill="#4ade80" font-size="7">USB theft does NOT equal access</text>' +
+                     // Wrong side
+                     '<rect x="285" y="10" width="245" height="140" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE</text>' +
+                     '<rect x="300" y="40" width="80" height="50" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="340" y="59" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">USB Drive</text>' +
+                     '<rect x="310" y="65" width="60" height="18" rx="2" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.5"/>' +
+                     '<text x="340" y="77" text-anchor="middle" fill="#eab308" font-size="6">.vault.key</text>' +
+                     '<rect x="395" y="40" width="80" height="50" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+                     '<text x="435" y="59" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">USB Drive</text>' +
+                     '<rect x="405" y="65" width="60" height="18" rx="2" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.4)" stroke-width="0.5"/>' +
+                     '<text x="435" y="77" text-anchor="middle" fill="#a855f7" font-size="6">enc. data</text>' +
+                     '<text x="375" y="55" text-anchor="middle" fill="#ef4444" font-size="8">=</text>' +
+                     '<text x="407" y="115" text-anchor="middle" fill="#ef4444" font-size="7">Key and data on same device</text>' +
+                     '<text x="407" y="130" text-anchor="middle" fill="#ef4444" font-size="7">Attacker steals both at once</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Flask bound to 127.0.0.1 instead of 0.0.0.0',
+            correct: 'Run Flask with app.run(host="0.0.0.0", port=5000). This binds to all network interfaces — including the WiFi AP interface (wlan0) — so clients on the AP can reach the dead drop.',
+            incorrect: 'Leaving Flask at the default host="127.0.0.1" binds only to localhost. The server runs fine on the Pi, but no external client can connect to it, even on the same WiFi AP.',
+            consequence: 'The dead drop is inaccessible. All connection attempts from client devices time out. No error is thrown on the Pi side — the server is running but invisible to the network.',
+            svgDiff: '<svg viewBox="0 0 540 140" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="140" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="120" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT</text>' +
+                     '<rect x="25" y="38" width="215" height="30" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+                     '<text x="132" y="57" text-anchor="middle" fill="#4ade80" font-size="9">app.run(host="0.0.0.0", port=5000)</text>' +
+                     '<text x="132" y="88" text-anchor="middle" fill="#8b949e" font-size="7">Binds to all interfaces</text>' +
+                     '<text x="132" y="103" text-anchor="middle" fill="#4ade80" font-size="7">Clients on WiFi AP can connect</text>' +
+                     '<rect x="285" y="10" width="245" height="120" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE</text>' +
+                     '<rect x="300" y="38" width="215" height="30" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+                     '<text x="407" y="57" text-anchor="middle" fill="#ef4444" font-size="9">app.run(host="127.0.0.1", port=5000)</text>' +
+                     '<text x="407" y="88" text-anchor="middle" fill="#8b949e" font-size="7">Binds only to loopback</text>' +
+                     '<text x="407" y="103" text-anchor="middle" fill="#ef4444" font-size="7">External clients: connection refused</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Not unmounting LUKS before unplugging the USB drive',
+            correct: 'Always run the shutdown script first: umount /mnt/vault, then cryptsetup luksClose vault. This flushes all write buffers and properly closes the crypto device before the drive is physically removed.',
+            incorrect: 'Yanking the USB drive while the encrypted filesystem is still mounted. Linux may have unflushed writes in memory. The filesystem can become corrupted and may not unlock on the next boot.',
+            consequence: 'Filesystem corruption inside the encrypted container. In severe cases, the LUKS header itself can be partially written, making the drive unrecoverable. Run fsck inside the decrypted mapper device to attempt repair.',
+            svgDiff: '<svg viewBox="0 0 540 130" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="130" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="110" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT</text>' +
+                     '<text x="132" y="52" text-anchor="middle" fill="#4ade80" font-size="7">1. sudo umount /mnt/vault</text>' +
+                     '<text x="132" y="67" text-anchor="middle" fill="#4ade80" font-size="7">2. sudo cryptsetup luksClose vault</text>' +
+                     '<text x="132" y="82" text-anchor="middle" fill="#8b949e" font-size="7">3. Verify: ls /dev/mapper/ (vault gone)</text>' +
+                     '<text x="132" y="97" text-anchor="middle" fill="#4ade80" font-size="7">4. Safely unplug</text>' +
+                     '<rect x="285" y="10" width="245" height="110" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE</text>' +
+                     '<text x="407" y="52" text-anchor="middle" fill="#ef4444" font-size="7">1. (nothing) — just yank the drive</text>' +
+                     '<text x="407" y="67" text-anchor="middle" fill="#8b949e" font-size="7">Write buffers not flushed</text>' +
+                     '<text x="407" y="82" text-anchor="middle" fill="#ef4444" font-size="7">Filesystem corruption possible</text>' +
+                     '<text x="407" y="97" text-anchor="middle" fill="#ef4444" font-size="7">LUKS header may be damaged</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 // =============================================================================
@@ -966,7 +1246,247 @@ print("=" * 50)`,
             <li><strong>Build a DIY Faraday pouch</strong> — Using your test results, construct a pouch from the best-performing material (likely multiple layers of foil with conductive tape at seams). Test it against the commercial bag. Can you match or beat it?</li>
             <li><strong>Add TFT visualization</strong> — If you have an ESP32 CYD, port the scanner to display a real-time bar chart of RSSI on the TFT, with a horizontal line showing the baseline. This turns the tool into a portable RF shielding tester.</li>
         </ul>
-    `
+    `,
+
+    stepVisuals: {
+        // Step 0 (index 0): RSSI scale diagram
+        0: '<svg viewBox="0 0 620 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+           '<defs><pattern id="sg17-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="620" height="190" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="608" height="178" fill="url(#sg17-sv0-grid)" rx="4"/>' +
+           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">RSSI dBm SCALE — SIGNAL STRENGTH</text>' +
+           // Scale bar
+           '<defs>' +
+           '<linearGradient id="rssi-grad" x1="0" y1="0" x2="1" y2="0">' +
+           '<stop offset="0%" stop-color="#ef4444"/>' +
+           '<stop offset="40%" stop-color="#eab308"/>' +
+           '<stop offset="75%" stop-color="#22c55e"/>' +
+           '<stop offset="100%" stop-color="#22c55e" stop-opacity="0.4"/>' +
+           '</linearGradient>' +
+           '</defs>' +
+           '<rect x="40" y="55" width="540" height="28" rx="4" fill="url(#rssi-grad)" opacity="0.6"/>' +
+           // dBm tick marks
+           '<line x1="40" y1="83" x2="40" y2="95" stroke="#555" stroke-width="1"/>' +
+           '<text x="40" y="108" text-anchor="middle" fill="#8b949e" font-size="8">-30</text>' +
+           '<line x1="175" y1="83" x2="175" y2="95" stroke="#555" stroke-width="1"/>' +
+           '<text x="175" y="108" text-anchor="middle" fill="#8b949e" font-size="8">-50</text>' +
+           '<line x1="310" y1="83" x2="310" y2="95" stroke="#555" stroke-width="1"/>' +
+           '<text x="310" y="108" text-anchor="middle" fill="#8b949e" font-size="8">-65</text>' +
+           '<line x1="445" y1="83" x2="445" y2="95" stroke="#555" stroke-width="1"/>' +
+           '<text x="445" y="108" text-anchor="middle" fill="#8b949e" font-size="8">-80</text>' +
+           '<line x1="580" y1="83" x2="580" y2="95" stroke="#555" stroke-width="1"/>' +
+           '<text x="580" y="108" text-anchor="middle" fill="#8b949e" font-size="8">-95+</text>' +
+           '<text x="310" y="47" text-anchor="middle" fill="#555" font-size="7">stronger (less negative)</text>' +
+           '<text x="40" y="47" text-anchor="middle" fill="#ef4444" font-size="7">excellent</text>' +
+           '<text x="580" y="47" text-anchor="middle" fill="#555" font-size="7">no signal</text>' +
+           // Baseline marker
+           '<line x1="175" y1="45" x2="175" y2="115" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+           '<text x="175" y="125" text-anchor="middle" fill="#ff6b35" font-size="7">typical baseline</text>' +
+           // Shielded marker
+           '<line x1="500" y1="45" x2="500" y2="115" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+           '<text x="500" y="125" text-anchor="middle" fill="#a855f7" font-size="7">shielded reading</text>' +
+           // Attenuation label
+           '<line x1="175" y1="155" x2="500" y2="155" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<polygon points="175,151 167,155 175,159" fill="#22c55e"/>' +
+           '<polygon points="500,151 508,155 500,159" fill="#22c55e"/>' +
+           '<text x="337" y="170" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">Attenuation = (-50) - (-85) = 35 dB</text>' +
+           '</svg>',
+
+        // Step 4 (index 4): Shielding material comparison table
+        4: '<svg viewBox="0 0 620 230" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+           '<defs><pattern id="sg17-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="620" height="230" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="608" height="218" fill="url(#sg17-sv4-grid)" rx="4"/>' +
+           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">TYPICAL SHIELDING ATTENUATION BY MATERIAL</text>' +
+           // Table header
+           '<rect x="20" y="40" width="580" height="22" rx="3" fill="rgba(255,255,255,0.04)"/>' +
+           '<text x="100" y="55" text-anchor="middle" fill="#8b949e" font-size="8" font-weight="600">Material</text>' +
+           '<text x="280" y="55" text-anchor="middle" fill="#8b949e" font-size="8" font-weight="600">WiFi Attenuation</text>' +
+           '<text x="420" y="55" text-anchor="middle" fill="#8b949e" font-size="8" font-weight="600">BLE Attenuation</text>' +
+           '<text x="545" y="55" text-anchor="middle" fill="#8b949e" font-size="8" font-weight="600">Rating</text>' +
+           // Rows
+           '<rect x="20" y="64" width="580" height="22" rx="0" fill="rgba(239,68,68,0.04)"/>' +
+           '<text x="100" y="79" text-anchor="middle" fill="#8b949e" font-size="8">Plastic bag (control)</text>' +
+           '<text x="280" y="79" text-anchor="middle" fill="#ef4444" font-size="8">0-3 dB</text>' +
+           '<text x="420" y="79" text-anchor="middle" fill="#ef4444" font-size="8">0-3 dB</text>' +
+           '<text x="545" y="79" text-anchor="middle" fill="#ef4444" font-size="8">None</text>' +
+           '<rect x="20" y="87" width="580" height="22" rx="0" fill="rgba(255,255,255,0.02)"/>' +
+           '<text x="100" y="102" text-anchor="middle" fill="#8b949e" font-size="8">Single aluminum foil</text>' +
+           '<text x="280" y="102" text-anchor="middle" fill="#eab308" font-size="8">15-25 dB</text>' +
+           '<text x="420" y="102" text-anchor="middle" fill="#eab308" font-size="8">10-20 dB</text>' +
+           '<text x="545" y="102" text-anchor="middle" fill="#eab308" font-size="8">Moderate</text>' +
+           '<rect x="20" y="110" width="580" height="22" rx="0" fill="rgba(255,255,255,0.02)"/>' +
+           '<text x="100" y="125" text-anchor="middle" fill="#8b949e" font-size="8">Triple-layer foil (sealed)</text>' +
+           '<text x="280" y="125" text-anchor="middle" fill="#22c55e" font-size="8">35-50 dB</text>' +
+           '<text x="420" y="125" text-anchor="middle" fill="#22c55e" font-size="8">30-45 dB</text>' +
+           '<text x="545" y="125" text-anchor="middle" fill="#22c55e" font-size="8">Good</text>' +
+           '<rect x="20" y="133" width="580" height="22" rx="0" fill="rgba(255,255,255,0.02)"/>' +
+           '<text x="100" y="148" text-anchor="middle" fill="#8b949e" font-size="8">Faraday bag (commercial)</text>' +
+           '<text x="280" y="148" text-anchor="middle" fill="#22c55e" font-size="8">60-80 dB</text>' +
+           '<text x="420" y="148" text-anchor="middle" fill="#22c55e" font-size="8">55-75 dB</text>' +
+           '<text x="545" y="148" text-anchor="middle" fill="#22c55e" font-size="8">Excellent</text>' +
+           '<rect x="20" y="156" width="580" height="22" rx="0" fill="rgba(255,255,255,0.02)"/>' +
+           '<text x="100" y="171" text-anchor="middle" fill="#8b949e" font-size="8">Metal enclosure (tin box)</text>' +
+           '<text x="280" y="171" text-anchor="middle" fill="#22c55e" font-size="8">70-90 dB</text>' +
+           '<text x="420" y="171" text-anchor="middle" fill="#22c55e" font-size="8">65-85 dB</text>' +
+           '<text x="545" y="171" text-anchor="middle" fill="#22c55e" font-size="8">Excellent</text>' +
+           // Note
+           '<text x="310" y="208" text-anchor="middle" fill="#555" font-size="7">Values are approximate — gaps at seams dramatically reduce effectiveness. Seal all openings.</text>' +
+           '</svg>'
+    },
+
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+             '<defs><pattern id="sg17-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="580" height="280" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="568" height="268" fill="url(#sg17-cc-grid)" rx="4"/>' +
+             '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-17</text>' +
+             // ESP32 DevKit
+             '<g id="sg17-comp-esp">' +
+             '<rect x="30" y="50" width="160" height="190" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+             '<rect x="30" y="50" width="160" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+             '<text x="110" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 DevKit V1</text>' +
+             '<rect x="50" y="85" width="120" height="50" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+             '<text x="110" y="105" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">ESP32-WROOM-32</text>' +
+             '<text x="110" y="120" text-anchor="middle" fill="#4488cc" font-size="7">WiFi + BLE radio</text>' +
+             '<rect x="50" y="148" width="56" height="22" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+             '<text x="78" y="163" text-anchor="middle" fill="#4ade80" font-size="6.5">WiFi rx</text>' +
+             '<rect x="114" y="148" width="56" height="22" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+             '<text x="142" y="163" text-anchor="middle" fill="#a855f7" font-size="6.5">BLE rx</text>' +
+             '<rect x="50" y="178" width="120" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="110" y="193" text-anchor="middle" fill="#555" font-size="7">Serial @ 115200 baud</text>' +
+             '<rect x="70" y="208" width="80" height="20" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="1"/>' +
+             '<text x="110" y="221" text-anchor="middle" fill="#888" font-size="7">USB (power + data)</text>' +
+             '<circle id="sg17-dot-esp" cx="110" cy="110" r="7" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>' +
+             '<text x="110" y="114" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">1</text>' +
+             '</g>' +
+             // Faraday bag
+             '<g id="sg17-comp-bag">' +
+             '<rect x="220" y="50" width="140" height="90" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<rect x="220" y="50" width="140" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+             '<text x="290" y="66" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Faraday Bag</text>' +
+             '<text x="290" y="88" text-anchor="middle" fill="#8b949e" font-size="7">Commercial RF shield</text>' +
+             '<text x="290" y="103" text-anchor="middle" fill="#555" font-size="7">60-80 dB attenuation</text>' +
+             '<text x="290" y="118" text-anchor="middle" fill="#555" font-size="7">wraps target device</text>' +
+             '<circle id="sg17-dot-bag" cx="290" cy="65" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<text x="290" y="69" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">2</text>' +
+             '</g>' +
+             // WiFi AP target
+             '<g id="sg17-comp-ap">' +
+             '<rect x="220" y="162" width="140" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+             '<rect x="220" y="162" width="140" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+             '<text x="290" y="178" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">Target Device</text>' +
+             '<text x="290" y="200" text-anchor="middle" fill="#8b949e" font-size="7">Phone hotspot / BLE beacon</text>' +
+             '<text x="290" y="215" text-anchor="middle" fill="#555" font-size="7">fixed 1m from ESP32</text>' +
+             '<circle id="sg17-dot-ap" cx="290" cy="177" r="7" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+             '<text x="290" y="181" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">3</text>' +
+             '</g>' +
+             // Serial monitor
+             '<g id="sg17-comp-serial">' +
+             '<rect x="390" y="50" width="160" height="190" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<rect x="390" y="50" width="160" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+             '<text x="470" y="66" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Serial Monitor</text>' +
+             '<text x="470" y="88" text-anchor="middle" fill="#8b949e" font-size="7">Results output</text>' +
+             '<rect x="405" y="98" width="130" height="18" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="470" y="111" text-anchor="middle" fill="#4ade80" font-size="6.5">WiFi: -45 dBm (baseline)</text>' +
+             '<rect x="405" y="120" width="130" height="18" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="470" y="133" text-anchor="middle" fill="#a855f7" font-size="6.5">Shielded: -82 dBm</text>' +
+             '<rect x="405" y="142" width="130" height="18" rx="2" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+             '<text x="470" y="155" text-anchor="middle" fill="#22c55e" font-size="6.5">Attenuation: 37 dB</text>' +
+             '<rect x="405" y="166" width="130" height="18" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="470" y="179" text-anchor="middle" fill="#eab308" font-size="6.5">BLE: -51 dBm (baseline)</text>' +
+             '<rect x="405" y="188" width="130" height="18" rx="2" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+             '<text x="470" y="201" text-anchor="middle" fill="#a855f7" font-size="6.5">BLE shielded: -88 dBm</text>' +
+             '<rect x="405" y="210" width="130" height="18" rx="2" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+             '<text x="470" y="223" text-anchor="middle" fill="#22c55e" font-size="6.5">BLE att: 37 dB</text>' +
+             '<circle id="sg17-dot-serial" cx="470" cy="65" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<text x="470" y="69" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">4</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'esp',
+                name: 'ESP32 DevKit V1',
+                purpose: 'The scanner. Uses the built-in WiFi radio in active-scan mode to measure RSSI of a target access point, and the BLE stack to scan for BLE advertisers. No external antenna needed — the PCB trace antenna handles everything.',
+                specs: ['ESP32-WROOM-32 module', 'WiFi IEEE 802.11 b/g/n', 'Bluetooth 4.2 + BLE', 'RSSI range: -26 to -100 dBm', 'USB-powered (5V/500mA)']
+            },
+            {
+                id: 'bag',
+                name: 'Faraday Bag (Commercial)',
+                purpose: 'The benchmark shielding material. A commercial Faraday bag uses multiple layers of metallic fabric to achieve 60-80 dB attenuation across the 2.4 GHz band. Use this as your gold standard to compare other materials against.',
+                specs: ['60-80 dB typical attenuation', 'Multi-layer metallic fabric', 'Sealed zipper/velcro closure', 'Available for phones, laptops, key fobs']
+            },
+            {
+                id: 'ap',
+                name: 'Target Device (WiFi Hotspot / BLE Beacon)',
+                purpose: 'The signal source being shielded. Place it at a fixed 1-meter distance from the ESP32 for baseline measurements. Then wrap it in the material under test. The ESP32 measures what signal (if any) leaks through.',
+                specs: ['Phone WiFi hotspot at fixed power', 'BLE advertising beacon (constant interval)', 'Fixed position — do not move during test', '1 meter baseline distance (standard)']
+            },
+            {
+                id: 'serial',
+                name: 'Serial Monitor (Results Output)',
+                purpose: 'The measurement log. The ESP32 sends WiFi RSSI and BLE RSSI readings over USB serial at 115200 baud. Open the Arduino IDE Serial Monitor or PlatformIO monitor to capture results. Calculate attenuation: baseline minus shielded reading.',
+                specs: ['115200 baud', 'Output: RSSI in dBm per scan', 'Attenuation = baseline - shielded (dB)', 'Log to CSV for analysis']
+            }
+        ]
+    },
+
+    commonMistakes: [
+        {
+            title: 'Gap in the shielding — even a pinhole leaks RF',
+            correct: 'Wrap the target device completely with no gaps. Fold foil at least 3 layers thick at seams. Roll the top of a foil pouch tightly. The key point: RF waves are not like water — they do not need a hole, they diffract through any gap smaller than the wavelength.',
+            incorrect: 'Wrapping the device loosely or leaving an opening "because it seems covered enough." A 2 mm gap in 2.4 GHz shielding can reduce effectiveness from 40 dB to less than 10 dB. Single-layer foil with unfolded edges is nearly useless.',
+            consequence: 'Grossly inaccurate measurements. You measure 15 dB attenuation and conclude the material works, when in reality the material blocks 50 dB but gaps are leaking 35 dB back in.',
+            svgDiff: '<svg viewBox="0 0 540 130" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="130" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="110" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Sealed</text>' +
+                     '<rect x="55" y="45" width="154" height="60" rx="6" fill="none" stroke="#22c55e" stroke-width="2.5"/>' +
+                     '<rect x="55" y="45" width="154" height="60" rx="6" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="0" opacity="0.4"/>' +
+                     '<circle cx="132" cy="75" r="10" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="132" y="79" text-anchor="middle" fill="#60a5fa" font-size="6">target</text>' +
+                     '<text x="132" y="118" text-anchor="middle" fill="#4ade80" font-size="7">40+ dB attenuation</text>' +
+                     '<rect x="285" y="10" width="245" height="110" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Gap present</text>' +
+                     '<rect x="330" y="45" width="154" height="60" rx="6" fill="none" stroke="#ef4444" stroke-width="2.5"/>' +
+                     '<line x1="395" y1="45" x2="420" y2="45" stroke="#0d1117" stroke-width="5"/>' +
+                     '<text x="407" y="43" fill="#ef4444" font-size="7">gap!</text>' +
+                     '<circle cx="407" cy="75" r="10" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="407" y="79" text-anchor="middle" fill="#60a5fa" font-size="6">target</text>' +
+                     '<text x="407" y="118" text-anchor="middle" fill="#ef4444" font-size="7">&lt;10 dB effective attenuation</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Moving the target device between baseline and shielded measurements',
+            correct: 'Set the target device on a fixed surface 1 meter from the ESP32. Tape it down. Baseline: measure RSSI for 30 seconds. Shielded: wrap the device in place, measure again. The only variable that changes is the shielding material.',
+            incorrect: 'Moving the device to a different position to put it in the bag, then measuring. RSSI varies by several dB based on distance and orientation. A 10 cm position change can cause ±3 dB variance — swamping the signal from thin materials.',
+            consequence: 'Invalid comparison data. You might measure 8 dB attenuation from foil, but 5 dB of that could be the device being slightly further away. Systematic position control is required for accurate results.',
+            svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Fixed position</text>' +
+                     '<circle cx="62" cy="65" r="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                     '<text x="62" y="69" text-anchor="middle" fill="#60a5fa" font-size="5">ESP32</text>' +
+                     '<line x1="72" y1="65" x2="200" y2="65" stroke="#22c55e" stroke-width="1" stroke-dasharray="6,3"/>' +
+                     '<text x="136" y="58" text-anchor="middle" fill="#22c55e" font-size="7">1.00 m (fixed)</text>' +
+                     '<circle cx="210" cy="65" r="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+                     '<text x="210" y="69" text-anchor="middle" fill="#eab308" font-size="5">target</text>' +
+                     '<text x="132" y="98" text-anchor="middle" fill="#4ade80" font-size="7">Same position baseline + shielded</text>' +
+                     '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Position changes</text>' +
+                     '<circle cx="310" cy="55" r="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                     '<text x="310" y="59" text-anchor="middle" fill="#60a5fa" font-size="5">ESP32</text>' +
+                     '<circle cx="460" cy="45" r="6" fill="#1e2736" stroke="#eab308" stroke-width="1" opacity="0.4"/>' +
+                     '<text x="460" y="35" text-anchor="middle" fill="#eab308" font-size="5">baseline pos</text>' +
+                     '<circle cx="470" cy="75" r="6" fill="#1e2736" stroke="#eab308" stroke-width="1"/>' +
+                     '<text x="470" y="92" text-anchor="middle" fill="#eab308" font-size="5">shielded pos</text>' +
+                     '<line x1="318" y1="53" x2="454" y2="46" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>' +
+                     '<line x1="318" y1="57" x2="464" y2="72" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>' +
+                     '<text x="407" y="98" text-anchor="middle" fill="#ef4444" font-size="7">Position shift invalidates comparison</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 // =============================================================================
@@ -1557,7 +2077,250 @@ fi`,
             <li><strong>File type whitelisting</strong> — Instead of just scanning for malware, add a whitelist of allowed file extensions (.pdf, .docx, .txt, .csv). Reject any file with an extension not on the list, regardless of scan results. This mimics how classified networks restrict file types at transfer points.</li>
             <li><strong>Add a small TFT display</strong> — Attach a 3.5" TFT HAT to the Pi and build a graphical status display showing drive status, transfer progress, and the last 10 audit log entries. No keyboard needed for monitoring — just glance at the screen.</li>
         </ul>
-    `
+    `,
+
+    stepVisuals: {
+        // Step 2 (index 2): udev USB auto-detection flow
+        2: '<svg viewBox="0 0 620 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+           '<defs><pattern id="sg18-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg18-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ff6b35"/></marker></defs>' +
+           '<rect width="620" height="200" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="608" height="188" fill="url(#sg18-sv2-grid)" rx="4"/>' +
+           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">USB AUTO-DETECTION — udev RULE FLOW</text>' +
+           // USB plug event
+           '<rect x="20" y="50" width="100" height="50" rx="5" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<text x="70" y="72" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">USB Plugged</text>' +
+           '<text x="70" y="88" text-anchor="middle" fill="#555" font-size="7">/dev/sda or sdb</text>' +
+           // Arrow
+           '<line x1="122" y1="75" x2="158" y2="75" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg18-arr)"/>' +
+           // udev
+           '<rect x="160" y="50" width="100" height="50" rx="5" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+           '<text x="210" y="72" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">udev kernel</text>' +
+           '<text x="210" y="88" text-anchor="middle" fill="#555" font-size="7">rules match</text>' +
+           // Arrow
+           '<line x1="262" y1="75" x2="298" y2="75" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg18-arr)"/>' +
+           // mount script
+           '<rect x="300" y="50" width="120" height="50" rx="5" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<text x="360" y="68" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">mount-airgap.sh</text>' +
+           '<text x="360" y="82" text-anchor="middle" fill="#555" font-size="7">RUN_AS=root</text>' +
+           '<text x="360" y="93" text-anchor="middle" fill="#555" font-size="7">ENV{AIRGAP_SLOT}</text>' +
+           // Arrow
+           '<line x1="422" y1="75" x2="458" y2="75" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg18-arr)"/>' +
+           // mount points
+           '<rect x="460" y="35" width="130" height="30" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+           '<text x="525" y="55" text-anchor="middle" fill="#22c55e" font-size="8">/mnt/airgap/IN (1st drive)</text>' +
+           '<rect x="460" y="85" width="130" height="30" rx="4" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>' +
+           '<text x="525" y="105" text-anchor="middle" fill="#eab308" font-size="8">/mnt/airgap/OUT (2nd drive)</text>' +
+           '<line x1="422" y1="65" x2="458" y2="52" stroke="#22c55e" stroke-width="1" opacity="0.5"/>' +
+           '<line x1="422" y1="82" x2="458" y2="98" stroke="#eab308" stroke-width="1" opacity="0.5"/>' +
+           // Log
+           '<rect x="20" y="140" width="580" height="42" rx="5" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+           '<text x="30" y="156" fill="#22c55e" font-size="7" font-weight="600">udev rule example:</text>' +
+           '<text x="30" y="172" fill="#8b949e" font-size="7">SUBSYSTEM=="block", KERNEL=="sd[a-z]", ACTION=="add", ENV{AIRGAP_SLOT}="IN", RUN+="/usr/local/bin/mount-airgap.sh"</text>' +
+           '</svg>',
+
+        // Step 3 (index 3): ClamAV scan + SHA-256 transfer flow
+        3: '<svg viewBox="0 0 620 210" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+           '<defs><pattern id="sg18-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg18-arr2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ff6b35"/></marker>' +
+           '<marker id="sg18-arr-red" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ef4444"/></marker>' +
+           '<marker id="sg18-arr-grn" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#22c55e"/></marker></defs>' +
+           '<rect width="620" height="210" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="608" height="198" fill="url(#sg18-sv3-grid)" rx="4"/>' +
+           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">SCAN + TRANSFER PIPELINE</text>' +
+           // IN drive files
+           '<rect x="20" y="50" width="90" height="90" rx="5" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<text x="65" y="68" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">IN Drive</text>' +
+           '<text x="65" y="83" text-anchor="middle" fill="#555" font-size="7">file_a.pdf</text>' +
+           '<text x="65" y="95" text-anchor="middle" fill="#555" font-size="7">doc_b.docx</text>' +
+           '<text x="65" y="107" text-anchor="middle" fill="#555" font-size="7">report.xlsx</text>' +
+           '<text x="65" y="119" text-anchor="middle" fill="#555" font-size="7">...</text>' +
+           // Arrow: read
+           '<line x1="112" y1="95" x2="148" y2="95" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg18-arr2)"/>' +
+           '<text x="130" y="88" text-anchor="middle" fill="#ff6b35" font-size="7">read</text>' +
+           // Hash
+           '<rect x="150" y="65" width="110" height="60" rx="5" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+           '<text x="205" y="85" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">SHA-256 hash</text>' +
+           '<text x="205" y="100" text-anchor="middle" fill="#555" font-size="7">hashlib.sha256()</text>' +
+           '<text x="205" y="112" text-anchor="middle" fill="#555" font-size="7">file fingerprint</text>' +
+           // Arrow: scan
+           '<line x1="262" y1="95" x2="298" y2="95" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg18-arr2)"/>' +
+           '<text x="280" y="88" text-anchor="middle" fill="#ff6b35" font-size="7">scan</text>' +
+           // ClamAV
+           '<rect x="300" y="65" width="100" height="60" rx="5" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+           '<text x="350" y="85" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">ClamAV</text>' +
+           '<text x="350" y="100" text-anchor="middle" fill="#555" font-size="7">signature scan</text>' +
+           '<text x="350" y="112" text-anchor="middle" fill="#555" font-size="7">8M+ signatures</text>' +
+           // Arrows: clean/infected
+           '<line x1="402" y1="80" x2="450" y2="60" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg18-arr-grn)"/>' +
+           '<text x="435" y="58" text-anchor="middle" fill="#22c55e" font-size="7">CLEAN</text>' +
+           '<line x1="402" y1="110" x2="450" y2="130" stroke="#ef4444" stroke-width="1.5" marker-end="url(#sg18-arr-red)"/>' +
+           '<text x="435" y="145" text-anchor="middle" fill="#ef4444" font-size="7">INFECTED</text>' +
+           // OUT drive
+           '<rect x="452" y="40" width="90" height="50" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<text x="497" y="62" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">OUT Drive</text>' +
+           '<text x="497" y="77" text-anchor="middle" fill="#555" font-size="7">clean files only</text>' +
+           // Quarantine
+           '<rect x="452" y="115" width="90" height="50" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>' +
+           '<text x="497" y="137" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">Quarantine</text>' +
+           '<text x="497" y="152" text-anchor="middle" fill="#555" font-size="7">log + skip</text>' +
+           // Audit log
+           '<rect x="20" y="160" width="580" height="38" rx="5" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>' +
+           '<text x="30" y="177" fill="#8b949e" font-size="7" font-weight="600">Audit log (every file):</text>' +
+           '<text x="30" y="191" fill="#555" font-size="7">2025-01-15 09:34:12 | file_a.pdf | SHA256: a3f9... | CLEAN | copied to OUT</text>' +
+           '</svg>'
+    },
+
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 580 290" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+             '<defs><pattern id="sg18-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="580" height="290" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="568" height="278" fill="url(#sg18-cc-grid)" rx="4"/>' +
+             '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-18</text>' +
+             // Raspberry Pi 4
+             '<g id="sg18-comp-pi">' +
+             '<rect x="30" y="50" width="155" height="200" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<rect x="30" y="50" width="155" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+             '<text x="108" y="66" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Raspberry Pi 4</text>' +
+             '<rect x="46" y="85" width="123" height="44" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+             '<text x="108" y="103" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">BCM2711</text>' +
+             '<text x="108" y="116" text-anchor="middle" fill="#555" font-size="6.5">Cortex-A72 1.5GHz quad</text>' +
+             '<rect x="46" y="137" width="58" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="75" y="151" text-anchor="middle" fill="#555" font-size="6">WiFi DISABLED</text>' +
+             '<rect x="110" y="137" width="58" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="139" y="151" text-anchor="middle" fill="#555" font-size="6">BT DISABLED</text>' +
+             '<rect x="46" y="165" width="58" height="22" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+             '<text x="75" y="179" text-anchor="middle" fill="#60a5fa" font-size="6">USB 3.0 x2</text>' +
+             '<rect x="110" y="165" width="58" height="22" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+             '<text x="139" y="179" text-anchor="middle" fill="#60a5fa" font-size="6">USB 2.0 x2</text>' +
+             '<rect x="46" y="195" width="123" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="108" y="209" text-anchor="middle" fill="#555" font-size="6">Ethernet (network scanning)</text>' +
+             '<text x="108" y="232" text-anchor="middle" fill="#555" font-size="7">Air-gapped: no wireless</text>' +
+             '<circle id="sg18-dot-pi" cx="108" cy="110" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<text x="108" y="114" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">1</text>' +
+             '</g>' +
+             // IN USB drive
+             '<g id="sg18-comp-in">' +
+             '<rect x="210" y="50" width="130" height="80" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+             '<rect x="210" y="50" width="130" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+             '<text x="275" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">IN Drive</text>' +
+             '<text x="275" y="90" text-anchor="middle" fill="#8b949e" font-size="7">Untrusted source files</text>' +
+             '<text x="275" y="105" text-anchor="middle" fill="#555" font-size="7">plug into USB port 1</text>' +
+             '<circle id="sg18-dot-in" cx="275" cy="65" r="7" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>' +
+             '<text x="275" y="69" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">2</text>' +
+             '</g>' +
+             // OUT USB drive
+             '<g id="sg18-comp-out">' +
+             '<rect x="210" y="152" width="130" height="80" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<rect x="210" y="152" width="130" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+             '<text x="275" y="168" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">OUT Drive</text>' +
+             '<text x="275" y="190" text-anchor="middle" fill="#8b949e" font-size="7">Verified clean files</text>' +
+             '<text x="275" y="205" text-anchor="middle" fill="#555" font-size="7">plug into USB port 2</text>' +
+             '<circle id="sg18-dot-out" cx="275" cy="167" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<text x="275" y="171" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">3</text>' +
+             '</g>' +
+             // ClamAV
+             '<g id="sg18-comp-clam">' +
+             '<rect x="370" y="50" width="180" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+             '<rect x="370" y="50" width="180" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+             '<text x="460" y="66" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">ClamAV Engine</text>' +
+             '<text x="460" y="90" text-anchor="middle" fill="#8b949e" font-size="7">8M+ malware signatures</text>' +
+             '<text x="460" y="105" text-anchor="middle" fill="#555" font-size="7">updated offline from ClamAV.net</text>' +
+             '<circle id="sg18-dot-clam" cx="460" cy="65" r="7" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+             '<text x="460" y="69" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">4</text>' +
+             '</g>' +
+             // Audit log
+             '<g id="sg18-comp-log">' +
+             '<rect x="370" y="152" width="180" height="80" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<rect x="370" y="152" width="180" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+             '<text x="460" y="168" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Audit Log</text>' +
+             '<text x="460" y="190" text-anchor="middle" fill="#8b949e" font-size="7">SHA-256 hash per file</text>' +
+             '<text x="460" y="205" text-anchor="middle" fill="#555" font-size="7">timestamp + scan result</text>' +
+             '<circle id="sg18-dot-log" cx="460" cy="167" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<text x="460" y="171" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">5</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'pi',
+                name: 'Raspberry Pi 4 (Air-Gapped)',
+                purpose: 'The transfer station controller. Runs headless with all wireless interfaces permanently disabled (via /boot/config.txt and rfkill). The only data path in and out is physical USB drives. Keyboard and monitor connect directly for operation.',
+                specs: ['BCM2711 Cortex-A72 1.5 GHz quad-core', '2 GB RAM minimum', 'WiFi + Bluetooth: disabled in firmware', 'USB 3.0 x2, USB 2.0 x2', 'Ethernet (for offline scanning only)']
+            },
+            {
+                id: 'in',
+                name: 'IN Drive (Untrusted Source)',
+                purpose: 'The drive containing files from an untrusted network or environment. Could be data from an internet-connected machine, a contractor, or an external source. Every file on this drive is suspect until ClamAV clears it.',
+                specs: ['USB flash drive or external HDD', 'Any filesystem (FAT32, NTFS, ext4)', 'Mounts at /mnt/airgap/IN/', 'Read-only during scan operation']
+            },
+            {
+                id: 'out',
+                name: 'OUT Drive (Verified Clean)',
+                purpose: 'Receives only files that passed ClamAV inspection. Goes to the secure/trusted network side. Only clean, hash-verified files are written here. The SHA-256 log lets the receiving side verify nothing was tampered with in transit.',
+                specs: ['USB flash drive or external HDD', 'Mounts at /mnt/airgap/OUT/', 'Write-only during transfer operation', 'SHA-256 manifest written alongside files']
+            },
+            {
+                id: 'clam',
+                name: 'ClamAV Antivirus Engine',
+                purpose: 'The inspection layer. Scans every file against 8+ million malware signatures. Not perfect, but catches known malware. Update the signature database offline before each session using freshclam on an internet-connected machine, then copy the DB to the Pi.',
+                specs: ['ClamAV 1.0+ (install from PPA)', 'freshclam for signature updates', 'clamd daemon for fast repeated scans', '8M+ malware signatures', 'Used by enterprises and governments']
+            },
+            {
+                id: 'log',
+                name: 'Audit Log',
+                purpose: 'The chain of custody. Every file transfer is logged with a timestamp, SHA-256 hash, scan result, and disposition (copied / quarantined). This log is the proof that the station processed the files correctly. Store it separately from the files.',
+                specs: ['CSV format: timestamp, filename, hash, result', 'SHA-256 provides tamper evidence', 'Stored on Pi SD card (not on IN/OUT drives)', 'Append-only — never overwrite']
+            }
+        ]
+    },
+
+    commonMistakes: [
+        {
+            title: 'Leaving WiFi or Bluetooth enabled — the air gap is not real',
+            correct: 'Add dtoverlay=disable-wifi and dtoverlay=disable-bt to /boot/config.txt AND run rfkill block all. Both steps are needed: the overlay disables at firmware level, rfkill blocks at OS level. Verify: ip link show wlan0 should return "not found".',
+            incorrect: 'Only running rfkill block all without the firmware overlay (or vice versa). Some kernel updates re-enable rfkill-blocked devices. Without the firmware overlay, the interface comes back after a reboot or driver reload.',
+            consequence: 'The air gap is silently broken. An attacker can communicate with the Pi over WiFi without anyone knowing. The entire security model of the transfer station is invalidated.',
+            svgDiff: '<svg viewBox="0 0 540 130" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="130" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="110" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Dual layer disable</text>' +
+                     '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">/boot/config.txt:</text>' +
+                     '<text x="132" y="64" text-anchor="middle" fill="#4ade80" font-size="7">dtoverlay=disable-wifi</text>' +
+                     '<text x="132" y="78" text-anchor="middle" fill="#4ade80" font-size="7">dtoverlay=disable-bt</text>' +
+                     '<text x="132" y="92" text-anchor="middle" fill="#4ade80" font-size="7">AND: rfkill block all</text>' +
+                     '<text x="132" y="107" text-anchor="middle" fill="#22c55e" font-size="7">Survives reboots + driver updates</text>' +
+                     '<rect x="285" y="10" width="245" height="110" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Only rfkill</text>' +
+                     '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">rfkill block all</text>' +
+                     '<text x="407" y="64" text-anchor="middle" fill="#555" font-size="7">(no firmware overlay)</text>' +
+                     '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">Kernel update may re-enable</text>' +
+                     '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">WiFi silently comes back online</text>' +
+                     '<text x="407" y="110" text-anchor="middle" fill="#ef4444" font-size="7">Air gap broken — undetected</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Skipping the SHA-256 hash step — no file integrity verification',
+            correct: 'Hash every file before scanning and record the hash in the audit log. When the receiving side gets the OUT drive, they re-hash each file and compare against the manifest. Any mismatch means the file was modified in transit.',
+            incorrect: 'Just copying files without hashing. You know ClamAV cleared them, but you have no way to prove the files are identical to what was scanned. If the OUT drive is tampered with between the transfer station and the destination, you cannot detect it.',
+            consequence: 'Loss of chain of custody. An attacker who can physically access the OUT drive between the station and the destination can modify files without detection. The transfer station provides no integrity guarantee.',
+            svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Hash logged</text>' +
+                     '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">scan + copy + log SHA-256</text>' +
+                     '<text x="132" y="65" text-anchor="middle" fill="#555" font-size="7">a3f9c1... report.pdf CLEAN</text>' +
+                     '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">Recipient verifies hash matches</text>' +
+                     '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Tampering detected</text>' +
+                     '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — No hash</text>' +
+                     '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">scan + copy (no log)</text>' +
+                     '<text x="407" y="65" text-anchor="middle" fill="#555" font-size="7">Recipient trusts files blindly</text>' +
+                     '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">OUT drive tampered in transit</text>' +
+                     '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">No way to detect the change</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 // =============================================================================
@@ -2036,7 +2799,246 @@ echo "4. If you see your ISP's servers, DNS is leaking"`,
             <li><strong>Multi-hop VPN + Tor</strong> — Route traffic through a VPN first, then through Tor (VPN -> Tor). This hides the fact that you are using Tor from your ISP. Configure OpenVPN on the Pi to connect to a VPN provider before Tor starts.</li>
             <li><strong>Hidden service hosting</strong> — Configure a Tor hidden service (.onion address) on the Pi. Host a simple static web page accessible only through Tor. This makes your dead drop (SG-16) accessible from anywhere without revealing the Pi's IP address.</li>
         </ul>
-    `
+    `,
+
+    stepVisuals: {
+        // Step 2 (index 2): iptables transparent proxy routing diagram
+        2: '<svg viewBox="0 0 640 240" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:640px">' +
+           '<defs><pattern id="sg19-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg19-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#a855f7"/></marker></defs>' +
+           '<rect width="640" height="240" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="628" height="228" fill="url(#sg19-sv2-grid)" rx="4"/>' +
+           '<text x="320" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">IPTABLES TRANSPARENT TOR ROUTING</text>' +
+           // Client device
+           '<rect x="20" y="55" width="100" height="70" rx="5" fill="#1e2736" stroke="#06b6d4" stroke-width="1.5"/>' +
+           '<text x="70" y="74" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="600">CLIENT</text>' +
+           '<text x="70" y="90" text-anchor="middle" fill="#555" font-size="7">phone/laptop</text>' +
+           '<text x="70" y="105" text-anchor="middle" fill="#555" font-size="7">on Pi WiFi AP</text>' +
+           '<text x="70" y="119" text-anchor="middle" fill="#4ade80" font-size="6.5">10.0.0.x</text>' +
+           // Arrow to nat table
+           '<line x1="122" y1="90" x2="158" y2="90" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg19-arr)"/>' +
+           '<text x="140" y="83" text-anchor="middle" fill="#a855f7" font-size="7">TCP traffic</text>' +
+           // iptables NAT PREROUTING
+           '<rect x="160" y="45" width="140" height="90" rx="5" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+           '<text x="230" y="65" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">iptables</text>' +
+           '<text x="230" y="78" text-anchor="middle" fill="#a855f7" font-size="7">NAT PREROUTING</text>' +
+           '<rect x="172" y="85" width="116" height="18" rx="2" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+           '<text x="230" y="97" text-anchor="middle" fill="#c084fc" font-size="6.5">REDIRECT port 9040</text>' +
+           '<rect x="172" y="106" width="116" height="18" rx="2" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+           '<text x="230" y="118" text-anchor="middle" fill="#c084fc" font-size="6.5">UDP 53 &rarr; 5353 (DNS)</text>' +
+           // Arrow to Tor
+           '<line x1="302" y1="90" x2="338" y2="90" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg19-arr)"/>' +
+           // Tor process
+           '<rect x="340" y="45" width="120" height="90" rx="5" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+           '<text x="400" y="65" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="600">Tor Process</text>' +
+           '<text x="400" y="80" text-anchor="middle" fill="#555" font-size="7">TransPort 9040</text>' +
+           '<text x="400" y="93" text-anchor="middle" fill="#555" font-size="7">DNSPort 5353</text>' +
+           '<text x="400" y="106" text-anchor="middle" fill="#555" font-size="7">3-hop onion circuit</text>' +
+           '<text x="400" y="119" text-anchor="middle" fill="#ff6b35" font-size="6.5">uid: debian-tor</text>' +
+           // Arrow to relays
+           '<line x1="462" y1="90" x2="498" y2="90" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg19-arr)"/>' +
+           '<text x="480" y="83" text-anchor="middle" fill="#555" font-size="7">encrypted</text>' +
+           // Tor relays
+           '<g>' +
+           '<rect x="500" y="40" width="50" height="35" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>' +
+           '<text x="525" y="62" text-anchor="middle" fill="#a855f7" font-size="7">Guard</text>' +
+           '<rect x="500" y="80" width="50" height="35" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>' +
+           '<text x="525" y="102" text-anchor="middle" fill="#a855f7" font-size="7">Middle</text>' +
+           '<rect x="500" y="120" width="50" height="35" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>' +
+           '<text x="525" y="142" text-anchor="middle" fill="#a855f7" font-size="7">Exit</text>' +
+           '<text x="525" y="165" text-anchor="middle" fill="#555" font-size="6">Tor Network</text>' +
+           '</g>' +
+           // Arrow to internet
+           '<line x1="552" y1="90" x2="590" y2="90" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg19-arr)"/>' +
+           '<rect x="592" y="70" width="42" height="40" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+           '<text x="613" y="92" text-anchor="middle" fill="#22c55e" font-size="7">WEB</text>' +
+           '<text x="613" y="103" text-anchor="middle" fill="#555" font-size="6">dest</text>' +
+           // Kill switch note
+           '<rect x="20" y="160" width="600" height="64" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+           '<text x="30" y="178" fill="#ef4444" font-size="8" font-weight="600">Kill Switch rule (if Tor stops):</text>' +
+           '<text x="30" y="194" fill="#8b949e" font-size="7">iptables -A OUTPUT -m owner --uid-owner debian-tor -j ACCEPT</text>' +
+           '<text x="30" y="208" fill="#8b949e" font-size="7">iptables -A OUTPUT -j DROP  &larr; blocks all non-Tor traffic if Tor process dies</text>' +
+           '</svg>',
+
+        // Step 6 (index 6): DNS leak test flow
+        6: '<svg viewBox="0 0 620 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+           '<defs><pattern id="sg19-sv6-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="620" height="190" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="608" height="178" fill="url(#sg19-sv6-grid)" rx="4"/>' +
+           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">DNS LEAK TEST — WHAT YOU ARE CHECKING</text>' +
+           // NO LEAK scenario
+           '<rect x="20" y="45" width="270" height="130" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+           '<text x="155" y="62" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">NO LEAK — Correct</text>' +
+           '<text x="155" y="82" text-anchor="middle" fill="#8b949e" font-size="7">dig @127.0.0.1 -p 5353 dnsleaktest.com</text>' +
+           '<rect x="35" y="95" width="240" height="24" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+           '<text x="155" y="111" text-anchor="middle" fill="#4ade80" font-size="7">DNS query: Tor DNSPort 5353</text>' +
+           '<rect x="35" y="123" width="240" height="24" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+           '<text x="155" y="139" text-anchor="middle" fill="#22c55e" font-size="7">Resolver: Tor exit node sees query</text>' +
+           '<text x="155" y="158" text-anchor="middle" fill="#4ade80" font-size="7">ISP cannot see what domains you visit</text>' +
+           // LEAK scenario
+           '<rect x="330" y="45" width="270" height="130" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+           '<text x="465" y="62" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">DNS LEAK — Broken</text>' +
+           '<text x="465" y="82" text-anchor="middle" fill="#8b949e" font-size="7">DNS bypasses Tor (no iptables redirect)</text>' +
+           '<rect x="345" y="95" width="240" height="24" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+           '<text x="465" y="111" text-anchor="middle" fill="#ef4444" font-size="7">DNS query: goes to ISP resolver directly</text>' +
+           '<rect x="345" y="123" width="240" height="24" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+           '<text x="465" y="139" text-anchor="middle" fill="#ef4444" font-size="7">ISP logs: "user visited example.com"</text>' +
+           '<text x="465" y="158" text-anchor="middle" fill="#ef4444" font-size="7">HTTP anonymized, DNS is not — partial failure</text>' +
+           '</svg>'
+    },
+
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+             '<defs><pattern id="sg19-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="580" height="280" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="568" height="268" fill="url(#sg19-cc-grid)" rx="4"/>' +
+             '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-19</text>' +
+             // Pi 4 board
+             '<g id="sg19-comp-pi">' +
+             '<rect x="30" y="50" width="155" height="200" rx="8" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+             '<rect x="30" y="50" width="155" height="22" rx="8" fill="rgba(255,107,53,0.12)"/>' +
+             '<text x="108" y="66" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">Raspberry Pi 4</text>' +
+             '<rect x="46" y="85" width="60" height="40" rx="4" fill="rgba(255,107,53,0.08)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>' +
+             '<text x="76" y="103" text-anchor="middle" fill="#ff6b35" font-size="7" font-weight="600">eth0</text>' +
+             '<text x="76" y="116" text-anchor="middle" fill="#555" font-size="6">WAN (internet)</text>' +
+             '<rect x="114" y="85" width="60" height="40" rx="4" fill="rgba(255,107,53,0.08)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>' +
+             '<text x="144" y="103" text-anchor="middle" fill="#ff6b35" font-size="7" font-weight="600">wlan0</text>' +
+             '<text x="144" y="116" text-anchor="middle" fill="#555" font-size="6">AP (clients)</text>' +
+             '<rect x="46" y="135" width="128" height="30" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+             '<text x="110" y="154" text-anchor="middle" fill="#a855f7" font-size="7">Tor TransPort 9040</text>' +
+             '<rect x="46" y="170" width="128" height="30" rx="3" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+             '<text x="110" y="189" text-anchor="middle" fill="#a855f7" font-size="7">Tor DNSPort 5353</text>' +
+             '<rect x="46" y="208" width="128" height="30" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+             '<text x="110" y="227" text-anchor="middle" fill="#ef4444" font-size="7">Kill switch: DROP if Tor down</text>' +
+             '<circle id="sg19-dot-pi" cx="108" cy="110" r="7" fill="rgba(255,107,53,0.2)" stroke="#ff6b35" stroke-width="1.5"/>' +
+             '<text x="108" y="114" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="700">1</text>' +
+             '</g>' +
+             // iptables
+             '<g id="sg19-comp-ipt">' +
+             '<rect x="210" y="50" width="140" height="100" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<rect x="210" y="50" width="140" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+             '<text x="280" y="66" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">iptables</text>' +
+             '<text x="280" y="86" text-anchor="middle" fill="#8b949e" font-size="7">NAT PREROUTING:</text>' +
+             '<text x="280" y="100" text-anchor="middle" fill="#555" font-size="7">TCP &rarr; REDIRECT :9040</text>' +
+             '<text x="280" y="114" text-anchor="middle" fill="#555" font-size="7">UDP 53 &rarr; REDIRECT :5353</text>' +
+             '<text x="280" y="128" text-anchor="middle" fill="#555" font-size="7">debian-tor &rarr; ACCEPT</text>' +
+             '<circle id="sg19-dot-ipt" cx="280" cy="65" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<text x="280" y="69" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">2</text>' +
+             '</g>' +
+             // Tor network diagram
+             '<g id="sg19-comp-tor">' +
+             '<rect x="210" y="170" width="140" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+             '<rect x="210" y="170" width="140" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+             '<text x="280" y="186" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">Tor Network</text>' +
+             '<text x="280" y="205" text-anchor="middle" fill="#555" font-size="7">Guard &rarr; Middle &rarr; Exit</text>' +
+             '<text x="280" y="220" text-anchor="middle" fill="#555" font-size="7">3-hop encrypted circuit</text>' +
+             '<text x="280" y="235" text-anchor="middle" fill="#555" font-size="7">7000+ relays worldwide</text>' +
+             '<circle id="sg19-dot-tor" cx="280" cy="185" r="7" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+             '<text x="280" y="189" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">3</text>' +
+             '</g>' +
+             // USB WiFi adapter
+             '<g id="sg19-comp-usb">' +
+             '<rect x="380" y="50" width="170" height="80" rx="8" fill="#1e2736" stroke="#06b6d4" stroke-width="1.5"/>' +
+             '<rect x="380" y="50" width="170" height="22" rx="8" fill="rgba(6,182,212,0.12)"/>' +
+             '<text x="465" y="66" text-anchor="middle" fill="#06b6d4" font-size="10" font-weight="600">USB WiFi Adapter</text>' +
+             '<text x="465" y="88" text-anchor="middle" fill="#8b949e" font-size="7">AP mode (wlan0 or wlan1)</text>' +
+             '<text x="465" y="103" text-anchor="middle" fill="#555" font-size="7">Clients connect here</text>' +
+             '<text x="465" y="116" text-anchor="middle" fill="#555" font-size="7">hostapd + dnsmasq</text>' +
+             '<circle id="sg19-dot-usb" cx="465" cy="65" r="7" fill="rgba(6,182,212,0.2)" stroke="#06b6d4" stroke-width="1.5"/>' +
+             '<text x="465" y="69" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="700">4</text>' +
+             '</g>' +
+             // Internet gateway
+             '<g id="sg19-comp-wan">' +
+             '<rect x="380" y="152" width="170" height="100" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<rect x="380" y="152" width="170" height="22" rx="8" fill="rgba(34,197,94,0.12)"/>' +
+             '<text x="465" y="168" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Internet Gateway</text>' +
+             '<text x="465" y="188" text-anchor="middle" fill="#8b949e" font-size="7">eth0 connected to router</text>' +
+             '<text x="465" y="203" text-anchor="middle" fill="#555" font-size="7">ISP sees only Tor traffic</text>' +
+             '<text x="465" y="218" text-anchor="middle" fill="#555" font-size="7">no content — only Tor</text>' +
+             '<text x="465" y="233" text-anchor="middle" fill="#555" font-size="7">relay fingerprints visible</text>' +
+             '<circle id="sg19-dot-wan" cx="465" cy="167" r="7" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1.5"/>' +
+             '<text x="465" y="171" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">5</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'pi',
+                name: 'Raspberry Pi 4 (Tor Gateway)',
+                purpose: 'The gateway. Has two network interfaces: eth0 goes upstream to your router (internet), wlan0 (or wlan1 via USB adapter) broadcasts as a WiFi AP. All client traffic entering on wlan0 is transparently redirected through the Tor process via iptables before leaving on eth0.',
+                specs: ['BCM2711 1.5 GHz quad-core', 'eth0: upstream WAN (DHCP from router)', 'wlan0/wlan1: AP for client devices', '2 GB RAM recommended', 'Tor Bootstrap: 30-60 seconds on first start']
+            },
+            {
+                id: 'ipt',
+                name: 'iptables Transparent Proxy Rules',
+                purpose: 'The redirection engine. PREROUTING rules intercept all TCP traffic from AP clients and redirect it to Tor\'s TransPort (9040). DNS (UDP port 53) is separately redirected to Tor\'s DNSPort (5353) to prevent DNS leaks. The kill switch rule drops all output if Tor\'s uid is not the source.',
+                specs: ['NAT table PREROUTING chain', 'REDIRECT --to-ports 9040 (TCP)', 'DNS: REDIRECT --to-ports 5353 (UDP 53)', 'Kill switch: OUTPUT -j DROP (non-Tor traffic)', 'Saved via iptables-save / iptables-restore']
+            },
+            {
+                id: 'tor',
+                name: 'Tor Network (3-Hop Circuit)',
+                purpose: 'The anonymization layer. Your traffic is encrypted in 3 nested layers and sent through a Guard relay, a Middle relay, and an Exit relay. Each relay only knows the previous and next hop. The Exit relay makes the final connection to the destination on your behalf — no relay can see both you and your destination.',
+                specs: ['Guard relay: your single entry point (stable/long-term)', 'Middle relay: changes every 10 minutes', 'Exit relay: makes final connection', '7000+ volunteer relays worldwide', 'New circuit every 10 minutes (automatic)']
+            },
+            {
+                id: 'usb',
+                name: 'USB WiFi Adapter (AP Mode)',
+                purpose: 'The client-facing interface. Runs as a WiFi access point using hostapd. Devices connect to this AP and have all their traffic automatically routed through Tor — no configuration needed on the client device. The Pi\'s built-in WiFi can also serve as the AP if only one interface is needed.',
+                specs: ['Must support AP mode (check chipset)', 'Recommended: Alfa AWUS036ACS (RTL8811AU)', 'hostapd: manages AP beacon and associations', 'dnsmasq: DHCP server for AP clients', 'Network: 192.168.42.0/24 or similar']
+            },
+            {
+                id: 'wan',
+                name: 'Internet Gateway (eth0 — ISP Facing)',
+                purpose: 'The upstream connection. The ISP sees only encrypted Tor relay traffic — they know you are using Tor, but cannot see what sites you visit or what data you are sending. For maximum ISP-evasion, add a VPN upstream of Tor (VPN -> Tor architecture).',
+                specs: ['eth0 connected to home router', 'Gets IP via DHCP from router', 'ISP sees: Tor relay IP + encrypted traffic', 'ISP does NOT see: destinations, content, DNS queries', 'Tor usage is visible to ISP (unless bridged)']
+            }
+        ]
+    },
+
+    commonMistakes: [
+        {
+            title: 'DNS queries bypassing Tor — DNS leak',
+            correct: 'Redirect ALL UDP port 53 traffic through iptables to Tor\'s DNSPort (5353). Set DNSPort 5353 in torrc. Verify with: dig @127.0.0.1 -p 5353 dnsleaktest.com — you should get an answer routed through Tor.',
+            incorrect: 'Redirecting TCP traffic to Tor\'s TransPort but forgetting to redirect DNS. DNS queries (UDP port 53) go directly to the ISP\'s resolver. The ISP logs every domain name you look up, even though the HTTP traffic is anonymized through Tor.',
+            consequence: 'Partial anonymization failure. Your ISP builds a complete list of every domain you visit even though they cannot read the content. This is enough to create a detailed profile of your browsing activity.',
+            svgDiff: '<svg viewBox="0 0 540 130" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="130" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="110" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — DNS through Tor</text>' +
+                     '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">TCP &rarr; REDIRECT port 9040</text>' +
+                     '<text x="132" y="65" text-anchor="middle" fill="#4ade80" font-size="7">UDP 53 &rarr; REDIRECT port 5353</text>' +
+                     '<text x="132" y="82" text-anchor="middle" fill="#8b949e" font-size="7">DNS resolves through Tor exit</text>' +
+                     '<text x="132" y="97" text-anchor="middle" fill="#4ade80" font-size="7">ISP sees nothing</text>' +
+                     '<rect x="285" y="10" width="245" height="110" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — DNS leak</text>' +
+                     '<text x="407" y="50" text-anchor="middle" fill="#4ade80" font-size="7">TCP &rarr; REDIRECT port 9040</text>' +
+                     '<text x="407" y="65" text-anchor="middle" fill="#ef4444" font-size="7">UDP 53 &rarr; (no rule) &rarr; ISP</text>' +
+                     '<text x="407" y="82" text-anchor="middle" fill="#8b949e" font-size="7">DNS queries go direct to ISP resolver</text>' +
+                     '<text x="407" y="97" text-anchor="middle" fill="#ef4444" font-size="7">ISP logs every domain you visit</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'No kill switch — traffic bypasses Tor when Tor crashes',
+            correct: 'Add iptables OUTPUT rules: ACCEPT traffic from uid debian-tor (the Tor process), DROP everything else. If Tor crashes, no traffic exits the Pi at all. Test this: sudo systemctl stop tor — no traffic should pass through.',
+            incorrect: 'Only setting up the PREROUTING redirect without the OUTPUT kill switch. If Tor crashes or fails to bootstrap, the iptables PREROUTING rules may still redirect traffic to the non-listening port — or worse, traffic falls through to direct internet.',
+            consequence: 'Silent deanonymization. Tor goes down during a sensitive browsing session, and traffic silently begins routing directly to the internet with your real IP address. No warning is shown on the client device.',
+            svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Kill switch</text>' +
+                     '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">OUTPUT: debian-tor uid &rarr; ACCEPT</text>' +
+                     '<text x="132" y="64" text-anchor="middle" fill="#4ade80" font-size="7">OUTPUT: everything else &rarr; DROP</text>' +
+                     '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">Tor crash = all traffic blocked</text>' +
+                     '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Client sees: connection refused</text>' +
+                     '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — No kill switch</text>' +
+                     '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">Only PREROUTING rules set</text>' +
+                     '<text x="407" y="64" text-anchor="middle" fill="#ef4444" font-size="7">Tor crashes silently</text>' +
+                     '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">Traffic routes via real IP</text>' +
+                     '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">Client notices nothing wrong</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 // =============================================================================
@@ -2588,5 +3590,264 @@ if (Serial.available()) {
             <li><strong>Bluetooth monitoring</strong> — Extend the detector to also monitor Bluetooth channel energy. BLE uses 40 channels across 2.4 GHz — a jammer that blocks WiFi will also disrupt BLE. Compare WiFi and BLE measurements for confirmation.</li>
             <li><strong>SD card logging with timestamps</strong> — Add an SD card module and log every scan cycle as a CSV row: <code>uptime_ms, ch1_rssi, ch2_rssi, ..., ch14_rssi, alert_status</code>. Post-process the CSV in Python with matplotlib to generate publication-quality spectrum analysis plots.</li>
         </ul>
-    `
+    `,
+
+    stepVisuals: {
+        // Step 1 (index 1): TFT spectrum display mockup
+        1: '<svg viewBox="0 0 620 230" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+           '<defs><pattern id="sg20-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="620" height="230" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="608" height="218" fill="url(#sg20-sv1-grid)" rx="4"/>' +
+           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">TFT SPECTRUM DISPLAY — 2.4 GHz CHANNELS 1-13</text>' +
+           // TFT screen border
+           '<rect x="30" y="42" width="380" height="170" rx="6" fill="#1a1f2b" stroke="#555" stroke-width="1.5"/>' +
+           '<rect x="30" y="42" width="380" height="16" rx="6" fill="rgba(255,255,255,0.04)"/>' +
+           '<text x="220" y="54" text-anchor="middle" fill="#8b949e" font-size="7">ILI9341 TFT (320x240 mirrored here)</text>' +
+           // Channel bars — normal channels (green/yellow)
+           // Bars from x=44, width=26, gap=2, y baseline=200
+           // CH1 normal
+           '<rect x="44" y="150" width="24" height="50" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="56" y="210" text-anchor="middle" fill="#555" font-size="6">1</text>' +
+           // CH2
+           '<rect x="71" y="160" width="24" height="40" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="83" y="210" text-anchor="middle" fill="#555" font-size="6">2</text>' +
+           // CH3
+           '<rect x="98" y="145" width="24" height="55" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="110" y="210" text-anchor="middle" fill="#555" font-size="6">3</text>' +
+           // CH4
+           '<rect x="125" y="165" width="24" height="35" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="137" y="210" text-anchor="middle" fill="#555" font-size="6">4</text>' +
+           // CH5
+           '<rect x="152" y="155" width="24" height="45" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="164" y="210" text-anchor="middle" fill="#555" font-size="6">5</text>' +
+           // CH6 — ALERT (jammer detected)
+           '<rect x="179" y="65" width="24" height="135" rx="2" fill="rgba(239,68,68,0.8)"/>' +
+           '<text x="191" y="210" text-anchor="middle" fill="#ef4444" font-size="6">6</text>' +
+           // CH7 alert
+           '<rect x="206" y="72" width="24" height="128" rx="2" fill="rgba(239,68,68,0.8)"/>' +
+           '<text x="218" y="210" text-anchor="middle" fill="#ef4444" font-size="6">7</text>' +
+           // CH8
+           '<rect x="233" y="70" width="24" height="130" rx="2" fill="rgba(239,68,68,0.8)"/>' +
+           '<text x="245" y="210" text-anchor="middle" fill="#ef4444" font-size="6">8</text>' +
+           // CH9 alert
+           '<rect x="260" y="68" width="24" height="132" rx="2" fill="rgba(239,68,68,0.8)"/>' +
+           '<text x="272" y="210" text-anchor="middle" fill="#ef4444" font-size="6">9</text>' +
+           // CH10 elevated
+           '<rect x="287" y="110" width="24" height="90" rx="2" fill="rgba(234,179,8,0.8)"/>' +
+           '<text x="299" y="210" text-anchor="middle" fill="#eab308" font-size="6">10</text>' +
+           // CH11
+           '<rect x="314" y="158" width="24" height="42" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="326" y="210" text-anchor="middle" fill="#555" font-size="6">11</text>' +
+           // CH12
+           '<rect x="341" y="162" width="24" height="38" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="353" y="210" text-anchor="middle" fill="#555" font-size="6">12</text>' +
+           // CH13
+           '<rect x="368" y="155" width="24" height="45" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="380" y="210" text-anchor="middle" fill="#555" font-size="6">13</text>' +
+           // Baseline line
+           '<line x1="40" y1="170" x2="405" y2="170" stroke="#ff6b35" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>' +
+           '<text x="407" y="173" fill="#ff6b35" font-size="6">baseline</text>' +
+           // Alert text on TFT
+           '<rect x="44" y="58" width="130" height="16" rx="3" fill="rgba(239,68,68,0.2)" stroke="rgba(239,68,68,0.6)" stroke-width="0.5"/>' +
+           '<text x="109" y="69" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">JAMMING DETECTED</text>' +
+           // Legend on right
+           '<rect x="430" y="42" width="170" height="170" rx="5" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+           '<text x="515" y="60" text-anchor="middle" fill="#8b949e" font-size="8" font-weight="600">Detection Logic</text>' +
+           '<rect x="445" y="70" width="10" height="10" rx="2" fill="rgba(34,197,94,0.7)"/>' +
+           '<text x="462" y="80" fill="#4ade80" font-size="7">Normal — within baseline</text>' +
+           '<rect x="445" y="90" width="10" height="10" rx="2" fill="rgba(234,179,8,0.7)"/>' +
+           '<text x="462" y="100" fill="#eab308" font-size="7">Elevated — watch closely</text>' +
+           '<rect x="445" y="110" width="10" height="10" rx="2" fill="rgba(239,68,68,0.7)"/>' +
+           '<text x="462" y="120" fill="#ef4444" font-size="7">Alert — jammer threshold</text>' +
+           '<text x="515" y="148" text-anchor="middle" fill="#555" font-size="7">Jammer: 3+ channels</text>' +
+           '<text x="515" y="162" text-anchor="middle" fill="#555" font-size="7">exceed threshold by</text>' +
+           '<text x="515" y="175" text-anchor="middle" fill="#555" font-size="7">15+ dB simultaneously</text>' +
+           '<text x="515" y="195" text-anchor="middle" fill="#ff6b35" font-size="7">Congestion: 1-2 channels only</text>' +
+           '</svg>',
+
+        // Step 4 (index 4): Baseline calibration timeline
+        4: '<svg viewBox="0 0 620 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:620px">' +
+           '<defs><pattern id="sg20-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="620" height="180" fill="#0d1117" rx="6"/>' +
+           '<rect x="6" y="6" width="608" height="168" fill="url(#sg20-sv4-grid)" rx="4"/>' +
+           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">BASELINE CALIBRATION — EWMA CONVERGENCE</text>' +
+           // X axis (time)
+           '<line x1="50" y1="140" x2="580" y2="140" stroke="#555" stroke-width="1"/>' +
+           '<text x="50" y="155" fill="#555" font-size="7">0 min</text>' +
+           '<text x="160" y="155" fill="#555" font-size="7">1 min</text>' +
+           '<text x="270" y="155" fill="#555" font-size="7">2 min</text>' +
+           '<text x="380" y="155" fill="#555" font-size="7">3 min</text>' +
+           '<text x="490" y="155" fill="#555" font-size="7">5 min</text>' +
+           // Y axis
+           '<line x1="50" y1="40" x2="50" y2="140" stroke="#555" stroke-width="1"/>' +
+           '<text x="44" y="140" text-anchor="end" fill="#555" font-size="7">-90</text>' +
+           '<text x="44" y="105" text-anchor="end" fill="#555" font-size="7">-75</text>' +
+           '<text x="44" y="70" text-anchor="end" fill="#555" font-size="7">-60</text>' +
+           '<text x="44" y="44" text-anchor="end" fill="#555" font-size="7">-45</text>' +
+           // Baseline convergence curve (EWMA settling)
+           '<polyline points="50,115 80,100 110,92 140,88 170,85 200,83 230,82 260,81 290,81 320,80 350,80 380,80 410,80 440,80 470,80 500,80 530,80 560,80" fill="none" stroke="#22c55e" stroke-width="1.5"/>' +
+           // Noisy actual readings
+           '<polyline points="50,120 80,90 110,105 140,85 170,95 200,75 230,88 260,78 290,83 320,77 350,82 380,79 410,81 440,78 470,80 500,82 530,79 560,80" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>' +
+           // Stable zone annotation
+           '<rect x="380" y="60" width="180" height="55" rx="3" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+           '<text x="470" y="77" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Stable baseline zone</text>' +
+           '<text x="470" y="91" text-anchor="middle" fill="#555" font-size="7">EWMA settled after ~3 min</text>' +
+           '<text x="470" y="105" text-anchor="middle" fill="#555" font-size="7">Ready to detect anomalies</text>' +
+           // Legend
+           '<rect x="60" y="45" width="10" height="2" fill="#22c55e"/>' +
+           '<text x="76" y="50" fill="#22c55e" font-size="7">EWMA baseline (smoothed)</text>' +
+           '<rect x="60" y="60" width="10" height="2" fill="#3b82f6"/>' +
+           '<text x="76" y="65" fill="#3b82f6" font-size="7">Raw RSSI samples (noisy)</text>' +
+           '</svg>'
+    },
+
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:580px">' +
+             '<defs><pattern id="sg20-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="580" height="280" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="568" height="268" fill="url(#sg20-cc-grid)" rx="4"/>' +
+             '<text x="290" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">COMPONENT ANATOMY — SG-20</text>' +
+             // CYD board
+             '<g id="sg20-comp-cyd">' +
+             '<rect x="30" y="50" width="165" height="200" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+             '<rect x="30" y="50" width="165" height="22" rx="8" fill="rgba(59,130,246,0.12)"/>' +
+             '<text x="113" y="66" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ESP32 CYD</text>' +
+             // TFT
+             '<rect x="46" y="82" width="133" height="60" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
+             '<text x="113" y="101" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">ILI9341 TFT</text>' +
+             '<text x="113" y="115" text-anchor="middle" fill="#555" font-size="7">2.8" 320x240</text>' +
+             '<text x="113" y="128" text-anchor="middle" fill="#555" font-size="7">spectrum display</text>' +
+             // ESP32 radio
+             '<rect x="46" y="150" width="133" height="40" rx="4" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.25)" stroke-width="0.5"/>' +
+             '<text x="113" y="168" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">WiFi Promiscuous</text>' +
+             '<text x="113" y="182" text-anchor="middle" fill="#555" font-size="7">raw frame capture mode</text>' +
+             // Buzzer
+             '<rect x="46" y="197" width="60" height="22" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+             '<text x="76" y="211" text-anchor="middle" fill="#eab308" font-size="6.5">Buzzer alert</text>' +
+             '<rect x="113" y="197" width="66" height="22" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
+             '<text x="146" y="211" text-anchor="middle" fill="#555" font-size="6.5">GPIO 26</text>' +
+             '<rect x="46" y="225" width="133" height="18" rx="3" fill="#2a2a3a" stroke="#555" stroke-width="0.5"/>' +
+             '<text x="113" y="237" text-anchor="middle" fill="#888" font-size="7">USB-C power</text>' +
+             '<circle id="sg20-dot-cyd" cx="113" cy="112" r="7" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>' +
+             '<text x="113" y="116" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">1</text>' +
+             '</g>' +
+             // Promiscuous mode detail
+             '<g id="sg20-comp-promisc">' +
+             '<rect x="220" y="50" width="155" height="100" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<rect x="220" y="50" width="155" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
+             '<text x="298" y="66" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Promiscuous Mode</text>' +
+             '<text x="298" y="86" text-anchor="middle" fill="#8b949e" font-size="7">Captures ALL 802.11 frames</text>' +
+             '<text x="298" y="100" text-anchor="middle" fill="#555" font-size="7">not just frames to this device</text>' +
+             '<text x="298" y="114" text-anchor="middle" fill="#555" font-size="7">counts packets per channel</text>' +
+             '<text x="298" y="128" text-anchor="middle" fill="#555" font-size="7">RSSI of each frame logged</text>' +
+             '<circle id="sg20-dot-promisc" cx="298" cy="65" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+             '<text x="298" y="69" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">2</text>' +
+             '</g>' +
+             // Channel hopping
+             '<g id="sg20-comp-hop">' +
+             '<rect x="220" y="168" width="155" height="80" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+             '<rect x="220" y="168" width="155" height="22" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+             '<text x="298" y="184" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">Channel Hopping</text>' +
+             '<text x="298" y="204" text-anchor="middle" fill="#8b949e" font-size="7">Scan CH 1 &rarr; 13 sequentially</text>' +
+             '<text x="298" y="218" text-anchor="middle" fill="#555" font-size="7">50ms dwell per channel</text>' +
+             '<text x="298" y="232" text-anchor="middle" fill="#555" font-size="7">full sweep = 650ms</text>' +
+             '<circle id="sg20-dot-hop" cx="298" cy="183" r="7" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+             '<text x="298" y="187" text-anchor="middle" fill="#eab308" font-size="8" font-weight="700">3</text>' +
+             '</g>' +
+             // Alert logic
+             '<g id="sg20-comp-alert">' +
+             '<rect x="400" y="50" width="160" height="200" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+             '<rect x="400" y="50" width="160" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
+             '<text x="480" y="66" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">Alert Engine</text>' +
+             '<text x="480" y="86" text-anchor="middle" fill="#8b949e" font-size="7">EWMA baseline per channel</text>' +
+             '<text x="480" y="100" text-anchor="middle" fill="#555" font-size="7">z-score anomaly detection</text>' +
+             '<rect x="414" y="112" width="132" height="28" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+             '<text x="480" y="128" text-anchor="middle" fill="#ef4444" font-size="7">JAMMER: 3+ channels</text>' +
+             '<text x="480" y="136" text-anchor="middle" fill="#ef4444" font-size="6">above threshold by 15+ dB</text>' +
+             '<rect x="414" y="146" width="132" height="28" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+             '<text x="480" y="162" text-anchor="middle" fill="#eab308" font-size="7">CONGESTION: 1-2 channels</text>' +
+             '<text x="480" y="170" text-anchor="middle" fill="#eab308" font-size="6">elevated (normal WiFi traffic)</text>' +
+             '<rect x="414" y="180" width="132" height="28" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+             '<text x="480" y="196" text-anchor="middle" fill="#22c55e" font-size="7">NORMAL: all channels</text>' +
+             '<text x="480" y="204" text-anchor="middle" fill="#22c55e" font-size="6">within baseline range</text>' +
+             '<text x="480" y="232" text-anchor="middle" fill="#555" font-size="7">Buzzer + TFT alert on jam</text>' +
+             '<circle id="sg20-dot-alert" cx="480" cy="65" r="7" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.5"/>' +
+             '<text x="480" y="69" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">4</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'cyd',
+                name: 'ESP32 CYD (Cheap Yellow Display)',
+                purpose: 'The all-in-one jammer detector platform. The built-in ILI9341 TFT displays the spectrum in real time. The ESP32 WiFi module runs in promiscuous mode to capture raw frames. The onboard buzzer triggers audible alerts. No soldering required — just flash and run.',
+                specs: ['ESP32-WROOM-32 dual-core 240 MHz', 'ILI9341 2.8" TFT 320x240', 'XPT2046 touchscreen controller', 'Onboard buzzer on GPIO 26', 'USB-C power (~200mA active)']
+            },
+            {
+                id: 'promisc',
+                name: 'WiFi Promiscuous Mode',
+                purpose: 'The RF sensing mechanism. In promiscuous mode, the ESP32 captures every 802.11 frame it can hear — beacons, probe requests, data frames, management frames — not just frames addressed to it. For each frame, we record the RSSI (signal strength). More frames and higher RSSI = more energy on that channel.',
+                specs: ['esp_wifi_set_promiscuous(true)', 'WIFI_PROMIS_FILTER_MASK_ALL', 'Callback fires per received frame', 'Records: channel, RSSI, frame count', 'Non-destructive — passive listening only']
+            },
+            {
+                id: 'hop',
+                name: 'Channel Hopping',
+                purpose: 'Scans all 13 WiFi channels (1-13) in the 2.4 GHz band sequentially. Dwells on each for 50ms to collect enough frames for a meaningful sample. A complete sweep takes ~650ms — fast enough to detect an active jammer within seconds of it starting.',
+                specs: ['Channels 1-13 (2.412-2.472 GHz)', '50ms dwell per channel', 'Full sweep: ~650ms', 'esp_wifi_set_channel() for each hop', 'Jammer detection: ~1-3 sweep cycles']
+            },
+            {
+                id: 'alert',
+                name: 'Alert Engine (EWMA Baseline)',
+                purpose: 'The brain. Uses Exponentially Weighted Moving Average (EWMA) to learn the baseline energy per channel over time. When 3 or more channels simultaneously exceed the baseline by 15 dB or more, it is a broadband event — the signature of a jammer. Single-channel spikes are treated as normal WiFi congestion.',
+                specs: ['EWMA alpha = 0.1 (slow adaptation)', 'Alert: 3+ channels exceed baseline by 15 dB', 'Congestion: 1-2 channels elevated', 'Threshold adjustable via serial (+/-)', 'Event log stored in SRAM (last 10 events)']
+            }
+        ]
+    },
+
+    commonMistakes: [
+        {
+            title: 'Triggering false alerts on normal WiFi congestion',
+            correct: 'Configure the alert threshold to require 3 or more channels simultaneously elevated by 15+ dB above baseline. A real jammer floods ALL channels broadband. A normal AP uses 1-3 adjacent channels. Single-channel spikes are congestion, not jamming.',
+            incorrect: 'Setting the alert to trigger when ANY single channel exceeds baseline by 10 dB. A neighbor streaming 4K video over WiFi will spike 1-2 channels by 10-15 dB. The detector false-alarms constantly in any populated environment.',
+            consequence: 'Alert fatigue. The detector goes off every time someone microwaves food or streams Netflix. After enough false alarms, you stop trusting it — and miss a real jammer event when it matters.',
+            svgDiff: '<svg viewBox="0 0 540 140" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="140" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="120" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Broadband threshold</text>' +
+                     '<text x="132" y="48" text-anchor="middle" fill="#4ade80" font-size="7">Alert: 3+ channels exceed by 15+ dB</text>' +
+                     '<text x="132" y="64" text-anchor="middle" fill="#8b949e" font-size="7">Normal congestion (1-2 ch spike) = ignore</text>' +
+                     '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">Jammer (all ch spike) = ALERT</text>' +
+                     '<text x="132" y="100" text-anchor="middle" fill="#4ade80" font-size="7">False alarm rate: low</text>' +
+                     '<text x="132" y="115" text-anchor="middle" fill="#22c55e" font-size="7">Tuned to jammer signature</text>' +
+                     '<rect x="285" y="10" width="245" height="120" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Single channel trigger</text>' +
+                     '<text x="407" y="48" text-anchor="middle" fill="#ef4444" font-size="7">Alert: ANY channel exceeds 10 dB</text>' +
+                     '<text x="407" y="64" text-anchor="middle" fill="#8b949e" font-size="7">Neighbor streams Netflix = ALERT</text>' +
+                     '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">Microwave leaks = ALERT</text>' +
+                     '<text x="407" y="100" text-anchor="middle" fill="#ef4444" font-size="7">Alert fatigue — ignored by operator</text>' +
+                     '<text x="407" y="115" text-anchor="middle" fill="#ef4444" font-size="7">Real jammer missed</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Not waiting for baseline to stabilize before trusting alerts',
+            correct: 'Let the detector run for at least 5 minutes (60 scan cycles) in a normal, undisturbed environment before enabling alerts. The EWMA needs time to converge on the true baseline. Check the serial output — RSSI variance should drop below ±3 dB before you trust the system.',
+            incorrect: 'Powering on the detector and immediately trusting its alerts. On boot, the EWMA baseline starts at 0. For the first 20-30 cycles, the baseline is still converging, and the "normal" thresholds are not representative of the actual environment noise floor.',
+            consequence: 'False positives during warm-up and missed detections afterward. If you set the baseline during an unusually noisy period (someone running a large file transfer), the baseline will be elevated — making real jammers harder to detect above the artificially high floor.',
+            svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
+                     '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
+                     '<rect x="10" y="10" width="245" height="100" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Warm-up period</text>' +
+                     '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">Wait 5+ minutes after boot</text>' +
+                     '<text x="132" y="65" text-anchor="middle" fill="#8b949e" font-size="7">Verify: serial RSSI variance &lt; 3 dB</text>' +
+                     '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">EWMA fully converged</text>' +
+                     '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Alert accuracy: reliable</text>' +
+                     '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Immediate trust</text>' +
+                     '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">Use alerts immediately on boot</text>' +
+                     '<text x="407" y="65" text-anchor="middle" fill="#8b949e" font-size="7">EWMA baseline = 0 initially</text>' +
+                     '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">Warm-up spikes = false alarms</text>' +
+                     '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">Baseline never truly stable</text>' +
+                     '</svg>'
+        }
+    ]
 };

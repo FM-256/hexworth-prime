@@ -231,7 +231,216 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: AI Opponent</strong> &mdash; Add a single-player mode where Player 2 is controlled by the CPU. Track the ball\'s Y position and move the paddle toward it, but add a slight delay or speed limit so the AI is beatable. Add difficulty levels (Easy/Medium/Hard) that control AI reaction speed.</p>' +
                     '<p><strong>Challenge 2: Power-Ups</strong> &mdash; Spawn a random power-up on the court every 15 seconds. When the ball hits it, trigger an effect: speed boost, paddle size change, or multi-ball. Display the active power-up with a small icon and a countdown timer.</p>' +
-                    '<p><strong>Challenge 3: Breakout Mode</strong> &mdash; Add a single-player Breakout mode: one paddle at the bottom, rows of colored bricks at the top. Each brick takes one hit to destroy. Track the number of bricks remaining and display a "You Win" screen when all are cleared.</p>'
+                    '<p><strong>Challenge 3: Breakout Mode</strong> &mdash; Add a single-player Breakout mode: one paddle at the bottom, rows of colored bricks at the top. Each brick takes one hit to destroy. Track the number of bricks remaining and display a "You Win" screen when all are cleared.</p>',
+
+        stepVisuals: {
+            1: '<svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg26-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="340" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="340" fill="url(#sg26-sv1-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">PONG GAME LOOP — FRAME TIMING</text>' +
+               '<!-- Frame loop boxes -->' +
+               '<rect x="40" y="50" width="130" height="52" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<text x="105" y="73" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">Read Input</text>' +
+               '<text x="105" y="88" text-anchor="middle" fill="#8b949e" font-size="8">touch / buttons</text>' +
+               '<rect x="220" y="50" width="130" height="52" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="285" y="73" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Update State</text>' +
+               '<text x="285" y="88" text-anchor="middle" fill="#8b949e" font-size="8">physics + collision</text>' +
+               '<rect x="400" y="50" width="130" height="52" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="465" y="73" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">Render Frame</text>' +
+               '<text x="465" y="88" text-anchor="middle" fill="#8b949e" font-size="8">erase + redraw</text>' +
+               '<rect x="580" y="50" width="100" height="52" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<text x="630" y="73" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Wait</text>' +
+               '<text x="630" y="88" text-anchor="middle" fill="#8b949e" font-size="8">16ms / frame</text>' +
+               '<!-- Arrows -->' +
+               '<line x1="170" y1="76" x2="218" y2="76" stroke="#555" stroke-width="1.5" marker-end="url(#sg26-arr)"/>' +
+               '<line x1="350" y1="76" x2="398" y2="76" stroke="#555" stroke-width="1.5" marker-end="url(#sg26-arr)"/>' +
+               '<line x1="530" y1="76" x2="578" y2="76" stroke="#555" stroke-width="1.5" marker-end="url(#sg26-arr)"/>' +
+               '<defs><marker id="sg26-arr" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#555"/></marker></defs>' +
+               '<!-- Loop back -->' +
+               '<path d="M630 102 Q630 130 360 140 Q90 150 90 104" fill="none" stroke="#555" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#sg26-arr)"/>' +
+               '<text x="360" y="160" text-anchor="middle" fill="#555" font-size="8">loop() — target 60 FPS (16.67ms per frame)</text>' +
+               '<!-- Collision detail -->' +
+               '<rect x="40" y="190" width="640" height="120" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.12)" stroke-width="1"/>' +
+               '<text x="360" y="210" text-anchor="middle" fill="#22c55e" font-size="9" letter-spacing="0.1em">COLLISION DETECTION LOGIC</text>' +
+               '<rect x="60" y="222" width="180" height="70" rx="4" fill="#161b22" stroke="#ff6b35" stroke-width="1"/>' +
+               '<text x="150" y="240" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="600">Ball vs Paddle</text>' +
+               '<text x="150" y="256" text-anchor="middle" fill="#8b949e" font-size="7">ballX &lt; PAD_X + PAD_W</text>' +
+               '<text x="150" y="270" text-anchor="middle" fill="#8b949e" font-size="7">ballY in [padY, padY+PAD_H]</text>' +
+               '<text x="150" y="284" text-anchor="middle" fill="#22c55e" font-size="7">-&gt; reverse velX</text>' +
+               '<rect x="270" y="222" width="180" height="70" rx="4" fill="#161b22" stroke="#3b82f6" stroke-width="1"/>' +
+               '<text x="360" y="240" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Ball vs Wall</text>' +
+               '<text x="360" y="256" text-anchor="middle" fill="#8b949e" font-size="7">ballY &lt; 0 || ballY &gt; SCREEN_H</text>' +
+               '<text x="360" y="270" text-anchor="middle" fill="#8b949e" font-size="7">bounce off top/bottom</text>' +
+               '<text x="360" y="284" text-anchor="middle" fill="#22c55e" font-size="7">-&gt; reverse velY</text>' +
+               '<rect x="480" y="222" width="180" height="70" rx="4" fill="#161b22" stroke="#a855f7" stroke-width="1"/>' +
+               '<text x="570" y="240" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">Ball vs Goal</text>' +
+               '<text x="570" y="256" text-anchor="middle" fill="#8b949e" font-size="7">ballX &lt; 0 || ballX &gt; SCREEN_W</text>' +
+               '<text x="570" y="270" text-anchor="middle" fill="#8b949e" font-size="7">point scored</text>' +
+               '<text x="570" y="284" text-anchor="middle" fill="#22c55e" font-size="7">-&gt; resetBall()</text>' +
+               '</svg>',
+
+            4: '<svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg26-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="260" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="260" fill="url(#sg26-sv4-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">BUZZER TONE FREQUENCIES</text>' +
+               '<!-- Frequency bars -->' +
+               '<text x="60" y="55" fill="#8b949e" font-size="9">Sound Event</text>' +
+               '<text x="240" y="55" fill="#8b949e" font-size="9">Frequency</text>' +
+               '<text x="380" y="55" fill="#8b949e" font-size="9">Duration</text>' +
+               '<text x="520" y="55" fill="#8b949e" font-size="9">Waveform</text>' +
+               '<line x1="40" y1="62" x2="680" y2="62" stroke="#30363d" stroke-width="1"/>' +
+               '<!-- Row 1 -->' +
+               '<rect x="40" y="70" width="640" height="40" rx="4" fill="rgba(255,255,255,0.02)"/>' +
+               '<text x="60" y="95" fill="#22c55e" font-size="10" font-weight="600">Wall Bounce</text>' +
+               '<text x="240" y="95" fill="#ff6b35" font-size="10">400 Hz</text>' +
+               '<text x="380" y="95" fill="#8b949e" font-size="10">30 ms</text>' +
+               '<rect x="510" y="78" width="60" height="24" rx="3" fill="#161b22" stroke="#ff6b35" stroke-width="1"/>' +
+               '<path d="M516,90 L525,78 L534,90 L543,90 L552,78 L561,90 L570,90" fill="none" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<!-- Row 2 -->' +
+               '<rect x="40" y="115" width="640" height="40" rx="4" fill="rgba(255,255,255,0.02)"/>' +
+               '<text x="60" y="140" fill="#3b82f6" font-size="10" font-weight="600">Paddle Hit</text>' +
+               '<text x="240" y="140" fill="#ff6b35" font-size="10">800 Hz</text>' +
+               '<text x="380" y="140" fill="#8b949e" font-size="10">30 ms</text>' +
+               '<rect x="510" y="123" width="60" height="24" rx="3" fill="#161b22" stroke="#3b82f6" stroke-width="1"/>' +
+               '<path d="M516,135 L521,123 L526,135 L531,123 L536,135 L541,123 L546,135 L551,123 L556,135 L561,123 L566,135" fill="none" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<!-- Row 3 -->' +
+               '<rect x="40" y="160" width="640" height="40" rx="4" fill="rgba(255,255,255,0.02)"/>' +
+               '<text x="60" y="185" fill="#a855f7" font-size="10" font-weight="600">Score</text>' +
+               '<text x="240" y="185" fill="#ff6b35" font-size="10">200 Hz -&gt; 300 Hz</text>' +
+               '<text x="380" y="185" fill="#8b949e" font-size="10">100+100 ms</text>' +
+               '<rect x="510" y="168" width="60" height="24" rx="3" fill="#161b22" stroke="#a855f7" stroke-width="1"/>' +
+               '<path d="M516,186 L525,180 L534,176 L543,172 L552,168 L561,168" fill="none" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<text x="360" y="230" text-anchor="middle" fill="#555" font-size="8">LEDC peripheral: ledcSetup(ch, freq, 8) + ledcWriteTone(ch, hz) — 8-bit resolution, PWM square wave</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg26-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="720" height="380" fill="#0d1117" rx="8"/>' +
+                 '<rect width="720" height="380" fill="url(#sg26-cc-grid)" rx="8"/>' +
+                 '<text x="360" y="26" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-26 COMPONENT BREAKDOWN — ESP32 CYD PONG</text>' +
+                 '<!-- CYD board body -->' +
+                 '<rect id="sg26-comp-cyd" x="240" y="50" width="240" height="160" rx="8" fill="#1e2736" stroke="#ff6b35" stroke-width="2"/>' +
+                 '<text x="360" y="74" text-anchor="middle" fill="#ff6b35" font-size="11" font-weight="600">ESP32 CYD</text>' +
+                 '<text x="360" y="88" text-anchor="middle" fill="#555" font-size="7">Cheap Yellow Display</text>' +
+                 '<!-- TFT sub-box -->' +
+                 '<rect id="sg26-comp-tft" x="255" y="100" width="95" height="50" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>' +
+                 '<text x="302" y="121" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">ILI9341 TFT</text>' +
+                 '<text x="302" y="134" text-anchor="middle" fill="#22c55e" font-size="7">320x240 2.8"</text>' +
+                 '<text x="302" y="145" text-anchor="middle" fill="#22c55e" font-size="7">XPT2046 touch</text>' +
+                 '<!-- Buzzer sub-box -->' +
+                 '<rect id="sg26-comp-buzzer" x="370" y="100" width="95" height="50" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>' +
+                 '<text x="418" y="121" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">Buzzer</text>' +
+                 '<text x="418" y="134" text-anchor="middle" fill="#a855f7" font-size="7">GPIO 26 / LEDC</text>' +
+                 '<text x="418" y="145" text-anchor="middle" fill="#a855f7" font-size="7">PWM tone gen</text>' +
+                 '<!-- Game loop sub-box -->' +
+                 '<rect id="sg26-comp-gameloop" x="255" y="165" width="210" height="35" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>' +
+                 '<text x="360" y="182" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Game Loop (loop())</text>' +
+                 '<text x="360" y="194" text-anchor="middle" fill="#60a5fa" font-size="7">Input -&gt; Physics -&gt; Render -&gt; Wait 16ms</text>' +
+                 '<!-- Optional buttons -->' +
+                 '<rect id="sg26-comp-buttons" x="510" y="90" width="120" height="70" rx="6" fill="rgba(255,107,53,0.06)" stroke="#ff6b35" stroke-width="1"/>' +
+                 '<text x="570" y="112" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="600">Tactile Buttons</text>' +
+                 '<text x="570" y="126" text-anchor="middle" fill="#8b949e" font-size="7">P1: GPIO 12/13</text>' +
+                 '<text x="570" y="138" text-anchor="middle" fill="#8b949e" font-size="7">P2: GPIO 14/27</text>' +
+                 '<text x="570" y="150" text-anchor="middle" fill="#555" font-size="7">OPTIONAL</text>' +
+                 '<!-- Connecting lines -->' +
+                 '<line x1="480" y1="130" x2="508" y2="125" stroke="#ff6b35" stroke-width="1" stroke-dasharray="3,2"/>' +
+                 '<!-- Callout dots -->' +
+                 '<circle id="sg26-dot-cyd" cx="240" cy="130" r="7" fill="#ff6b35" opacity="0.85"/><text x="240" y="134" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">1</text>' +
+                 '<circle id="sg26-dot-tft" cx="302" cy="98" r="7" fill="#22c55e" opacity="0.85"/><text x="302" y="102" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">2</text>' +
+                 '<circle id="sg26-dot-buzzer" cx="418" cy="98" r="7" fill="#a855f7" opacity="0.85"/><text x="418" y="102" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">3</text>' +
+                 '<circle id="sg26-dot-gameloop" cx="360" cy="163" r="7" fill="#3b82f6" opacity="0.85"/><text x="360" y="167" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">4</text>' +
+                 '<circle id="sg26-dot-buttons" cx="510" cy="160" r="7" fill="#ff6b35" opacity="0.85"/><text x="510" y="164" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">5</text>' +
+                 '<!-- Legend -->' +
+                 '<text x="40" y="270" fill="#555" font-size="8">No external wiring required — all components onboard CYD</text>' +
+                 '<text x="40" y="285" fill="#555" font-size="8">Tactile buttons optional: wire to GPIO + GND with INPUT_PULLUP</text>' +
+                 '</svg>',
+            components: [
+                { id: 'sg26-comp-cyd', name: 'ESP32 CYD', purpose: 'All-in-one game console hardware — ESP32 + display + touch + buzzer on one board', specs: ['240MHz dual-core Xtensa LX6', '520KB SRAM', 'USB-C power + programming'] },
+                { id: 'sg26-comp-tft', name: 'ILI9341 TFT Display', purpose: '2.8-inch 320x240 color LCD with XPT2046 resistive touch controller', specs: ['320x240 resolution', 'SPI interface (40MHz)', 'Driven by TFT_eSPI library'] },
+                { id: 'sg26-comp-buzzer', name: 'Onboard Buzzer', purpose: 'Generates tones for game events using ESP32 LEDC PWM peripheral', specs: ['GPIO 26 (check revision)', 'LEDC: ledcWriteTone(ch, hz)', 'Square wave output'] },
+                { id: 'sg26-comp-gameloop', name: 'Game Loop', purpose: '60 FPS main loop: read input, update physics/collision, erase+redraw sprites', specs: ['Target: 16.67ms/frame', 'Sprite erase = black rect', 'Sprite draw = colored rect'] },
+                { id: 'sg26-comp-buttons', name: 'Tactile Buttons', purpose: 'Optional physical controls for up/down movement — wire to GPIO + GND, INPUT_PULLUP mode', specs: ['P1 Up: GPIO 12, Down: GPIO 13', 'P2 Up: GPIO 14, Down: GPIO 27', 'Active LOW with internal pull-up'] }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Calling fillScreen() Every Frame',
+                correct: 'Erase only the previous sprite position with a black rectangle, then draw the new position.',
+                incorrect: 'Call tft.fillScreen(TFT_BLACK) at the start of every frame to clear everything.',
+                consequence: 'fillScreen() redraws 76,800 pixels every frame — causes severe flickering and drops FPS from 60 to under 5.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="52" fill="#8b949e" font-size="8">// Erase old position</text>' +
+                          '<text x="30" y="68" fill="#22c55e" font-size="8">tft.fillRect(oldX, oldY, W, H, BLACK);</text>' +
+                          '<text x="30" y="84" fill="#8b949e" font-size="8">// Draw at new position</text>' +
+                          '<text x="30" y="100" fill="#22c55e" font-size="8">tft.fillRect(newX, newY, W, H, WHITE);</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">Only changed pixels redrawn — smooth</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="52" fill="#8b949e" font-size="8">// Clear entire screen</text>' +
+                          '<text x="315" y="68" fill="#ef4444" font-size="8">tft.fillScreen(TFT_BLACK);</text>' +
+                          '<text x="315" y="84" fill="#8b949e" font-size="8">// Then redraw everything</text>' +
+                          '<text x="315" y="100" fill="#ef4444" font-size="8">drawCourt(); drawPaddles(); drawBall();</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">76,800 pixels per frame — severe flicker</text>' +
+                          '</svg>'
+            },
+            {
+                title: 'Not Clamping Paddle Position',
+                correct: 'Clamp padY to [0, SCREEN_H - PAD_H] after every input to keep paddle on screen.',
+                incorrect: 'Move paddle freely without boundary check, allowing it to scroll off the top or bottom edge.',
+                consequence: 'Paddle exits the visible area. When ball hits the missing paddle region, collision detection skips and ball passes through.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="52" fill="#22c55e" font-size="8">// After moving paddle:</text>' +
+                          '<text x="30" y="68" fill="#22c55e" font-size="8">p1Y = constrain(p1Y, 0,</text>' +
+                          '<text x="30" y="84" fill="#22c55e" font-size="8">  SCREEN_H - PAD_H);</text>' +
+                          '<text x="30" y="100" fill="#22c55e" font-size="8">p2Y = constrain(p2Y, 0,</text>' +
+                          '<text x="30" y="116" fill="#22c55e" font-size="8">  SCREEN_H - PAD_H);</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">Paddle stays within bounds — always visible</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="52" fill="#ef4444" font-size="8">// Move paddle, no clamp</text>' +
+                          '<text x="315" y="68" fill="#ef4444" font-size="8">if (touchY &lt; SCREEN_H/2)</text>' +
+                          '<text x="315" y="84" fill="#ef4444" font-size="8">  p1Y -= PAD_SPEED;</text>' +
+                          '<text x="315" y="100" fill="#ef4444" font-size="8">else</text>' +
+                          '<text x="315" y="116" fill="#ef4444" font-size="8">  p1Y += PAD_SPEED;</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">Paddle scrolls off edge — ghost collisions</text>' +
+                          '</svg>'
+            },
+            {
+                title: 'Blocking in Loop() with delay()',
+                correct: 'Use millis()-based timing for sound effects and game events — never call delay() in the main game loop.',
+                incorrect: 'Use delay(100) or longer pauses inside loop() to slow things down or debounce.',
+                consequence: 'Every delay() freezes input reading, rendering, and collision detection for its duration — game becomes unresponsive.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="52" fill="#22c55e" font-size="8">// millis-based frame cap</text>' +
+                          '<text x="30" y="68" fill="#22c55e" font-size="8">unsigned long now = millis();</text>' +
+                          '<text x="30" y="84" fill="#22c55e" font-size="8">if (now - lastFrame &lt; 16) return;</text>' +
+                          '<text x="30" y="100" fill="#22c55e" font-size="8">lastFrame = now;</text>' +
+                          '<text x="30" y="116" fill="#22c55e" font-size="8">// proceed with game logic</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">Non-blocking — inputs always responsive</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="52" fill="#ef4444" font-size="8">// Slow down with delay</text>' +
+                          '<text x="315" y="68" fill="#ef4444" font-size="8">updateGame();</text>' +
+                          '<text x="315" y="84" fill="#ef4444" font-size="8">renderFrame();</text>' +
+                          '<text x="315" y="100" fill="#ef4444" font-size="8">delay(16); // "60 FPS"</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">CPU frozen — input drops, audio breaks</text>' +
+                          '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -499,7 +708,187 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Save States</strong> &mdash; Implement save/load state functionality. Dump the entire GB struct and RAM to the SD card as a binary file. Map save to a button combo (A+B+SELECT) and load to another (A+B+START). Name save files to match the ROM filename.</p>' +
                     '<p><strong>Challenge 2: Custom Shell Theme</strong> &mdash; Redesign the ROM browser with a custom color scheme, scrollbar, ROM preview (read the title from the ROM header at offset 0x134), and an animated background. Make it feel like a real handheld OS.</p>' +
-                    '<p><strong>Challenge 3: Game Boy Color Support</strong> &mdash; Peanut-GB supports GBC with <code>#define ENABLE_LCD_COLOUR</code>. Enable it, update your <code>lcd_draw_line</code> callback to handle 15-bit color values, and convert them to RGB565 for the TFT. GBC games look dramatically better in color.</p>'
+                    '<p><strong>Challenge 3: Game Boy Color Support</strong> &mdash; Peanut-GB supports GBC with <code>#define ENABLE_LCD_COLOUR</code>. Enable it, update your <code>lcd_draw_line</code> callback to handle 15-bit color values, and convert them to RGB565 for the TFT. GBC games look dramatically better in color.</p>',
+
+        stepVisuals: {
+            1: '<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg27-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="320" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="320" fill="url(#sg27-sv1-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">GAME BOY EMULATION — FETCH / DECODE / EXECUTE CYCLE</text>' +
+               '<!-- Game Boy CPU flow -->' +
+               '<rect x="40" y="50" width="150" height="60" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<text x="115" y="77" text-anchor="middle" fill="#ff6b35" font-size="11" font-weight="600">FETCH</text>' +
+               '<text x="115" y="95" text-anchor="middle" fill="#8b949e" font-size="8">Read byte at PC from ROM</text>' +
+               '<rect x="240" y="50" width="150" height="60" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="315" y="77" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="600">DECODE</text>' +
+               '<text x="315" y="95" text-anchor="middle" fill="#8b949e" font-size="8">Identify opcode action</text>' +
+               '<rect x="440" y="50" width="150" height="60" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="515" y="77" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">EXECUTE</text>' +
+               '<text x="515" y="95" text-anchor="middle" fill="#8b949e" font-size="8">Run ALU / memory op</text>' +
+               '<!-- Arrows -->' +
+               '<defs><marker id="sg27-arr" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#555"/></marker></defs>' +
+               '<line x1="190" y1="80" x2="238" y2="80" stroke="#555" stroke-width="1.5" marker-end="url(#sg27-arr)"/>' +
+               '<line x1="390" y1="80" x2="438" y2="80" stroke="#555" stroke-width="1.5" marker-end="url(#sg27-arr)"/>' +
+               '<path d="M590 110 Q640 145 360 155 Q80 165 80 112" fill="none" stroke="#555" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#sg27-arr)"/>' +
+               '<text x="360" y="172" text-anchor="middle" fill="#555" font-size="8">4.19 MHz (SM83 CPU) — ~4.19M instructions/second</text>' +
+               '<!-- Callback layer -->' +
+               '<rect x="40" y="195" width="640" height="90" rx="6" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.12)" stroke-width="1"/>' +
+               '<text x="360" y="215" text-anchor="middle" fill="#a855f7" font-size="9" letter-spacing="0.1em">PEANUT-GB CALLBACK INTERFACE</text>' +
+               '<rect x="60" y="225" width="140" height="48" rx="4" fill="#161b22" stroke="#ff6b35" stroke-width="1"/>' +
+               '<text x="130" y="244" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="600">gb_rom_read()</text>' +
+               '<text x="130" y="258" text-anchor="middle" fill="#8b949e" font-size="7">ROM byte at address</text>' +
+               '<text x="130" y="270" text-anchor="middle" fill="#8b949e" font-size="7">from SD card array</text>' +
+               '<rect x="220" y="225" width="140" height="48" rx="4" fill="#161b22" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="290" y="244" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">gb_cart_ram_read()</text>' +
+               '<text x="290" y="258" text-anchor="middle" fill="#8b949e" font-size="7">Cartridge RAM</text>' +
+               '<text x="290" y="270" text-anchor="middle" fill="#8b949e" font-size="7">(save data)</text>' +
+               '<rect x="380" y="225" width="140" height="48" rx="4" fill="#161b22" stroke="#3b82f6" stroke-width="1"/>' +
+               '<text x="450" y="244" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">lcd_draw_line()</text>' +
+               '<text x="450" y="258" text-anchor="middle" fill="#8b949e" font-size="7">Pixel row to TFT</text>' +
+               '<text x="450" y="270" text-anchor="middle" fill="#8b949e" font-size="7">via pushImage()</text>' +
+               '<rect x="540" y="225" width="125" height="48" rx="4" fill="#161b22" stroke="#a855f7" stroke-width="1"/>' +
+               '<text x="602" y="244" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">gb_audio_*()</text>' +
+               '<text x="602" y="258" text-anchor="middle" fill="#8b949e" font-size="7">Sound channels</text>' +
+               '<text x="602" y="270" text-anchor="middle" fill="#8b949e" font-size="7">(I2S or DAC)</text>' +
+               '</svg>',
+
+            3: '<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg27-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="280" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="280" fill="url(#sg27-sv3-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SPI BUS SHARING — TFT + SD CARD</text>' +
+               '<!-- SPI Bus bar -->' +
+               '<rect x="120" y="60" width="480" height="24" rx="4" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<text x="360" y="76" text-anchor="middle" fill="#ff6b35" font-size="9" font-weight="600">SPI Bus: MOSI=13  MISO=12  SCK=14</text>' +
+               '<!-- ILI9341 -->' +
+               '<rect x="100" y="120" width="180" height="100" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="190" y="143" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">ILI9341 TFT</text>' +
+               '<text x="190" y="158" text-anchor="middle" fill="#8b949e" font-size="8">CS = GPIO 15</text>' +
+               '<text x="190" y="172" text-anchor="middle" fill="#8b949e" font-size="8">DC = GPIO 2</text>' +
+               '<text x="190" y="186" text-anchor="middle" fill="#8b949e" font-size="8">RST = GPIO 12</text>' +
+               '<text x="190" y="200" text-anchor="middle" fill="#8b949e" font-size="8">40 MHz SPI clock</text>' +
+               '<!-- SD Card -->' +
+               '<rect x="440" y="120" width="180" height="100" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="530" y="143" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">SD Card</text>' +
+               '<text x="530" y="158" text-anchor="middle" fill="#8b949e" font-size="8">CS = GPIO 5</text>' +
+               '<text x="530" y="172" text-anchor="middle" fill="#8b949e" font-size="8">Shares MOSI/MISO/SCK</text>' +
+               '<text x="530" y="186" text-anchor="middle" fill="#8b949e" font-size="8">25 MHz SPI clock</text>' +
+               '<text x="530" y="200" text-anchor="middle" fill="#8b949e" font-size="8">FAT32 format</text>' +
+               '<!-- CS lines -->' +
+               '<line x1="190" y1="84" x2="190" y2="118" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+               '<line x1="530" y1="84" x2="530" y2="118" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+               '<text x="190" y="108" text-anchor="middle" fill="#22c55e" font-size="7">CS LOW = selected</text>' +
+               '<text x="530" y="108" text-anchor="middle" fill="#3b82f6" font-size="7">CS LOW = selected</text>' +
+               '<text x="360" y="248" text-anchor="middle" fill="#555" font-size="8">Only one CS is LOW at a time — SD accessed during ROM load, TFT during gameplay</text>' +
+               '<text x="360" y="264" text-anchor="middle" fill="#555" font-size="8">SPI.beginTransaction() ensures correct frequency per device</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg27-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="720" height="380" fill="#0d1117" rx="8"/>' +
+                 '<rect width="720" height="380" fill="url(#sg27-cc-grid)" rx="8"/>' +
+                 '<text x="360" y="26" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-27 COMPONENT BREAKDOWN — GAME BOY EMULATOR HANDHELD</text>' +
+                 '<!-- ESP32 -->' +
+                 '<rect id="sg27-comp-esp32" x="270" y="50" width="180" height="70" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="2"/>' +
+                 '<text x="360" y="74" text-anchor="middle" fill="#ff6b35" font-size="11" font-weight="600">ESP32 DevKit</text>' +
+                 '<text x="360" y="90" text-anchor="middle" fill="#8b949e" font-size="8">240MHz / 520KB SRAM</text>' +
+                 '<text x="360" y="104" text-anchor="middle" fill="#8b949e" font-size="8">Runs Peanut-GB emulator core</text>' +
+                 '<!-- ILI9341 -->' +
+                 '<rect id="sg27-comp-ili9341" x="60" y="170" width="165" height="70" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="142" y="194" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">ILI9341 TFT</text>' +
+                 '<text x="142" y="210" text-anchor="middle" fill="#8b949e" font-size="8">320x240 2.4"</text>' +
+                 '<text x="142" y="224" text-anchor="middle" fill="#8b949e" font-size="8">Displays 160x144 GB frame</text>' +
+                 '<!-- Buttons -->' +
+                 '<rect id="sg27-comp-btns" x="270" y="170" width="180" height="70" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<text x="360" y="194" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">6 Buttons</text>' +
+                 '<text x="360" y="210" text-anchor="middle" fill="#8b949e" font-size="8">UP/DOWN/LEFT/RIGHT + A/B</text>' +
+                 '<text x="360" y="224" text-anchor="middle" fill="#8b949e" font-size="8">INPUT_PULLUP, active LOW</text>' +
+                 '<!-- SD Card -->' +
+                 '<rect id="sg27-comp-sd" x="495" y="170" width="165" height="70" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="577" y="194" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">SD Card Reader</text>' +
+                 '<text x="577" y="210" text-anchor="middle" fill="#8b949e" font-size="8">Stores .gb ROM files</text>' +
+                 '<text x="577" y="224" text-anchor="middle" fill="#8b949e" font-size="8">Shares SPI bus w/ TFT</text>' +
+                 '<!-- LiPo -->' +
+                 '<rect id="sg27-comp-lipo" x="180" y="290" width="165" height="60" rx="6" fill="#1e2736" stroke="#f59e0b" stroke-width="1.5"/>' +
+                 '<text x="262" y="316" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="600">LiPo Battery</text>' +
+                 '<text x="262" y="332" text-anchor="middle" fill="#8b949e" font-size="8">via TP4056 charge controller</text>' +
+                 '<!-- Speaker -->' +
+                 '<rect id="sg27-comp-speaker" x="375" y="290" width="165" height="60" rx="6" fill="#1e2736" stroke="#ec4899" stroke-width="1.5"/>' +
+                 '<text x="457" y="316" text-anchor="middle" fill="#ec4899" font-size="10" font-weight="600">Speaker / DAC</text>' +
+                 '<text x="457" y="332" text-anchor="middle" fill="#8b949e" font-size="8">I2S or GPIO DAC audio</text>' +
+                 '<!-- Callout dots -->' +
+                 '<circle id="sg27-dot-esp32" cx="270" cy="85" r="7" fill="#ff6b35" opacity="0.85"/><text x="270" y="89" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">1</text>' +
+                 '<circle id="sg27-dot-ili9341" cx="227" cy="168" r="7" fill="#22c55e" opacity="0.85"/><text x="227" y="172" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">2</text>' +
+                 '<circle id="sg27-dot-btns" cx="360" cy="168" r="7" fill="#3b82f6" opacity="0.85"/><text x="360" y="172" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">3</text>' +
+                 '<circle id="sg27-dot-sd" cx="577" cy="168" r="7" fill="#a855f7" opacity="0.85"/><text x="577" y="172" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">4</text>' +
+                 '<circle id="sg27-dot-lipo" cx="262" cy="288" r="7" fill="#f59e0b" opacity="0.85"/><text x="262" y="292" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">5</text>' +
+                 '<circle id="sg27-dot-speaker" cx="457" cy="288" r="7" fill="#ec4899" opacity="0.85"/><text x="457" y="292" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">6</text>' +
+                 '</svg>',
+            components: [
+                { id: 'sg27-comp-esp32', name: 'ESP32 DevKit', purpose: 'Runs Peanut-GB emulator at 240MHz — fetch/decode/execute Game Boy SM83 instructions', specs: ['240MHz dual-core', '520KB SRAM for GB state', 'PSRAM module recommended for large ROMs'] },
+                { id: 'sg27-comp-ili9341', name: 'ILI9341 TFT', purpose: '320x240 display driven via SPI — Game Boy 160x144 frame rendered with 1x or 2x scale', specs: ['SPI: MOSI=13 MISO=12 SCK=14', 'CS=15, DC=2, RST=12', 'lcd_draw_line() callback fills rows'] },
+                { id: 'sg27-comp-btns', name: '6 Game Buttons', purpose: 'D-pad (UP/DOWN/LEFT/RIGHT) plus A and B buttons mapped to Game Boy inputs', specs: ['Active LOW with INPUT_PULLUP', 'Debounced in readButtons()', 'Avoid GPIO 34/35/36/39 (no pull-up)'] },
+                { id: 'sg27-comp-sd', name: 'SD Card Reader', purpose: 'Stores .gb ROM files and save data — shares SPI bus with TFT using separate CS pin', specs: ['CS = GPIO 5', 'FAT32 format required', 'Use SD.open() callbacks for rom_read'] },
+                { id: 'sg27-comp-lipo', name: 'LiPo Battery', purpose: '3.7V lithium polymer battery with TP4056 charge controller for portable operation', specs: ['1000-2000mAh typical', 'TP4056 over-discharge protection', 'Voltage divider on GPIO34 for level'] },
+                { id: 'sg27-comp-speaker', name: 'Speaker / DAC', purpose: 'Audio output via ESP32 DAC (GPIO 25/26) or I2S for higher quality Game Boy sound', specs: ['GPIO25 = DAC channel 1', 'I2S for stereo quality', 'Volume via PWM attenuation'] }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Include peanut_gb.h Before Callback Definitions',
+                correct: 'Define all callback functions (gb_rom_read, lcd_draw_line, etc.) BEFORE #include "peanut_gb.h".',
+                incorrect: 'Put #include "peanut_gb.h" at the top of the file before the callbacks are defined.',
+                consequence: 'Compile error: "gb_rom_read not declared in this scope" — peanut_gb.h references callbacks at include time.',
+                svgDiff: '<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="200" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="180" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT ORDER</text>' +
+                          '<text x="30" y="52" fill="#8b949e" font-size="8">#include &lt;Arduino.h&gt;</text>' +
+                          '<text x="30" y="68" fill="#8b949e" font-size="8">#include &lt;TFT_eSPI.h&gt;</text>' +
+                          '<text x="30" y="84" fill="#22c55e" font-size="8">uint8_t gb_rom_read(gb_s* gb, uint_fast32_t addr)</text>' +
+                          '<text x="30" y="100" fill="#22c55e" font-size="8">{ return rom[addr]; }</text>' +
+                          '<text x="30" y="116" fill="#22c55e" font-size="8">void lcd_draw_line(gb_s* gb, ...) { ... }</text>' +
+                          '<text x="30" y="132" fill="#ff6b35" font-size="8">#include "peanut_gb.h"  // LAST</text>' +
+                          '<text x="137" y="170" text-anchor="middle" fill="#22c55e" font-size="8">Callbacks visible at include time</text>' +
+                          '<rect x="295" y="10" width="255" height="180" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT ORDER</text>' +
+                          '<text x="315" y="52" fill="#ef4444" font-size="8">#include "peanut_gb.h"  // FIRST</text>' +
+                          '<text x="315" y="68" fill="#8b949e" font-size="8">#include &lt;TFT_eSPI.h&gt;</text>' +
+                          '<text x="315" y="84" fill="#8b949e" font-size="8">// Callbacks defined here</text>' +
+                          '<text x="315" y="100" fill="#8b949e" font-size="8">uint8_t gb_rom_read(...) { ... }</text>' +
+                          '<text x="422" y="170" text-anchor="middle" fill="#ef4444" font-size="8">Compile error — callbacks undeclared</text>' +
+                          '</svg>'
+            },
+            {
+                title: 'Using GPIO 34/35/36/39 for Buttons',
+                correct: 'Use GPIO 4, 16, 17, 18, 19, 21 for buttons — these have functional INPUT_PULLUP.',
+                incorrect: 'Wire buttons to GPIO 34, 35, 36, or 39 with INPUT_PULLUP mode.',
+                consequence: 'GPIO 34-39 are input-only and have NO internal pull-up resistors — buttons will float and trigger random presses without external 10K resistors.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="55" fill="#8b949e" font-size="8">// GPIO with internal pull-ups</text>' +
+                          '<text x="30" y="71" fill="#22c55e" font-size="8">int BTN_UP    = 4;  // has pull-up</text>' +
+                          '<text x="30" y="87" fill="#22c55e" font-size="8">int BTN_DOWN  = 16; // has pull-up</text>' +
+                          '<text x="30" y="103" fill="#22c55e" font-size="8">int BTN_A     = 17; // has pull-up</text>' +
+                          '<text x="30" y="119" fill="#22c55e" font-size="8">pinMode(BTN_UP, INPUT_PULLUP);</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">Stable LOW when pressed, HIGH released</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="55" fill="#8b949e" font-size="8">// Input-only, no pull-up!</text>' +
+                          '<text x="315" y="71" fill="#ef4444" font-size="8">int BTN_UP = 36; // no pull-up</text>' +
+                          '<text x="315" y="87" fill="#ef4444" font-size="8">int BTN_A  = 39; // no pull-up</text>' +
+                          '<text x="315" y="103" fill="#ef4444" font-size="8">pinMode(BTN_UP, INPUT_PULLUP);</text>' +
+                          '<text x="315" y="119" fill="#8b949e" font-size="8">// Silently ignored by hardware</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">Floating pin — random ghost inputs</text>' +
+                          '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -719,7 +1108,157 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Custom Splash Screen</strong> &mdash; Replace the default RetroPie splash video with your own. Create a 1080p MP4 or PNG and place it in <code>/home/pi/RetroPie/splashscreens/</code>. Configure in RetroPie Setup &gt; Splash Screens. Make it match your aesthetic.</p>' +
                     '<p><strong>Challenge 2: Kiosk Mode</strong> &mdash; Lock down the system for public use: hide the RetroPie menu, disable settings access, and auto-launch into a specific system. Set <code>UIMode</code> to "kiosk" in EmulationStation settings. This is essential for the arcade cabinet build (SG-30).</p>' +
-                    '<p><strong>Challenge 3: Netplay</strong> &mdash; Set up RetroArch netplay for online multiplayer. Configure in Quick Menu &gt; Netplay. One Pi hosts, the other joins. Test with a two-player SNES game over your LAN. Requires both players to have identical ROMs and core versions.</p>'
+                    '<p><strong>Challenge 3: Netplay</strong> &mdash; Set up RetroArch netplay for online multiplayer. Configure in Quick Menu &gt; Netplay. One Pi hosts, the other joins. Test with a two-player SNES game over your LAN. Requires both players to have identical ROMs and core versions.</p>',
+
+        stepVisuals: {
+            1: '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg28-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="300" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="300" fill="url(#sg28-sv1-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">RETROPIE SOFTWARE STACK</text>' +
+               '<!-- Stack layers bottom to top -->' +
+               '<rect x="60" y="240" width="600" height="36" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="360" y="264" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">Raspberry Pi OS (Debian Bookworm)</text>' +
+               '<rect x="100" y="195" width="520" height="36" rx="4" fill="rgba(255,107,53,0.08)" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<text x="360" y="219" text-anchor="middle" fill="#ff6b35" font-size="11" font-weight="600">RetroArch (libretro frontend — emulator cores)</text>' +
+               '<rect x="140" y="150" width="440" height="36" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="360" y="174" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="600">EmulationStation (frontend / game browser)</text>' +
+               '<rect x="180" y="105" width="360" height="36" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<text x="360" y="129" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="600">RetroPie Setup Script (installer / updater)</text>' +
+               '<rect x="220" y="60" width="280" height="36" rx="4" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1.5"/>' +
+               '<text x="360" y="84" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">Scraper / Theme Engine</text>' +
+               '<!-- Labels -->' +
+               '<text x="36" y="262" fill="#555" font-size="7" text-anchor="middle">OS</text>' +
+               '<text x="76" y="217" fill="#555" font-size="7" text-anchor="middle">EMU</text>' +
+               '<text x="116" y="172" fill="#555" font-size="7" text-anchor="middle">FE</text>' +
+               '</svg>',
+
+            4: '<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg28-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="280" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="280" fill="url(#sg28-sv4-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">RETROARCH CORE ARCHITECTURE</text>' +
+               '<!-- RetroArch box -->' +
+               '<rect x="60" y="50" width="600" height="190" rx="6" fill="rgba(255,107,53,0.04)" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<text x="360" y="70" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">RetroArch Frontend</text>' +
+               '<!-- Core boxes -->' +
+               '<rect x="80" y="85" width="110" height="50" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="135" y="107" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">nestopia</text>' +
+               '<text x="135" y="121" text-anchor="middle" fill="#555" font-size="7">NES core</text>' +
+               '<rect x="205" y="85" width="110" height="50" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="260" y="107" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">snes9x</text>' +
+               '<text x="260" y="121" text-anchor="middle" fill="#555" font-size="7">SNES core</text>' +
+               '<rect x="330" y="85" width="110" height="50" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+               '<text x="385" y="107" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">genesis_plus_gx</text>' +
+               '<text x="385" y="121" text-anchor="middle" fill="#555" font-size="7">Genesis core</text>' +
+               '<rect x="455" y="85" width="110" height="50" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+               '<text x="510" y="107" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">pcsx_rearmed</text>' +
+               '<text x="510" y="121" text-anchor="middle" fill="#555" font-size="7">PSX core</text>' +
+               '<!-- Shared API bar -->' +
+               '<rect x="80" y="150" width="580" height="30" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>' +
+               '<text x="370" y="170" text-anchor="middle" fill="#8b949e" font-size="8">libretro API — common interface for all cores: retro_run(), retro_init(), retro_load_game()</text>' +
+               '<!-- Config paths -->' +
+               '<text x="80" y="215" fill="#555" font-size="8">System config:  ~/.config/retroarch/retroarch.cfg</text>' +
+               '<text x="80" y="230" fill="#555" font-size="8">Core config:    ~/.config/retroarch/config/[Core Name]/[ROM Name].cfg</text>' +
+               '<text x="80" y="245" fill="#555" font-size="8">Quick Menu:     Select+X in-game to access per-game settings and shaders</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg28-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="720" height="340" fill="#0d1117" rx="8"/>' +
+                 '<rect width="720" height="340" fill="url(#sg28-cc-grid)" rx="8"/>' +
+                 '<text x="360" y="26" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-28 COMPONENT BREAKDOWN — RETROPIE EMULATION STATION</text>' +
+                 '<rect id="sg28-comp-pi4" x="260" y="50" width="200" height="70" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="2"/>' +
+                 '<text x="360" y="74" text-anchor="middle" fill="#ff6b35" font-size="11" font-weight="600">Raspberry Pi 4</text>' +
+                 '<text x="360" y="90" text-anchor="middle" fill="#8b949e" font-size="8">4GB / 8GB RAM recommended</text>' +
+                 '<text x="360" y="104" text-anchor="middle" fill="#8b949e" font-size="8">USB-C power, USB 3.0, HDMI</text>' +
+                 '<rect id="sg28-comp-es" x="60" y="170" width="170" height="60" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="145" y="196" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">EmulationStation</text>' +
+                 '<text x="145" y="212" text-anchor="middle" fill="#8b949e" font-size="8">Frontend / game browser</text>' +
+                 '<text x="145" y="224" text-anchor="middle" fill="#8b949e" font-size="8">Reads es_systems.cfg</text>' +
+                 '<rect id="sg28-comp-ra" x="270" y="170" width="180" height="60" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<text x="360" y="196" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">RetroArch</text>' +
+                 '<text x="360" y="212" text-anchor="middle" fill="#8b949e" font-size="8">libretro core launcher</text>' +
+                 '<text x="360" y="224" text-anchor="middle" fill="#8b949e" font-size="8">Shaders + save states</text>' +
+                 '<rect id="sg28-comp-sd" x="490" y="170" width="170" height="60" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="575" y="196" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">MicroSD Card</text>' +
+                 '<text x="575" y="212" text-anchor="middle" fill="#8b949e" font-size="8">OS + ROMs + configs</text>' +
+                 '<text x="575" y="224" text-anchor="middle" fill="#8b949e" font-size="8">32GB+ Class 10 / U3</text>' +
+                 '<rect id="sg28-comp-ctrl" x="180" y="270" width="170" height="50" rx="6" fill="#1e2736" stroke="#f59e0b" stroke-width="1.5"/>' +
+                 '<text x="265" y="292" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="600">USB Controller</text>' +
+                 '<text x="265" y="308" text-anchor="middle" fill="#8b949e" font-size="8">Any USB HID gamepad</text>' +
+                 '<rect id="sg28-comp-hdmi" x="370" y="270" width="170" height="50" rx="6" fill="#1e2736" stroke="#ec4899" stroke-width="1.5"/>' +
+                 '<text x="455" y="292" text-anchor="middle" fill="#ec4899" font-size="10" font-weight="600">HDMI Display</text>' +
+                 '<text x="455" y="308" text-anchor="middle" fill="#8b949e" font-size="8">1080p via micro-HDMI</text>' +
+                 '<circle id="sg28-dot-pi4" cx="260" cy="85" r="7" fill="#ff6b35" opacity="0.85"/><text x="260" y="89" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">1</text>' +
+                 '<circle id="sg28-dot-es" cx="230" cy="168" r="7" fill="#22c55e" opacity="0.85"/><text x="230" y="172" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">2</text>' +
+                 '<circle id="sg28-dot-ra" cx="360" cy="168" r="7" fill="#3b82f6" opacity="0.85"/><text x="360" y="172" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">3</text>' +
+                 '<circle id="sg28-dot-sd" cx="575" cy="168" r="7" fill="#a855f7" opacity="0.85"/><text x="575" y="172" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">4</text>' +
+                 '<circle id="sg28-dot-ctrl" cx="265" cy="268" r="7" fill="#f59e0b" opacity="0.85"/><text x="265" y="272" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">5</text>' +
+                 '<circle id="sg28-dot-hdmi" cx="455" cy="268" r="7" fill="#ec4899" opacity="0.85"/><text x="455" y="272" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">6</text>' +
+                 '</svg>',
+            components: [
+                { id: 'sg28-comp-pi4', name: 'Raspberry Pi 4', purpose: 'Main compute hardware — runs RetroPie OS, EmulationStation frontend, and RetroArch emulator cores', specs: ['4GB+ RAM recommended', 'Micro-HDMI to HDMI', 'USB-C 5V 3A power supply'] },
+                { id: 'sg28-comp-es', name: 'EmulationStation', purpose: 'Graphical game browser — discovers ROMs by extension, launches RetroArch with the right core', specs: ['Config: /etc/emulationstation/es_systems.cfg', 'Themes in ~/.emulationstation/themes/', 'UIMode: full / kiosk / kid'] },
+                { id: 'sg28-comp-ra', name: 'RetroArch', purpose: 'Universal emulator frontend using libretro API — one interface for all emulator cores', specs: ['Select+X opens Quick Menu in-game', 'Core config per ROM in ~/.config/retroarch/', 'Shaders: CRT, NTSC, scanlines'] },
+                { id: 'sg28-comp-sd', name: 'MicroSD Card', purpose: 'Stores RetroPie OS image, all ROM files, BIOS files, and per-game configurations', specs: ['32GB+ Class 10 or U3', 'ROMs at ~/RetroPie/roms/[system]/', 'BIOS at ~/RetroPie/BIOS/'] },
+                { id: 'sg28-comp-ctrl', name: 'USB Controller', purpose: 'Any USB HID gamepad — mapped on first boot via EmulationStation controller wizard', specs: ['Xbox / PS / generic all work', 'Mapped in ~/.emulationstation/es_input.cfg', 'Per-core remap in RetroArch Quick Menu'] },
+                { id: 'sg28-comp-hdmi', name: 'HDMI Display', purpose: 'Primary display output — Pi 4 has two micro-HDMI ports supporting up to 4K60', specs: ['1080p60 for CRT shader performance', 'Force output: hdmi_group=1 in config.txt', 'hdmi_drive=2 for HDMI audio'] }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Missing BIOS Files for PSX / Neo Geo',
+                correct: 'Place required BIOS files in ~/RetroPie/BIOS/ with exact lowercase filenames before launching those systems.',
+                incorrect: 'Try to launch PSX or Neo Geo games without BIOS files — or use wrong filename capitalization.',
+                consequence: 'PSX games will not boot. Neo Geo shows "please insert the CD." BIOS files are not included in RetroPie — you must dump them from real hardware you own.',
+                svgDiff: '<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="200" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="180" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="55" fill="#8b949e" font-size="8">~/RetroPie/BIOS/</text>' +
+                          '<text x="30" y="71" fill="#22c55e" font-size="8">  SCPH1001.BIN    # PSX</text>' +
+                          '<text x="30" y="87" fill="#22c55e" font-size="8">  neogeo.zip      # Neo Geo</text>' +
+                          '<text x="30" y="103" fill="#22c55e" font-size="8">  gba_bios.bin    # GBA</text>' +
+                          '<text x="30" y="119" fill="#22c55e" font-size="8">  dc_boot.bin     # Dreamcast</text>' +
+                          '<text x="137" y="170" text-anchor="middle" fill="#22c55e" font-size="8">Exact lowercase filename — case-sensitive</text>' +
+                          '<rect x="295" y="10" width="255" height="180" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="55" fill="#8b949e" font-size="8">// No BIOS directory populated</text>' +
+                          '<text x="315" y="71" fill="#ef4444" font-size="8">~/RetroPie/BIOS/ # empty</text>' +
+                          '<text x="315" y="87" fill="#8b949e" font-size="8">// Or wrong capitalization:</text>' +
+                          '<text x="315" y="103" fill="#ef4444" font-size="8">SCPH1001.bin  # wrong case</text>' +
+                          '<text x="422" y="170" text-anchor="middle" fill="#ef4444" font-size="8">Black screen or "please insert CD" error</text>' +
+                          '</svg>'
+            },
+            {
+                title: 'Wrong ROM File Extension for System',
+                correct: 'Check es_systems.cfg for the expected extensions and match your ROM filenames exactly.',
+                incorrect: 'Place ROMs with unexpected extensions (e.g., .bin for SNES instead of .sfc) — EmulationStation ignores them.',
+                consequence: 'ROMs silently do not appear in EmulationStation. The system entry may vanish from the menu if no valid ROMs are found.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT EXTENSIONS</text>' +
+                          '<text x="30" y="55" fill="#22c55e" font-size="8">NES:     .nes .NES</text>' +
+                          '<text x="30" y="71" fill="#22c55e" font-size="8">SNES:    .sfc .smc .SNES</text>' +
+                          '<text x="30" y="87" fill="#22c55e" font-size="8">Genesis: .md .bin .smd</text>' +
+                          '<text x="30" y="103" fill="#22c55e" font-size="8">PSX:     .iso .cue .pbp .chd</text>' +
+                          '<text x="30" y="119" fill="#22c55e" font-size="8">GBA:     .gba .GBA</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">Matches es_systems.cfg whitelist</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">WRONG EXTENSION</text>' +
+                          '<text x="315" y="55" fill="#ef4444" font-size="8">SNES: game.bin  # not matched</text>' +
+                          '<text x="315" y="71" fill="#ef4444" font-size="8">GBA:  game.rom  # not matched</text>' +
+                          '<text x="315" y="87" fill="#8b949e" font-size="8">// EmulationStation scans for</text>' +
+                          '<text x="315" y="103" fill="#8b949e" font-size="8">// exact extensions from cfg</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">ROM invisible — system may disappear</text>' +
+                          '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -979,7 +1518,183 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Analog Stick Mode</strong> &mdash; Add a toggle (hold Start + Select for 3 seconds) that switches the joystick from hat switch mode to analog X/Y axis mode. Some games and emulators expect analog input. Report the joystick as X/Y axes with values of -127, 0, or 127 for digital directions.</p>' +
                     '<p><strong>Challenge 2: Button Remapping</strong> &mdash; Store button mappings in EEPROM so they persist across power cycles. Add a remap mode (hold Start + Select + A for 5 seconds) where pressing a physical button then pressing a virtual button number assigns the mapping. Read mappings from EEPROM on boot.</p>' +
-                    '<p><strong>Challenge 3: Tournament Lock</strong> &mdash; Add a physical switch (toggle or key switch) that disables rapid-fire, macros, and button remapping. When the lock is engaged, the controller operates in pure stock mode &mdash; required for tournament play. Wire the switch to the remaining free GPIO pin.</p>'
+                    '<p><strong>Challenge 3: Tournament Lock</strong> &mdash; Add a physical switch (toggle or key switch) that disables rapid-fire, macros, and button remapping. When the lock is engaged, the controller operates in pure stock mode &mdash; required for tournament play. Wire the switch to the remaining free GPIO pin.</p>',
+
+        stepVisuals: {
+            0: '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg29-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="300" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="300" fill="url(#sg29-sv0-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">USB HID REPORT — HOW PRO MICRO APPEARS AS GAMEPAD</text>' +
+               '<!-- Host side -->' +
+               '<rect x="40" y="55" width="200" height="100" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="140" y="78" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">Host OS</text>' +
+               '<text x="140" y="96" text-anchor="middle" fill="#8b949e" font-size="8">Windows / Linux / macOS</text>' +
+               '<text x="140" y="112" text-anchor="middle" fill="#8b949e" font-size="8">Reads HID report descriptor</text>' +
+               '<text x="140" y="128" text-anchor="middle" fill="#8b949e" font-size="8">Maps to /dev/input/js0</text>' +
+               '<text x="140" y="144" text-anchor="middle" fill="#555" font-size="7">No drivers needed — plug-and-play</text>' +
+               '<!-- USB cable -->' +
+               '<rect x="260" y="100" width="200" height="10" rx="3" fill="#333" stroke="#555" stroke-width="1"/>' +
+               '<text x="360" y="92" text-anchor="middle" fill="#555" font-size="8">USB cable</text>' +
+               '<text x="360" y="126" text-anchor="middle" fill="#555" font-size="7">HID reports @ 1ms interval</text>' +
+               '<!-- Pro Micro -->' +
+               '<rect x="480" y="55" width="200" height="100" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<text x="580" y="78" text-anchor="middle" fill="#ff6b35" font-size="10" font-weight="600">Pro Micro (ATmega32U4)</text>' +
+               '<text x="580" y="96" text-anchor="middle" fill="#8b949e" font-size="8">Native USB — no FTDI chip</text>' +
+               '<text x="580" y="112" text-anchor="middle" fill="#8b949e" font-size="8">ArduinoJoystick library</text>' +
+               '<text x="580" y="128" text-anchor="middle" fill="#8b949e" font-size="8">Joystick.sendState()</text>' +
+               '<text x="580" y="144" text-anchor="middle" fill="#555" font-size="7">USB VID:PID set in firmware</text>' +
+               '<!-- HID Report structure -->' +
+               '<rect x="40" y="185" width="640" height="90" rx="6" fill="rgba(255,107,53,0.04)" stroke="rgba(255,107,53,0.12)" stroke-width="1"/>' +
+               '<text x="360" y="204" text-anchor="middle" fill="#ff6b35" font-size="9" letter-spacing="0.1em">HID GAMEPAD REPORT STRUCTURE (8 bytes)</text>' +
+               '<rect x="60" y="214" width="60" height="40" rx="3" fill="#161b22" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="90" y="232" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Byte 0</text>' +
+               '<text x="90" y="246" text-anchor="middle" fill="#555" font-size="6">X axis</text>' +
+               '<rect x="130" y="214" width="60" height="40" rx="3" fill="#161b22" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="160" y="232" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Byte 1</text>' +
+               '<text x="160" y="246" text-anchor="middle" fill="#555" font-size="6">Y axis</text>' +
+               '<rect x="200" y="214" width="60" height="40" rx="3" fill="#161b22" stroke="#3b82f6" stroke-width="1"/>' +
+               '<text x="230" y="232" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">Byte 2</text>' +
+               '<text x="230" y="246" text-anchor="middle" fill="#555" font-size="6">Hat switch</text>' +
+               '<rect x="270" y="214" width="80" height="40" rx="3" fill="#161b22" stroke="#a855f7" stroke-width="1"/>' +
+               '<text x="310" y="232" text-anchor="middle" fill="#a855f7" font-size="7" font-weight="600">Bytes 3-4</text>' +
+               '<text x="310" y="246" text-anchor="middle" fill="#555" font-size="6">Buttons 0-15</text>' +
+               '<rect x="360" y="214" width="80" height="40" rx="3" fill="#161b22" stroke="#f59e0b" stroke-width="1"/>' +
+               '<text x="400" y="232" text-anchor="middle" fill="#f59e0b" font-size="7" font-weight="600">Bytes 5-7</text>' +
+               '<text x="400" y="246" text-anchor="middle" fill="#555" font-size="6">Reserved</text>' +
+               '</svg>',
+
+            2: '<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg29-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="280" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="280" fill="url(#sg29-sv2-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">JOYSTICK MICROSWITCH WIRING — STAR CONFIGURATION</text>' +
+               '<!-- Joystick center -->' +
+               '<circle cx="360" cy="145" r="30" fill="#1e2736" stroke="#ff6b35" stroke-width="2"/>' +
+               '<text x="360" y="141" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="600">Sanwa</text>' +
+               '<text x="360" y="155" text-anchor="middle" fill="#ff6b35" font-size="8">JLF</text>' +
+               '<!-- UP switch -->' +
+               '<rect x="320" y="50" width="80" height="35" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="360" y="68" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">UP</text>' +
+               '<text x="360" y="80" text-anchor="middle" fill="#555" font-size="7">GPIO 5</text>' +
+               '<line x1="360" y1="85" x2="360" y2="115" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+               '<!-- DOWN switch -->' +
+               '<rect x="320" y="200" width="80" height="35" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="360" y="218" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">DOWN</text>' +
+               '<text x="360" y="230" text-anchor="middle" fill="#555" font-size="7">GPIO 6</text>' +
+               '<line x1="360" y1="175" x2="360" y2="200" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+               '<!-- LEFT switch -->' +
+               '<rect x="140" y="128" width="80" height="35" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="180" y="146" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">LEFT</text>' +
+               '<text x="180" y="158" text-anchor="middle" fill="#555" font-size="7">GPIO 3</text>' +
+               '<line x1="220" y1="145" x2="330" y2="145" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+               '<!-- RIGHT switch -->' +
+               '<rect x="500" y="128" width="80" height="35" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="540" y="146" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">RIGHT</text>' +
+               '<text x="540" y="158" text-anchor="middle" fill="#555" font-size="7">GPIO 4</text>' +
+               '<line x1="390" y1="145" x2="500" y2="145" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+               '<!-- GND note -->' +
+               '<text x="360" y="258" text-anchor="middle" fill="#555" font-size="8">Each microswitch: COM to GPIO (INPUT_PULLUP) — NC to GND — active LOW when stick pushed in direction</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg29-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="720" height="360" fill="#0d1117" rx="8"/>' +
+                 '<rect width="720" height="360" fill="url(#sg29-cc-grid)" rx="8"/>' +
+                 '<text x="360" y="26" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-29 COMPONENT BREAKDOWN — USB ARCADE CONTROLLER</text>' +
+                 '<rect id="sg29-comp-promicro" x="265" y="50" width="190" height="70" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="2"/>' +
+                 '<text x="360" y="74" text-anchor="middle" fill="#ff6b35" font-size="11" font-weight="600">Arduino Pro Micro</text>' +
+                 '<text x="360" y="90" text-anchor="middle" fill="#8b949e" font-size="8">ATmega32U4 — Native USB HID</text>' +
+                 '<text x="360" y="104" text-anchor="middle" fill="#8b949e" font-size="8">Presents as USB gamepad</text>' +
+                 '<rect id="sg29-comp-joystick" x="60" y="170" width="160" height="60" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="140" y="196" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Sanwa JLF Joystick</text>' +
+                 '<text x="140" y="212" text-anchor="middle" fill="#8b949e" font-size="8">4 microswitches — UP/DN/LT/RT</text>' +
+                 '<text x="140" y="224" text-anchor="middle" fill="#8b949e" font-size="8">5-pin harness + GND common</text>' +
+                 '<rect id="sg29-comp-buttons" x="275" y="170" width="170" height="60" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<text x="360" y="196" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">8 Arcade Buttons</text>' +
+                 '<text x="360" y="212" text-anchor="middle" fill="#8b949e" font-size="8">30mm Sanwa OBSF or equiv.</text>' +
+                 '<text x="360" y="224" text-anchor="middle" fill="#8b949e" font-size="8">LED illuminated optional</text>' +
+                 '<rect id="sg29-comp-hid" x="500" y="170" width="160" height="60" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="580" y="196" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">HID Library</text>' +
+                 '<text x="580" y="212" text-anchor="middle" fill="#8b949e" font-size="8">ArduinoJoystick by MHeironimus</text>' +
+                 '<text x="580" y="224" text-anchor="middle" fill="#8b949e" font-size="8">Joystick.sendState() per loop</text>' +
+                 '<rect id="sg29-comp-panel" x="170" y="275" width="160" height="55" rx="6" fill="#1e2736" stroke="#f59e0b" stroke-width="1.5"/>' +
+                 '<text x="250" y="299" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="600">Mounting Panel</text>' +
+                 '<text x="250" y="315" text-anchor="middle" fill="#8b949e" font-size="8">Acrylic, wood, or 3D printed</text>' +
+                 '<rect id="sg29-comp-harness" x="390" y="275" width="160" height="55" rx="6" fill="#1e2736" stroke="#ec4899" stroke-width="1.5"/>' +
+                 '<text x="470" y="299" text-anchor="middle" fill="#ec4899" font-size="10" font-weight="600">Wiring Harness</text>' +
+                 '<text x="470" y="315" text-anchor="middle" fill="#8b949e" font-size="8">Spade connectors to header pins</text>' +
+                 '<circle id="sg29-dot-promicro" cx="265" cy="85" r="7" fill="#ff6b35" opacity="0.85"/><text x="265" y="89" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">1</text>' +
+                 '<circle id="sg29-dot-joystick" cx="220" cy="168" r="7" fill="#22c55e" opacity="0.85"/><text x="220" y="172" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">2</text>' +
+                 '<circle id="sg29-dot-buttons" cx="360" cy="168" r="7" fill="#3b82f6" opacity="0.85"/><text x="360" y="172" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">3</text>' +
+                 '<circle id="sg29-dot-hid" cx="500" cy="200" r="7" fill="#a855f7" opacity="0.85"/><text x="500" y="204" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">4</text>' +
+                 '<circle id="sg29-dot-panel" cx="250" cy="273" r="7" fill="#f59e0b" opacity="0.85"/><text x="250" y="277" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">5</text>' +
+                 '<circle id="sg29-dot-harness" cx="470" cy="273" r="7" fill="#ec4899" opacity="0.85"/><text x="470" y="277" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">6</text>' +
+                 '</svg>',
+            components: [
+                { id: 'sg29-comp-promicro', name: 'Arduino Pro Micro', purpose: 'ATmega32U4 with native USB — enumerates as a USB HID gamepad without any driver installation', specs: ['32U4 native USB (not CH340)', 'Micro-USB to host', 'Double-press reset for bootloader'] },
+                { id: 'sg29-comp-joystick', name: 'Sanwa JLF Joystick', purpose: '4 microswitches (UP/DOWN/LEFT/RIGHT) on a 5-pin harness — each wire to a GPIO with INPUT_PULLUP', specs: ['5-pin JST connector', 'Cherry microswitch mechanism', 'Hat switch or XY axis mode'] },
+                { id: 'sg29-comp-buttons', name: '8 Arcade Buttons', purpose: '30mm Sanwa or Seimitsu buttons with microswitches — each wired to one GPIO pin and GND common', specs: ['Active LOW via INPUT_PULLUP', 'LED illuminated (5V, 5mA typical)', 'Spade 0.187" terminals'] },
+                { id: 'sg29-comp-hid', name: 'ArduinoJoystick Library', purpose: 'Generates USB HID descriptor and report — call Joystick.setButton() and Joystick.sendState() each loop', specs: ['Install via Library Manager', 'Joystick.begin(false) disables auto-send', 'Manual Joystick.sendState() controls timing'] },
+                { id: 'sg29-comp-panel', name: 'Mounting Panel', purpose: 'Holds joystick and buttons at correct spacing — standard Sanwa layout or custom arcade layout', specs: ['Joystick: 24mm square cutout', 'Buttons: 30mm circular holes', 'Standard 2-row 8-button layout'] },
+                { id: 'sg29-comp-harness', name: 'Wiring Harness', purpose: 'Spade connectors crimp to button terminals, then dupont pins plug into Pro Micro header pins', specs: ['0.187" spade for Sanwa buttons', '0.110" spade for JLF harness', 'Dupont female to GPIO headers'] }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Forgetting Joystick.sendState() in Loop',
+                correct: 'Call Joystick.sendState() at the end of every loop() iteration with Joystick.begin(false).',
+                incorrect: 'Use Joystick.begin() with auto-send enabled (true) and expect immediate response — or forget sendState() entirely.',
+                consequence: 'With auto-send true, every individual setButton() call triggers a USB report — spamming the host. Without sendState(), no reports are ever sent and the controller appears dead.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="52" fill="#8b949e" font-size="8">// setup()</text>' +
+                          '<text x="30" y="68" fill="#22c55e" font-size="8">Joystick.begin(false); // manual send</text>' +
+                          '<text x="30" y="84" fill="#8b949e" font-size="8">// loop()</text>' +
+                          '<text x="30" y="100" fill="#22c55e" font-size="8">updateAll();</text>' +
+                          '<text x="30" y="116" fill="#22c55e" font-size="8">Joystick.sendState(); // one report</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">One HID report per frame — clean</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="52" fill="#8b949e" font-size="8">// setup()</text>' +
+                          '<text x="315" y="68" fill="#ef4444" font-size="8">Joystick.begin(); // auto-send!</text>' +
+                          '<text x="315" y="84" fill="#8b949e" font-size="8">// loop() — each call = USB report</text>' +
+                          '<text x="315" y="100" fill="#ef4444" font-size="8">Joystick.setButton(0, pressed);</text>' +
+                          '<text x="315" y="116" fill="#8b949e" font-size="8">// 8 buttons = 8 USB reports</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">USB bus spam — host drops reports</text>' +
+                          '</svg>'
+            },
+            {
+                title: 'Ghost Inputs from Floating GND Bus',
+                correct: 'Run a single GND wire daisy-chained through all button GND terminals to a GND pin on Pro Micro.',
+                incorrect: 'Leave any button switch terminal unconnected — even one loose GND wire causes floating on that GPIO.',
+                consequence: 'Floating GPIO with INPUT_PULLUP reads randomly as HIGH/LOW — button appears to press itself continuously in game.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="55" fill="#22c55e" font-size="8">BTN_GND rail:</text>' +
+                          '<text x="30" y="71" fill="#22c55e" font-size="8">GND pin -> Btn1 GND</text>' +
+                          '<text x="30" y="87" fill="#22c55e" font-size="8">         -> Btn2 GND</text>' +
+                          '<text x="30" y="103" fill="#22c55e" font-size="8">         -> Btn3 GND ... Btn8 GND</text>' +
+                          '<text x="30" y="119" fill="#22c55e" font-size="8">         -> Joystick GND common</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">All switches share one GND reference</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="55" fill="#8b949e" font-size="8">// One terminal disconnected</text>' +
+                          '<text x="315" y="71" fill="#8b949e" font-size="8">GND -> Btn1 GND</text>' +
+                          '<text x="315" y="87" fill="#8b949e" font-size="8">     -> Btn2 GND</text>' +
+                          '<text x="315" y="103" fill="#ef4444" font-size="8">     -> Btn3 GND  // LOOSE</text>' +
+                          '<text x="315" y="119" fill="#8b949e" font-size="8">     -> Btn4-8 GND</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">Btn3 GPIO floats — random presses</text>' +
+                          '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -1257,7 +1972,193 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Custom Cabinet Art</strong> &mdash; Design side panels, marquee header, and a screen bezel in the Hexworth aesthetic &mdash; dark navy, neon cyan, circuit-board motifs. Print on vinyl adhesive and apply. Add clear coat for durability.</p>' +
                     '<p><strong>Challenge 2: Coin Mechanism</strong> &mdash; Add a coin acceptor ($10 from AliExpress). Wire its signal to a GPIO pin. Write a Python daemon that counts coin insertions and gates game launches &mdash; EmulationStation only starts games when credits are available.</p>' +
-                    '<p><strong>Challenge 3: Play Stats Dashboard</strong> &mdash; Write a background script that monitors RetroArch save states and logs: total play time per game, most-played games, and session counts. Display on a small OLED mounted on the cabinet side, or serve as a web page accessible over WiFi.</p>'
+                    '<p><strong>Challenge 3: Play Stats Dashboard</strong> &mdash; Write a background script that monitors RetroArch save states and logs: total play time per game, most-played games, and session counts. Display on a small OLED mounted on the cabinet side, or serve as a web page accessible over WiFi.</p>',
+
+        stepVisuals: {
+            2: '<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg30-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="320" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="320" fill="url(#sg30-sv2-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">CABINET INTERNALS — COMPONENT LAYOUT</text>' +
+               '<!-- Cabinet outline -->' +
+               '<rect x="180" y="45" width="360" height="250" rx="10" fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" stroke-dasharray="8,4"/>' +
+               '<text x="360" y="58" text-anchor="middle" fill="#333" font-size="7" letter-spacing="0.1em">ENCLOSURE</text>' +
+               '<!-- Marquee -->' +
+               '<rect x="195" y="62" width="330" height="30" rx="4" fill="rgba(255,107,53,0.08)" stroke="#ff6b35" stroke-width="1"/>' +
+               '<text x="360" y="82" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="600">NeoPixel LED Marquee — GPIO 18</text>' +
+               '<!-- Display -->' +
+               '<rect x="210" y="105" width="300" height="90" rx="4" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="360" y="148" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">7" HDMI Display</text>' +
+               '<text x="360" y="163" text-anchor="middle" fill="#555" font-size="7">1024x600 — micro-HDMI</text>' +
+               '<!-- Controls -->' +
+               '<rect x="195" y="210" width="330" height="50" rx="4" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="360" y="232" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">Control Panel — Joystick + 8 Buttons</text>' +
+               '<text x="360" y="248" text-anchor="middle" fill="#555" font-size="7">Zero-delay USB encoder (no code needed)</text>' +
+               '<!-- External components -->' +
+               '<rect x="30" y="100" width="130" height="50" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<text x="95" y="122" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">Raspberry Pi 4</text>' +
+               '<text x="95" y="138" text-anchor="middle" fill="#555" font-size="7">Mounted inside enclosure</text>' +
+               '<rect x="560" y="100" width="130" height="50" rx="6" fill="#1e2736" stroke="#f59e0b" stroke-width="1.5"/>' +
+               '<text x="625" y="122" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">Stereo Amp</text>' +
+               '<text x="625" y="138" text-anchor="middle" fill="#555" font-size="7">PAM8403 + 2x speakers</text>' +
+               '<rect x="30" y="190" width="130" height="50" rx="6" fill="#1e2736" stroke="#ec4899" stroke-width="1.5"/>' +
+               '<text x="95" y="212" text-anchor="middle" fill="#ec4899" font-size="9" font-weight="600">5V 6A PSU</text>' +
+               '<text x="95" y="228" text-anchor="middle" fill="#555" font-size="7">Powers Pi + display + amp</text>' +
+               '<!-- Power notes -->' +
+               '<text x="360" y="298" text-anchor="middle" fill="#555" font-size="8">Power budget: Pi 3A + Display 0.5A + Amp 0.5A + LEDs 1A = 5A minimum — use 6A supply for headroom</text>' +
+               '</svg>',
+
+            5: '<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg30-sv5-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="720" height="280" fill="#0d1117" rx="8"/>' +
+               '<rect width="720" height="280" fill="url(#sg30-sv5-grid)" rx="8"/>' +
+               '<text x="360" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">NEOPIXEL MARQUEE — GPIO 18 + RPIO_PWM</text>' +
+               '<!-- GPIO 18 special note -->' +
+               '<rect x="40" y="50" width="640" height="40" rx="4" fill="rgba(255,107,53,0.06)" stroke="#ff6b35" stroke-width="1"/>' +
+               '<text x="360" y="68" text-anchor="middle" fill="#ff6b35" font-size="9" font-weight="600">GPIO 18 is the ONLY pin with PWM output compatible with rpi_ws281x on Pi 4</text>' +
+               '<text x="360" y="82" text-anchor="middle" fill="#555" font-size="8">GPIO 12 / 13 / 19 also work — GPIO 18 is most common. Must run with sudo.</text>' +
+               '<!-- Wiring table -->' +
+               '<text x="60" y="118" fill="#8b949e" font-size="9">NeoPixel Strip</text>' +
+               '<text x="240" y="118" fill="#8b949e" font-size="9">Pi Connection</text>' +
+               '<text x="420" y="118" fill="#8b949e" font-size="9">Notes</text>' +
+               '<line x1="40" y1="124" x2="680" y2="124" stroke="#30363d" stroke-width="1"/>' +
+               '<rect x="40" y="130" width="640" height="32" rx="3" fill="rgba(255,255,255,0.02)"/>' +
+               '<text x="60" y="150" fill="#ff6b35" font-size="9">5V (VCC)</text>' +
+               '<text x="240" y="150" fill="#8b949e" font-size="9">External 5V PSU — NOT Pi 5V pin</text>' +
+               '<text x="420" y="150" fill="#555" font-size="8">Pi 5V can not supply LED current</text>' +
+               '<rect x="40" y="164" width="640" height="32" rx="3" fill="rgba(255,255,255,0.01)"/>' +
+               '<text x="60" y="184" fill="#22c55e" font-size="9">Data In</text>' +
+               '<text x="240" y="184" fill="#8b949e" font-size="9">GPIO 18 via 330 ohm resistor</text>' +
+               '<text x="420" y="184" fill="#555" font-size="8">Resistor protects data line</text>' +
+               '<rect x="40" y="198" width="640" height="32" rx="3" fill="rgba(255,255,255,0.02)"/>' +
+               '<text x="60" y="218" fill="#60a5fa" font-size="9">GND</text>' +
+               '<text x="240" y="218" fill="#8b949e" font-size="9">Common GND — Pi + PSU + strip</text>' +
+               '<text x="420" y="218" fill="#555" font-size="8">Critical: share GND reference</text>' +
+               '<text x="360" y="260" text-anchor="middle" fill="#555" font-size="8">sudo python3 marquee.py — neopixel library via pip3 install rpi_ws281x</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg30-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="720" height="380" fill="#0d1117" rx="8"/>' +
+                 '<rect width="720" height="380" fill="url(#sg30-cc-grid)" rx="8"/>' +
+                 '<text x="360" y="26" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-30 COMPONENT BREAKDOWN — MINI ARCADE CABINET</text>' +
+                 '<rect id="sg30-comp-pi4" x="265" y="50" width="190" height="65" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="2"/>' +
+                 '<text x="360" y="74" text-anchor="middle" fill="#ff6b35" font-size="11" font-weight="600">Raspberry Pi 4</text>' +
+                 '<text x="360" y="90" text-anchor="middle" fill="#8b949e" font-size="8">RetroPie + EmulationStation</text>' +
+                 '<text x="360" y="104" text-anchor="middle" fill="#8b949e" font-size="8">Kiosk mode + Konami unlock</text>' +
+                 '<rect id="sg30-comp-display" x="50" y="165" width="165" height="60" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+                 '<text x="132" y="190" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">7" HDMI Display</text>' +
+                 '<text x="132" y="206" text-anchor="middle" fill="#8b949e" font-size="8">1024x600, 5V power</text>' +
+                 '<text x="132" y="218" text-anchor="middle" fill="#8b949e" font-size="8">config.txt: hdmi_cvt</text>' +
+                 '<rect id="sg30-comp-encoder" x="275" y="165" width="170" height="60" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+                 '<text x="360" y="190" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">Zero-Delay Encoder</text>' +
+                 '<text x="360" y="206" text-anchor="middle" fill="#8b949e" font-size="8">USB HID, no firmware needed</text>' +
+                 '<text x="360" y="218" text-anchor="middle" fill="#8b949e" font-size="8">Joystick + 8 buttons direct</text>' +
+                 '<rect id="sg30-comp-neopixel" x="505" y="165" width="165" height="60" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+                 '<text x="587" y="190" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">NeoPixel Marquee</text>' +
+                 '<text x="587" y="206" text-anchor="middle" fill="#8b949e" font-size="8">GPIO 18 via 330 ohm</text>' +
+                 '<text x="587" y="218" text-anchor="middle" fill="#8b949e" font-size="8">rpi_ws281x, sudo required</text>' +
+                 '<rect id="sg30-comp-psu" x="160" y="278" width="165" height="60" rx="6" fill="#1e2736" stroke="#f59e0b" stroke-width="1.5"/>' +
+                 '<text x="242" y="304" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="600">5V 6A PSU</text>' +
+                 '<text x="242" y="320" text-anchor="middle" fill="#8b949e" font-size="8">Pi + display + amp + LEDs</text>' +
+                 '<rect id="sg30-comp-amp" x="395" y="278" width="165" height="60" rx="6" fill="#1e2736" stroke="#ec4899" stroke-width="1.5"/>' +
+                 '<text x="477" y="304" text-anchor="middle" fill="#ec4899" font-size="10" font-weight="600">PAM8403 Amp</text>' +
+                 '<text x="477" y="320" text-anchor="middle" fill="#8b949e" font-size="8">Stereo 3W, 3.5mm jack in</text>' +
+                 '<circle id="sg30-dot-pi4" cx="265" cy="82" r="7" fill="#ff6b35" opacity="0.85"/><text x="265" y="86" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">1</text>' +
+                 '<circle id="sg30-dot-display" cx="215" cy="163" r="7" fill="#22c55e" opacity="0.85"/><text x="215" y="167" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">2</text>' +
+                 '<circle id="sg30-dot-encoder" cx="360" cy="163" r="7" fill="#3b82f6" opacity="0.85"/><text x="360" y="167" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">3</text>' +
+                 '<circle id="sg30-dot-neopixel" cx="587" cy="163" r="7" fill="#a855f7" opacity="0.85"/><text x="587" y="167" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">4</text>' +
+                 '<circle id="sg30-dot-psu" cx="242" cy="276" r="7" fill="#f59e0b" opacity="0.85"/><text x="242" y="280" text-anchor="middle" fill="#0d1117" font-size="9" font-weight="700">5</text>' +
+                 '<circle id="sg30-dot-amp" cx="477" cy="276" r="7" fill="#ec4899" opacity="0.85"/><text x="477" y="280" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">6</text>' +
+                 '</svg>',
+            components: [
+                { id: 'sg30-comp-pi4', name: 'Raspberry Pi 4', purpose: 'Runs RetroPie with EmulationStation in kiosk mode — Konami code unlocks settings access', specs: ['4GB RAM minimum', 'USB-C 5V 3A (from shared PSU)', 'Micro-HDMI to display'] },
+                { id: 'sg30-comp-display', name: '7" HDMI Display', purpose: '1024x600 desktop monitor with HDMI input — mounted in cabinet front with custom bezel', specs: ['config.txt: hdmi_cvt=1024 600 60 6 0 0 0', 'hdmi_group=2, hdmi_mode=87', 'Powered from 5V PSU (not Pi)'] },
+                { id: 'sg30-comp-encoder', name: 'Zero-Delay USB Encoder', purpose: 'Pre-built board that converts joystick and button microswitches to USB HID gamepad — no firmware needed', specs: ['USB HID plug-and-play', 'Screw terminals for each input', 'Auto-detected by RetroPie'] },
+                { id: 'sg30-comp-neopixel', name: 'NeoPixel LED Marquee', purpose: 'WS2812B LED strip for illuminated marquee — rainbow cycle on boot, game-themed colors optional', specs: ['GPIO 18 — PWM capable', '330 ohm data resistor required', '1000uF cap on 5V prevents power surges'] },
+                { id: 'sg30-comp-psu', name: '5V 6A Power Supply', purpose: 'Single supply for entire cabinet — Pi (3A) + display (0.5A) + amp (0.5A) + LEDs (1A) = 5A min', specs: ['6A for safe headroom', 'Switching regulator, not linear', 'Lightning bolt icon = undervoltage'] },
+                { id: 'sg30-comp-amp', name: 'PAM8403 Stereo Amp', purpose: '3W class D amplifier for stereo cabinet speakers — powered from 5V, 3.5mm jack from Pi headphone', specs: ['Class D — no heatsink needed', '3.5mm TRS input from Pi', '2x 3W 4-ohm or 8-ohm speakers'] }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Powering NeoPixels from Pi 5V Pin',
+                correct: 'Power the NeoPixel strip from the same external 5V PSU that powers the Pi — share GND.',
+                incorrect: 'Connect the LED strip 5V wire directly to the Pi 5V header pin.',
+                consequence: 'Pi 5V pin is limited to ~500mA from USB. A single RGB NeoPixel draws 60mA at full white — 30 LEDs = 1.8A. This crashes the Pi or causes undervoltage throttling immediately.',
+                svgDiff: '<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="200" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="180" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="55" fill="#22c55e" font-size="8">External 5V 6A PSU</text>' +
+                          '<text x="30" y="71" fill="#22c55e" font-size="8">  +5V -> Pi USB-C (5V rail)</text>' +
+                          '<text x="30" y="87" fill="#22c55e" font-size="8">  +5V -> NeoPixel VCC</text>' +
+                          '<text x="30" y="103" fill="#22c55e" font-size="8">  GND -> Pi GND pin</text>' +
+                          '<text x="30" y="119" fill="#22c55e" font-size="8">  GND -> NeoPixel GND</text>' +
+                          '<text x="137" y="165" text-anchor="middle" fill="#22c55e" font-size="8">Shared reference — ample current</text>' +
+                          '<rect x="295" y="10" width="255" height="180" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="55" fill="#8b949e" font-size="8">Pi 5V pin (limited ~500mA)</text>' +
+                          '<text x="315" y="71" fill="#ef4444" font-size="8">  -> NeoPixel VCC</text>' +
+                          '<text x="315" y="87" fill="#8b949e" font-size="8">Pi GND pin</text>' +
+                          '<text x="315" y="103" fill="#ef4444" font-size="8">  -> NeoPixel GND</text>' +
+                          '<text x="315" y="119" fill="#8b949e" font-size="8">// 30 LEDs @ 60mA = 1.8A</text>' +
+                          '<text x="315" y="135" fill="#8b949e" font-size="8">// Pi pin = 0.5A max</text>' +
+                          '<text x="422" y="165" text-anchor="middle" fill="#ef4444" font-size="8">Undervoltage crash + Pi reboot</text>' +
+                          '</svg>'
+            },
+            {
+                title: 'Not Running NeoPixel Script with sudo',
+                correct: 'Run the NeoPixel Python script with sudo: sudo python3 marquee.py — or add to /etc/rc.local.',
+                incorrect: 'Run the script as user pi without sudo and wonder why no LEDs light up.',
+                consequence: 'rpi_ws281x requires root access to use the PWM peripheral (DMA). Without sudo, the script exits silently or raises a PermissionError — no LEDs respond.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="55" fill="#22c55e" font-size="8">sudo python3 marquee.py</text>' +
+                          '<text x="30" y="71" fill="#8b949e" font-size="8">// Or auto-start at boot:</text>' +
+                          '<text x="30" y="87" fill="#22c55e" font-size="8">/etc/rc.local:</text>' +
+                          '<text x="30" y="103" fill="#22c55e" font-size="8">  sudo python3 /home/pi/marquee.py &</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">DMA/PWM accessible — LEDs light up</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="55" fill="#ef4444" font-size="8">python3 marquee.py</text>' +
+                          '<text x="315" y="71" fill="#8b949e" font-size="8">// Silent fail or:</text>' +
+                          '<text x="315" y="87" fill="#ef4444" font-size="8">RuntimeError: ws2811_init failed</text>' +
+                          '<text x="315" y="103" fill="#ef4444" font-size="8">  with code -5 (No access)</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">No LEDs respond — root required</text>' +
+                          '</svg>'
+            },
+            {
+                title: 'Using position: fixed in a Cabinet UI (if building web UI)',
+                correct: 'Use position: absolute with scroll offset calculation for any overlay UI elements.',
+                incorrect: 'Use position: fixed for overlays when body has a CSS filter applied for visual effects.',
+                consequence: 'CSS filter on body creates a new stacking context — position: fixed elements position relative to the filter container, not the viewport, causing misaligned overlays.',
+                svgDiff: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                          '<rect width="560" height="180" fill="#0d1117" rx="8"/>' +
+                          '<rect x="10" y="10" width="255" height="160" rx="6" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+                          '<text x="137" y="30" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">CORRECT</text>' +
+                          '<text x="30" y="55" fill="#22c55e" font-size="8">.overlay {</text>' +
+                          '<text x="30" y="71" fill="#22c55e" font-size="8">  position: absolute;</text>' +
+                          '<text x="30" y="87" fill="#22c55e" font-size="8">  top: calc(scrollY + 0px);</text>' +
+                          '<text x="30" y="103" fill="#22c55e" font-size="8">  left: 0;</text>' +
+                          '<text x="30" y="119" fill="#22c55e" font-size="8">}</text>' +
+                          '<text x="137" y="150" text-anchor="middle" fill="#22c55e" font-size="8">Works even with body filter active</text>' +
+                          '<rect x="295" y="10" width="255" height="160" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>' +
+                          '<text x="422" y="30" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">INCORRECT</text>' +
+                          '<text x="315" y="55" fill="#ef4444" font-size="8">.overlay {</text>' +
+                          '<text x="315" y="71" fill="#ef4444" font-size="8">  position: fixed;</text>' +
+                          '<text x="315" y="87" fill="#ef4444" font-size="8">  top: 0; left: 0;</text>' +
+                          '<text x="315" y="103" fill="#ef4444" font-size="8">}</text>' +
+                          '<text x="315" y="119" fill="#8b949e" font-size="8">// body { filter: brightness(0.9); }</text>' +
+                          '<text x="422" y="150" text-anchor="middle" fill="#ef4444" font-size="8">Overlay offset — misaligned UI</text>' +
+                          '</svg>'
+            }
+        ]
     }
 
 };

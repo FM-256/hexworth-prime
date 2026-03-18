@@ -147,11 +147,129 @@
             height: 20px;
         }
 
+        /* Divider */
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 24px 0 20px;
+            opacity: 0;
+            animation: fadeSlideDown 1s ease 3.4s forwards;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #333;
+        }
+
+        .auth-divider span {
+            color: #555;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        /* Email form */
+        .email-section {
+            max-width: 340px;
+            margin: 0 auto;
+            opacity: 0;
+            animation: fadeSlideDown 1s ease 3.5s forwards;
+        }
+
+        .email-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .email-form input {
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .email-form input:focus {
+            border-color: #9f7aea;
+        }
+
+        .email-form input::placeholder {
+            color: #555;
+        }
+
+        .email-submit-btn {
+            padding: 12px 16px;
+            background: #9f7aea;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 0.05em;
+        }
+
+        .email-submit-btn:hover {
+            background: #8b5cf6;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .email-submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .email-submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .email-toggle {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .email-toggle a {
+            color: #666;
+            font-size: 0.78rem;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .email-toggle a:hover {
+            color: #9f7aea;
+        }
+
+        .email-error {
+            color: #ef4444;
+            font-size: 0.78rem;
+            text-align: center;
+            min-height: 1.2em;
+        }
+
+        .email-success {
+            color: #4ade80;
+            font-size: 0.78rem;
+            text-align: center;
+        }
+
         /* Skip sign-in link */
         .skip-signin {
             margin-top: 24px;
             opacity: 0;
-            animation: fadeSlideDown 1s ease 3.5s forwards;
+            animation: fadeSlideDown 1s ease 3.7s forwards;
         }
 
         .skip-signin a {
@@ -403,6 +521,20 @@
             </button>
         </div>
 
+        <div class="auth-divider"><span>or</span></div>
+
+        <div class="email-section">
+            <form class="email-form" id="emailForm" onsubmit="handleEmailAuth(event)">
+                <input type="email" id="emailInput" placeholder="Email address" required autocomplete="email">
+                <input type="password" id="passwordInput" placeholder="Password (min 6 characters)" required autocomplete="current-password" minlength="6">
+                <div class="email-error" id="emailError"></div>
+                <button type="submit" class="email-submit-btn" id="emailSubmitBtn">Continue</button>
+            </form>
+            <div class="email-toggle">
+                <a id="resetLink" onclick="handlePasswordReset()">Forgot password?</a>
+            </div>
+        </div>
+
         <div class="skip-signin">
             <a onclick="continueWithoutSignIn()">Continue without signing in</a>
         </div>
@@ -609,6 +741,145 @@
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 loadingEl.classList.remove('show');
                 welcomeEl.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Email/Password Auth — smart flow:
+         * Try sign-in first. If account doesn't exist, auto-create it.
+         */
+        function getEmailErrorMessage(code, raw) {
+            console.error('[EmailAuth] Error code:', code, 'Raw:', raw);
+            switch (code) {
+                case 'auth/invalid-email': return 'Please enter a valid email address.';
+                case 'auth/wrong-password': return 'Incorrect password. Try again or reset your password.';
+                case 'auth/invalid-credential': return 'Incorrect password. Try again or reset your password.';
+                case 'auth/weak-password': return 'Password must be at least 6 characters.';
+                case 'auth/too-many-requests': return 'Too many attempts. Please wait a moment and try again.';
+                case 'auth/network-request-failed': return 'Network error. Check your connection.';
+                case 'auth/operation-not-allowed': return 'Email sign-in is not enabled. Contact the administrator.';
+                case 'auth/missing-password': return 'Please enter a password.';
+                case 'auth/email-already-in-use': return 'Account exists. Check your password and try again.';
+                default: return (raw && raw.message) ? raw.message : 'Authentication failed. Please try again.';
+            }
+        }
+
+        async function handleEmailAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('emailError');
+            const btn = document.getElementById('emailSubmitBtn');
+            const loadingEl = document.getElementById('signinLoading');
+            const statusEl = document.getElementById('signinStatus');
+            const welcomeEl = document.getElementById('welcomeSection');
+
+            errorEl.textContent = '';
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
+
+            try {
+                await FirebaseAuth.init();
+                let user;
+                let isNewAccount = false;
+
+                // Smart flow: try sign-in first, auto-create if account doesn't exist
+                try {
+                    user = await FirebaseAuth.signInWithEmail(email, password);
+                } catch (signInError) {
+                    const code = signInError.code || '';
+                    // Account doesn't exist — create it
+                    if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+                        try {
+                            user = await FirebaseAuth.createAccountWithEmail(email, password);
+                            isNewAccount = true;
+                        } catch (createError) {
+                            // If create also fails, throw the create error
+                            throw createError;
+                        }
+                    } else {
+                        // Some other sign-in error (wrong password, too many requests, etc.)
+                        throw signInError;
+                    }
+                }
+
+                if (!user) {
+                    btn.disabled = false;
+                    btn.textContent = 'Continue';
+                    return;
+                }
+
+                // Same post-auth flow as Google sign-in
+                welcomeEl.classList.add('hidden');
+                loadingEl.classList.add('show');
+
+                const existingHouse = localStorage.getItem('hexworth_house');
+                const existingTheme = localStorage.getItem('hexworth_theme');
+                const existingProgress = localStorage.getItem('hexworth_progress');
+                const hasLocalData = existingHouse || existingProgress;
+
+                await FirestoreManager.init();
+
+                if (hasLocalData) {
+                    statusEl.textContent = 'Syncing your progress...';
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    statusEl.textContent = 'Welcome back! Redirecting...';
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    if (existingHouse) {
+                        const theme = existingTheme || 'magic';
+                        PageTransition.navigateTo(theme === 'matrix' ? 'terminal.html' : 'dashboard.html', theme);
+                    } else {
+                        if (!existingTheme) localStorage.setItem('hexworth_theme', 'magic');
+                        PageTransition.navigateTo('sorting.html', 'magic');
+                    }
+                    return;
+                }
+
+                statusEl.textContent = 'Restoring your data...';
+                const result = await FirestoreManager.restoreFromCloud(user.uid);
+                if (result.restored && result.hasHouse) {
+                    statusEl.textContent = 'Welcome back! Redirecting...';
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    PageTransition.navigateTo(result.theme === 'matrix' ? 'terminal.html' : 'dashboard.html', result.theme || 'magic');
+                } else if (result.restored && !result.hasHouse) {
+                    statusEl.textContent = 'Account found. Let\'s get you sorted!';
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    if (!localStorage.getItem('hexworth_theme')) localStorage.setItem('hexworth_theme', 'magic');
+                    PageTransition.navigateTo('sorting.html', 'magic');
+                } else {
+                    statusEl.textContent = isNewAccount ? 'Account created! Let\'s get you sorted!' : 'Welcome! Let\'s get you sorted!';
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    localStorage.setItem('hexworth_theme', 'magic');
+                    PageTransition.navigateTo('sorting.html', 'magic');
+                }
+            } catch (error) {
+                errorEl.textContent = getEmailErrorMessage(error.code, error);
+                btn.disabled = false;
+                btn.textContent = 'Continue';
+                loadingEl.classList.remove('show');
+                welcomeEl.classList.remove('hidden');
+            }
+        }
+
+        async function handlePasswordReset() {
+            const email = document.getElementById('emailInput').value.trim();
+            const errorEl = document.getElementById('emailError');
+
+            if (!email) {
+                errorEl.textContent = 'Enter your email address first, then click Forgot password.';
+                return;
+            }
+
+            try {
+                await FirebaseAuth.init();
+                await FirebaseAuth.sendPasswordReset(email);
+                errorEl.className = 'email-success';
+                errorEl.textContent = 'Password reset email sent. Check your inbox.';
+                setTimeout(() => { errorEl.className = 'email-error'; }, 5000);
+            } catch (error) {
+                errorEl.className = 'email-error';
+                errorEl.textContent = getEmailErrorMessage(error.code, error);
             }
         }
 

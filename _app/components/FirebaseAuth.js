@@ -28,7 +28,8 @@ const FirebaseAuth = (function() {
         },
         // Client-side fallback — real authority is the Cloud Function ADMIN_EMAILS list
         adminEmails: [
-            'f.mora80@gmail.com'
+            'f.mora80@gmail.com',
+            'jorden@hexworth.com'
         ],
         storageKeys: {
             user: 'hexworth_firebase_user',
@@ -309,7 +310,10 @@ const FirebaseAuth = (function() {
                     isAdmin = claimResult.data.admin === true;
                     localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
 
-                    // Notify listeners that admin claims have been verified
+                    // Re-dispatch auth event so UI picks up updated admin status
+                    window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
+                        detail: { user: currentUser, isAdmin }
+                    }));
                     window.dispatchEvent(new CustomEvent('firebaseAdminVerified', {
                         detail: { admin: isAdmin }
                     }));
@@ -434,6 +438,123 @@ const FirebaseAuth = (function() {
     }
 
     /**
+     * Create account with email and password
+     */
+    async function createAccountWithEmail(email, password) {
+        if (!initialized || !auth) {
+            await init();
+        }
+
+        if (!auth) {
+            throw new Error('Authentication not available. Please check your internet connection.');
+        }
+
+        try {
+            const { createUserWithEmailAndPassword } = window.firebaseAuth;
+            if (typeof createUserWithEmailAndPassword !== 'function') {
+                console.error('[FirebaseAuth] createUserWithEmailAndPassword not found in SDK. Available exports:', Object.keys(window.firebaseAuth).filter(k => k.toLowerCase().includes('email') || k.toLowerCase().includes('create') || k.toLowerCase().includes('password')));
+                throw { code: 'auth/operation-not-allowed', message: 'Email auth function not available in this SDK version.' };
+            }
+            const result = await createUserWithEmailAndPassword(auth, email, password);
+
+            // QC-4: Set admin claims
+            if (functions && !result.user.isAnonymous) {
+                try {
+                    const claimResult = await callFunction('setAdminClaim');
+                    await result.user.getIdToken(true);
+                    isAdmin = claimResult.data.admin === true;
+                    localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
+
+                    // Re-dispatch auth event so UI picks up updated admin status
+                    window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
+                        detail: { user: currentUser, isAdmin }
+                    }));
+                    window.dispatchEvent(new CustomEvent('firebaseAdminVerified', {
+                        detail: { admin: isAdmin }
+                    }));
+                } catch (e) {
+                    console.warn('[FirebaseAuth] setAdminClaim failed:', e);
+                }
+            }
+
+            console.log('[FirebaseAuth] Email account created:', result.user.uid);
+            return result.user;
+        } catch (error) {
+            console.error('[FirebaseAuth] Email account creation failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Sign in with email and password
+     */
+    async function signInWithEmail(email, password) {
+        if (!initialized || !auth) {
+            await init();
+        }
+
+        if (!auth) {
+            throw new Error('Authentication not available. Please check your internet connection.');
+        }
+
+        try {
+            const { signInWithEmailAndPassword } = window.firebaseAuth;
+            if (typeof signInWithEmailAndPassword !== 'function') {
+                console.error('[FirebaseAuth] signInWithEmailAndPassword not found in SDK. Available exports:', Object.keys(window.firebaseAuth).filter(k => k.toLowerCase().includes('email') || k.toLowerCase().includes('sign') || k.toLowerCase().includes('password')));
+                throw { code: 'auth/operation-not-allowed', message: 'Email auth function not available in this SDK version.' };
+            }
+            const result = await signInWithEmailAndPassword(auth, email, password);
+
+            // QC-4: Set admin claims
+            if (functions && !result.user.isAnonymous) {
+                try {
+                    const claimResult = await callFunction('setAdminClaim');
+                    await result.user.getIdToken(true);
+                    isAdmin = claimResult.data.admin === true;
+                    localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
+
+                    // Re-dispatch auth event so UI picks up updated admin status
+                    window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
+                        detail: { user: currentUser, isAdmin }
+                    }));
+                    window.dispatchEvent(new CustomEvent('firebaseAdminVerified', {
+                        detail: { admin: isAdmin }
+                    }));
+                } catch (e) {
+                    console.warn('[FirebaseAuth] setAdminClaim failed:', e);
+                }
+            }
+
+            return result.user;
+        } catch (error) {
+            console.error('[FirebaseAuth] Email sign-in failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Send password reset email
+     */
+    async function sendPasswordReset(email) {
+        if (!initialized || !auth) {
+            await init();
+        }
+
+        if (!auth) {
+            throw new Error('Authentication not available.');
+        }
+
+        try {
+            const { sendPasswordResetEmail } = window.firebaseAuth;
+            await sendPasswordResetEmail(auth, email);
+            console.log('[FirebaseAuth] Password reset email sent to:', email);
+        } catch (error) {
+            console.error('[FirebaseAuth] Password reset failed:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Link anonymous account with Google (claim flow)
      * Preserves the same uid so Firestore data stays intact
      */
@@ -513,6 +634,9 @@ const FirebaseAuth = (function() {
         init,
         waitForAuth,
         signInWithGoogle,
+        signInWithEmail,
+        createAccountWithEmail,
+        sendPasswordReset,
         signInAnonymously,
         linkWithGoogle,
         signOut,

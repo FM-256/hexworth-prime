@@ -219,12 +219,13 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #888;
-            padding: 4px 12px;
+            padding: 6px 14px;
             border-radius: 16px;
             font-size: 0.75rem;
             cursor: pointer;
             transition: all 0.15s ease;
             font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 28px;
         }
 
         .gs-chip:hover {
@@ -403,6 +404,24 @@
                 font-size: 0.9rem;
             }
         }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .gs-overlay { transition: none; }
+            .gs-container { transition: none; }
+            .gs-chip { transition: none; }
+            .gs-item { transition: none; }
+            .gs-item:hover { transform: none; }
+        }
+
+        /* High contrast */
+        @media (prefers-contrast: more) {
+            .gs-input-wrap { border-color: rgba(255, 255, 255, 0.4); }
+            .gs-chip { border-color: rgba(255, 255, 255, 0.3); }
+            .gs-chip.active { border-color: rgba(96, 165, 250, 0.7); }
+            .gs-item:hover,
+            .gs-item.gs-selected { border-color: rgba(255, 255, 255, 0.3); }
+        }
     `;
 
     // ═══════════════════════════════════════════════════════════════
@@ -462,11 +481,15 @@
         chipContainer = document.createElement('div');
         chipContainer.className = 'gs-chips';
 
+        chipContainer.setAttribute('role', 'toolbar');
+        chipContainer.setAttribute('aria-label', 'Filter by content type');
+
         TYPE_FILTERS.forEach(function(f) {
             const chip = document.createElement('button');
             chip.className = 'gs-chip' + (f.key === activeFilter ? ' active' : '');
             chip.textContent = f.label;
             chip.dataset.type = f.key || '';
+            chip.setAttribute('aria-pressed', String(f.key === activeFilter));
             chip.addEventListener('click', function() {
                 activeFilter = f.key;
                 updateChips();
@@ -487,6 +510,15 @@
         resultsContainer.innerHTML = '<div class="gs-empty">Type to search 1,500+ modules</div>' +
             '<div class="gs-shortcut-hint"><kbd>\u2191</kbd> <kbd>\u2193</kbd> navigate \u00B7 <kbd>Enter</kbd> open \u00B7 <kbd>Esc</kbd> close</div>';
         container.appendChild(resultsContainer);
+
+        // Live region for screen reader announcements
+        var liveRegion = document.createElement('div');
+        liveRegion.id = 'gs-live-region';
+        liveRegion.setAttribute('role', 'status');
+        liveRegion.setAttribute('aria-live', 'polite');
+        liveRegion.setAttribute('aria-atomic', 'true');
+        liveRegion.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;';
+        container.appendChild(liveRegion);
 
         overlay.appendChild(container);
 
@@ -513,7 +545,9 @@
         var chips = chipContainer.querySelectorAll('.gs-chip');
         chips.forEach(function(chip) {
             var key = chip.dataset.type || null;
-            chip.classList.toggle('active', key === activeFilter);
+            var isActive = key === activeFilter;
+            chip.classList.toggle('active', isActive);
+            chip.setAttribute('aria-pressed', String(isActive));
         });
     }
 
@@ -616,7 +650,7 @@
                     badgeHtml = '<span class="gs-item-badge" style="background: ' + badge.color + '22; color: ' + badge.color + ';">' + badge.label + '</span>';
                 }
 
-                html += '<div class="gs-item" data-href="' + escapeHtml(mod.fullHref || '') + '" tabindex="-1">';
+                html += '<div class="gs-item" role="option" data-href="' + escapeHtml(mod.fullHref || '') + '" tabindex="-1">';
                 html += '<span class="gs-item-icon">' + (mod.icon || '\u{1F4C4}') + '</span>';
                 html += '<div class="gs-item-info">';
                 html += '<div class="gs-item-title">' + highlightTokens(mod.title, query) + '</div>';
@@ -631,6 +665,12 @@
         });
 
         resultsContainer.innerHTML = html;
+
+        // Announce result count to screen readers
+        var liveRegion = document.getElementById('gs-live-region');
+        if (liveRegion) {
+            liveRegion.textContent = results.length + ' result' + (results.length !== 1 ? 's' : '') + ' found';
+        }
 
         // Bind click handlers
         var items = resultsContainer.querySelectorAll('.gs-item');
@@ -720,6 +760,7 @@
 
         basePath = calculateBasePath();
         buildOverlay();
+        if (input) input.setAttribute('aria-expanded', 'true');
 
         if (!catalogLoaded && !catalogLoading) {
             // Show loading state
@@ -758,6 +799,7 @@
         isOpen = false;
         selectedIndex = -1;
         if (overlay) overlay.classList.remove('active');
+        if (input) input.setAttribute('aria-expanded', 'false');
     }
 
     function toggleSearch() {

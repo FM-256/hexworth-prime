@@ -224,6 +224,34 @@
             flex-shrink: 0;
         }
 
+        .conv-delete-btn {
+            opacity: 0;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+
+        .conv-item:hover .conv-delete-btn {
+            opacity: 1;
+        }
+
+        .conv-delete-btn:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+            background: rgba(248, 81, 73, 0.1);
+        }
+
         .conv-empty {
             padding: 40px 20px;
             text-align: center;
@@ -786,6 +814,37 @@
         .msg-toast.success {
             border-color: var(--success);
         }
+
+        /* Screen-reader only utility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .conversation-list,
+            .conv-item,
+            .compose-btn,
+            .message-bubble,
+            .msg-toast { transition: none !important; }
+        }
+
+        /* High contrast */
+        @media (prefers-contrast: more) {
+            .conv-item { border: 1px solid rgba(255, 255, 255, 0.3); }
+            .conv-item.active { border-color: var(--accent); }
+            .compose-input { border: 2px solid rgba(255, 255, 255, 0.4); }
+            .compose-btn { border: 2px solid rgba(255, 255, 255, 0.4); }
+            .message-bubble { border: 1px solid rgba(255, 255, 255, 0.2); }
+        }
     </style>
 </head>
 <body>
@@ -799,7 +858,8 @@
                 <h2>Messages</h2>
             </div>
             <div class="conv-search">
-                <input type="text" id="convSearchInput" placeholder="Search conversations..." />
+                <label for="convSearchInput" class="sr-only">Search conversations</label>
+                <input type="text" id="convSearchInput" placeholder="Search conversations..." aria-label="Search conversations" />
             </div>
             <div class="conv-items" id="convItems">
                 <div class="conv-empty" id="convEmpty">
@@ -845,9 +905,10 @@
                 <div class="compose-area">
                     <div class="compose-row">
                         <div class="compose-input-wrapper">
+                            <label for="composeInput" class="sr-only">Type a message</label>
                             <textarea class="compose-input" id="composeInput"
                                       placeholder="Type a message..." rows="1"
-                                      maxlength="500"></textarea>
+                                      maxlength="500" aria-label="Type a message"></textarea>
                             <span class="compose-char-count" id="charCount">0/500</span>
                         </div>
                         <button class="compose-send-btn" id="sendBtn" disabled>Send</button>
@@ -868,14 +929,18 @@
                 <button class="modal-close" id="modalClose">x</button>
             </div>
             <div class="modal-body">
-                <label for="classSelect">Select Class</label>
-                <select id="classSelect">
-                    <option value="">-- Choose a class --</option>
-                </select>
-                <label>Select Recipient</label>
+                <label for="recipientSearch">Find User</label>
+                <input type="text" id="recipientSearch" placeholder="Search by callsign, email, or name..." autocomplete="off">
+                <div id="classSection" style="display:none;">
+                    <label for="classSelect">Or select from a class</label>
+                    <select id="classSelect">
+                        <option value="">-- Choose a class --</option>
+                    </select>
+                </div>
+                <label>Recipients</label>
                 <ul class="classmate-list" id="classmateList">
                     <li style="padding: 16px; color: var(--text-dim); font-size: 0.85rem;">
-                        Select a class first.
+                        Search for a user above to start a conversation.
                     </li>
                 </ul>
             </div>
@@ -890,41 +955,37 @@
         <div class="msg-context-item" data-action="report">Report message</div>
     </div>
 
-    <!-- ═══ Firebase SDK ═══ -->
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-functions-compat.js"></script>
+    <!-- ═══ Firebase SDK (modular — matches dashboard) ═══ -->
+    <script src="/components/FirebaseAuth.js"></script>
 
-    <script>
+    <script type="module">
         /**
          * F-23D: Inbox & Conversation UI
          * Standalone messaging interface for Hexworth Prime.
+         * Uses modular Firebase SDK via FirebaseAuth.js (shared auth session with dashboard).
          */
-        (function() {
+        (async function() {
             'use strict';
 
-            // ── Firebase init (uses same config as dashboard) ──
-            const firebaseConfig = {
-                apiKey: "AIzaSyC3y8MkTcGbJSn0JKGB-hG0tE1I3cVqppc",
-                authDomain: "hexworth-prime.firebaseapp.com",
-                projectId: "hexworth-prime",
-                storageBucket: "hexworth-prime.appspot.com",
-                messagingSenderId: "573aborting",
-                appId: "1:573:web:hexworth"
-            };
-
-            // Only init if not already initialized
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
+            // ── Firebase init via FirebaseAuth (shares auth state with dashboard) ──
+            const user = await FirebaseAuth.waitForAuth();
+            if (!user) {
+                window.location.href = '/login.html';
+                return;
             }
 
-            const auth = firebase.auth();
-            const db = firebase.firestore();
-            const functions = firebase.app().functions('us-central1');
+            // Import Firestore modular SDK
+            const {
+                getFirestore, collection, doc, getDoc, getDocs,
+                query, where, orderBy, limit, startAfter,
+                onSnapshot, updateDoc, writeBatch
+            } = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+
+            const { getApps } = window.firebaseApp;
+            const db = getFirestore(getApps()[0]);
 
             // ── State ──
-            let currentUser = null;
+            let currentUser = user;
             let activeConversationId = null;
             let activeRecipient = null;
             let activeClassId = null;
@@ -932,7 +993,7 @@
             let conversationsUnsubscribe = null;
             let messagesUnsubscribe = null;
             let userCache = {}; // uid -> { displayName, callsign, photoURL }
-            let classCache = {}; // classId -> { name, handlerId }
+            let classCache = {}; // classId -> { name, handlerUid }
             let unreadCounts = {}; // conversationId -> count
 
             const MAX_LENGTH = 500;
@@ -953,19 +1014,7 @@
             const msgToast = $('msgToast');
             const msgContextMenu = $('msgContextMenu');
 
-            // ═══════════════════════════════════════════════════════════
-            // AUTH
-            // ═══════════════════════════════════════════════════════════
-
-            auth.onAuthStateChanged(async (user) => {
-                if (!user) {
-                    window.location.href = '/login.html';
-                    return;
-                }
-                currentUser = user;
-                await loadUserClasses();
-                subscribeConversations();
-            });
+            // Data loading moved after event listeners — see bottom of IIFE
 
             // ═══════════════════════════════════════════════════════════
             // USER / CLASS HELPERS
@@ -974,9 +1023,9 @@
             async function getUserInfo(uid) {
                 if (userCache[uid]) return userCache[uid];
                 try {
-                    const doc = await db.collection('users').doc(uid).get();
-                    if (doc.exists) {
-                        const data = doc.data();
+                    const userDoc = await getDoc(doc(db, 'users', uid));
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
                         userCache[uid] = {
                             displayName: data.callsign || data.displayName || data.email || 'Unknown',
                             photoURL: data.photoURL || null,
@@ -1001,32 +1050,33 @@
                 const memberOf = [];
 
                 // Check classes where user is handler
-                const handlerSnap = await db.collection('classes')
-                    .where('handlerId', '==', currentUser.uid)
-                    .where('deleted', '!=', true)
-                    .get();
-                handlerSnap.forEach(doc => {
-                    const data = doc.data();
-                    classCache[doc.id] = { name: data.name, handlerId: data.handlerId };
-                    memberOf.push({ id: doc.id, name: data.name, role: 'Handler' });
+                const handlerSnap = await getDocs(query(
+                    collection(db, 'classes'),
+                    where('handlerUid', '==', currentUser.uid),
+                    where('deleted', '!=', true)
+                ));
+                handlerSnap.forEach(d => {
+                    const data = d.data();
+                    classCache[d.id] = { name: data.name, handlerUid: data.handlerUid };
+                    memberOf.push({ id: d.id, name: data.name, role: 'Handler' });
                 });
 
                 // Check classes where user is a member
-                const allClasses = await db.collection('classes')
-                    .where('deleted', '!=', true)
-                    .get();
+                const allClasses = await getDocs(query(
+                    collection(db, 'classes'),
+                    where('deleted', '!=', true)
+                ));
 
                 const memberChecks = [];
-                allClasses.forEach(doc => {
-                    if (!classCache[doc.id]) {
+                allClasses.forEach(d => {
+                    if (!classCache[d.id]) {
                         memberChecks.push(
-                            db.collection('classes').doc(doc.id)
-                                .collection('members').doc(currentUser.uid).get()
+                            getDoc(doc(db, 'classes', d.id, 'members', currentUser.uid))
                                 .then(memberDoc => {
-                                    if (memberDoc.exists) {
-                                        const data = doc.data();
-                                        classCache[doc.id] = { name: data.name, handlerId: data.handlerId };
-                                        memberOf.push({ id: doc.id, name: data.name, role: 'Student' });
+                                    if (memberDoc.exists()) {
+                                        const data = d.data();
+                                        classCache[d.id] = { name: data.name, handlerUid: data.handlerUid };
+                                        memberOf.push({ id: d.id, name: data.name, role: 'Student' });
                                     }
                                 })
                         );
@@ -1034,14 +1084,18 @@
                 });
                 await Promise.all(memberChecks);
 
-                // Populate class selector
-                classSelect.innerHTML = '<option value="">-- Choose a class --</option>';
-                memberOf.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = `${c.name} (${c.role})`;
-                    classSelect.appendChild(opt);
-                });
+                // Populate class selector (only show if user has classes)
+                if (memberOf.length > 0) {
+                    const classSection = $('classSection');
+                    if (classSection) classSection.style.display = '';
+                    classSelect.innerHTML = '<option value="">-- Choose a class --</option>';
+                    memberOf.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = `${c.name} (${c.role})`;
+                        classSelect.appendChild(opt);
+                    });
+                }
             }
 
             // ═══════════════════════════════════════════════════════════
@@ -1051,28 +1105,38 @@
             function subscribeConversations() {
                 if (conversationsUnsubscribe) conversationsUnsubscribe();
 
-                conversationsUnsubscribe = db.collection('conversations')
-                    .where('participants', 'array-contains', currentUser.uid)
-                    .orderBy('lastTimestamp', 'desc')
-                    .onSnapshot(async (snapshot) => {
-                        const convs = [];
-                        snapshot.forEach(doc => {
-                            convs.push({ id: doc.id, ...doc.data() });
+                conversationsUnsubscribe = onSnapshot(
+                    query(
+                        collection(db, 'conversations'),
+                        where('participants', 'array-contains', currentUser.uid),
+                        orderBy('lastTimestamp', 'desc')
+                    ),
+                    async (snapshot) => {
+                        const allConvs = [];
+                        snapshot.forEach(d => {
+                            allConvs.push({ id: d.id, ...d.data() });
                         });
+
+                        // Filter out conversations hidden by this user
+                        const convs = allConvs.filter(c =>
+                            !c.hiddenBy || !c.hiddenBy.includes(currentUser.uid)
+                        );
 
                         // Count unread per conversation
                         for (const conv of convs) {
-                            const unreadSnap = await db.collection('messages')
-                                .where('conversationId', '==', conv.id)
-                                .where('to', '==', currentUser.uid)
-                                .where('read', '==', false)
-                                .where('deleted', '==', false)
-                                .get();
+                            const unreadSnap = await getDocs(query(
+                                collection(db, 'messages'),
+                                where('conversationId', '==', conv.id),
+                                where('to', '==', currentUser.uid),
+                                where('read', '==', false),
+                                where('deleted', '==', false)
+                            ));
                             unreadCounts[conv.id] = unreadSnap.size;
                         }
 
                         renderConversations(convs);
-                    });
+                    }
+                );
             }
 
             async function renderConversations(convs) {
@@ -1120,10 +1184,45 @@
                             <div class="conv-preview">${escapeHtml(conv.lastMessage || '')}</div>
                         </div>
                         ${unread > 0 ? `<span class="conv-unread-badge">${unread}</span>` : ''}
+                        <button class="conv-delete-btn" title="Remove conversation" aria-label="Remove conversation">x</button>
                     `;
 
+                    item.querySelector('.conv-delete-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        hideConversation(conv.id);
+                    });
                     item.addEventListener('click', () => openConversation(conv.id, otherUid, conv.classId));
                     convItems.appendChild(item);
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════
+            // HIDE / DELETE CONVERSATION
+            // ═══════════════════════════════════════════════════════════
+
+            async function hideConversation(conversationId) {
+                if (!confirm('Remove this conversation from your inbox? It will reappear if the other person sends a new message.')) return;
+
+                try {
+                    await FirebaseAuth.callFunction('hideConversation', { conversationId });
+
+                    // If this was the active conversation, clear the thread
+                    if (activeConversationId === conversationId) {
+                        activeConversationId = null;
+                        activeRecipient = null;
+                        activeClassId = null;
+                        threadContent.style.display = 'none';
+                        threadEmpty.style.display = 'flex';
+                        if (messagesUnsubscribe) {
+                            messagesUnsubscribe();
+                            messagesUnsubscribe = null;
+                        }
+                    }
+
+                    showToast('Conversation removed', 'success');
+                } catch (error) {
+                    console.error('[Inbox] Hide conversation failed:', error);
+                    showToast('Failed to remove conversation', 'error');
                 }
             }
 
@@ -1176,15 +1275,18 @@
             function subscribeMessages(conversationId) {
                 if (messagesUnsubscribe) messagesUnsubscribe();
 
-                messagesUnsubscribe = db.collection('messages')
-                    .where('conversationId', '==', conversationId)
-                    .where('deleted', '==', false)
-                    .orderBy('timestamp', 'desc')
-                    .limit(20)
-                    .onSnapshot((snapshot) => {
+                messagesUnsubscribe = onSnapshot(
+                    query(
+                        collection(db, 'messages'),
+                        where('conversationId', '==', conversationId),
+                        where('deleted', '==', false),
+                        orderBy('timestamp', 'desc'),
+                        limit(20)
+                    ),
+                    (snapshot) => {
                         const messages = [];
-                        snapshot.forEach(doc => {
-                            messages.push({ id: doc.id, ...doc.data(), _doc: doc });
+                        snapshot.forEach(d => {
+                            messages.push({ id: d.id, ...d.data(), _doc: d });
                         });
 
                         if (messages.length > 0) {
@@ -1201,10 +1303,11 @@
                         // Auto-mark incoming as read
                         messages.forEach(msg => {
                             if (msg.to === currentUser.uid && !msg.read) {
-                                db.collection('messages').doc(msg.id).update({ read: true });
+                                updateDoc(doc(db, 'messages', msg.id), { read: true });
                             }
                         });
-                    });
+                    }
+                );
             }
 
             function renderMessages(messages) {
@@ -1260,15 +1363,16 @@
             }
 
             async function markConversationRead(conversationId) {
-                const unreadSnap = await db.collection('messages')
-                    .where('conversationId', '==', conversationId)
-                    .where('to', '==', currentUser.uid)
-                    .where('read', '==', false)
-                    .get();
+                const unreadSnap = await getDocs(query(
+                    collection(db, 'messages'),
+                    where('conversationId', '==', conversationId),
+                    where('to', '==', currentUser.uid),
+                    where('read', '==', false)
+                ));
 
-                const batch = db.batch();
-                unreadSnap.forEach(doc => {
-                    batch.update(doc.ref, { read: true });
+                const batch = writeBatch(db);
+                unreadSnap.forEach(d => {
+                    batch.update(d.ref, { read: true });
                 });
                 if (!unreadSnap.empty) await batch.commit();
             }
@@ -1285,8 +1389,7 @@
                 composeInput.disabled = true;
 
                 try {
-                    const sendMessage = functions.httpsCallable('sendMessage');
-                    await sendMessage({
+                    await FirebaseAuth.callFunction('sendMessage', {
                         toUid: activeRecipient,
                         text: text,
                         classId: activeClassId
@@ -1296,7 +1399,7 @@
                     updateCharCount();
                 } catch (error) {
                     console.error('[Messaging] Send failed:', error);
-                    if (error.code === 'functions/resource-exhausted') {
+                    if (error.code === 'resource-exhausted' || error.code === 'functions/resource-exhausted') {
                         $('rateLimitMsg').classList.add('visible');
                         setTimeout(() => $('rateLimitMsg').classList.remove('visible'), 5000);
                     } else {
@@ -1325,19 +1428,18 @@
                 const members = [];
 
                 // Add handler
-                if (classInfo && classInfo.handlerId && classInfo.handlerId !== currentUser.uid) {
-                    const handlerInfo = await getUserInfo(classInfo.handlerId);
-                    members.push({ uid: classInfo.handlerId, ...handlerInfo, role: 'Handler' });
+                if (classInfo && classInfo.handlerUid && classInfo.handlerUid !== currentUser.uid) {
+                    const handlerInfo = await getUserInfo(classInfo.handlerUid);
+                    members.push({ uid: classInfo.handlerUid, ...handlerInfo, role: 'Handler' });
                 }
 
                 // Add class members
-                const membersSnap = await db.collection('classes').doc(classId)
-                    .collection('members').get();
+                const membersSnap = await getDocs(collection(db, 'classes', classId, 'members'));
 
-                for (const doc of membersSnap.docs) {
-                    if (doc.id === currentUser.uid) continue; // Skip self
-                    const info = await getUserInfo(doc.id);
-                    members.push({ uid: doc.id, ...info, role: info.accountType === 'handler' ? 'Handler' : 'Student' });
+                for (const memberDoc of membersSnap.docs) {
+                    if (memberDoc.id === currentUser.uid) continue; // Skip self
+                    const info = await getUserInfo(memberDoc.id);
+                    members.push({ uid: memberDoc.id, ...info, role: info.accountType === 'handler' ? 'Handler' : 'Student' });
                 }
 
                 if (members.length === 0) {
@@ -1361,12 +1463,52 @@
                 });
             }
 
+            async function searchRecipients(searchQuery) {
+                classmateList.innerHTML = '<li style="padding: 16px; color: var(--text-dim); font-size: 0.85rem;">Searching...</li>';
+
+                try {
+                    // Use the searchUsers Cloud Function — works for all authenticated users
+                    const result = await FirebaseAuth.callFunction('searchUsers', { query: searchQuery });
+                    const users = result.data.users || [];
+
+                    // Filter out self
+                    const filtered = users.filter(u => u.uid !== currentUser.uid);
+
+                    if (filtered.length === 0) {
+                        classmateList.innerHTML = '<li style="padding: 16px; color: var(--text-dim); font-size: 0.85rem;">No users found.</li>';
+                        return;
+                    }
+
+                    classmateList.innerHTML = '';
+                    filtered.forEach(m => {
+                        const name = m.callsign || m.displayName || m.email || 'Unknown';
+                        const li = document.createElement('li');
+                        li.className = 'classmate-item';
+                        li.innerHTML = `
+                            <div class="classmate-avatar">${getInitials(name)}</div>
+                            <span class="classmate-name">${escapeHtml(name)}</span>
+                            <span class="classmate-role">${m.accountType || 'student'}</span>
+                        `;
+                        li.addEventListener('click', () => {
+                            startConversation(m.uid, null);
+                        });
+                        classmateList.appendChild(li);
+                    });
+                } catch (e) {
+                    console.error('[Inbox] Recipient search failed:', e);
+                    classmateList.innerHTML = '<li style="padding: 16px; color: var(--text-dim); font-size: 0.85rem;">Search failed: ' + (e.message || 'Unknown error') + '</li>';
+                }
+            }
+
             function startConversation(recipientUid, classId) {
                 const sorted = [currentUser.uid, recipientUid].sort();
-                const conversationId = `${sorted[0]}_${sorted[1]}_${classId}`;
+                const conversationId = classId
+                    ? `${sorted[0]}_${sorted[1]}_${classId}`
+                    : `${sorted[0]}_${sorted[1]}_dm`;
 
                 newConvModal.classList.remove('visible');
-                openConversation(conversationId, recipientUid, classId);
+                $('recipientSearch').value = '';
+                openConversation(conversationId, recipientUid, classId || 'dm');
             }
 
             // ═══════════════════════════════════════════════════════════
@@ -1390,8 +1532,7 @@
             msgContextMenu.querySelector('[data-action="report"]').addEventListener('click', async () => {
                 if (!contextMsgId) return;
                 try {
-                    const reportMessage = functions.httpsCallable('reportMessage');
-                    await reportMessage({ messageId: contextMsgId });
+                    await FirebaseAuth.callFunction('reportMessage', { messageId: contextMsgId });
                     showToast('Message reported', 'success');
                 } catch (error) {
                     showToast('Failed to report: ' + error.message, 'error');
@@ -1483,9 +1624,21 @@
                 if (e.target === newConvModal) newConvModal.classList.remove('visible');
             });
 
-            // Class select -> load classmates
+            // Class select -> load classmates (only shown if user has classes)
             classSelect.addEventListener('change', () => {
                 loadClassmates(classSelect.value);
+            });
+
+            // Recipient search with debounce
+            let _searchTimer = null;
+            $('recipientSearch').addEventListener('input', (e) => {
+                clearTimeout(_searchTimer);
+                const q = e.target.value.trim();
+                if (q.length < 2) {
+                    classmateList.innerHTML = '<li style="padding: 16px; color: var(--text-dim); font-size: 0.85rem;">Type at least 2 characters to search.</li>';
+                    return;
+                }
+                _searchTimer = setTimeout(() => searchRecipients(q), 400);
             });
 
             // Search conversations
@@ -1504,17 +1657,18 @@
             $('loadMoreBtn').querySelector('button').addEventListener('click', async () => {
                 if (!lastMessageDoc || !activeConversationId) return;
 
-                const olderSnap = await db.collection('messages')
-                    .where('conversationId', '==', activeConversationId)
-                    .where('deleted', '==', false)
-                    .orderBy('timestamp', 'desc')
-                    .startAfter(lastMessageDoc)
-                    .limit(20)
-                    .get();
+                const olderSnap = await getDocs(query(
+                    collection(db, 'messages'),
+                    where('conversationId', '==', activeConversationId),
+                    where('deleted', '==', false),
+                    orderBy('timestamp', 'desc'),
+                    startAfter(lastMessageDoc),
+                    limit(20)
+                ));
 
                 const olderMessages = [];
-                olderSnap.forEach(doc => {
-                    olderMessages.push({ id: doc.id, ...doc.data(), _doc: doc });
+                olderSnap.forEach(d => {
+                    olderMessages.push({ id: d.id, ...d.data(), _doc: d });
                 });
 
                 if (olderMessages.length > 0) {
@@ -1563,6 +1717,39 @@
                 });
 
                 return wrapper;
+            }
+
+            // ═══════════════════════════════════════════════════════════
+            // INITIAL DATA LOAD (after event listeners are wired up)
+            // ═══════════════════════════════════════════════════════════
+            try {
+                await loadUserClasses();
+                subscribeConversations();
+
+                // Deep-link: open conversation from URL hash
+                const hash = window.location.hash;
+                if (hash.startsWith('#conv=')) {
+                    // Existing conversation: #conv=abc_xyz_dm
+                    const convId = decodeURIComponent(hash.substring(6));
+                    if (convId) {
+                        const convDoc = await getDoc(doc(db, 'conversations', convId));
+                        if (convDoc.exists()) {
+                            const convData = convDoc.data();
+                            const otherUid = convData.participants.find(uid => uid !== currentUser.uid);
+                            if (otherUid) {
+                                openConversation(convId, otherUid, convData.classId || 'dm');
+                            }
+                        }
+                    }
+                } else if (hash.startsWith('#new=')) {
+                    // New message to user: #new=<uid> (from profile card)
+                    const targetUid = decodeURIComponent(hash.substring(5));
+                    if (targetUid && targetUid !== currentUser.uid) {
+                        startConversation(targetUid, 'dm');
+                    }
+                }
+            } catch (e) {
+                console.error('[Inbox] Initial data load failed:', e);
             }
 
         })();

@@ -858,6 +858,10 @@
                 <svg class="ac-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 <span>Operations</span>
             </div>
+            <div class="ac-nav-item" data-panel="roles" onclick="switchPanel('roles')">
+                <svg class="ac-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15l-2 5l9-13h-5l2-5L7 15h5z"/></svg>
+                <span>Roles</span>
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -1095,6 +1099,37 @@
                 </div>
             </div>
 
+            <!-- ===================================================
+                 PANEL 6: ROLE MANAGEMENT
+                 =================================================== -->
+            <div class="ac-panel" data-panel="roles">
+                <div class="ac-panel-title">Role Management</div>
+
+                <!-- Current Admins & Handlers -->
+                <div class="ac-card">
+                    <div class="ac-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Current Admins & Handlers</span>
+                        <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="loadRolesList()">Refresh</button>
+                    </div>
+                    <div id="rolesCurrentList">
+                        <div class="ac-loading"><div class="ac-spinner"></div>Loading roles...</div>
+                    </div>
+                </div>
+
+                <!-- Grant Role -->
+                <div class="ac-card">
+                    <div class="ac-card-title">Grant / Revoke Role</div>
+                    <p style="font-size:0.82rem; color:var(--ac-text-muted); margin-bottom:14px;">
+                        Search for a user, then grant or revoke admin or handler privileges. Changes take effect on their next page load.
+                    </p>
+                    <div class="ac-search-wrap">
+                        <input type="text" class="ac-search-input" id="roleSearchInput" placeholder="Search by email, callsign, or UID..." onkeydown="if(event.key==='Enter') roleSearchUser()">
+                        <button class="ac-btn ac-btn-primary" onclick="roleSearchUser()">Search</button>
+                    </div>
+                    <div id="roleSearchResults"></div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -1203,6 +1238,7 @@
             if (panelName === 'integrity') loadIntegrityData();
             if (panelName === 'handlers') loadHandlerData();
             if (panelName === 'health') loadHealthData();
+            if (panelName === 'roles') loadRolesList();
         };
 
         // ── Toast ───────────────────────────────────────────────────
@@ -2303,6 +2339,135 @@
             } catch (e) {
                 container.innerHTML = '<div class="ac-empty" style="color:var(--ac-danger)">Scan failed: ' + escHtml(e.message) + '</div>';
             }
+        };
+
+        // =============================================================
+        //  TAB 6: ROLE MANAGEMENT
+        // =============================================================
+        let _rolesLoaded = false;
+
+        window.loadRolesList = async function() {
+            const container = document.getElementById('rolesCurrentList');
+            container.innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Loading roles...</div>';
+
+            try {
+                const result = await FirebaseAuth.callFunction('adminListAdmins', {});
+                const data = result.data || {};
+                const admins = data.admins || [];
+                const handlers = data.handlers || [];
+                const hardcoded = data.hardcodedEmails || [];
+
+                let html = '';
+
+                // Admins section
+                html += '<div style="margin-bottom:16px;"><div style="font-size:0.82rem; font-weight:600; color:var(--ac-accent); margin-bottom:8px;">Admins</div>';
+                if (admins.length === 0 && hardcoded.length === 0) {
+                    html += '<div style="font-size:0.8rem; color:var(--ac-text-muted);">No admins found.</div>';
+                } else {
+                    html += '<div style="overflow-x:auto;"><table class="ac-table"><thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Actions</th></tr></thead><tbody>';
+                    // Hardcoded first
+                    hardcoded.forEach(email => {
+                        const match = admins.find(a => a.email === email);
+                        html += '<tr><td>' + escHtml(match ? (match.displayName || '--') : '--') + '</td><td>' + escHtml(email) + '</td><td><span class="ac-badge" style="font-size:0.68rem;">HARDCODED</span></td><td style="color:var(--ac-text-muted); font-size:0.78rem;">--</td></tr>';
+                    });
+                    // Dynamic admins
+                    admins.forEach(a => {
+                        if (hardcoded.includes(a.email)) return;
+                        html += '<tr><td>' + escHtml(a.displayName || '--') + '</td><td>' + escHtml(a.email || '--') + '</td><td><span class="ac-badge ac-badge-admin" style="font-size:0.68rem;">GRANTED</span></td><td><button class="ac-btn ac-btn-danger ac-btn-sm" onclick="revokeRole(\'' + escHtml(a.uid) + '\', \'admin\', \'' + escHtml(a.displayName || a.email || '') + '\')">Revoke</button></td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+                html += '</div>';
+
+                // Handlers section
+                html += '<div><div style="font-size:0.82rem; font-weight:600; color:var(--ac-warning); margin-bottom:8px;">Handlers</div>';
+                if (handlers.length === 0) {
+                    html += '<div style="font-size:0.8rem; color:var(--ac-text-muted);">No handlers found.</div>';
+                } else {
+                    html += '<div style="overflow-x:auto;"><table class="ac-table"><thead><tr><th>Name</th><th>Email</th><th>Actions</th></tr></thead><tbody>';
+                    handlers.forEach(h => {
+                        html += '<tr><td>' + escHtml(h.displayName || '--') + '</td><td>' + escHtml(h.email || '--') + '</td><td><button class="ac-btn ac-btn-danger ac-btn-sm" onclick="revokeRole(\'' + escHtml(h.uid) + '\', \'handler\', \'' + escHtml(h.displayName || h.email || '') + '\')">Revoke</button></td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+                html += '</div>';
+
+                container.innerHTML = html;
+                _rolesLoaded = true;
+            } catch (e) {
+                container.innerHTML = '<div class="ac-empty" style="color:var(--ac-danger)">Failed to load roles: ' + escHtml(e.message) + '</div>';
+            }
+        };
+
+        window.roleSearchUser = async function() {
+            const query = document.getElementById('roleSearchInput').value.trim();
+            if (!query) return;
+
+            const container = document.getElementById('roleSearchResults');
+            container.innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Searching...</div>';
+
+            try {
+                const result = await FirebaseAuth.callFunction('adminSearchUsers', { query: query });
+                const users = result.data.users || [];
+
+                if (users.length === 0) {
+                    container.innerHTML = '<div class="ac-empty">No users found for "' + escHtml(query) + '"</div>';
+                    return;
+                }
+
+                let html = '<div style="margin-top:14px; overflow-x:auto;"><table class="ac-table"><thead><tr><th>Name</th><th>Email</th><th>Current Role</th><th>Actions</th></tr></thead><tbody>';
+                users.forEach(u => {
+                    const role = u.accountType || 'operative';
+                    const roleBadgeClass = role === 'admin' ? 'ac-badge-admin' : role === 'handler' ? 'ac-badge-handler' : 'ac-badge-operative';
+                    html += '<tr>';
+                    html += '<td>' + escHtml(u.displayName || u.callsign || '--') + '</td>';
+                    html += '<td>' + escHtml(u.email || u.uid) + '</td>';
+                    html += '<td><span class="ac-badge ' + roleBadgeClass + '">' + escHtml(role) + '</span></td>';
+                    html += '<td style="display:flex; gap:6px; flex-wrap:wrap;">';
+                    if (role !== 'admin') {
+                        html += '<button class="ac-btn ac-btn-primary ac-btn-sm" onclick="grantRole(\'' + escHtml(u.uid) + '\', \'admin\', \'' + escHtml(u.displayName || u.email || '') + '\')">Grant Admin</button>';
+                    }
+                    if (role !== 'handler') {
+                        html += '<button class="ac-btn ac-btn-warning ac-btn-sm" onclick="grantRole(\'' + escHtml(u.uid) + '\', \'handler\', \'' + escHtml(u.displayName || u.email || '') + '\')">Grant Handler</button>';
+                    }
+                    if (role === 'admin' || role === 'handler') {
+                        html += '<button class="ac-btn ac-btn-danger ac-btn-sm" onclick="revokeRole(\'' + escHtml(u.uid) + '\', \'' + escHtml(role) + '\', \'' + escHtml(u.displayName || u.email || '') + '\')">Revoke ' + escHtml(role.charAt(0).toUpperCase() + role.slice(1)) + '</button>';
+                    }
+                    html += '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="ac-empty" style="color:var(--ac-danger)">Search failed: ' + escHtml(e.message) + '</div>';
+            }
+        };
+
+        window.grantRole = function(uid, role, name) {
+            showConfirm('Grant ' + role.charAt(0).toUpperCase() + role.slice(1), 'Grant <strong>' + role + '</strong> privileges to <strong>' + escHtml(name) + '</strong>?', async () => {
+                try {
+                    await FirebaseAuth.callFunction('adminSetRole', { uid: uid, role: role, grant: true });
+                    showToast(name + ' granted ' + role + ' role', 'success');
+                    _rolesLoaded = false;
+                    loadRolesList();
+                    roleSearchUser();
+                } catch (e) {
+                    showToast('Grant failed: ' + e.message, 'error');
+                }
+            });
+        };
+
+        window.revokeRole = function(uid, role, name) {
+            showConfirm('Revoke ' + role.charAt(0).toUpperCase() + role.slice(1), 'Remove <strong>' + role + '</strong> privileges from <strong>' + escHtml(name) + '</strong>?', async () => {
+                try {
+                    await FirebaseAuth.callFunction('adminSetRole', { uid: uid, role: role, grant: false });
+                    showToast(name + ' ' + role + ' role revoked', 'success');
+                    _rolesLoaded = false;
+                    loadRolesList();
+                    roleSearchUser();
+                } catch (e) {
+                    showToast('Revoke failed: ' + e.message, 'error');
+                }
+            }, true);
         };
 
         // =============================================================

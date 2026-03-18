@@ -212,7 +212,282 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Variable Speed Chase</strong> &mdash; Add a potentiometer to analog pin A0 and use <code>analogRead(A0)</code> to control the chase speed. Map the 0&ndash;1023 value to a delay range of 30&ndash;500ms.</p>' +
                     '<p><strong>Challenge 2: Morse Code Flasher</strong> &mdash; Write a function that takes a string and blinks an LED in Morse code (short blink = dot, long blink = dash). Start with "SOS" and expand to full alphabet.</p>' +
-                    '<p><strong>Challenge 3: Binary Counter</strong> &mdash; Use 5 LEDs to count from 0 to 31 in binary. Each LED represents one bit. Increment every second and display the current number on Serial Monitor alongside the binary representation.</p>'
+                    '<p><strong>Challenge 3: Binary Counter</strong> &mdash; Use 5 LEDs to count from 0 to 31 in binary. Each LED represents one bit. Increment every second and display the current number on Serial Monitor alongside the binary representation.</p>',
+
+        // ======================================================================
+        // SG-01 visual enhancements
+        // ======================================================================
+        stepVisuals: {
+            // Step 2 — Wire Your First External LED: LED circuit physics
+            2: '<svg viewBox="0 0 680 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg01-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="680" height="190" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="174" fill="url(#sg01-sv2-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">LED CIRCUIT — CURRENT PATH</text>' +
+               '<!-- Current path line -->' +
+               '<line x1="60" y1="100" x2="170" y2="100" stroke="#eab308" stroke-width="2.5"/>' +
+               '<polygon points="165,96 175,100 165,104" fill="#eab308"/>' +
+               '<line x1="270" y1="100" x2="370" y2="100" stroke="#eab308" stroke-width="2.5"/>' +
+               '<polygon points="365,96 375,100 365,104" fill="#eab308"/>' +
+               '<line x1="460" y1="100" x2="560" y2="100" stroke="#60a5fa" stroke-width="2.5" stroke-dasharray="5,3"/>' +
+               '<!-- Arduino pin block -->' +
+               '<rect x="20" y="76" width="44" height="48" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="42" y="97" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="700">D2</text>' +
+               '<text x="42" y="110" text-anchor="middle" fill="#8b949e" font-size="6">5V out</text>' +
+               '<text x="42" y="120" text-anchor="middle" fill="#555" font-size="5.5">when HIGH</text>' +
+               '<!-- LED symbol -->' +
+               '<polygon points="170,78 230,100 170,122" fill="rgba(234,179,8,0.25)" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="230" y1="78" x2="230" y2="122" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="240" y1="78" x2="250" y2="78" stroke="#eab308" stroke-width="1" opacity="0.5"/>' +
+               '<line x1="240" y1="88" x2="255" y2="88" stroke="#eab308" stroke-width="1" opacity="0.5"/>' +
+               '<polygon points="240,78 248,74 246,80" fill="#eab308" opacity="0.5"/>' +
+               '<polygon points="255,88 248,84 250,90" fill="#eab308" opacity="0.5"/>' +
+               '<text x="200" y="145" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">LED</text>' +
+               '<text x="200" y="156" text-anchor="middle" fill="#8b949e" font-size="6">anode (+) left</text>' +
+               '<text x="200" y="166" text-anchor="middle" fill="#8b949e" font-size="6">cathode (-) right</text>' +
+               '<!-- Resistor symbol -->' +
+               '<rect x="372" y="86" width="84" height="28" rx="3" fill="rgba(168,85,247,0.12)" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<line x1="385" y1="100" x2="395" y2="84" stroke="#a855f7" stroke-width="1"/>' +
+               '<line x1="395" y1="84" x2="405" y2="116" stroke="#a855f7" stroke-width="1"/>' +
+               '<line x1="405" y1="116" x2="415" y2="84" stroke="#a855f7" stroke-width="1"/>' +
+               '<line x1="415" y1="84" x2="425" y2="100" stroke="#a855f7" stroke-width="1"/>' +
+               '<text x="414" y="148" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="600">220 ohm</text>' +
+               '<text x="414" y="160" text-anchor="middle" fill="#8b949e" font-size="6">red-red-brown</text>' +
+               '<text x="414" y="170" text-anchor="middle" fill="#555" font-size="5.5">limits ~15mA</text>' +
+               '<!-- GND block -->' +
+               '<rect x="560" y="82" width="44" height="36" rx="4" fill="#0a1628" stroke="#8b949e" stroke-width="1"/>' +
+               '<line x1="582" y1="96" x2="582" y2="110" stroke="#60a5fa" stroke-width="2"/>' +
+               '<line x1="573" y1="110" x2="591" y2="110" stroke="#60a5fa" stroke-width="2"/>' +
+               '<line x1="577" y1="114" x2="587" y2="114" stroke="#60a5fa" stroke-width="1.5"/>' +
+               '<line x1="580" y1="118" x2="584" y2="118" stroke="#60a5fa" stroke-width="1"/>' +
+               '<text x="582" y="132" text-anchor="middle" fill="#8b949e" font-size="6">GND</text>' +
+               '<!-- Ohms law callout -->' +
+               '<rect x="490" y="40" width="174" height="44" rx="5" fill="rgba(255,107,53,0.06)" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>' +
+               '<text x="500" y="55" fill="#ff6b35" font-size="7" font-weight="700">Ohm\'s Law: I = V / R</text>' +
+               '<text x="500" y="68" fill="#8b949e" font-size="6.5">I = (5V - 2V) / 220 ohm = 13.6 mA</text>' +
+               '<text x="500" y="78" fill="#555" font-size="6">LED Vf ~2V  |  safe limit ~20mA</text>' +
+               '</svg>',
+
+            // Step 4 — Create a Chase Pattern: timing diagram
+            4: '<svg viewBox="0 0 680 170" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg01-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="680" height="170" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="154" fill="url(#sg01-sv4-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">CHASE PATTERN — TIMING DIAGRAM (100ms per step)</text>' +
+               '<!-- Lane labels -->' +
+               '<text x="44" y="48" text-anchor="end" fill="#eab308" font-size="7">D2</text>' +
+               '<text x="44" y="70" text-anchor="end" fill="#22c55e" font-size="7">D3</text>' +
+               '<text x="44" y="92" text-anchor="end" fill="#3b82f6" font-size="7">D4</text>' +
+               '<text x="44" y="114" text-anchor="end" fill="#ef4444" font-size="7">D5</text>' +
+               '<text x="44" y="136" text-anchor="end" fill="#e2e8f0" font-size="7">D6</text>' +
+               '<!-- Time axis -->' +
+               '<line x1="54" y1="148" x2="660" y2="148" stroke="#333" stroke-width="1"/>' +
+               '<text x="54" y="160" fill="#444" font-size="6">0ms</text>' +
+               '<text x="162" y="160" fill="#444" font-size="6">100ms</text>' +
+               '<text x="270" y="160" fill="#444" font-size="6">200ms</text>' +
+               '<text x="378" y="160" fill="#444" font-size="6">300ms</text>' +
+               '<text x="486" y="160" fill="#444" font-size="6">400ms</text>' +
+               '<text x="590" y="160" fill="#444" font-size="6">500ms</text>' +
+               '<!-- Grid lines -->' +
+               '<line x1="162" y1="36" x2="162" y2="148" stroke="#222" stroke-width="0.5"/>' +
+               '<line x1="270" y1="36" x2="270" y2="148" stroke="#222" stroke-width="0.5"/>' +
+               '<line x1="378" y1="36" x2="378" y2="148" stroke="#222" stroke-width="0.5"/>' +
+               '<line x1="486" y1="36" x2="486" y2="148" stroke="#222" stroke-width="0.5"/>' +
+               '<line x1="594" y1="36" x2="594" y2="148" stroke="#222" stroke-width="0.5"/>' +
+               '<!-- D2 HIGH pulse at 0ms -->' +
+               '<rect x="54" y="36" width="108" height="18" rx="2" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="1"/>' +
+               '<rect x="54" y="58" width="108" height="2" rx="1" fill="#444"/>' +
+               '<!-- D3 HIGH pulse at 100ms -->' +
+               '<rect x="54" y="58" width="108" height="2" rx="1" fill="#444"/>' +
+               '<rect x="162" y="58" width="108" height="18" rx="2" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="1"/>' +
+               '<rect x="54" y="80" width="108" height="2" rx="1" fill="#444"/>' +
+               '<!-- D4 HIGH pulse at 200ms -->' +
+               '<rect x="270" y="80" width="108" height="18" rx="2" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="1"/>' +
+               '<rect x="54" y="102" width="108" height="2" rx="1" fill="#444"/>' +
+               '<!-- D5 HIGH pulse at 300ms -->' +
+               '<rect x="378" y="102" width="108" height="18" rx="2" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1"/>' +
+               '<rect x="54" y="124" width="108" height="2" rx="1" fill="#444"/>' +
+               '<!-- D6 HIGH pulse at 400ms -->' +
+               '<rect x="486" y="124" width="108" height="18" rx="2" fill="rgba(226,232,240,0.25)" stroke="#e2e8f0" stroke-width="1"/>' +
+               '<!-- LOW baselines -->' +
+               '<line x1="54" y1="54" x2="660" y2="54" stroke="#333" stroke-width="0.5" stroke-dasharray="2,2"/>' +
+               '<line x1="54" y1="76" x2="660" y2="76" stroke="#333" stroke-width="0.5" stroke-dasharray="2,2"/>' +
+               '<line x1="54" y1="98" x2="660" y2="98" stroke="#333" stroke-width="0.5" stroke-dasharray="2,2"/>' +
+               '<line x1="54" y1="120" x2="660" y2="120" stroke="#333" stroke-width="0.5" stroke-dasharray="2,2"/>' +
+               '<line x1="54" y1="142" x2="660" y2="142" stroke="#333" stroke-width="0.5" stroke-dasharray="2,2"/>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg01-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="560" height="200" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="548" height="188" fill="url(#sg01-cc-grid)" rx="3"/>' +
+                 '<text x="280" y="20" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.14em">SG-01 COMPONENT LAYOUT</text>' +
+                 '<!-- Arduino Mega outline -->' +
+                 '<rect x="20" y="34" width="120" height="148" rx="6" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5" data-callout="mega"/>' +
+                 '<text x="80" y="50" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="700">ARDUINO</text>' +
+                 '<text x="80" y="61" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="700">MEGA 2560</text>' +
+                 '<circle cx="126" cy="80" r="4" fill="#1a1f2b" stroke="#eab308" stroke-width="1" data-callout="pin-d2"/>' +
+                 '<text x="115" y="79" text-anchor="end" fill="#666" font-size="5.5">D2</text>' +
+                 '<circle cx="126" cy="96" r="4" fill="#1a1f2b" stroke="#22c55e" stroke-width="1" data-callout="pin-d3"/>' +
+                 '<text x="115" y="95" text-anchor="end" fill="#666" font-size="5.5">D3</text>' +
+                 '<circle cx="126" cy="112" r="4" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1"/>' +
+                 '<text x="115" y="111" text-anchor="end" fill="#666" font-size="5.5">D4</text>' +
+                 '<circle cx="126" cy="128" r="4" fill="#1a1f2b" stroke="#ef4444" stroke-width="1"/>' +
+                 '<text x="115" y="127" text-anchor="end" fill="#666" font-size="5.5">D5</text>' +
+                 '<circle cx="126" cy="144" r="4" fill="#1a1f2b" stroke="#e2e8f0" stroke-width="1"/>' +
+                 '<text x="115" y="143" text-anchor="end" fill="#666" font-size="5.5">D6</text>' +
+                 '<circle cx="126" cy="160" r="4" fill="#1a1f2b" stroke="#8b949e" stroke-width="1" data-callout="gnd"/>' +
+                 '<text x="115" y="159" text-anchor="end" fill="#666" font-size="5.5">GND</text>' +
+                 '<!-- Breadboard -->' +
+                 '<rect x="180" y="34" width="200" height="148" rx="6" fill="#0f1a2e" stroke="#22c55e" stroke-width="1.5" data-callout="breadboard"/>' +
+                 '<text x="280" y="50" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="700">BREADBOARD</text>' +
+                 '<rect x="190" y="58" width="180" height="10" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+                 '<text x="200" y="66" fill="#ef4444" font-size="5.5">+ 5V RAIL</text>' +
+                 '<rect x="190" y="70" width="180" height="10" rx="2" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+                 '<text x="200" y="78" fill="#60a5fa" font-size="5.5">- GND RAIL</text>' +
+                 '<!-- LED symbols -->' +
+                 '<polygon points="220,98 236,108 220,118" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="1" data-callout="led"/>' +
+                 '<polygon points="246,108 252,112 246,116" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="0.5"/>' +
+                 '<rect x="256" y="104" width="28" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5" data-callout="resistor"/>' +
+                 '<polygon points="220,128 236,138 220,148" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="1" data-callout="led"/>' +
+                 '<rect x="256" y="134" width="28" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5" data-callout="resistor"/>' +
+                 '<polygon points="310,98 326,108 310,118" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="1" data-callout="led"/>' +
+                 '<rect x="336" y="104" width="28" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5" data-callout="resistor"/>' +
+                 '<polygon points="310,128 326,138 310,148" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1" data-callout="led"/>' +
+                 '<rect x="336" y="134" width="28" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5" data-callout="resistor"/>' +
+                 '</svg>',
+            components: [
+                {
+                    id: 'mega',
+                    name: 'Arduino Mega 2560',
+                    purpose: 'AVR ATmega2560 microcontroller. 54 digital I/O pins, 16 analog inputs, 4 hardware UARTs. Runs at 16 MHz from an onboard crystal.',
+                    specs: ['16 MHz clock', '256 KB Flash', '8 KB SRAM', '5V logic', 'USB-B connector']
+                },
+                {
+                    id: 'led',
+                    name: 'Standard LED (5mm)',
+                    purpose: 'Light-emitting diode. Converts current to light. Forward voltage ~2V, maximum forward current 20mA. The long leg is the anode (+), short leg is cathode (-).',
+                    specs: ['Vf ~2.0V (red/yellow)', 'Vf ~3.2V (blue/white)', 'If max 20mA', 'Emits ~25mcd']
+                },
+                {
+                    id: 'resistor',
+                    name: '220 ohm Resistor',
+                    purpose: 'Current-limiting resistor. Drops excess voltage so the LED stays within safe operating current. Without it, the LED and Arduino pin would both be damaged.',
+                    specs: ['220 ohm (red-red-brown)', '+/-5% tolerance', 'R = (5V-2V)/0.015A = 200 ohm min', '1/4 watt rated']
+                },
+                {
+                    id: 'breadboard',
+                    name: 'Half-size Breadboard',
+                    purpose: 'Solderless prototyping board. Rows of 5 holes are internally connected. Power rails run the full length. Components push in and make reliable contact via spring clips.',
+                    specs: ['400 tie points', '5-hole rows internally tied', 'Power rails full length', '0.1 inch pin spacing']
+                },
+                {
+                    id: 'gnd',
+                    name: 'GND (Ground Rail)',
+                    purpose: 'The common 0V reference for the entire circuit. All current returns here. Connect the Mega GND pin to the breadboard GND rail so all components share the same reference.',
+                    specs: ['0V reference', 'Three GND pins on Mega', 'Black wire convention', 'Required for every circuit']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'LED Inserted Backwards (Reversed Polarity)',
+                correct: 'Long leg (anode) connects toward the Arduino pin, short leg (cathode) connects toward the resistor and GND.',
+                incorrect: 'LED inserted with short leg toward the Arduino pin and long leg toward GND.',
+                consequence: 'LED will not light up at all. LEDs only conduct in one direction. No damage is caused &mdash; just remove, flip, and reinsert.',
+                svgDiff: '<svg viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="104" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="104" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<!-- Correct: anode left -->' +
+                         '<text x="30" y="60" fill="#8b949e" font-size="7">PIN</text>' +
+                         '<line x1="50" y1="58" x2="100" y2="58" stroke="#eab308" stroke-width="2"/>' +
+                         '<polygon points="100,44 140,58 100,72" fill="rgba(234,179,8,0.35)" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<line x1="140" y1="44" x2="140" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<line x1="140" y1="58" x2="180" y2="58" stroke="#eab308" stroke-width="2"/>' +
+                         '<text x="90" y="88" text-anchor="middle" fill="#22c55e" font-size="6.5">anode (+) first</text>' +
+                         '<circle cx="104" cy="45" r="5" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1"/>' +
+                         '<text x="104" y="49" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">+</text>' +
+                         '<text x="30" y="108" fill="#4ade80" font-size="6">LED lights up</text>' +
+                         '<!-- Wrong: cathode left -->' +
+                         '<text x="278" y="60" fill="#8b949e" font-size="7">PIN</text>' +
+                         '<line x1="298" y1="58" x2="348" y2="58" stroke="#ef4444" stroke-width="2"/>' +
+                         '<polygon points="348,72 388,58 348,44" fill="rgba(239,68,68,0.35)" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<line x1="388" y1="44" x2="388" y2="72" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<line x1="388" y1="58" x2="428" y2="58" stroke="#ef4444" stroke-width="2"/>' +
+                         '<text x="338" y="88" text-anchor="middle" fill="#ef4444" font-size="6.5">cathode (-) first</text>' +
+                         '<circle cx="392" cy="45" r="5" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1"/>' +
+                         '<text x="392" y="49" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">-</text>' +
+                         '<text x="278" y="108" fill="#f87171" font-size="6">LED is dark (no damage)</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'Missing or Wrong-Value Resistor',
+                correct: 'A 220 ohm resistor (red-red-brown bands) is placed between the LED cathode and the GND rail, completing the current-limiting path.',
+                incorrect: 'LED connected directly to the Arduino pin and GND with no resistor, or using a 10K resistor that barely passes current.',
+                consequence: 'No resistor: the Arduino\'s output driver tries to sink unlimited current. Pin current can spike above 40mA, permanently damaging the ATmega2560 I/O cell. 10K resistor: LED is invisible dim (~0.3mA).',
+                svgDiff: '<svg viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="104" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="104" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<!-- Correct path -->' +
+                         '<line x1="20" y1="58" x2="70" y2="58" stroke="#eab308" stroke-width="2"/>' +
+                         '<polygon points="70,44 110,58 70,72" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<line x1="110" y1="44" x2="110" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<rect x="118" y="50" width="54" height="16" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
+                         '<text x="145" y="61" text-anchor="middle" fill="#c084fc" font-size="6.5">220R</text>' +
+                         '<line x1="172" y1="58" x2="224" y2="58" stroke="#60a5fa" stroke-width="2"/>' +
+                         '<text x="30" y="90" fill="#22c55e" font-size="6">13mA  -  bright + safe</text>' +
+                         '<!-- Wrong path (no resistor) -->' +
+                         '<line x1="272" y1="58" x2="322" y2="58" stroke="#eab308" stroke-width="2"/>' +
+                         '<polygon points="322,44 362,58 322,72" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<line x1="362" y1="44" x2="362" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<line x1="362" y1="58" x2="460" y2="58" stroke="#ef4444" stroke-width="2"/>' +
+                         '<text x="380" y="52" fill="#ef4444" font-size="9" font-weight="700">!</text>' +
+                         '<circle cx="380" cy="58" r="8" fill="none" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<text x="272" y="90" fill="#ef4444" font-size="6">unlimited current  -  pin damage</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'GND Rail Not Connected to Arduino GND',
+                correct: 'A black jumper wire runs from any GND pin on the Arduino Mega to the negative (-) rail of the breadboard. All LED cathode circuits return current through this rail.',
+                incorrect: 'The breadboard GND rail is floating with no wire connecting it back to the Arduino GND pin.',
+                consequence: 'All LEDs remain dark even though power and code are correct. Current has no return path. The circuit is open. This is the most common beginner mistake and the first thing to check.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<!-- Correct: GND connected -->' +
+                         '<rect x="18" y="34" width="40" height="34" rx="3" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1"/>' +
+                         '<text x="38" y="50" text-anchor="middle" fill="#60a5fa" font-size="6">Mega</text>' +
+                         '<text x="38" y="62" text-anchor="middle" fill="#8b949e" font-size="5.5">GND</text>' +
+                         '<circle cx="58" cy="51" r="3" fill="#555" stroke="#8b949e" stroke-width="1"/>' +
+                         '<line x1="61" y1="51" x2="130" y2="51" stroke="#8b949e" stroke-width="2"/>' +
+                         '<rect x="130" y="44" width="80" height="14" rx="2" fill="rgba(59,130,246,0.1)" stroke="#60a5fa" stroke-width="0.5"/>' +
+                         '<text x="170" y="54" text-anchor="middle" fill="#60a5fa" font-size="5.5">- GND RAIL</text>' +
+                         '<text x="124" y="84" text-anchor="middle" fill="#22c55e" font-size="6">Current has a return path</text>' +
+                         '<!-- Wrong: GND floating -->' +
+                         '<rect x="268" y="34" width="40" height="34" rx="3" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1"/>' +
+                         '<text x="288" y="50" text-anchor="middle" fill="#60a5fa" font-size="6">Mega</text>' +
+                         '<text x="288" y="62" text-anchor="middle" fill="#8b949e" font-size="5.5">GND</text>' +
+                         '<circle cx="308" cy="51" r="3" fill="#555" stroke="#8b949e" stroke-width="1"/>' +
+                         '<rect x="380" y="44" width="80" height="14" rx="2" fill="rgba(59,130,246,0.1)" stroke="#60a5fa" stroke-width="0.5"/>' +
+                         '<text x="420" y="54" text-anchor="middle" fill="#60a5fa" font-size="5.5">- GND RAIL</text>' +
+                         '<line x1="310" y1="51" x2="350" y2="51" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>' +
+                         '<text x="355" y="51" fill="#ef4444" font-size="9" font-weight="700">X</text>' +
+                         '<text x="376" y="84" text-anchor="middle" fill="#ef4444" font-size="6">Rail is floating  -  all LEDs dark</text>' +
+                         '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -446,7 +721,285 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Data Averaging</strong> &mdash; Take 10 sensor readings in rapid succession, throw out the highest and lowest, and average the remaining 8. This is how professional sensors handle noise. Compare the smoothed output to the raw values.</p>' +
                     '<p><strong>Challenge 2: Alarm System</strong> &mdash; Add a piezo buzzer (included in the ELEGOO kit) and make it beep when any sensor crosses its threshold. Use different beep patterns for different alert types (rapid for proximity, slow for temperature).</p>' +
-                    '<p><strong>Challenge 3: Environmental Heatmap</strong> &mdash; Walk around the room with the sensor station connected to your laptop. Log temperature and light readings from 10 different spots. Create a simple map showing the "hot spots" and "cold spots". This is the manual version of what HVAC sensors do in data centers.</p>'
+                    '<p><strong>Challenge 3: Environmental Heatmap</strong> &mdash; Walk around the room with the sensor station connected to your laptop. Log temperature and light readings from 10 different spots. Create a simple map showing the "hot spots" and "cold spots". This is the manual version of what HVAC sensors do in data centers.</p>',
+
+        // ======================================================================
+        // SG-02 visual enhancements
+        // ======================================================================
+        stepVisuals: {
+            // Step 2 — Add the Photoresistor: voltage divider explained
+            2: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg02-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="172" fill="url(#sg02-sv2-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">VOLTAGE DIVIDER — PHOTORESISTOR + 10K RESISTOR</text>' +
+               '<!-- 5V rail -->' +
+               '<rect x="60" y="36" width="60" height="20" rx="3" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1"/>' +
+               '<text x="90" y="50" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">5V</text>' +
+               '<!-- Wire down to LDR -->' +
+               '<line x1="90" y1="56" x2="90" y2="84" stroke="#ef4444" stroke-width="2"/>' +
+               '<!-- LDR symbol (circle with arrow) -->' +
+               '<circle cx="90" cy="96" r="14" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<line x1="78" y1="84" x2="102" y2="108" stroke="#eab308" stroke-width="1" opacity="0.7"/>' +
+               '<polygon points="102,100 106,110 96,107" fill="#eab308" opacity="0.7"/>' +
+               '<text x="90" y="100" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">LDR</text>' +
+               '<!-- Wire down to junction -->' +
+               '<line x1="90" y1="110" x2="90" y2="136" stroke="#22c55e" stroke-width="2"/>' +
+               '<!-- Junction node -->' +
+               '<circle cx="90" cy="136" r="4" fill="#ff6b35"/>' +
+               '<!-- Junction to A0 -->' +
+               '<line x1="94" y1="136" x2="210" y2="136" stroke="#ff6b35" stroke-width="2"/>' +
+               '<rect x="210" y="128" width="48" height="16" rx="3" fill="rgba(255,107,53,0.15)" stroke="#ff6b35" stroke-width="1"/>' +
+               '<text x="234" y="139" text-anchor="middle" fill="#ff6b35" font-size="7" font-weight="700">A0</text>' +
+               '<!-- Wire down from junction to 10K -->' +
+               '<line x1="90" y1="140" x2="90" y2="156" stroke="#22c55e" stroke-width="2"/>' +
+               '<!-- 10K Resistor -->' +
+               '<rect x="72" y="156" width="36" height="16" rx="3" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<text x="90" y="167" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">10K</text>' +
+               '<!-- Wire to GND -->' +
+               '<line x1="90" y1="172" x2="90" y2="180" stroke="#60a5fa" stroke-width="2"/>' +
+               '<rect x="60" y="180" width="60" height="4" rx="2" fill="#60a5fa"/>' +
+               '<text x="90" y="178" text-anchor="middle" fill="#60a5fa" font-size="6.5">GND</text>' +
+               '<!-- Math callout —  bright light -->' +
+               '<rect x="294" y="36" width="180" height="70" rx="5" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>' +
+               '<text x="304" y="52" fill="#eab308" font-size="7" font-weight="700">BRIGHT LIGHT</text>' +
+               '<text x="304" y="65" fill="#8b949e" font-size="6.5">LDR resistance drops to ~1K</text>' +
+               '<text x="304" y="78" fill="#8b949e" font-size="6.5">Vout = 5V x 10K / (1K+10K)</text>' +
+               '<text x="304" y="91" fill="#eab308" font-size="6.5">Vout = 4.5V  -->  analogRead ~921</text>' +
+               '<!-- Math callout — dark -->' +
+               '<rect x="494" y="36" width="176" height="70" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>' +
+               '<text x="504" y="52" fill="#60a5fa" font-size="7" font-weight="700">DARK</text>' +
+               '<text x="504" y="65" fill="#8b949e" font-size="6.5">LDR resistance rises to ~100K</text>' +
+               '<text x="504" y="78" fill="#8b949e" font-size="6.5">Vout = 5V x 10K / (100K+10K)</text>' +
+               '<text x="504" y="91" fill="#60a5fa" font-size="6.5">Vout = 0.45V  -->  analogRead ~92</text>' +
+               '<!-- analogRead scale -->' +
+               '<rect x="294" y="122" width="376" height="50" rx="5" fill="rgba(255,107,53,0.04)" stroke="rgba(255,107,53,0.2)" stroke-width="1"/>' +
+               '<text x="304" y="137" fill="#ff6b35" font-size="7" font-weight="700">analogRead(A0) SCALE</text>' +
+               '<rect x="304" y="143" width="356" height="10" rx="5" fill="#111"/>' +
+               '<rect x="304" y="143" width="20" height="10" rx="5" fill="#1a2a4a"/>' +
+               '<rect x="304" y="143" width="130" height="10" rx="5" fill="rgba(59,130,246,0.3)"/>' +
+               '<rect x="434" y="143" width="226" height="10" rx="5" fill="rgba(234,179,8,0.35)"/>' +
+               '<text x="304" y="163" fill="#60a5fa" font-size="6">0 (dark)</text>' +
+               '<text x="482" y="163" text-anchor="middle" fill="#ff6b35" font-size="6">511</text>' +
+               '<text x="654" y="163" text-anchor="end" fill="#eab308" font-size="6">1023 (bright)</text>' +
+               '</svg>',
+
+            // Step 3 — HC-SR04: ultrasonic pulse timing
+            3: '<svg viewBox="0 0 680 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs>' +
+               '<pattern id="sg02-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+               '<marker id="sg02-arr-o" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97316"/></marker>' +
+               '<marker id="sg02-arr-g" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22c55e"/></marker>' +
+               '</defs>' +
+               '<rect width="680" height="180" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="164" fill="url(#sg02-sv3-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">HC-SR04 — PULSE TIMING (distance = duration / 58)</text>' +
+               '<!-- TRIG signal lane -->' +
+               '<text x="48" y="54" text-anchor="end" fill="#f97316" font-size="7">TRIG</text>' +
+               '<line x1="54" y1="52" x2="630" y2="52" stroke="#1a1f2b" stroke-width="8" rx="2"/>' +
+               '<rect x="100" y="44" width="24" height="16" rx="2" fill="#f97316"/>' +
+               '<text x="112" y="55" text-anchor="middle" fill="#0d1117" font-size="6" font-weight="700">10us</text>' +
+               '<text x="54" y="74" fill="#555" font-size="6.5">LOW</text>' +
+               '<text x="100" y="42" text-anchor="middle" fill="#f97316" font-size="6">HIGH 10us trigger pulse</text>' +
+               '<!-- ECHO signal lane -->' +
+               '<text x="48" y="100" text-anchor="end" fill="#22c55e" font-size="7">ECHO</text>' +
+               '<line x1="54" y1="98" x2="630" y2="98" stroke="#1a1f2b" stroke-width="8" rx="2"/>' +
+               '<rect x="170" y="90" width="200" height="16" rx="2" fill="#22c55e"/>' +
+               '<line x1="270" y1="82" x2="270" y2="90" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,2"/>' +
+               '<text x="270" y="80" text-anchor="middle" fill="#22c55e" font-size="6">echo duration</text>' +
+               '<text x="54" y="118" fill="#555" font-size="6.5">LOW</text>' +
+               '<text x="170" y="88" fill="#22c55e" font-size="6">pulseIn() measures this HIGH period</text>' +
+               '<!-- Dimension arrows -->' +
+               '<line x1="170" y1="120" x2="370" y2="120" stroke="#22c55e" stroke-width="1" marker-end="url(#sg02-arr-g)"/>' +
+               '<line x1="370" y1="120" x2="170" y2="120" stroke="#22c55e" stroke-width="1" marker-end="url(#sg02-arr-g)"/>' +
+               '<text x="270" y="134" text-anchor="middle" fill="#22c55e" font-size="6.5">duration (microseconds)</text>' +
+               '<!-- Sound wave arcs -->' +
+               '<text x="400" y="62" fill="#fb923c" font-size="7" font-weight="600">Sound emitted</text>' +
+               '<path d="M 400 74 Q 430 64 460 74" fill="none" stroke="#f97316" stroke-width="1.5" opacity="0.7"/>' +
+               '<path d="M 410 78 Q 440 64 470 78" fill="none" stroke="#f97316" stroke-width="1" opacity="0.4"/>' +
+               '<text x="520" y="62" fill="#22c55e" font-size="7" font-weight="600">Echo returned</text>' +
+               '<path d="M 520 74 Q 550 64 580 74" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.7"/>' +
+               '<path d="M 510 78 Q 540 64 570 78" fill="none" stroke="#22c55e" stroke-width="1" opacity="0.4"/>' +
+               '<!-- Formula box -->' +
+               '<rect x="54" y="142" width="572" height="24" rx="5" fill="rgba(255,107,53,0.06)" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>' +
+               '<text x="340" y="157" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="700">distance (cm) = pulseIn(ECHO, HIGH) / 58.0   |   range: 2cm to 400cm</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg02-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="560" height="200" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="548" height="188" fill="url(#sg02-cc-grid)" rx="3"/>' +
+                 '<text x="280" y="20" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.14em">SG-02 SENSOR STATION LAYOUT</text>' +
+                 '<!-- Arduino Mega -->' +
+                 '<rect x="16" y="32" width="100" height="154" rx="6" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5" data-callout="mega"/>' +
+                 '<text x="66" y="48" text-anchor="middle" fill="#60a5fa" font-size="6.5" font-weight="700">ARDUINO MEGA</text>' +
+                 '<circle cx="116" cy="80" r="4" fill="#1a1f2b" stroke="#ef4444" stroke-width="1" data-callout="power"/>' +
+                 '<text x="108" y="79" text-anchor="end" fill="#555" font-size="5.5">5V</text>' +
+                 '<circle cx="116" cy="96" r="4" fill="#1a1f2b" stroke="#8b949e" stroke-width="1" data-callout="power"/>' +
+                 '<text x="108" y="95" text-anchor="end" fill="#555" font-size="5.5">GND</text>' +
+                 '<circle cx="116" cy="114" r="4" fill="#1a1f2b" stroke="#eab308" stroke-width="1" data-callout="dht11"/>' +
+                 '<text x="108" y="113" text-anchor="end" fill="#555" font-size="5.5">D7</text>' +
+                 '<circle cx="116" cy="132" r="4" fill="#1a1f2b" stroke="#22c55e" stroke-width="1" data-callout="photoresistor"/>' +
+                 '<text x="108" y="131" text-anchor="end" fill="#555" font-size="5.5">A0</text>' +
+                 '<circle cx="116" cy="150" r="4" fill="#1a1f2b" stroke="#f97316" stroke-width="1" data-callout="hcsr04"/>' +
+                 '<text x="108" y="149" text-anchor="end" fill="#555" font-size="5.5">D8 Trig</text>' +
+                 '<circle cx="116" cy="166" r="4" fill="#1a1f2b" stroke="#a855f7" stroke-width="1" data-callout="hcsr04"/>' +
+                 '<text x="108" y="165" text-anchor="end" fill="#555" font-size="5.5">D9 Echo</text>' +
+                 '<!-- DHT11 -->' +
+                 '<rect x="180" y="32" width="96" height="80" rx="6" fill="#0f1a2e" stroke="#eab308" stroke-width="1.5" data-callout="dht11"/>' +
+                 '<text x="228" y="50" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">DHT11</text>' +
+                 '<text x="228" y="66" text-anchor="middle" fill="#8b949e" font-size="6">1-wire protocol</text>' +
+                 '<text x="228" y="80" text-anchor="middle" fill="#555" font-size="5.5">Temp + Humidity</text>' +
+                 '<text x="228" y="92" text-anchor="middle" fill="#555" font-size="5.5">reads every 2s</text>' +
+                 '<!-- Photoresistor -->' +
+                 '<rect x="180" y="128" width="96" height="60" rx="6" fill="#0f1a2e" stroke="#22c55e" stroke-width="1.5" data-callout="photoresistor"/>' +
+                 '<text x="228" y="146" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">LDR</text>' +
+                 '<circle cx="228" cy="163" r="9" fill="none" stroke="#eab308" stroke-width="1"/>' +
+                 '<text x="228" y="167" text-anchor="middle" fill="#eab308" font-size="5.5">light</text>' +
+                 '<!-- HC-SR04 -->' +
+                 '<rect x="326" y="60" width="130" height="80" rx="6" fill="#0f1a2e" stroke="#f97316" stroke-width="1.5" data-callout="hcsr04"/>' +
+                 '<text x="391" y="78" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="700">HC-SR04</text>' +
+                 '<circle cx="366" cy="108" r="12" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="1"/>' +
+                 '<circle cx="366" cy="108" r="6" fill="rgba(249,115,22,0.1)"/>' +
+                 '<text x="366" y="111" text-anchor="middle" fill="#f97316" font-size="5">TX</text>' +
+                 '<circle cx="416" cy="108" r="12" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="1"/>' +
+                 '<circle cx="416" cy="108" r="6" fill="rgba(249,115,22,0.1)"/>' +
+                 '<text x="416" y="111" text-anchor="middle" fill="#f97316" font-size="5">RX</text>' +
+                 '</svg>',
+            components: [
+                {
+                    id: 'dht11',
+                    name: 'DHT11 Temperature and Humidity Sensor',
+                    purpose: 'Digital sensor using a proprietary 1-wire protocol. The microcontroller sends a start pulse, then the DHT11 responds with 40 bits of data: 8 bits humidity integer, 8 bits humidity decimal, 8 bits temp integer, 8 bits temp decimal, 8 bits checksum.',
+                    specs: ['Temp range: 0-50 C (+/-2 C)', 'Humidity: 20-90% RH (+/-5%)', 'Sample rate max 1 Hz', '3-5V supply', 'D7 on Mega']
+                },
+                {
+                    id: 'photoresistor',
+                    name: 'Photoresistor (LDR)',
+                    purpose: 'A resistor whose resistance decreases as light intensity increases. Used in a voltage divider with a 10K resistor. The midpoint voltage is read by an analog pin and converted to a 0-1023 digital value by the 10-bit ADC.',
+                    specs: ['Dark resistance ~1M ohm', 'Bright resistance ~1K ohm', 'Paired with 10K resistor', 'A0 analog pin', 'No polarity (passive)']
+                },
+                {
+                    id: 'hcsr04',
+                    name: 'HC-SR04 Ultrasonic Distance Sensor',
+                    purpose: 'Emits a 40kHz ultrasonic burst on the TRIG pin HIGH pulse, then raises ECHO HIGH for the duration the sound takes to travel out and return. Distance is calculated from time-of-flight: distance = duration / 58 (cm).',
+                    specs: ['Range: 2-400 cm', 'Accuracy: +/-3 mm', '40kHz ultrasound', 'D8=Trig, D9=Echo', '5V supply, 15mA']
+                },
+                {
+                    id: 'power',
+                    name: '5V Power and GND Rails',
+                    purpose: 'The Mega 5V pin sources regulated 5V from the onboard LM1117 regulator (when powered via USB, it is powered from the USB 5V rail through a polyfuse). All three sensors require 5V. The GND rail is the common return path.',
+                    specs: ['5V max 500mA (USB powered)', 'Three GND pins on Mega', 'Always connect GND first', 'Power rails on breadboard edges']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'DHT11 Data Pin Missing Pull-up (Bare Module)',
+                correct: 'If using the raw 4-pin DHT11 component (not a breakout board), a 10K pull-up resistor must connect the DATA pin to VCC. Most breakout modules include this resistor internally.',
+                incorrect: 'The bare DHT11 is wired with only VCC, DATA, and GND. No pull-up resistor is present on the DATA line.',
+                consequence: 'The data line floats HIGH unreliably. The DHT11 response is corrupted. You get continuous NaN readings even though the sensor is otherwise correctly wired. This is a very common source of confusion.',
+                svgDiff: '<svg viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="104" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="104" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT (bare DHT11)</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG (bare DHT11)</text>' +
+                         '<text x="20" y="50" fill="#ef4444" font-size="6">VCC</text>' +
+                         '<line x1="44" y1="48" x2="90" y2="48" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<line x1="90" y1="48" x2="90" y2="68" stroke="#ef4444" stroke-width="1"/>' +
+                         '<rect x="78" y="68" width="24" height="12" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1"/>' +
+                         '<text x="90" y="77" text-anchor="middle" fill="#c084fc" font-size="5.5">10K</text>' +
+                         '<line x1="90" y1="80" x2="90" y2="90" stroke="#22c55e" stroke-width="1.5"/>' +
+                         '<line x1="44" y1="90" x2="200" y2="90" stroke="#22c55e" stroke-width="2"/>' +
+                         '<text x="20" y="94" fill="#eab308" font-size="6">DATA</text>' +
+                         '<rect x="160" y="62" width="46" height="34" rx="4" fill="#0f1a2e" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<text x="183" y="83" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">DHT</text>' +
+                         '<text x="124" y="110" text-anchor="middle" fill="#22c55e" font-size="6">pull-up stabilizes line</text>' +
+                         '<text x="272" y="50" fill="#ef4444" font-size="6">VCC</text>' +
+                         '<line x1="296" y1="48" x2="370" y2="48" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<line x1="296" y1="90" x2="452" y2="90" stroke="#22c55e" stroke-width="2"/>' +
+                         '<text x="272" y="94" fill="#eab308" font-size="6">DATA</text>' +
+                         '<rect x="412" y="62" width="46" height="34" rx="4" fill="#0f1a2e" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<text x="435" y="83" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">DHT</text>' +
+                         '<text x="340" y="70" fill="#ef4444" font-size="6.5" font-weight="700">NO PULL-UP</text>' +
+                         '<text x="376" y="110" text-anchor="middle" fill="#ef4444" font-size="6">line floats  -  NaN readings</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'Photoresistor Voltage Divider Wired Wrong Order',
+                correct: 'Photoresistor connects from 5V to the A0 junction. The 10K resistor connects from A0 junction down to GND. This makes the output go HIGH in bright light.',
+                incorrect: 'The 10K resistor is placed on the top (5V side) and the LDR is on the bottom (GND side). The readings are inverted: dark reads high, bright reads low.',
+                consequence: 'The circuit works electrically and will not damage anything, but your threshold logic will be backwards. A "dark room" alert fires in bright light. Recalibrate thresholds or swap the component positions.',
+                svgDiff: '<svg viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="120" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="104" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="104" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG (inverted)</text>' +
+                         '<!-- Correct: LDR top, 10K bottom -->' +
+                         '<text x="40" y="42" fill="#ef4444" font-size="6">5V</text>' +
+                         '<line x1="56" y1="40" x2="90" y2="40" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<circle cx="90" cy="56" r="9" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>' +
+                         '<text x="90" y="60" text-anchor="middle" fill="#22c55e" font-size="5.5">LDR</text>' +
+                         '<circle cx="90" cy="72" r="3" fill="#ff6b35"/>' +
+                         '<line x1="93" y1="72" x2="140" y2="72" stroke="#ff6b35" stroke-width="1.5"/>' +
+                         '<text x="148" y="75" fill="#ff6b35" font-size="5.5">A0</text>' +
+                         '<rect x="78" y="78" width="24" height="12" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1"/>' +
+                         '<text x="90" y="87" text-anchor="middle" fill="#c084fc" font-size="5.5">10K</text>' +
+                         '<line x1="90" y1="90" x2="90" y2="100" stroke="#60a5fa" stroke-width="1.5"/>' +
+                         '<text x="90" y="108" text-anchor="middle" fill="#60a5fa" font-size="6">GND</text>' +
+                         '<!-- Wrong: 10K top, LDR bottom -->' +
+                         '<text x="290" y="42" fill="#ef4444" font-size="6">5V</text>' +
+                         '<line x1="306" y1="40" x2="340" y2="40" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<rect x="328" y="44" width="24" height="12" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1"/>' +
+                         '<text x="340" y="53" text-anchor="middle" fill="#c084fc" font-size="5.5">10K</text>' +
+                         '<circle cx="340" cy="66" r="3" fill="#ff6b35"/>' +
+                         '<line x1="343" y1="66" x2="390" y2="66" stroke="#ff6b35" stroke-width="1.5"/>' +
+                         '<text x="398" y="69" fill="#ff6b35" font-size="5.5">A0</text>' +
+                         '<circle cx="340" cy="82" r="9" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>' +
+                         '<text x="340" y="86" text-anchor="middle" fill="#22c55e" font-size="5.5">LDR</text>' +
+                         '<line x1="340" y1="91" x2="340" y2="100" stroke="#60a5fa" stroke-width="1.5"/>' +
+                         '<text x="340" y="108" text-anchor="middle" fill="#60a5fa" font-size="6">GND</text>' +
+                         '<text x="430" y="66" fill="#ef4444" font-size="6.5" font-weight="700">INVERTED</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'HC-SR04 TRIG and ECHO Pins Swapped',
+                correct: 'TRIG connects to Arduino D8 (OUTPUT) and ECHO connects to D9 (INPUT). Trig is the sender, Echo is the receiver.',
+                incorrect: 'TRIG connected to D9 and ECHO connected to D8. The Arduino pulses the wrong pin and waits on a pin that never goes HIGH.',
+                consequence: 'HC-SR04 never fires. The pulseIn() call times out after 30ms every reading, outputting "out of range" indefinitely. No hardware damage occurs, but the sensor is completely non-functional.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG (swapped)</text>' +
+                         '<text x="18" y="52" fill="#f97316" font-size="6">D8</text>' +
+                         '<line x1="36" y1="50" x2="120" y2="50" stroke="#f97316" stroke-width="1.5"/>' +
+                         '<text x="128" y="53" fill="#f97316" font-size="6">TRIG</text>' +
+                         '<text x="18" y="78" fill="#a855f7" font-size="6">D9</text>' +
+                         '<line x1="36" y1="76" x2="120" y2="76" stroke="#a855f7" stroke-width="1.5"/>' +
+                         '<text x="128" y="79" fill="#a855f7" font-size="6">ECHO</text>' +
+                         '<rect x="154" y="44" width="60" height="40" rx="4" fill="#0f1a2e" stroke="#f97316" stroke-width="1.5"/>' +
+                         '<text x="184" y="66" text-anchor="middle" fill="#fb923c" font-size="6.5">HC-SR04</text>' +
+                         '<text x="124" y="100" text-anchor="middle" fill="#22c55e" font-size="6">sensor fires  -  readings OK</text>' +
+                         '<text x="270" y="52" fill="#a855f7" font-size="6">D8</text>' +
+                         '<line x1="288" y1="50" x2="372" y2="50" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<text x="380" y="53" fill="#a855f7" font-size="6">TRIG</text>' +
+                         '<text x="270" y="78" fill="#f97316" font-size="6">D9</text>' +
+                         '<line x1="288" y1="76" x2="372" y2="76" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<text x="380" y="79" fill="#f97316" font-size="6">ECHO</text>' +
+                         '<rect x="406" y="44" width="60" height="40" rx="4" fill="#0f1a2e" stroke="#f97316" stroke-width="1.5"/>' +
+                         '<text x="436" y="66" text-anchor="middle" fill="#fb923c" font-size="6.5">HC-SR04</text>' +
+                         '<line x1="289" y1="50" x2="289" y2="76" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2"/>' +
+                         '<text x="376" y="100" text-anchor="middle" fill="#ef4444" font-size="6">always OOR  -  nothing fires</text>' +
+                         '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -620,7 +1173,274 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: JSON Protocol</strong> &mdash; Change the Arduino to send actual JSON: <code>{"t":23.5,"h":45.0,"l":512,"d":30.2}</code>. Parse it in Python with <code>json.loads()</code>. This is how IoT devices communicate with cloud platforms.</p>' +
                     '<p><strong>Challenge 2: Two-Way Communication</strong> &mdash; Send commands FROM Python TO the Arduino. For example, <code>SET_INTERVAL:5000</code> to change the read interval, or <code>LED:ON</code> to toggle an LED. Use <code>Serial.readStringUntil(\'\\n\')</code> on the Arduino side.</p>' +
-                    '<p><strong>Challenge 3: Matplotlib Live Plot</strong> &mdash; Replace the terminal dashboard with a <code>matplotlib</code> animated plot showing temperature and light over time. Use <code>matplotlib.animation.FuncAnimation</code> for smooth updates.</p>'
+                    '<p><strong>Challenge 3: Matplotlib Live Plot</strong> &mdash; Replace the terminal dashboard with a <code>matplotlib</code> animated plot showing temperature and light over time. Use <code>matplotlib.animation.FuncAnimation</code> for smooth updates.</p>',
+
+        // ======================================================================
+        // SG-03 visual enhancements
+        // ======================================================================
+        stepVisuals: {
+            // Step 0 — Arduino sends structured serial data: UART frame anatomy
+            0: '<svg viewBox="0 0 680 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg03-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="680" height="180" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="164" fill="url(#sg03-sv0-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">UART SERIAL FRAME — 9600 BAUD, 8N1</text>' +
+               '<!-- Bit cells -->' +
+               '<!-- Idle HIGH baseline -->' +
+               '<rect x="30" y="42" width="44" height="32" rx="2" fill="rgba(255,255,255,0.04)" stroke="#333" stroke-width="0.5"/>' +
+               '<text x="52" y="62" text-anchor="middle" fill="#555" font-size="6.5">IDLE</text>' +
+               '<text x="52" y="90" text-anchor="middle" fill="#444" font-size="5.5">HIGH</text>' +
+               '<!-- Start bit LOW -->' +
+               '<rect x="74" y="58" width="44" height="16" rx="2" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1"/>' +
+               '<rect x="74" y="42" width="44" height="16" rx="2" fill="rgba(255,255,255,0.02)" stroke="#333" stroke-width="0.5"/>' +
+               '<text x="96" y="54" text-anchor="middle" fill="#ef4444" font-size="6.5">START</text>' +
+               '<text x="96" y="90" text-anchor="middle" fill="#ef4444" font-size="5.5">LOW</text>' +
+               '<!-- 8 data bits (showing "D" = 0x44 = 01000100) -->' +
+               '<rect x="118" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="136" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
+               '<text x="136" y="54" text-anchor="middle" fill="#555" font-size="5">b0</text>' +
+               '<rect x="154" y="42" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="172" y="52" text-anchor="middle" fill="#22c55e" font-size="5.5">1</text>' +
+               '<text x="172" y="90" text-anchor="middle" fill="#555" font-size="5">b1</text>' +
+               '<rect x="190" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="208" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
+               '<text x="208" y="54" text-anchor="middle" fill="#555" font-size="5">b2</text>' +
+               '<rect x="226" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="244" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
+               '<text x="244" y="54" text-anchor="middle" fill="#555" font-size="5">b3</text>' +
+               '<rect x="262" y="42" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="280" y="52" text-anchor="middle" fill="#22c55e" font-size="5.5">1</text>' +
+               '<text x="280" y="90" text-anchor="middle" fill="#555" font-size="5">b4</text>' +
+               '<rect x="298" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="316" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
+               '<text x="316" y="54" text-anchor="middle" fill="#555" font-size="5">b5</text>' +
+               '<rect x="334" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="352" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
+               '<text x="352" y="54" text-anchor="middle" fill="#555" font-size="5">b6</text>' +
+               '<rect x="370" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="388" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
+               '<text x="388" y="54" text-anchor="middle" fill="#555" font-size="5">b7</text>' +
+               '<!-- 8 data bit label -->' +
+               '<text x="253" y="108" text-anchor="middle" fill="#22c55e" font-size="6.5">8 data bits  (0x44 = ASCII \'D\')</text>' +
+               '<!-- Stop bit HIGH -->' +
+               '<rect x="406" y="42" width="44" height="16" rx="2" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>' +
+               '<text x="428" y="52" text-anchor="middle" fill="#3b82f6" font-size="6.5">STOP</text>' +
+               '<text x="428" y="90" text-anchor="middle" fill="#3b82f6" font-size="5.5">HIGH</text>' +
+               '<!-- Idle after -->' +
+               '<rect x="450" y="42" width="44" height="32" rx="2" fill="rgba(255,255,255,0.04)" stroke="#333" stroke-width="0.5"/>' +
+               '<text x="472" y="62" text-anchor="middle" fill="#555" font-size="6.5">IDLE</text>' +
+               '<!-- Next byte ellipsis -->' +
+               '<text x="520" y="62" fill="#333" font-size="12">...</text>' +
+               '<!-- Bit period label -->' +
+               '<line x1="74" y1="100" x2="118" y2="100" stroke="#ef4444" stroke-width="1"/>' +
+               '<text x="96" y="112" text-anchor="middle" fill="#555" font-size="5.5">104 us</text>' +
+               '<text x="96" y="122" text-anchor="middle" fill="#444" font-size="5">(9600 baud)</text>' +
+               '<!-- CSV line callout -->' +
+               '<rect x="30" y="134" width="620" height="30" rx="5" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.25)" stroke-width="1"/>' +
+               '<text x="340" y="148" text-anchor="middle" fill="#8b949e" font-size="7">Arduino sends:  </text>' +
+               '<text x="390" y="148" fill="#ff6b35" font-size="7" font-weight="700">DATA,1,23.5,45.0,512,30.2\n</text>' +
+               '<text x="340" y="159" text-anchor="middle" fill="#555" font-size="6">Each character = 1 UART frame (10 bits total at 9600 baud = ~1042us per character)</text>' +
+               '</svg>',
+
+            // Step 2 — Python parse and display: pyserial stack
+            2: '<svg viewBox="0 0 680 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs>' +
+               '<pattern id="sg03-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+               '<marker id="sg03-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22c55e"/></marker>' +
+               '</defs>' +
+               '<rect width="680" height="190" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="174" fill="url(#sg03-sv2-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">PYSERIAL DATA PIPELINE</text>' +
+               '<!-- Arduino box -->' +
+               '<rect x="20" y="36" width="110" height="130" rx="6" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="75" y="54" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="700">Arduino</text>' +
+               '<text x="75" y="68" text-anchor="middle" fill="#8b949e" font-size="6">Serial.begin(9600)</text>' +
+               '<text x="75" y="84" text-anchor="middle" fill="#8b949e" font-size="6">Serial.println()</text>' +
+               '<rect x="32" y="94" width="86" height="14" rx="2" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+               '<text x="75" y="104" text-anchor="middle" fill="#4ade80" font-size="5.5">DATA,1,23.5,45.0,512</text>' +
+               '<text x="75" y="134" text-anchor="middle" fill="#555" font-size="5.5">TX pin (D0)</text>' +
+               '<text x="75" y="146" text-anchor="middle" fill="#555" font-size="5.5">USB CDC</text>' +
+               '<text x="75" y="158" text-anchor="middle" fill="#555" font-size="5.5">virtual COM</text>' +
+               '<!-- Arrow -->' +
+               '<line x1="132" y1="100" x2="178" y2="100" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg03-arr)"/>' +
+               '<text x="155" y="92" text-anchor="middle" fill="#555" font-size="5.5">USB cable</text>' +
+               '<text x="155" y="112" text-anchor="middle" fill="#555" font-size="5.5">9600 baud</text>' +
+               '<!-- serial.Serial() -->' +
+               '<rect x="180" y="36" width="120" height="130" rx="6" fill="#0f1a2e" stroke="#a855f7" stroke-width="1.5"/>' +
+               '<text x="240" y="54" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">serial.Serial()</text>' +
+               '<text x="240" y="68" text-anchor="middle" fill="#8b949e" font-size="6">pyserial library</text>' +
+               '<text x="240" y="82" text-anchor="middle" fill="#555" font-size="5.5">opens OS port</text>' +
+               '<text x="240" y="94" text-anchor="middle" fill="#555" font-size="5.5">sets baud rate</text>' +
+               '<text x="240" y="106" text-anchor="middle" fill="#555" font-size="5.5">reads bytes</text>' +
+               '<rect x="192" y="114" width="96" height="14" rx="2" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
+               '<text x="240" y="124" text-anchor="middle" fill="#c084fc" font-size="5.5">readline() -> bytes</text>' +
+               '<!-- Arrow -->' +
+               '<line x1="302" y1="100" x2="348" y2="100" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg03-arr)"/>' +
+               '<text x="325" y="92" text-anchor="middle" fill="#555" font-size="5.5">decode()</text>' +
+               '<text x="325" y="112" text-anchor="middle" fill="#555" font-size="5.5">strip()</text>' +
+               '<!-- split() parse -->' +
+               '<rect x="350" y="36" width="120" height="130" rx="6" fill="#0f1a2e" stroke="#eab308" stroke-width="1.5"/>' +
+               '<text x="410" y="54" text-anchor="middle" fill="#fde68a" font-size="7" font-weight="700">parse(line)</text>' +
+               '<text x="410" y="68" text-anchor="middle" fill="#8b949e" font-size="6">Python string ops</text>' +
+               '<text x="410" y="82" text-anchor="middle" fill="#555" font-size="5.5">line.split(\',\')</text>' +
+               '<text x="410" y="94" text-anchor="middle" fill="#555" font-size="5.5">validate prefix</text>' +
+               '<text x="410" y="106" text-anchor="middle" fill="#555" font-size="5.5">float(parts[2])</text>' +
+               '<rect x="362" y="114" width="96" height="14" rx="2" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+               '<text x="410" y="124" text-anchor="middle" fill="#eab308" font-size="5.5">dict: temp=23.5</text>' +
+               '<!-- Arrow -->' +
+               '<line x1="472" y1="100" x2="518" y2="100" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg03-arr)"/>' +
+               '<text x="495" y="92" text-anchor="middle" fill="#555" font-size="5.5">display</text>' +
+               '<text x="495" y="112" text-anchor="middle" fill="#555" font-size="5.5">or log</text>' +
+               '<!-- Output -->' +
+               '<rect x="520" y="36" width="140" height="130" rx="6" fill="#0f1a2e" stroke="#ff6b35" stroke-width="1.5"/>' +
+               '<text x="590" y="54" text-anchor="middle" fill="#ff6b35" font-size="7" font-weight="700">Output</text>' +
+               '<text x="590" y="70" text-anchor="middle" fill="#8b949e" font-size="5.5">terminal dashboard</text>' +
+               '<text x="590" y="82" text-anchor="middle" fill="#8b949e" font-size="5.5">CSV file write</text>' +
+               '<text x="590" y="96" text-anchor="middle" fill="#8b949e" font-size="5.5">matplotlib plot</text>' +
+               '<text x="590" y="108" text-anchor="middle" fill="#8b949e" font-size="5.5">network stream</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg03-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="560" height="180" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="548" height="168" fill="url(#sg03-cc-grid)" rx="3"/>' +
+                 '<text x="280" y="20" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.14em">SG-03 SERIAL BRIDGE — SYSTEM OVERVIEW</text>' +
+                 '<!-- Arduino -->' +
+                 '<rect x="20" y="36" width="120" height="120" rx="6" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5" data-callout="arduino"/>' +
+                 '<text x="80" y="56" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="700">ARDUINO MEGA</text>' +
+                 '<text x="80" y="72" text-anchor="middle" fill="#8b949e" font-size="6">Sensors wired</text>' +
+                 '<text x="80" y="84" text-anchor="middle" fill="#8b949e" font-size="6">from SG-02</text>' +
+                 '<rect x="32" y="100" width="96" height="14" rx="2" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5" data-callout="serial"/>' +
+                 '<text x="80" y="110" text-anchor="middle" fill="#4ade80" font-size="5.5">Serial.println()</text>' +
+                 '<rect x="80" y="128" width="30" height="20" rx="3" fill="#1a1f2b" stroke="#3b82f6" stroke-width="1.5" data-callout="usb-port"/>' +
+                 '<text x="95" y="140" text-anchor="middle" fill="#3b82f6" font-size="5">USB-B</text>' +
+                 '<!-- USB cable -->' +
+                 '<rect x="160" y="82" width="120" height="16" rx="4" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5" data-callout="usb-cable"/>' +
+                 '<text x="220" y="93" text-anchor="middle" fill="#60a5fa" font-size="5.5">USB cable (data)</text>' +
+                 '<!-- Computer -->' +
+                 '<rect x="300" y="36" width="240" height="120" rx="6" fill="#0f1a2e" stroke="#a855f7" stroke-width="1.5" data-callout="computer"/>' +
+                 '<text x="420" y="56" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">COMPUTER</text>' +
+                 '<rect x="314" y="68" width="212" height="12" rx="2" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.15)" stroke-width="0.5" data-callout="pyserial"/>' +
+                 '<text x="420" y="77" text-anchor="middle" fill="#c084fc" font-size="5.5">import serial  (pyserial)</text>' +
+                 '<rect x="314" y="84" width="212" height="12" rx="2" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.12)" stroke-width="0.5" data-callout="parse"/>' +
+                 '<text x="420" y="93" text-anchor="middle" fill="#eab308" font-size="5.5">line.split(\',\')  -  parse CSV</text>' +
+                 '<rect x="314" y="100" width="212" height="12" rx="2" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.12)" stroke-width="0.5" data-callout="output"/>' +
+                 '<text x="420" y="109" text-anchor="middle" fill="#4ade80" font-size="5.5">dashboard / CSV log / plot</text>' +
+                 '<rect x="300" y="132" width="30" height="16" rx="3" fill="#1a1f2b" stroke="#a855f7" stroke-width="1.5" data-callout="usb-port"/>' +
+                 '<text x="315" y="142" text-anchor="middle" fill="#a855f7" font-size="5">USB-A</text>' +
+                 '</svg>',
+            components: [
+                {
+                    id: 'arduino',
+                    name: 'Arduino Mega 2560 (transmitter)',
+                    purpose: 'Reads sensors and transmits structured text over the hardware UART0. Pin 0 (RX) and pin 1 (TX) are wired internally to the CH340G USB-to-serial converter chip on the Mega. No external wiring needed &mdash; the USB cable carries serial data.',
+                    specs: ['UART0 baud: 9600 (configurable)', 'TX pin: D0 (to USB chip)', 'CH340G USB-UART bridge', 'Serial buffer: 64 bytes RX, 64 bytes TX']
+                },
+                {
+                    id: 'serial',
+                    name: 'Serial Protocol (CSV format)',
+                    purpose: 'Arduino sends comma-separated lines: DATA,seq,temp,humidity,light,distance. The seq number catches dropped lines. Each line ends with \\r\\n (carriage return + newline), so Python readline() can detect the end.',
+                    specs: ['Format: DATA,N,T,H,L,D', '\\r\\n line terminator', 'One line every 2 seconds', 'INIT: handshake on boot']
+                },
+                {
+                    id: 'pyserial',
+                    name: 'pyserial Library',
+                    purpose: 'Python library that wraps the OS serial port API. serial.Serial() opens the port, configures baud rate and timeout. readline() blocks until a \\n character arrives or the timeout expires. Returns bytes that must be decoded to a string.',
+                    specs: ['pip install pyserial', 'serial.Serial(port, baud, timeout)', '.readline() returns bytes', '.decode(\'utf-8\').strip()']
+                },
+                {
+                    id: 'usb-cable',
+                    name: 'USB Cable (data path)',
+                    purpose: 'The USB cable carries serial data from the CH340G chip on the Arduino to the host PC. The OS enumerates it as a virtual COM port (Windows: COMx, Linux: /dev/ttyACM0 or ttyUSB0, macOS: /dev/cu.usbmodem). Close the IDE Serial Monitor before using pyserial.',
+                    specs: ['USB 2.0 Full-Speed', 'Virtual COM port (CDC)', 'Linux: /dev/ttyACM0', 'Windows: COMx (Device Manager)']
+                },
+                {
+                    id: 'parse',
+                    name: 'CSV Parsing (Python)',
+                    purpose: 'line.split(\',\') splits the received string into a list. parts[0] must equal "DATA". parts[2] through parts[5] are cast to float/int. If any conversion fails, the line is discarded rather than crashing the script.',
+                    specs: ['split(\',\') -> list', 'try/except on float()', 'Validate parts[0]==\"DATA\"', 'Return None on bad parse']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Serial Monitor Open While Python Script Runs',
+                correct: 'Close the Arduino IDE Serial Monitor window completely before launching any Python script that opens the serial port. Only one program may hold the port at a time.',
+                incorrect: 'Arduino IDE Serial Monitor is open and streaming data. Python script is launched and immediately gets a "serial.SerialException: [Errno 16] Device or resource busy" error.',
+                consequence: 'Python cannot open the port at all. The script crashes on the serial.Serial() call. This is the most common SG-03 error by far. Close the Serial Monitor tab, not just the monitor window.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<rect x="18" y="34" width="90" height="28" rx="3" fill="#0f1a2e" stroke="#a855f7" stroke-width="1"/>' +
+                         '<text x="63" y="46" text-anchor="middle" fill="#a855f7" font-size="6">Python script</text>' +
+                         '<text x="63" y="58" text-anchor="middle" fill="#22c55e" font-size="5.5">port: OPEN</text>' +
+                         '<rect x="18" y="68" width="90" height="24" rx="3" fill="#0f1a2e" stroke="#333" stroke-width="1"/>' +
+                         '<text x="63" y="78" text-anchor="middle" fill="#555" font-size="6">Serial Monitor</text>' +
+                         '<text x="63" y="88" text-anchor="middle" fill="#444" font-size="5.5">CLOSED</text>' +
+                         '<text x="124" y="105" text-anchor="middle" fill="#22c55e" font-size="6">works correctly</text>' +
+                         '<rect x="270" y="34" width="90" height="28" rx="3" fill="#0f1a2e" stroke="#a855f7" stroke-width="1"/>' +
+                         '<text x="315" y="46" text-anchor="middle" fill="#a855f7" font-size="6">Python script</text>' +
+                         '<text x="315" y="58" text-anchor="middle" fill="#ef4444" font-size="5.5">port: BLOCKED</text>' +
+                         '<rect x="270" y="68" width="90" height="24" rx="3" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5"/>' +
+                         '<text x="315" y="78" text-anchor="middle" fill="#3b82f6" font-size="6">Serial Monitor</text>' +
+                         '<text x="315" y="88" text-anchor="middle" fill="#eab308" font-size="5.5">OPEN (holding port)</text>' +
+                         '<text x="376" y="105" text-anchor="middle" fill="#ef4444" font-size="6">SerialException: resource busy</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'Baud Rate Mismatch Between Arduino and Python',
+                correct: 'Arduino sketch has Serial.begin(9600) and Python script has serial.Serial(port, 9600). Both sides must agree on the bit rate.',
+                incorrect: 'Arduino uses Serial.begin(115200) but Python is still configured for 9600 baud. Or vice versa.',
+                consequence: 'Python receives data, but it is completely garbled: random characters, question marks, or binary garbage. The bits arrive but are sampled at the wrong times. The data looks like it arrived but is unreadable.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<text x="20" y="52" fill="#60a5fa" font-size="6.5">Arduino:</text>' +
+                         '<text x="90" y="52" fill="#eab308" font-size="6.5" font-weight="700">9600</text>' +
+                         '<text x="20" y="68" fill="#a855f7" font-size="6.5">Python:</text>' +
+                         '<text x="90" y="68" fill="#eab308" font-size="6.5" font-weight="700">9600</text>' +
+                         '<rect x="18" y="78" width="200" height="16" rx="2" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+                         '<text x="118" y="89" text-anchor="middle" fill="#22c55e" font-size="6">DATA,1,23.5,45.0,512  -- clean</text>' +
+                         '<text x="272" y="52" fill="#60a5fa" font-size="6.5">Arduino:</text>' +
+                         '<text x="342" y="52" fill="#22c55e" font-size="6.5" font-weight="700">115200</text>' +
+                         '<text x="272" y="68" fill="#a855f7" font-size="6.5">Python:</text>' +
+                         '<text x="342" y="68" fill="#ef4444" font-size="6.5" font-weight="700">9600</text>' +
+                         '<rect x="270" y="78" width="200" height="16" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+                         '<text x="370" y="89" text-anchor="middle" fill="#ef4444" font-size="6">&#xFFFD;&#xFFFD;&#x00B5;&#x00C7;&#xFFFD;&#x00FF;  -- garbage</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'Wrong Python Serial Port Name',
+                correct: 'Python script uses the exact port name shown in Device Manager (Windows: "COM3") or dmesg (Linux: "/dev/ttyACM0"). The port name can change if the device is re-plugged.',
+                incorrect: 'Script hardcodes "COM3" but the Arduino is on COM7, or uses "/dev/ttyUSB0" when the device is on "/dev/ttyACM0".',
+                consequence: 'Python raises serial.SerialException: could not open port. The error message includes the wrong port name, which is the clue. Run the port detection command for your OS to find the actual port.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<text x="20" y="50" fill="#8b949e" font-size="6">Actual OS port:</text>' +
+                         '<text x="20" y="64" fill="#22c55e" font-size="6.5" font-weight="700">/dev/ttyACM0</text>' +
+                         '<text x="20" y="78" fill="#8b949e" font-size="6">Script config:</text>' +
+                         '<text x="20" y="92" fill="#22c55e" font-size="6.5" font-weight="700">PORT = "/dev/ttyACM0"</text>' +
+                         '<text x="272" y="50" fill="#8b949e" font-size="6">Actual OS port:</text>' +
+                         '<text x="272" y="64" fill="#22c55e" font-size="6.5" font-weight="700">/dev/ttyACM0</text>' +
+                         '<text x="272" y="78" fill="#8b949e" font-size="6">Script config:</text>' +
+                         '<text x="272" y="92" fill="#ef4444" font-size="6.5" font-weight="700">PORT = "/dev/ttyUSB0"</text>' +
+                         '<text x="376" y="105" text-anchor="middle" fill="#ef4444" font-size="6">SerialException: could not open port</text>' +
+                         '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -845,7 +1665,271 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Custom Characters</strong> &mdash; The LCD 1602 supports up to 8 custom 5x8 pixel characters. Create custom icons: a thermometer for temperature, a droplet for humidity, and a sun for light. Use <code>lcd.createChar()</code> and <code>lcd.write()</code>.</p>' +
                     '<p><strong>Challenge 2: Scrolling Alerts</strong> &mdash; When a sensor exceeds its threshold, scroll a warning message across the bottom line (like a news ticker). Use a timer and <code>lcd.scrollDisplayLeft()</code> or manual substring shifting.</p>' +
-                    '<p><strong>Challenge 3: Two-Button Menu</strong> &mdash; Add a second button. One button cycles forward, the other cycles backward. Add a "settings" page where you can adjust the auto-cycle interval and temperature alert threshold using the two buttons (up/down selection).</p>'
+                    '<p><strong>Challenge 3: Two-Button Menu</strong> &mdash; Add a second button. One button cycles forward, the other cycles backward. Add a "settings" page where you can adjust the auto-cycle interval and temperature alert threshold using the two buttons (up/down selection).</p>',
+
+        // ======================================================================
+        // SG-04 visual enhancements
+        // ======================================================================
+        stepVisuals: {
+            // Step 0 — Install LCD Library / I2C scan: I2C bus addressing
+            0: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs>' +
+               '<pattern id="sg04-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+               '<marker id="sg04-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22c55e"/></marker>' +
+               '</defs>' +
+               '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="172" fill="url(#sg04-sv0-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">I2C BUS — TWO WIRES, 128 ADDRESSES</text>' +
+               '<!-- Bus lines -->' +
+               '<text x="36" y="72" text-anchor="end" fill="#22c55e" font-size="7">SDA</text>' +
+               '<line x1="42" y1="70" x2="640" y2="70" stroke="#22c55e" stroke-width="2"/>' +
+               '<text x="36" y="100" text-anchor="end" fill="#eab308" font-size="7">SCL</text>' +
+               '<line x1="42" y1="98" x2="640" y2="98" stroke="#eab308" stroke-width="2"/>' +
+               '<!-- Arduino master -->' +
+               '<rect x="42" y="42" width="80" height="80" rx="5" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5"/>' +
+               '<text x="82" y="60" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="700">MASTER</text>' +
+               '<text x="82" y="74" text-anchor="middle" fill="#8b949e" font-size="6">Mega</text>' +
+               '<text x="82" y="86" text-anchor="middle" fill="#555" font-size="5.5">SDA=20</text>' +
+               '<text x="82" y="98" text-anchor="middle" fill="#555" font-size="5.5">SCL=21</text>' +
+               '<!-- Pull-up resistors -->' +
+               '<text x="160" y="55" text-anchor="middle" fill="#a855f7" font-size="5.5">4.7K</text>' +
+               '<rect x="148" y="42" width="24" height="16" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1"/>' +
+               '<line x1="160" y1="42" x2="160" y2="36" stroke="#ef4444" stroke-width="1.5"/>' +
+               '<text x="160" y="34" text-anchor="middle" fill="#ef4444" font-size="5.5">3.3V</text>' +
+               '<text x="204" y="55" text-anchor="middle" fill="#a855f7" font-size="5.5">4.7K</text>' +
+               '<rect x="192" y="42" width="24" height="16" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1"/>' +
+               '<line x1="204" y1="42" x2="204" y2="36" stroke="#ef4444" stroke-width="1.5"/>' +
+               '<!-- Device 1: LCD 0x27 -->' +
+               '<rect x="250" y="42" width="100" height="80" rx="5" fill="#0f1a2e" stroke="#22c55e" stroke-width="1.5"/>' +
+               '<text x="300" y="60" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="700">LCD 1602</text>' +
+               '<rect x="268" y="66" width="64" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="300" y="77" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">0x27</text>' +
+               '<text x="300" y="94" text-anchor="middle" fill="#555" font-size="5.5">A0=0 A1=0 A2=0</text>' +
+               '<text x="300" y="106" text-anchor="middle" fill="#555" font-size="5.5">PCF8574 expander</text>' +
+               '<!-- Device 2: possible 0x3F -->' +
+               '<rect x="380" y="42" width="100" height="80" rx="5" fill="#0f1a2e" stroke="#555" stroke-width="1" stroke-dasharray="4,2"/>' +
+               '<text x="430" y="60" text-anchor="middle" fill="#555" font-size="7">LCD alt addr</text>' +
+               '<rect x="398" y="66" width="64" height="16" rx="2" fill="rgba(85,85,85,0.15)" stroke="#555" stroke-width="1"/>' +
+               '<text x="430" y="77" text-anchor="middle" fill="#666" font-size="8" font-weight="700">0x3F</text>' +
+               '<text x="430" y="94" text-anchor="middle" fill="#444" font-size="5.5">A0=1 A1=1 A2=1</text>' +
+               '<text x="430" y="106" text-anchor="middle" fill="#444" font-size="5.5">solder bridge variant</text>' +
+               '<!-- Address decode box -->' +
+               '<rect x="30" y="136" width="620" height="36" rx="5" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="1"/>' +
+               '<text x="40" y="152" fill="#ff6b35" font-size="7" font-weight="700">I2C Address Decode:  </text>' +
+               '<text x="160" y="152" fill="#8b949e" font-size="7">0x27 = 0b0100111  (PCF8574, A2=0, A1=1, A2=1)</text>' +
+               '<text x="40" y="166" fill="#555" font-size="6.5">If your LCD does not respond at 0x27, run the I2C scanner sketch to find its actual address before proceeding.</text>' +
+               '</svg>',
+
+            // Step 2 — Show Live Sensor Readings: LCD character cell layout
+            2: '<svg viewBox="0 0 680 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg04-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="680" height="180" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="164" fill="url(#sg04-sv2-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">LCD 1602 — 16 COLUMNS x 2 ROWS, lcd.setCursor(col, row)</text>' +
+               '<!-- LCD outer frame -->' +
+               '<rect x="30" y="34" width="620" height="130" rx="8" fill="#060d0a" stroke="rgba(34,197,94,0.4)" stroke-width="2"/>' +
+               '<!-- Row 0 cells -->' +
+               '<text x="36" y="60" fill="#444" font-size="6" font-weight="700">ROW 0</text>' +
+               '<text x="36" y="72" fill="#333" font-size="5.5">col: 0</text>' +
+               '<!-- Render "Temp: 23.5 C    " in cells -->' +
+               '<rect x="54" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="63" y="68" text-anchor="middle" fill="#4ade80" font-size="9">T</text>' +
+               '<rect x="74" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="83" y="68" text-anchor="middle" fill="#4ade80" font-size="9">e</text>' +
+               '<rect x="94" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="103" y="68" text-anchor="middle" fill="#4ade80" font-size="9">m</text>' +
+               '<rect x="114" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="123" y="68" text-anchor="middle" fill="#4ade80" font-size="9">p</text>' +
+               '<rect x="134" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="143" y="68" text-anchor="middle" fill="#4ade80" font-size="9">:</text>' +
+               '<rect x="154" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="163" y="68" text-anchor="middle" fill="#4ade80" font-size="9"> </text>' +
+               '<rect x="174" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.5)" stroke-width="1"/><text x="183" y="68" text-anchor="middle" fill="#4ade80" font-size="9">2</text>' +
+               '<rect x="194" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.5)" stroke-width="1"/><text x="203" y="68" text-anchor="middle" fill="#4ade80" font-size="9">3</text>' +
+               '<rect x="214" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.5)" stroke-width="1"/><text x="223" y="68" text-anchor="middle" fill="#4ade80" font-size="9">.</text>' +
+               '<rect x="234" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.5)" stroke-width="1"/><text x="243" y="68" text-anchor="middle" fill="#4ade80" font-size="9">5</text>' +
+               '<rect x="254" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="263" y="68" text-anchor="middle" fill="#4ade80" font-size="9"> </text>' +
+               '<rect x="274" y="52" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="283" y="68" text-anchor="middle" fill="#4ade80" font-size="9">C</text>' +
+               '<rect x="294" y="52" width="18" height="24" rx="2" fill="#111" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+               '<rect x="314" y="52" width="18" height="24" rx="2" fill="#111" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+               '<rect x="334" y="52" width="18" height="24" rx="2" fill="#111" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+               '<rect x="354" y="52" width="18" height="24" rx="2" fill="#111" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+               '<!-- col callout -->' +
+               '<text x="63" y="48" text-anchor="middle" fill="#333" font-size="5">0</text>' +
+               '<text x="183" y="48" text-anchor="middle" fill="#ff6b35" font-size="5">6</text>' +
+               '<text x="363" y="48" text-anchor="middle" fill="#333" font-size="5">15</text>' +
+               '<text x="183" y="86" text-anchor="middle" fill="#ff6b35" font-size="5.5">setCursor(6,0)</text>' +
+               '<!-- Row 1 cells -->' +
+               '<text x="36" y="120" fill="#444" font-size="6" font-weight="700">ROW 1</text>' +
+               '<text x="36" y="132" fill="#333" font-size="5.5">col: 0</text>' +
+               '<rect x="54" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="63" y="126" text-anchor="middle" fill="#4ade80" font-size="9">H</text>' +
+               '<rect x="74" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="83" y="126" text-anchor="middle" fill="#4ade80" font-size="9">u</text>' +
+               '<rect x="94" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="103" y="126" text-anchor="middle" fill="#4ade80" font-size="9">m</text>' +
+               '<rect x="114" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="123" y="126" text-anchor="middle" fill="#4ade80" font-size="9">i</text>' +
+               '<rect x="134" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="143" y="126" text-anchor="middle" fill="#4ade80" font-size="9">d</text>' +
+               '<rect x="154" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="163" y="126" text-anchor="middle" fill="#4ade80" font-size="9">:</text>' +
+               '<rect x="174" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="183" y="126" text-anchor="middle" fill="#4ade80" font-size="9"> </text>' +
+               '<rect x="194" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.5)" stroke-width="1"/><text x="203" y="126" text-anchor="middle" fill="#4ade80" font-size="9">4</text>' +
+               '<rect x="214" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.5)" stroke-width="1"/><text x="223" y="126" text-anchor="middle" fill="#4ade80" font-size="9">5</text>' +
+               '<rect x="234" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.5)" stroke-width="1"/><text x="243" y="126" text-anchor="middle" fill="#4ade80" font-size="9">.</text>' +
+               '<rect x="254" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.5)" stroke-width="1"/><text x="263" y="126" text-anchor="middle" fill="#4ade80" font-size="9">2</text>' +
+               '<rect x="274" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="283" y="126" text-anchor="middle" fill="#4ade80" font-size="9"> </text>' +
+               '<rect x="294" y="110" width="18" height="24" rx="2" fill="#0a1628" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/><text x="303" y="126" text-anchor="middle" fill="#4ade80" font-size="9">%</text>' +
+               '<rect x="314" y="110" width="18" height="24" rx="2" fill="#111" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+               '<rect x="334" y="110" width="18" height="24" rx="2" fill="#111" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+               '<rect x="354" y="110" width="18" height="24" rx="2" fill="#111" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+               '<!-- Trailing spaces note -->' +
+               '<rect x="400" y="52" width="238" height="82" rx="5" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="1"/>' +
+               '<text x="410" y="68" fill="#ff6b35" font-size="7" font-weight="700">Key rule: pad with trailing spaces</text>' +
+               '<text x="410" y="82" fill="#8b949e" font-size="6.5">lcd.print("23.5 C    ");  // 4 spaces</text>' +
+               '<text x="410" y="96" fill="#8b949e" font-size="6.5">Overwrites leftover characters</text>' +
+               '<text x="410" y="110" fill="#8b949e" font-size="6.5">from previous longer value</text>' +
+               '<text x="410" y="124" fill="#555" font-size="6">Without padding: "100.0" -> "23.50"</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg04-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="560" height="200" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="548" height="188" fill="url(#sg04-cc-grid)" rx="3"/>' +
+                 '<text x="280" y="20" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.14em">SG-04 LCD DASHBOARD COMPONENTS</text>' +
+                 '<!-- Arduino Mega -->' +
+                 '<rect x="14" y="32" width="90" height="154" rx="6" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5" data-callout="mega"/>' +
+                 '<text x="59" y="48" text-anchor="middle" fill="#60a5fa" font-size="6.5" font-weight="700">ARDUINO</text>' +
+                 '<text x="59" y="58" text-anchor="middle" fill="#60a5fa" font-size="6.5" font-weight="700">MEGA</text>' +
+                 '<circle cx="104" cy="90" r="4" fill="#1a1f2b" stroke="#22c55e" stroke-width="1" data-callout="i2c"/>' +
+                 '<text x="96" y="89" text-anchor="end" fill="#555" font-size="5.5">SDA 20</text>' +
+                 '<circle cx="104" cy="106" r="4" fill="#1a1f2b" stroke="#eab308" stroke-width="1" data-callout="i2c"/>' +
+                 '<text x="96" y="105" text-anchor="end" fill="#555" font-size="5.5">SCL 21</text>' +
+                 '<circle cx="104" cy="124" r="4" fill="#1a1f2b" stroke="#f97316" stroke-width="1" data-callout="dht11"/>' +
+                 '<text x="96" y="123" text-anchor="end" fill="#555" font-size="5.5">D7 DHT</text>' +
+                 '<circle cx="104" cy="142" r="4" fill="#1a1f2b" stroke="#8b949e" stroke-width="1" data-callout="button"/>' +
+                 '<text x="96" y="141" text-anchor="end" fill="#555" font-size="5.5">D10 BTN</text>' +
+                 '<!-- LCD I2C -->' +
+                 '<rect x="160" y="32" width="160" height="100" rx="6" fill="#0f1a2e" stroke="#22c55e" stroke-width="1.5" data-callout="lcd"/>' +
+                 '<text x="240" y="50" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="700">LCD 1602 (I2C)</text>' +
+                 '<rect x="178" y="58" width="124" height="32" rx="3" fill="#060d0a" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                 '<text x="188" y="72" fill="#4ade80" font-size="7">Temp: 23.5 C</text>' +
+                 '<text x="188" y="84" fill="#4ade80" font-size="7">Humid: 45.2 %</text>' +
+                 '<text x="240" y="112" text-anchor="middle" fill="#555" font-size="5.5">16 cols x 2 rows</text>' +
+                 '<text x="240" y="124" text-anchor="middle" fill="#555" font-size="5.5">I2C addr 0x27</text>' +
+                 '<!-- DHT11 -->' +
+                 '<rect x="160" y="148" width="72" height="42" rx="6" fill="#0f1a2e" stroke="#f97316" stroke-width="1.5" data-callout="dht11"/>' +
+                 '<text x="196" y="166" text-anchor="middle" fill="#fb923c" font-size="6.5" font-weight="700">DHT11</text>' +
+                 '<text x="196" y="180" text-anchor="middle" fill="#555" font-size="5.5">D7, 5V</text>' +
+                 '<!-- Button -->' +
+                 '<rect x="248" y="148" width="72" height="42" rx="6" fill="#0f1a2e" stroke="#8b949e" stroke-width="1.5" data-callout="button"/>' +
+                 '<text x="284" y="162" text-anchor="middle" fill="#e2e8f0" font-size="6.5" font-weight="700">BUTTON</text>' +
+                 '<circle cx="284" cy="175" r="6" fill="none" stroke="#8b949e" stroke-width="1.5"/>' +
+                 '<text x="338" y="175" fill="#555" font-size="5.5">D10 -> GND</text>' +
+                 '<!-- I2C bus lines -->' +
+                 '<line x1="106" y1="90" x2="160" y2="90" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,2"/>' +
+                 '<line x1="106" y1="106" x2="160" y2="106" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,2"/>' +
+                 '</svg>',
+            components: [
+                {
+                    id: 'lcd',
+                    name: 'LCD 1602 with I2C Backpack',
+                    purpose: 'HD44780-compatible character LCD with 16 columns and 2 rows. The I2C backpack (PCF8574 expander IC) reduces the 16-pin parallel interface to 4 wires: SDA, SCL, VCC, GND. The backpack handles the 4-bit mode data shifting internally.',
+                    specs: ['16 x 2 character display', '5x8 dot character cells', 'I2C address 0x27 or 0x3F', 'VCC 5V, ~35mA', 'Contrast via trimmer pot']
+                },
+                {
+                    id: 'i2c',
+                    name: 'I2C Bus (SDA + SCL)',
+                    purpose: 'Two-wire serial protocol. SDA (Serial Data) carries the payload. SCL (Serial Clock) synchronizes both devices. The Arduino is the master that generates the clock. The LCD responds to its configured 7-bit address (0x27). Only two wires needed regardless of how many devices are on the bus.',
+                    specs: ['SDA = Mega pin 20', 'SCL = Mega pin 21', 'Standard mode: 100 kHz', 'Fast mode: 400 kHz', '4.7K pull-ups to VCC']
+                },
+                {
+                    id: 'dht11',
+                    name: 'DHT11 Sensor (from SG-02)',
+                    purpose: 'Same sensor from SG-02. Provides temperature and humidity for the LCD display pages. The DHT11 uses a separate proprietary 1-wire protocol on D7, completely independent of the I2C bus used by the LCD.',
+                    specs: ['D7 digital pin', '5V supply', '2-second sample rate', 'Temp +/-2C, Humidity +/-5%']
+                },
+                {
+                    id: 'button',
+                    name: 'Push Button (page navigation)',
+                    purpose: 'Momentary tactile switch connected between D10 and GND. The Mega\'s internal pull-up resistor (INPUT_PULLUP mode) keeps D10 HIGH until the button is pressed, pulling it LOW. A debounce timer (250ms) prevents a single press from being read multiple times due to mechanical switch bounce.',
+                    specs: ['D10 with INPUT_PULLUP', 'Reads LOW when pressed', '250ms debounce timer', 'No external resistor needed']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Wrong I2C Address for the LCD Backpack',
+                correct: 'Use the address found by the I2C scanner sketch. Most PCF8574-based backpacks use 0x27. Pass this to LiquidCrystal_I2C lcd(0x27, 16, 2). Run the scanner first before writing any display code.',
+                incorrect: 'Hardcoding 0x27 without scanning. Some backpacks use 0x3F. If the address is wrong, no error is thrown &mdash; the LCD just stays blank or shows solid blocks.',
+                consequence: 'The LCD is powered (backlight on) but shows nothing. The library silently sends commands to a non-existent address. Run the I2C scanner, confirm the actual address, then update your sketch.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<text x="20" y="52" fill="#8b949e" font-size="6.5">Scanner found:</text>' +
+                         '<rect x="18" y="58" width="60" height="16" rx="2" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>' +
+                         '<text x="48" y="69" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">0x3F</text>' +
+                         '<text x="90" y="65" fill="#8b949e" font-size="6.5">-></text>' +
+                         '<text x="106" y="52" fill="#8b949e" font-size="6.5">Code uses:</text>' +
+                         '<rect x="104" y="58" width="60" height="16" rx="2" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>' +
+                         '<text x="134" y="69" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">0x3F</text>' +
+                         '<text x="124" y="94" text-anchor="middle" fill="#22c55e" font-size="6">addresses match  -  LCD works</text>' +
+                         '<text x="272" y="52" fill="#8b949e" font-size="6.5">Scanner found:</text>' +
+                         '<rect x="270" y="58" width="60" height="16" rx="2" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>' +
+                         '<text x="300" y="69" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">0x3F</text>' +
+                         '<text x="342" y="65" fill="#8b949e" font-size="6.5">-></text>' +
+                         '<text x="358" y="52" fill="#8b949e" font-size="6.5">Code uses:</text>' +
+                         '<rect x="356" y="58" width="60" height="16" rx="2" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>' +
+                         '<text x="386" y="69" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">0x27</text>' +
+                         '<text x="376" y="94" text-anchor="middle" fill="#ef4444" font-size="6">wrong address  -  blank LCD</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'lcd.clear() Called Inside the Update Loop',
+                correct: 'Overwrite specific cursor positions with lcd.setCursor() and pad strings with trailing spaces. Clear only when changing pages. This prevents the flash-black-flash flicker on every update.',
+                incorrect: 'lcd.clear() is called at the top of loop() or inside a 2-second refresh block. The LCD blanks and redraws every update cycle, causing visible flicker.',
+                consequence: 'The display flickers constantly at the update rate. In a 500ms loop the flicker is very obvious. lcd.clear() takes ~2ms during which the display is blank. Always overwrite in-place instead.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<text x="18" y="46" fill="#8b949e" font-size="6">setCursor(0,0);</text>' +
+                         '<text x="18" y="58" fill="#8b949e" font-size="6">lcd.print("23.5 C    ");</text>' +
+                         '<text x="18" y="72" fill="#555" font-size="5.5">// trailing spaces overwrite</text>' +
+                         '<rect x="18" y="78" width="200" height="16" rx="2" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="0.5"/>' +
+                         '<text x="118" y="89" text-anchor="middle" fill="#22c55e" font-size="6">stable display, no flicker</text>' +
+                         '<text x="270" y="40" fill="#ef4444" font-size="6" font-weight="700">lcd.clear();</text>' +
+                         '<text x="270" y="54" fill="#8b949e" font-size="6">setCursor(0,0);</text>' +
+                         '<text x="270" y="68" fill="#8b949e" font-size="6">lcd.print("23.5 C");</text>' +
+                         '<rect x="270" y="78" width="200" height="16" rx="2" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="0.5"/>' +
+                         '<text x="370" y="89" text-anchor="middle" fill="#ef4444" font-size="6">2ms blank flash every update</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'SDA and SCL Pins Swapped on the Mega',
+                correct: 'On the Arduino Mega 2560, I2C SDA is pin 20 and SCL is pin 21. These are hardware I2C pins wired to the TWI peripheral. Connect LCD SDA to Mega pin 20 and LCD SCL to Mega pin 21.',
+                incorrect: 'SDA connected to Mega pin 21 and SCL to Mega pin 20. Or using analog pins A4/A5 (which work on Uno but not on Mega for I2C).',
+                consequence: 'The I2C scanner finds no devices. Wire.begin() initializes but all Wire.beginTransmission() calls fail. The LCD remains completely blank. This mistake is common for students who transferred their Uno wiring to a Mega.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT (MEGA)</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG (UNO pins on MEGA)</text>' +
+                         '<text x="20" y="52" fill="#22c55e" font-size="6.5">Mega pin 20</text>' +
+                         '<line x1="100" y1="50" x2="160" y2="50" stroke="#22c55e" stroke-width="1.5"/>' +
+                         '<text x="168" y="54" fill="#22c55e" font-size="6.5">SDA (LCD)</text>' +
+                         '<text x="20" y="74" fill="#eab308" font-size="6.5">Mega pin 21</text>' +
+                         '<line x1="100" y1="72" x2="160" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+                         '<text x="168" y="76" fill="#eab308" font-size="6.5">SCL (LCD)</text>' +
+                         '<text x="124" y="100" text-anchor="middle" fill="#22c55e" font-size="6">scanner finds 0x27</text>' +
+                         '<text x="272" y="52" fill="#ef4444" font-size="6.5">Mega pin A4</text>' +
+                         '<line x1="352" y1="50" x2="412" y2="50" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,2"/>' +
+                         '<text x="420" y="54" fill="#8b949e" font-size="6.5">SDA (LCD)</text>' +
+                         '<text x="272" y="74" fill="#ef4444" font-size="6.5">Mega pin A5</text>' +
+                         '<line x1="352" y1="72" x2="412" y2="72" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,2"/>' +
+                         '<text x="420" y="76" fill="#8b949e" font-size="6.5">SCL (LCD)</text>' +
+                         '<text x="376" y="100" text-anchor="middle" fill="#ef4444" font-size="6">scanner finds nothing</text>' +
+                         '</svg>'
+            }
+        ]
     },
 
     // ========================================================================
@@ -1102,7 +2186,290 @@ window.SignalGuides = {
 
         challenges: '<p><strong>Challenge 1: Status LED Indicators</strong> &mdash; Add three LEDs: green (logging OK), yellow (sensor warning), red (SD write failure). This gives your logger visible status without needing the Serial Monitor connected. In professional equipment, this is called "front panel diagnostics".</p>' +
                     '<p><strong>Challenge 2: Configurable Interval</strong> &mdash; Read the log interval from a <code>config.txt</code> file on the SD card at boot. If the file says <code>interval=5000</code>, log every 5 seconds. This lets you reconfigure the logger by editing the SD card without recompiling code.</p>' +
-                    '<p><strong>Challenge 3: Tamper Detection</strong> &mdash; Add a hash or checksum to each row. On the Python side, verify no rows were modified after the fact. This is a simplified version of how audit log integrity checking works in security compliance (think HIPAA audit trails or PCI-DSS log retention).</p>'
+                    '<p><strong>Challenge 3: Tamper Detection</strong> &mdash; Add a hash or checksum to each row. On the Python side, verify no rows were modified after the fact. This is a simplified version of how audit log integrity checking works in security compliance (think HIPAA audit trails or PCI-DSS log retention).</p>',
+
+        // ======================================================================
+        // SG-05 visual enhancements
+        // ======================================================================
+        stepVisuals: {
+            // Step 1 — Test SD Card: SPI transaction anatomy
+            1: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs>' +
+               '<pattern id="sg05-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+               '</defs>' +
+               '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="172" fill="url(#sg05-sv1-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">SPI TRANSACTION — SD CARD READ BLOCK (CMD17)</text>' +
+               '<!-- Signal lanes -->' +
+               '<text x="46" y="50" text-anchor="end" fill="#f97316" font-size="7">CS</text>' +
+               '<text x="46" y="76" text-anchor="end" fill="#eab308" font-size="7">SCK</text>' +
+               '<text x="46" y="102" text-anchor="end" fill="#22c55e" font-size="7">MOSI</text>' +
+               '<text x="46" y="128" text-anchor="end" fill="#3b82f6" font-size="7">MISO</text>' +
+               '<!-- Time axis -->' +
+               '<line x1="50" y1="150" x2="650" y2="150" stroke="#333" stroke-width="0.5"/>' +
+               '<!-- CS: HIGH initially, falls LOW -->' +
+               '<line x1="50" y1="44" x2="90" y2="44" stroke="#f97316" stroke-width="1.5"/>' +
+               '<line x1="90" y1="44" x2="90" y2="58" stroke="#f97316" stroke-width="1.5"/>' +
+               '<line x1="90" y1="58" x2="530" y2="58" stroke="#f97316" stroke-width="1.5"/>' +
+               '<line x1="530" y1="58" x2="530" y2="44" stroke="#f97316" stroke-width="1.5"/>' +
+               '<line x1="530" y1="44" x2="650" y2="44" stroke="#f97316" stroke-width="1.5"/>' +
+               '<text x="310" y="52" text-anchor="middle" fill="#f97316" font-size="5.5">CS LOW = device selected</text>' +
+               '<text x="70" y="42" text-anchor="middle" fill="#f97316" font-size="5">HIGH</text>' +
+               '<text x="590" y="42" text-anchor="middle" fill="#f97316" font-size="5">HIGH</text>' +
+               '<!-- SCK: clock pulses during transaction -->' +
+               '<line x1="50" y1="72" x2="90" y2="72" stroke="#eab308" stroke-width="1"/>' +
+               '<text x="170" y="70" text-anchor="middle" fill="#eab308" font-size="5.5">clock (up to 25 MHz)</text>' +
+               '<line x1="90" y1="72" x2="98" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="98" y1="72" x2="98" y2="82" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="98" y1="82" x2="108" y2="82" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="108" y1="82" x2="108" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="108" y1="72" x2="118" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="118" y1="72" x2="118" y2="82" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="118" y1="82" x2="128" y2="82" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="128" y1="82" x2="128" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="128" y1="72" x2="138" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="138" y1="72" x2="138" y2="82" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="138" y1="82" x2="148" y2="82" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="148" y1="82" x2="148" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="148" y1="72" x2="158" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<text x="168" y="82" text-anchor="middle" fill="#555" font-size="7">...</text>' +
+               '<line x1="510" y1="82" x2="520" y2="82" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="520" y1="82" x2="520" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="520" y1="72" x2="530" y2="72" stroke="#eab308" stroke-width="1.5"/>' +
+               '<line x1="530" y1="72" x2="650" y2="72" stroke="#eab308" stroke-width="1"/>' +
+               '<!-- MOSI: CMD17 goes out -->' +
+               '<rect x="90" y="96" width="200" height="12" rx="2" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="190" y="105" text-anchor="middle" fill="#22c55e" font-size="6.5">CMD17 (READ_SINGLE_BLOCK, addr)</text>' +
+               '<line x1="50" y1="108" x2="650" y2="108" stroke="#22c55e" stroke-width="0.5" opacity="0.3"/>' +
+               '<line x1="50" y1="96" x2="90" y2="96" stroke="#22c55e" stroke-width="1" opacity="0.3"/>' +
+               '<line x1="290" y1="96" x2="650" y2="96" stroke="#22c55e" stroke-width="1" opacity="0.3"/>' +
+               '<!-- MISO: data comes back -->' +
+               '<line x1="50" y1="124" x2="300" y2="124" stroke="#3b82f6" stroke-width="1" opacity="0.3"/>' +
+               '<rect x="300" y="118" width="230" height="12" rx="2" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1"/>' +
+               '<text x="415" y="127" text-anchor="middle" fill="#3b82f6" font-size="6.5">512-byte data block (SD sector)</text>' +
+               '<line x1="530" y1="124" x2="650" y2="124" stroke="#3b82f6" stroke-width="1" opacity="0.3"/>' +
+               '<!-- Phase labels -->' +
+               '<text x="140" y="160" text-anchor="middle" fill="#555" font-size="6">Assert CS</text>' +
+               '<text x="190" y="160" text-anchor="middle" fill="#22c55e" font-size="6">Send CMD</text>' +
+               '<text x="415" y="160" text-anchor="middle" fill="#3b82f6" font-size="6">Receive 512B block</text>' +
+               '<text x="590" y="160" text-anchor="middle" fill="#f97316" font-size="6">Deassert CS</text>' +
+               '<!-- Formula -->' +
+               '<rect x="50" y="166" width="580" height="14" rx="3" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>' +
+               '<text x="340" y="176" text-anchor="middle" fill="#ff6b35" font-size="6.5">SPI0 Mega pins: CS=D53, MOSI=D51, MISO=D50, SCK=D52  (hardware SPI, fixed)</text>' +
+               '</svg>',
+
+            // Step 4 — Build the Complete Data Logger: CSV log structure
+            4: '<svg viewBox="0 0 680 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<defs><pattern id="sg05-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+               '<rect width="680" height="180" fill="#0d1117" rx="6"/>' +
+               '<rect x="8" y="8" width="664" height="164" fill="url(#sg05-sv4-grid)" rx="3"/>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">CSV LOG FILE STRUCTURE — datalog.csv</text>' +
+               '<!-- Header row -->' +
+               '<rect x="20" y="34" width="640" height="22" rx="3" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>' +
+               '<text x="30" y="49" fill="#c084fc" font-size="7" font-weight="700">timestamp</text>' +
+               '<text x="174" y="49" fill="#c084fc" font-size="7" font-weight="700">reading</text>' +
+               '<text x="280" y="49" fill="#c084fc" font-size="7" font-weight="700">temp_c</text>' +
+               '<text x="380" y="49" fill="#c084fc" font-size="7" font-weight="700">humidity</text>' +
+               '<text x="484" y="49" fill="#c084fc" font-size="7" font-weight="700">light</text>' +
+               '<text x="30" y="58" fill="#555" font-size="5">HEADER ROW (written once on file creation)</text>' +
+               '<!-- Column separators -->' +
+               '<line x1="170" y1="34" x2="170" y2="156" stroke="#333" stroke-width="0.5"/>' +
+               '<line x1="274" y1="34" x2="274" y2="156" stroke="#333" stroke-width="0.5"/>' +
+               '<line x1="374" y1="34" x2="374" y2="156" stroke="#333" stroke-width="0.5"/>' +
+               '<line x1="478" y1="34" x2="478" y2="156" stroke="#333" stroke-width="0.5"/>' +
+               '<!-- Data rows -->' +
+               '<rect x="20" y="56" width="640" height="20" rx="2" fill="rgba(255,255,255,0.02)"/>' +
+               '<text x="30" y="70" fill="#eab308" font-size="7">2026-03-18T09:00:00</text>' +
+               '<text x="184" y="70" fill="#8b949e" font-size="7">1</text>' +
+               '<text x="284" y="70" fill="#22c55e" font-size="7">23.5</text>' +
+               '<text x="384" y="70" fill="#60a5fa" font-size="7">45.0</text>' +
+               '<text x="488" y="70" fill="#f97316" font-size="7">512</text>' +
+               '<rect x="20" y="76" width="640" height="20" rx="2" fill="rgba(255,255,255,0.03)"/>' +
+               '<text x="30" y="90" fill="#eab308" font-size="7">2026-03-18T09:00:10</text>' +
+               '<text x="184" y="90" fill="#8b949e" font-size="7">2</text>' +
+               '<text x="284" y="90" fill="#22c55e" font-size="7">23.6</text>' +
+               '<text x="384" y="90" fill="#60a5fa" font-size="7">45.1</text>' +
+               '<text x="488" y="90" fill="#f97316" font-size="7">514</text>' +
+               '<rect x="20" y="96" width="640" height="20" rx="2" fill="rgba(255,255,255,0.02)"/>' +
+               '<text x="30" y="110" fill="#eab308" font-size="7">2026-03-18T09:00:20</text>' +
+               '<text x="184" y="110" fill="#8b949e" font-size="7">3</text>' +
+               '<text x="284" y="110" fill="#22c55e" font-size="7">23.6</text>' +
+               '<text x="384" y="110" fill="#60a5fa" font-size="7">44.9</text>' +
+               '<text x="488" y="110" fill="#f97316" font-size="7">498</text>' +
+               '<text x="340" y="130" text-anchor="middle" fill="#444" font-size="8">. . . one row per 10 seconds . . .</text>' +
+               '<!-- Column annotations -->' +
+               '<rect x="20" y="140" width="640" height="20" rx="3" fill="rgba(255,107,53,0.04)" stroke="rgba(255,107,53,0.15)" stroke-width="0.5"/>' +
+               '<text x="90" y="153" text-anchor="middle" fill="#eab308" font-size="6">ISO 8601 timestamp</text>' +
+               '<text x="222" y="153" text-anchor="middle" fill="#8b949e" font-size="6">seq #</text>' +
+               '<text x="322" y="153" text-anchor="middle" fill="#22c55e" font-size="6">DHT11 C</text>' +
+               '<text x="424" y="153" text-anchor="middle" fill="#60a5fa" font-size="6">DHT11 RH%</text>' +
+               '<text x="560" y="153" text-anchor="middle" fill="#f97316" font-size="6">analogRead(A0) 0-1023</text>' +
+               '<!-- Key insight -->' +
+               '<rect x="20" y="162" width="640" height="10" rx="2" fill="rgba(168,85,247,0.04)" stroke="rgba(168,85,247,0.1)" stroke-width="0.5"/>' +
+               '<text x="340" y="170" text-anchor="middle" fill="#555" font-size="5.5">Open/write/close on every row — prevents data loss on power cut  |  File survives unplugging the Arduino</text>' +
+               '</svg>'
+        },
+
+        componentCallouts: {
+            svg: '<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                 '<defs><pattern id="sg05-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+                 '<rect width="560" height="200" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="548" height="188" fill="url(#sg05-cc-grid)" rx="3"/>' +
+                 '<text x="280" y="20" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.14em">SG-05 DATA LOGGER COMPONENTS</text>' +
+                 '<!-- Arduino Mega -->' +
+                 '<rect x="14" y="32" width="90" height="154" rx="6" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5" data-callout="mega"/>' +
+                 '<text x="59" y="48" text-anchor="middle" fill="#60a5fa" font-size="6" font-weight="700">ARDUINO MEGA</text>' +
+                 '<circle cx="104" cy="76" r="4" fill="#1a1f2b" stroke="#f97316" stroke-width="1" data-callout="sd"/>' +
+                 '<text x="96" y="75" text-anchor="end" fill="#555" font-size="5">D53 CS</text>' +
+                 '<circle cx="104" cy="90" r="4" fill="#1a1f2b" stroke="#eab308" stroke-width="1" data-callout="sd"/>' +
+                 '<text x="96" y="89" text-anchor="end" fill="#555" font-size="5">D51 MOSI</text>' +
+                 '<circle cx="104" cy="104" r="4" fill="#1a1f2b" stroke="#22c55e" stroke-width="1" data-callout="sd"/>' +
+                 '<text x="96" y="103" text-anchor="end" fill="#555" font-size="5">D50 MISO</text>' +
+                 '<circle cx="104" cy="118" r="4" fill="#1a1f2b" stroke="#06b6d4" stroke-width="1" data-callout="sd"/>' +
+                 '<text x="96" y="117" text-anchor="end" fill="#555" font-size="5">D52 SCK</text>' +
+                 '<circle cx="104" cy="138" r="4" fill="#1a1f2b" stroke="#a855f7" stroke-width="1" data-callout="rtc"/>' +
+                 '<text x="96" y="137" text-anchor="end" fill="#555" font-size="5">SDA 20</text>' +
+                 '<circle cx="104" cy="152" r="4" fill="#1a1f2b" stroke="#c084fc" stroke-width="1" data-callout="rtc"/>' +
+                 '<text x="96" y="151" text-anchor="end" fill="#555" font-size="5">SCL 21</text>' +
+                 '<circle cx="104" cy="168" r="4" fill="#1a1f2b" stroke="#fb923c" stroke-width="1" data-callout="dht11"/>' +
+                 '<text x="96" y="167" text-anchor="end" fill="#555" font-size="5">D7 DHT</text>' +
+                 '<!-- SD Card Module -->' +
+                 '<rect x="154" y="32" width="120" height="90" rx="6" fill="#0f1a2e" stroke="#f97316" stroke-width="1.5" data-callout="sd"/>' +
+                 '<text x="214" y="50" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="700">SD MODULE</text>' +
+                 '<rect x="172" y="56" width="84" height="40" rx="3" fill="#060810" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+                 '<text x="214" y="72" text-anchor="middle" fill="#fb923c" font-size="7">microSD</text>' +
+                 '<text x="214" y="84" text-anchor="middle" fill="#555" font-size="5.5">FAT32</text>' +
+                 '<text x="214" y="110" text-anchor="middle" fill="#555" font-size="5.5">SPI interface</text>' +
+                 '<!-- DS3231 RTC -->' +
+                 '<rect x="154" y="136" width="120" height="70" rx="6" fill="#0f1a2e" stroke="#a855f7" stroke-width="1.5" data-callout="rtc"/>' +
+                 '<text x="214" y="154" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">DS3231 RTC</text>' +
+                 '<circle cx="214" cy="172" r="12" fill="none" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>' +
+                 '<circle cx="214" cy="172" r="7" fill="rgba(168,85,247,0.08)"/>' +
+                 '<text x="214" y="175" text-anchor="middle" fill="#c084fc" font-size="5.5">CR2032</text>' +
+                 '<text x="214" y="198" text-anchor="middle" fill="#555" font-size="5.5">I2C 0x68</text>' +
+                 '<!-- DHT11 -->' +
+                 '<rect x="290" y="32" width="100" height="54" rx="6" fill="#0f1a2e" stroke="#fb923c" stroke-width="1.5" data-callout="dht11"/>' +
+                 '<text x="340" y="52" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="700">DHT11</text>' +
+                 '<text x="340" y="70" text-anchor="middle" fill="#555" font-size="5.5">D7  |  5V  |  GND</text>' +
+                 '<!-- Data flow arrows -->' +
+                 '<text x="400" y="80" fill="#8b949e" font-size="6">1. RTC -> timestamp</text>' +
+                 '<text x="400" y="96" fill="#8b949e" font-size="6">2. DHT -> temp, humid</text>' +
+                 '<text x="400" y="112" fill="#8b949e" font-size="6">3. Arduino -> CSV line</text>' +
+                 '<text x="400" y="128" fill="#8b949e" font-size="6">4. SD card -> write</text>' +
+                 '<rect x="390" y="140" width="148" height="12" rx="2" fill="rgba(255,107,53,0.08)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>' +
+                 '<text x="464" y="149" text-anchor="middle" fill="#ff6b35" font-size="5.5">every 10 seconds</text>' +
+                 '</svg>',
+            components: [
+                {
+                    id: 'sd',
+                    name: 'SD Card Module (SPI)',
+                    purpose: 'A microSD card slot with a 3.3V level shifter and SPI interface. The Arduino SD library communicates using the hardware SPI pins on the Mega (MOSI=51, MISO=50, SCK=52, CS=53). The SD card stores log files in FAT32 format, readable by any OS.',
+                    specs: ['CS=D53, MOSI=D51, MISO=D50, SCK=D52', 'Hardware SPI (fixed pins on Mega)', 'FAT32 / FAT16 format required', 'Max file name: 8.3 format (e.g. LOG.CSV)', 'Open/close per write for data safety']
+                },
+                {
+                    id: 'rtc',
+                    name: 'DS3231 Real-Time Clock',
+                    purpose: 'A temperature-compensated crystal oscillator (TCXO) module with I2C interface. Maintains accurate time even when the Arduino is powered off via a CR2032 coin cell. Much more accurate than the DS1307 (~2 minutes drift per year vs ~5 minutes per month).',
+                    specs: ['I2C address: 0x68', 'SDA=pin 20, SCL=pin 21 (Mega)', 'TCXO: +/-2ppm accuracy', 'CR2032 backup battery', 'Adafruit RTClib required']
+                },
+                {
+                    id: 'dht11',
+                    name: 'DHT11 Temperature/Humidity Sensor',
+                    purpose: 'Provides the environmental data that gets logged. Same sensor from SG-02 and SG-04. In the logger, it feeds the CSV rows. The -999.0 sentinel value is written when a DHT read fails (NaN result), making it detectable during Python analysis without crashing the logger.',
+                    specs: ['D7 digital pin', '5V supply', 'Temp +/-2C, Humid +/-5%', '-999.0 sentinel on read error', '2-second minimum sample interval']
+                },
+                {
+                    id: 'mega',
+                    name: 'Arduino Mega 2560 (logger controller)',
+                    purpose: 'Orchestrates all three peripherals: reads time from RTC via I2C, reads sensor via DHT protocol, formats a CSV string, and writes it to the SD card via SPI. Runs a simple millis()-based scheduler with no blocking delays in the main loop.',
+                    specs: ['Two protocols: SPI + I2C', 'millis() non-blocking scheduler', 'LOG_INTERVAL_MS configurable', 'sprintf() for CSV formatting', 'No RTOS needed']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Using VBUS (5V) Instead of 3.3V for the SD Card',
+                correct: 'Most SD card breakout modules accept 5V on the VCC pin and use an onboard regulator or level shifter to provide the 3.3V the SD card requires. Connect the module VCC to Arduino 5V pin.',
+                incorrect: 'Connecting the raw SD card pins (not a breakout module) directly to 5V SPI lines. Or wiring a breakout module to the wrong voltage. Some modules are 3.3V-only.',
+                consequence: 'Overvoltage destroys the SD card immediately and silently. The card will stop working but show no visible damage. Always check your specific breakout module datasheet for its VCC tolerance before wiring.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT (breakout module)</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG (raw card)</text>' +
+                         '<text x="20" y="50" fill="#ef4444" font-size="6">Arduino 5V</text>' +
+                         '<line x1="72" y1="48" x2="110" y2="48" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<rect x="110" y="36" width="60" height="36" rx="3" fill="#0f1a2e" stroke="#f97316" stroke-width="1.5"/>' +
+                         '<text x="140" y="52" text-anchor="middle" fill="#f97316" font-size="5.5">SD Breakout</text>' +
+                         '<text x="140" y="64" text-anchor="middle" fill="#555" font-size="5">5V->3.3V</text>' +
+                         '<line x1="170" y1="54" x2="210" y2="54" stroke="#22c55e" stroke-width="1.5"/>' +
+                         '<rect x="210" y="42" width="14" height="28" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+                         '<text x="217" y="70" text-anchor="middle" fill="#22c55e" font-size="5">SD</text>' +
+                         '<text x="124" y="96" text-anchor="middle" fill="#22c55e" font-size="6">module converts voltage safely</text>' +
+                         '<text x="272" y="50" fill="#ef4444" font-size="6">Arduino 5V</text>' +
+                         '<line x1="324" y1="48" x2="424" y2="48" stroke="#ef4444" stroke-width="2"/>' +
+                         '<rect x="424" y="36" width="14" height="28" rx="2" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<text x="431" y="56" text-anchor="middle" fill="#ef4444" font-size="5">SD</text>' +
+                         '<circle cx="398" cy="48" r="6" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<text x="398" y="52" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">!</text>' +
+                         '<text x="376" y="96" text-anchor="middle" fill="#ef4444" font-size="6">5V destroys SD card permanently</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'SD Card Formatted as exFAT Instead of FAT32',
+                correct: 'SD card is formatted as FAT32 (or FAT16 for very small cards). Use the official SD Card Formatter tool or format from your OS with FAT32 selected explicitly.',
+                incorrect: 'A large SD card (64GB+) auto-formatted by Windows/macOS as exFAT. The Arduino SD library does not support exFAT and will fail to initialize.',
+                consequence: 'SD.begin() returns false every time. The logger prints "ERROR: SD card init failed" and halts. No data is ever written. Reformat as FAT32 (use a 32GB or smaller card for easiest compatibility).',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="94" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG</text>' +
+                         '<rect x="20" y="36" width="60" height="54" rx="4" fill="#0f1a2e" stroke="#f97316" stroke-width="1.5"/>' +
+                         '<text x="50" y="56" text-anchor="middle" fill="#f97316" font-size="6.5">32 GB</text>' +
+                         '<rect x="28" y="62" width="44" height="18" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+                         '<text x="50" y="74" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="700">FAT32</text>' +
+                         '<text x="110" y="62" fill="#22c55e" font-size="6">SD.begin(53)</text>' +
+                         '<text x="110" y="74" fill="#22c55e" font-size="6">returns true</text>' +
+                         '<text x="110" y="86" fill="#22c55e" font-size="6">logging works</text>' +
+                         '<rect x="272" y="36" width="60" height="54" rx="4" fill="#0f1a2e" stroke="#f97316" stroke-width="1.5"/>' +
+                         '<text x="302" y="56" text-anchor="middle" fill="#f97316" font-size="6.5">128 GB</text>' +
+                         '<rect x="280" y="62" width="44" height="18" rx="2" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1"/>' +
+                         '<text x="302" y="74" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="700">exFAT</text>' +
+                         '<text x="362" y="62" fill="#ef4444" font-size="6">SD.begin(53)</text>' +
+                         '<text x="362" y="74" fill="#ef4444" font-size="6">returns false</text>' +
+                         '<text x="362" y="86" fill="#ef4444" font-size="6">logger halts</text>' +
+                         '</svg>'
+            },
+            {
+                title: 'RTC Battery Dead — Time Resets to 2000-01-01 on Every Power Cycle',
+                correct: 'The DS3231 CR2032 coin cell is installed and has charge. After power cycle, rtc.lostPower() returns false and the clock reads the correct time without needing to re-set.',
+                incorrect: 'The coin cell is missing, flat, or facing the wrong way. rtc.lostPower() returns true on every boot. The sketch re-sets time from the compile time, which is always in the past.',
+                consequence: 'Log files get timestamps that are wrong by hours, months, or years. Log rotation creates files with wrong dates (e.g. 20000101.csv). Security-critical audit logs become useless for incident timeline reconstruction.',
+                svgDiff: '<svg viewBox="0 0 500 110" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                         '<rect width="500" height="110" fill="#0d1117" rx="6"/>' +
+                         '<rect x="8" y="8" width="232" height="94" rx="5" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                         '<rect x="260" y="8" width="232" height="104" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                         '<text x="124" y="24" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">CORRECT (battery ok)</text>' +
+                         '<text x="376" y="24" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">WRONG (battery dead)</text>' +
+                         '<circle cx="66" cy="72" r="24" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1.5"/>' +
+                         '<text x="66" y="68" text-anchor="middle" fill="#c084fc" font-size="6" font-weight="700">CR2032</text>' +
+                         '<text x="66" y="78" text-anchor="middle" fill="#c084fc" font-size="5.5">3.0V ok</text>' +
+                         '<text x="140" y="60" fill="#22c55e" font-size="6">lostPower(): false</text>' +
+                         '<text x="140" y="74" fill="#22c55e" font-size="6">2026-03-18</text>' +
+                         '<text x="140" y="86" fill="#22c55e" font-size="6">09:00:00</text>' +
+                         '<circle cx="318" cy="72" r="24" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>' +
+                         '<text x="318" y="68" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="700">CR2032</text>' +
+                         '<text x="318" y="78" text-anchor="middle" fill="#ef4444" font-size="5.5">0.0V dead</text>' +
+                         '<text x="392" y="60" fill="#ef4444" font-size="6">lostPower(): true</text>' +
+                         '<text x="392" y="74" fill="#ef4444" font-size="6">2000-01-01</text>' +
+                         '<text x="392" y="86" fill="#ef4444" font-size="6">00:00:00</text>' +
+                         '</svg>'
+            }
+        ]
     }
 
 };

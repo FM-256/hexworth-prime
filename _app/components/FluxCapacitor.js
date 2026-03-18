@@ -263,6 +263,13 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--house-glow);
         }
 
+        .flux-house:focus-visible {
+            outline: 2px solid #06b6d4;
+            outline-offset: 2px;
+            border-color: var(--house-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--house-glow);
+        }
+
         .flux-house:hover::before {
             opacity: 0.15;
         }
@@ -391,6 +398,28 @@
 
         .flux-warp.active {
             opacity: 1;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .flux-btn { animation: none; }
+            .flux-btn:hover { transform: none; }
+            .flux-icon { animation: none; }
+            .flux-house.locked::after { animation: none; }
+            .flux-overlay { transition: none; }
+            .flux-modal { transition: none; }
+            .flux-warp { transition: none; }
+            .flux-house { transition: none; }
+            .flux-house::before { transition: none; }
+            .flux-house:hover { transform: none; }
+        }
+
+        /* High contrast */
+        @media (prefers-contrast: more) {
+            .flux-house { border-width: 3px; border-color: rgba(255, 255, 255, 0.4); }
+            .flux-house-name { color: #fff; }
+            .flux-subtitle { color: #bbb; }
+            .flux-hint { color: #888; }
         }
 
         /* Responsive */
@@ -525,14 +554,24 @@
         createButton() {
             this.button = document.createElement('button');
             this.button.className = 'flux-btn';
-            this.button.setAttribute('aria-label', 'Open Flux Capacitor');
+            this.button.setAttribute('aria-label', 'Open house navigation (Flux Capacitor)');
+            this.button.setAttribute('aria-expanded', 'false');
+            this.button.setAttribute('aria-haspopup', 'dialog');
             this.button.setAttribute('title', 'Flux Capacitor (Press ~)');
             this.button.innerHTML = '<span class="flux-icon"><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>';
             document.body.appendChild(this.button);
 
             // Keep button pinned to viewport (position:fixed is broken when body has filter)
             const btn = this.button;
-            function pinFlux() { btn.style.top = (window.scrollY + window.innerHeight - 88) + 'px'; }
+            btn.style.transition = 'top 0.15s ease-out';
+            let fluxRaf = 0;
+            function pinFlux() {
+                if (fluxRaf) return;
+                fluxRaf = requestAnimationFrame(() => {
+                    btn.style.top = (window.scrollY + window.innerHeight - 88) + 'px';
+                    fluxRaf = 0;
+                });
+            }
             pinFlux();
             window.addEventListener('scroll', pinFlux, { passive: true });
             window.addEventListener('resize', pinFlux, { passive: true });
@@ -541,6 +580,10 @@
         createModal() {
             this.overlay = document.createElement('div');
             this.overlay.className = 'flux-overlay';
+            this.overlay.setAttribute('role', 'dialog');
+            this.overlay.setAttribute('aria-modal', 'true');
+            this.overlay.setAttribute('aria-label', 'Flux Capacitor - House Navigation');
+            this.overlay.setAttribute('aria-hidden', 'true');
 
             const modal = document.createElement('div');
             modal.className = 'flux-modal';
@@ -596,6 +639,8 @@
         createHouseCard(house, index) {
             const card = document.createElement('div');
             card.className = 'flux-house';
+            card.setAttribute('role', 'button');
+            card.setAttribute('tabindex', '0');
             card.style.setProperty('--house-color', house.color);
             card.style.setProperty('--house-glow', house.color + '40');
             card.dataset.house = house.id;
@@ -605,6 +650,12 @@
             const isCurrent = this.currentHouse === house.id;
             const isHome = this.userHouse === house.id;
             const isLocked = house.gated && !isDarkArtsUnlocked();
+
+            // Descriptive aria-label
+            let label = 'Navigate to ' + house.name;
+            if (isCurrent) label = house.name + ' (current house)';
+            else if (isLocked) label = house.name + ' (locked)';
+            card.setAttribute('aria-label', label);
 
             if (isCurrent) card.classList.add('current');
             if (isHome && !isCurrent) card.classList.add('home');
@@ -617,7 +668,7 @@
             const img = document.createElement('img');
             img.src = emblemSrc;
             img.alt = house.name;
-            img.onerror = function() { this.parentElement.textContent = house.icon; };
+            img.onerror = function() { this.parentElement.innerHTML = house.icon; };
             icon.appendChild(img);
             card.appendChild(icon);
 
@@ -628,18 +679,24 @@
             card.appendChild(name);
 
             // Click handler
+            const navigateHandler = () => {
+                if (isCurrent) return;
+                if (!isLocked || house.path) {
+                    if (house.themeSwitch) {
+                        localStorage.setItem('hexworth_theme', house.themeSwitch);
+                    } else if (this.currentHouse === 'matrix') {
+                        localStorage.removeItem('hexworth_theme');
+                    }
+                    this.navigateTo(house.path);
+                }
+            };
+
             if (!isCurrent) {
-                card.addEventListener('click', () => {
-                    if (!isLocked || house.path) {
-                        // Theme switch (e.g., entering the Matrix sets theme)
-                        if (house.themeSwitch) {
-                            localStorage.setItem('hexworth_theme', house.themeSwitch);
-                        } else if (this.currentHouse === 'matrix') {
-                            // Leaving the Matrix — restore standard theme
-                            localStorage.removeItem('hexworth_theme');
-                        }
-                        // Navigate to house/vault
-                        this.navigateTo(house.path);
+                card.addEventListener('click', navigateHandler);
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigateHandler();
                     }
                 });
             }
@@ -666,10 +723,21 @@
         toggle() {
             this.isOpen = !this.isOpen;
             this.overlay.classList.toggle('active', this.isOpen);
+            this.overlay.setAttribute('aria-hidden', String(!this.isOpen));
+            if (this.button) {
+                this.button.setAttribute('aria-expanded', String(this.isOpen));
+            }
 
             if (this.isOpen) {
+                this._previousFocus = document.activeElement;
                 // Focus first house for keyboard nav
-                this.overlay.querySelector('.flux-house')?.focus();
+                const firstCard = this.overlay.querySelector('.flux-house');
+                if (firstCard) firstCard.focus();
+            } else {
+                // Return focus to the trigger element
+                if (this._previousFocus && this._previousFocus.focus) {
+                    this._previousFocus.focus();
+                }
             }
         }
 
@@ -677,6 +745,14 @@
             if (this.isOpen) {
                 this.isOpen = false;
                 this.overlay.classList.remove('active');
+                this.overlay.setAttribute('aria-hidden', 'true');
+                if (this.button) {
+                    this.button.setAttribute('aria-expanded', 'false');
+                }
+                // Return focus to the trigger element
+                if (this._previousFocus && this._previousFocus.focus) {
+                    this._previousFocus.focus();
+                }
             }
         }
 
@@ -716,6 +792,20 @@
                     e.preventDefault();
                     this.close();
                     return;
+                }
+
+                // Focus trap: Tab cycles within overlay
+                if (e.key === 'Tab') {
+                    const focusable = this.overlay.querySelectorAll('.flux-house:not(.locked), button, [href], [tabindex]:not([tabindex="-1"])');
+                    if (focusable.length) {
+                        const first = focusable[0];
+                        const last = focusable[focusable.length - 1];
+                        if (e.shiftKey) {
+                            if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+                        } else {
+                            if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+                        }
+                    }
                 }
 
                 // Quick nav with number keys

@@ -117,6 +117,7 @@
             overlay.className = 'modal-overlay';
             overlay.setAttribute('role', 'dialog');
             overlay.setAttribute('aria-modal', 'true');
+            overlay.setAttribute('aria-label', 'User profile');
             document.body.appendChild(overlay);
         }
 
@@ -125,20 +126,43 @@
         });
 
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && overlay.classList.contains('active')) close();
+            if (!overlay.classList.contains('active')) return;
+            if (e.key === 'Escape') { close(); return; }
+            // Focus trap: Tab cycles within modal
+            if (e.key === 'Tab') {
+                const focusable = overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (!focusable.length) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+                } else {
+                    if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+                }
+            }
         });
 
         return overlay;
     }
 
+    let _triggerEl = null;
+
     function close() {
         if (!overlay) return;
         overlay.classList.remove('active');
         overlay.innerHTML = '';
+        // Return focus to the element that opened the modal
+        if (_triggerEl && typeof _triggerEl.focus === 'function') {
+            _triggerEl.focus();
+            _triggerEl = null;
+        }
     }
 
     async function viewUserProfile(uid) {
         if (!uid) return;
+
+        // Remember trigger element for focus restoration
+        _triggerEl = document.activeElement;
 
         const el = ensureOverlay();
         el.innerHTML = renderLoading();
@@ -160,6 +184,9 @@
                 return;
             }
             el.innerHTML = renderProfile(profile);
+            // Focus the close button for keyboard users
+            const closeBtn = el.querySelector('.upm-close');
+            if (closeBtn) closeBtn.focus();
         } catch (err) {
             console.error('[UserProfileModal] Error:', err);
             el.innerHTML = renderError('Dossier retrieval failed');
@@ -169,7 +196,7 @@
     function renderLoading() {
         return `
             <div class="modal-content upm-modal-content">
-                <button class="upm-close" onclick="viewUserProfile.close()">&times;</button>
+                <button class="upm-close" onclick="viewUserProfile.close()" aria-label="Close profile">&times;</button>
                 <div class="upm-loading">
                     <div class="upm-spinner"></div>
                     <p>Retrieving agent dossier<span class="upm-dots"></span></p>
@@ -181,7 +208,7 @@
     function renderError(msg) {
         return `
             <div class="modal-content upm-modal-content">
-                <button class="upm-close" onclick="viewUserProfile.close()">&times;</button>
+                <button class="upm-close" onclick="viewUserProfile.close()" aria-label="Close profile">&times;</button>
                 <div class="upm-loading">
                     <img src="/assets/images/icons/icon-siren.webp" alt="" style="width:40px;height:40px;margin-bottom:12px">
                     <p style="color:#f87171">${esc(msg)}</p>
@@ -231,7 +258,7 @@
 
         return `
             <div class="modal-content upm-modal-content" style="--hc: ${colors.primary}; --hg: ${colors.glow}; --hbg: ${colors.bg}">
-                <button class="upm-close" onclick="viewUserProfile.close()">&times;</button>
+                <button class="upm-close" onclick="viewUserProfile.close()" aria-label="Close profile">&times;</button>
 
                 <!-- Banner -->
                 <div class="upm-banner">
@@ -348,6 +375,14 @@
                     </div>
                 </div>
 
+                <!-- Message Button (other users only) -->
+                ${!isSelf ? `<div class="upm-action-row">
+                    <button class="upm-msg-btn" onclick="window.location.href='/components/messaging/inbox.html#new=${esc(p.uid)}'">
+                        <img src="/assets/images/icons/icon-email.webp" alt="" class="upm-msg-icon">
+                        Send Message
+                    </button>
+                </div>` : ''}
+
                 <!-- Footer -->
                 <div class="upm-footer">
                     <span class="upm-footer-dot"></span>
@@ -394,6 +429,8 @@
                 backdrop-filter: blur(4px);
             }
             .upm-close:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+            .upm-close:focus-visible { outline: 2px solid #06b6d4; outline-offset: 2px; }
+            .upm-msg-btn:focus-visible { outline: 2px solid #06b6d4; outline-offset: 2px; }
 
             /* Banner */
             .upm-banner {
@@ -644,6 +681,39 @@
                 to { transform: scale(1.15); }
             }
 
+            /* Message Button */
+            .upm-action-row {
+                margin: 20px 24px 0;
+            }
+            .upm-msg-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                width: 100%;
+                padding: 10px 16px;
+                background: rgba(6,182,212,0.1);
+                border: 1px solid rgba(6,182,212,0.3);
+                border-radius: 10px;
+                color: #06b6d4;
+                font-size: 0.82rem;
+                font-weight: 600;
+                font-family: 'JetBrains Mono', 'Fira Code', monospace;
+                letter-spacing: 0.04em;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .upm-msg-btn:hover {
+                background: rgba(6,182,212,0.2);
+                border-color: #06b6d4;
+                transform: translateY(-1px);
+            }
+            .upm-msg-icon {
+                width: 18px;
+                height: 18px;
+                object-fit: contain;
+            }
+
             /* Footer */
             .upm-footer {
                 display: flex;
@@ -710,6 +780,7 @@
                 .upm-tier-badge,
                 .upm-level-section,
                 .upm-stats,
+                .upm-action-row,
                 .upm-footer { margin-left: 16px; margin-right: 16px; }
                 .upm-stats {
                     grid-template-columns: repeat(3, 1fr);
@@ -717,6 +788,30 @@
                 .upm-stat { padding: 10px 2px 8px; }
                 .upm-stat-val { font-size: 0.9rem; }
                 .upm-stat-icon-img { width: 22px; height: 22px; }
+            }
+
+            /* Reduced motion */
+            @media (prefers-reduced-motion: reduce) {
+                .upm-xp-shine { animation: none; }
+                .upm-spinner { animation: none; }
+                .upm-footer-dot { animation: none; }
+                .upm-stat-streak.upm-streak-hot .upm-stat-icon-img { animation: none; }
+                .upm-dots::after { animation: none; }
+                .upm-xp-fill { transition: none; }
+                .upm-stat { transition: none; }
+                .upm-stat:hover { transform: none; }
+                .upm-close { transition: none; }
+                .upm-msg-btn { transition: none; }
+                .upm-msg-btn:hover { transform: none; }
+            }
+
+            /* High contrast */
+            @media (prefers-contrast: more) {
+                .upm-modal-content { border-width: 2px !important; }
+                .upm-stat { border-color: rgba(255,255,255,0.2); }
+                .upm-house-domain { color: #aaa; }
+                .upm-footer { color: #888; border-top-color: rgba(255,255,255,0.15); }
+                .upm-xp-labels span { color: #888; }
             }
         `;
         document.head.appendChild(s);

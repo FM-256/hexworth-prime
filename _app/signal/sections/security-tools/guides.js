@@ -575,7 +575,339 @@ void loop() {
 
     challenges: `<p><strong>1. EEPROM Persistence:</strong> Store the whitelist in the Arduino's EEPROM so enrolled cards survive power cycles. Write a <code>saveWhitelist()</code> function that serializes UIDs to EEPROM, and load them in <code>setup()</code>.</p>
 <p><strong>2. LCD Status Display:</strong> Connect a 16x2 LCD (included in the ELEGOO kit) and display "ACCESS GRANTED" / "DENIED" along with the last 4 digits of the scanned UID. Use the I2C backpack if available to save pins.</p>
-<p><strong>3. Lockout Mode:</strong> After 5 consecutive denied scans, enter a 30-second lockout where all scans are ignored and the red LED stays solid. Log the lockout event. This mimics real-world brute-force protection.</p>`
+<p><strong>3. Lockout Mode:</strong> After 5 consecutive denied scans, enter a 30-second lockout where all scans are ignored and the red LED stays solid. Log the lockout event. This mimics real-world brute-force protection.</p>`,
+
+    // =========================================================================
+    // SIG-2: Step visuals — inline SVG per key step (0-based index)
+    // =========================================================================
+    stepVisuals: {
+        // Step 0 — Install MFRC522 Library: SPI communication model
+        0: '<svg viewBox="0 0 680 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg11-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg11-arr-p" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#a855f7"/></marker>' +
+           '<marker id="sg11-arr-pr" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#a855f7"/></marker>' +
+           '</defs>' +
+           '<rect width="680" height="190" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="174" fill="url(#sg11-sv0-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">MFRC522 — SPI COMMUNICATION MODEL (13.56 MHz ISO 14443A)</text>' +
+           '<rect x="20" y="34" width="140" height="110" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<rect x="20" y="34" width="140" height="20" rx="6" fill="rgba(59,130,246,0.15)"/>' +
+           '<text x="90" y="48" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">Arduino Mega</text>' +
+           '<text x="90" y="64" text-anchor="middle" fill="#8b949e" font-size="6.5">SPI Master</text>' +
+           '<text x="90" y="76" text-anchor="middle" fill="#666" font-size="6">Pin 52 = SCK (clock)</text>' +
+           '<text x="90" y="87" text-anchor="middle" fill="#666" font-size="6">Pin 51 = MOSI (cmd out)</text>' +
+           '<text x="90" y="98" text-anchor="middle" fill="#666" font-size="6">Pin 50 = MISO (data in)</text>' +
+           '<text x="90" y="109" text-anchor="middle" fill="#666" font-size="6">Pin 53 = SS/SDA (select)</text>' +
+           '<text x="90" y="120" text-anchor="middle" fill="#666" font-size="6">Pin 5 = RST (reset)</text>' +
+           '<rect x="268" y="34" width="144" height="110" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+           '<rect x="268" y="34" width="144" height="20" rx="6" fill="rgba(168,85,247,0.15)"/>' +
+           '<text x="340" y="48" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="700">MFRC522</text>' +
+           '<text x="340" y="64" text-anchor="middle" fill="#8b949e" font-size="6.5">SPI Slave / RF Controller</text>' +
+           '<text x="340" y="76" text-anchor="middle" fill="#666" font-size="6">64-byte FIFO buffer</text>' +
+           '<text x="340" y="87" text-anchor="middle" fill="#666" font-size="6">ISO 14443A state machine</text>' +
+           '<text x="340" y="98" text-anchor="middle" fill="#666" font-size="6">13.56 MHz RF carrier</text>' +
+           '<text x="340" y="109" text-anchor="middle" fill="#666" font-size="6">Modulates / demodulates</text>' +
+           '<text x="340" y="120" text-anchor="middle" fill="#a855f7" font-size="6.5" font-weight="600">3.3V ONLY — max 3.6V</text>' +
+           '<rect x="520" y="34" width="140" height="110" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+           '<rect x="520" y="34" width="140" height="20" rx="6" fill="rgba(255,107,53,0.15)"/>' +
+           '<text x="590" y="48" text-anchor="middle" fill="#ff6b35" font-size="8" font-weight="700">MIFARE Card/Tag</text>' +
+           '<text x="590" y="64" text-anchor="middle" fill="#8b949e" font-size="6.5">ISO 14443A Transponder</text>' +
+           '<text x="590" y="76" text-anchor="middle" fill="#666" font-size="6">4-byte or 7-byte UID</text>' +
+           '<text x="590" y="87" text-anchor="middle" fill="#666" font-size="6">factory-burned, immutable</text>' +
+           '<text x="590" y="98" text-anchor="middle" fill="#666" font-size="6">ATQA: device type code</text>' +
+           '<text x="590" y="109" text-anchor="middle" fill="#666" font-size="6">SAK: protocol support</text>' +
+           '<text x="590" y="120" text-anchor="middle" fill="#ff6b35" font-size="6.5" font-weight="600">Passive — no battery</text>' +
+           '<line x1="160" y1="74" x2="266" y2="74" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg11-arr-p)"/>' +
+           '<text x="213" y="67" text-anchor="middle" fill="#555" font-size="6">SPI cmds</text>' +
+           '<line x1="266" y1="86" x2="160" y2="86" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg11-arr-pr)"/>' +
+           '<text x="213" y="99" text-anchor="middle" fill="#555" font-size="6">UID data</text>' +
+           '<text x="214" y="115" text-anchor="middle" fill="#333" font-size="6">10 MHz SPI</text>' +
+           '<line x1="414" y1="89" x2="518" y2="89" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+           '<text x="466" y="82" text-anchor="middle" fill="#555" font-size="6">13.56 MHz RF</text>' +
+           '<text x="466" y="101" text-anchor="middle" fill="#555" font-size="6">2-4 cm range</text>' +
+           '<text x="340" y="170" text-anchor="middle" fill="#333" font-size="7">SPI clock: Arduino drives SCK. MOSI carries commands to MFRC522 FIFO. MISO returns card data. SS LOW = device selected.</text>' +
+           '</svg>',
+
+        // Step 2 — Build the Whitelist: decision flow diagram
+        2: '<svg viewBox="0 0 680 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg11-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg11-v2-arr-g" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22c55e"/></marker>' +
+           '<marker id="sg11-v2-arr-r" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ef4444"/></marker>' +
+           '<marker id="sg11-v2-arr-y" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eab308"/></marker>' +
+           '</defs>' +
+           '<rect width="680" height="180" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="164" fill="url(#sg11-sv2-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">ACCESS DECISION FLOW — CARD SCAN EVENT</text>' +
+           '<rect x="285" y="32" width="110" height="28" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+           '<text x="340" y="50" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="600">Card Scanned</text>' +
+           '<text x="340" y="61" text-anchor="middle" fill="#555" font-size="6">getUID() returns hex string</text>' +
+           '<line x1="340" y1="62" x2="340" y2="78" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg11-arr-p)"/>' +
+           '<rect x="270" y="80" width="140" height="28" rx="4" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+           '<text x="340" y="95" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">uid == MASTER_UID?</text>' +
+           '<line x1="270" y1="94" x2="150" y2="94" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg11-v2-arr-g)"/>' +
+           '<text x="210" y="88" text-anchor="middle" fill="#22c55e" font-size="6.5">YES</text>' +
+           '<rect x="60" y="80" width="88" height="28" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+           '<text x="104" y="95" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="600">Enroll Mode</text>' +
+           '<text x="104" y="107" text-anchor="middle" fill="#555" font-size="6">Both LEDs blink x5</text>' +
+           '<line x1="410" y1="94" x2="534" y2="94" stroke="#ef4444" stroke-width="1.5" marker-end="url(#sg11-v2-arr-r)"/>' +
+           '<text x="472" y="88" text-anchor="middle" fill="#ef4444" font-size="6.5">NO</text>' +
+           '<rect x="536" y="80" width="120" height="28" rx="4" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+           '<text x="596" y="95" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">isAuthorized(uid)?</text>' +
+           '<line x1="596" y1="110" x2="596" y2="130" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg11-v2-arr-g)"/>' +
+           '<text x="606" y="122" text-anchor="start" fill="#22c55e" font-size="6.5">YES</text>' +
+           '<rect x="536" y="132" width="120" height="28" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+           '<text x="596" y="147" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="600">ACCESS GRANTED</text>' +
+           '<text x="596" y="158" text-anchor="middle" fill="#555" font-size="6">GREEN LED + servo 90deg</text>' +
+           '<line x1="340" y1="110" x2="340" y2="130" stroke="#ef4444" stroke-width="1.5" marker-end="url(#sg11-v2-arr-r)"/>' +
+           '<text x="350" y="122" text-anchor="start" fill="#ef4444" font-size="6.5">NO</text>' +
+           '<rect x="270" y="132" width="140" height="28" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1"/>' +
+           '<text x="340" y="147" text-anchor="middle" fill="#f87171" font-size="7.5" font-weight="600">ACCESS DENIED</text>' +
+           '<text x="340" y="158" text-anchor="middle" fill="#555" font-size="6">RED LED blink x3 + buzzer</text>' +
+           '<text x="104" y="170" text-anchor="middle" fill="#333" font-size="6">Scan next card to add/remove</text>' +
+           '</svg>',
+
+        // Step 7 — Complete Sketch: firmware state machine overview
+        7: '<svg viewBox="0 0 680 178" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg11-sv7-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg11-v7-arr-w" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8b949e"/></marker>' +
+           '</defs>' +
+           '<rect width="680" height="178" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="162" fill="url(#sg11-sv7-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">RFID ACCESS CONTROLLER — FIRMWARE STATE MACHINE</text>' +
+           '<rect x="280" y="32" width="120" height="24" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<text x="340" y="48" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">IDLE — Waiting</text>' +
+           '<rect x="60" y="90" width="120" height="24" rx="4" fill="#1e2736" stroke="#eab308" stroke-width="1"/>' +
+           '<text x="120" y="106" text-anchor="middle" fill="#eab308" font-size="7.5" font-weight="600">ENROLL MODE</text>' +
+           '<rect x="280" y="90" width="120" height="24" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+           '<text x="340" y="106" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="600">ACCESS GRANTED</text>' +
+           '<rect x="500" y="90" width="120" height="24" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1"/>' +
+           '<text x="560" y="106" text-anchor="middle" fill="#f87171" font-size="7.5" font-weight="600">ACCESS DENIED</text>' +
+           '<rect x="170" y="148" width="120" height="20" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+           '<text x="230" y="162" text-anchor="middle" fill="#4ade80" font-size="6.5">Card added/removed</text>' +
+           '<rect x="390" y="148" width="120" height="20" rx="4" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+           '<text x="450" y="162" text-anchor="middle" fill="#4ade80" font-size="6.5">Servo unlock 3s then lock</text>' +
+           '<line x1="280" y1="44" x2="182" y2="90" stroke="#eab308" stroke-width="1.2" marker-end="url(#sg11-v7-arr-w)"/>' +
+           '<text x="215" y="72" text-anchor="middle" fill="#eab308" font-size="6">Master card</text>' +
+           '<line x1="340" y1="56" x2="340" y2="88" stroke="#22c55e" stroke-width="1.2" marker-end="url(#sg11-v7-arr-w)"/>' +
+           '<text x="356" y="74" text-anchor="start" fill="#22c55e" font-size="6">Auth card</text>' +
+           '<line x1="400" y1="44" x2="500" y2="90" stroke="#ef4444" stroke-width="1.2" marker-end="url(#sg11-v7-arr-w)"/>' +
+           '<text x="462" y="72" text-anchor="middle" fill="#ef4444" font-size="6">Unknown card</text>' +
+           '<line x1="120" y1="114" x2="120" y2="144" stroke="#8b949e" stroke-width="1.2" marker-end="url(#sg11-v7-arr-w)"/>' +
+           '<line x1="120" y1="164" x2="280" y2="44" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,3"/>' +
+           '<line x1="340" y1="114" x2="400" y2="144" stroke="#8b949e" stroke-width="1.2" marker-end="url(#sg11-v7-arr-w)"/>' +
+           '<line x1="340" y1="114" x2="290" y2="56" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,3"/>' +
+           '<line x1="560" y1="114" x2="560" y2="160" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,3"/>' +
+           '<line x1="560" y1="160" x2="400" y2="44" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,3"/>' +
+           '<text x="340" y="170" text-anchor="middle" fill="#333" font-size="7">All states return to IDLE after completion. Serial log written on every transition. enrollMode flag bridges IDLE and ENROLL.</text>' +
+           '</svg>'
+    },
+
+    // =========================================================================
+    // SIG-3: Component callouts — MFRC522 board teardown
+    // =========================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 260" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg11-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="260" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="248" fill="url(#sg11-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">MFRC522 MODULE — COMPONENT ANATOMY</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover component list items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="160" rx="6" fill="#0f1a2e" stroke="rgba(168,85,247,0.2)" stroke-width="1.5"/>' +
+             '<g data-callout="rfid-chip">' +
+             '<rect x="60" y="68" width="100" height="80" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="58" y="66" width="104" height="84" rx="5" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="110" y="100" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="700">MFRC522</text>' +
+             '<text x="110" y="112" text-anchor="middle" fill="#8b949e" font-size="6">RF controller IC</text>' +
+             '<text x="110" y="122" text-anchor="middle" fill="#666" font-size="5.5">QFN-32 package</text>' +
+             '</g>' +
+             '<g data-callout="antenna">' +
+             '<rect x="190" y="58" width="100" height="100" rx="3" fill="none" stroke="#ff6b35" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="188" y="56" width="104" height="104" rx="4" fill="none" stroke="#ff6b35" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<rect x="202" y="70" width="76" height="76" rx="2" fill="none" stroke="#ff6b35" stroke-width="0.8" opacity="0.4"/>' +
+             '<rect x="216" y="84" width="48" height="48" rx="1" fill="none" stroke="#ff6b35" stroke-width="0.5" opacity="0.3"/>' +
+             '<text x="240" y="116" text-anchor="middle" fill="#ff6b35" font-size="6.5" font-weight="600">PCB Antenna</text>' +
+             '</g>' +
+             '<g data-callout="xtal">' +
+             '<rect x="315" y="72" width="54" height="32" rx="3" fill="#1e2736" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="313" y="70" width="58" height="36" rx="4" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="342" y="88" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">27.12 MHz</text>' +
+             '<text x="342" y="99" text-anchor="middle" fill="#666" font-size="5.5">Crystal</text>' +
+             '</g>' +
+             '<g data-callout="regulator">' +
+             '<rect x="315" y="120" width="54" height="28" rx="3" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="313" y="118" width="58" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="342" y="134" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="700">3.3V Reg</text>' +
+             '<text x="342" y="145" text-anchor="middle" fill="#666" font-size="5.5">AMS1117</text>' +
+             '</g>' +
+             '<g data-callout="pins">' +
+             '<rect x="26" y="170" width="388" height="18" rx="2" fill="#1e2736" stroke="#3b82f6" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="24" y="168" width="392" height="22" rx="3" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="220" y="182" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="700">SPI Header: SDA SCK MOSI MISO IRQ GND RST 3.3V</text>' +
+             '</g>' +
+             '<text x="40" y="218" fill="#333" font-size="6.5" font-weight="700">A</text><text x="52" y="218" fill="#555" font-size="6">MFRC522 IC</text>' +
+             '<text x="110" y="218" fill="#333" font-size="6.5" font-weight="700">B</text><text x="122" y="218" fill="#555" font-size="6">PCB Antenna</text>' +
+             '<text x="200" y="218" fill="#333" font-size="6.5" font-weight="700">C</text><text x="212" y="218" fill="#555" font-size="6">27.12 MHz Xtal</text>' +
+             '<text x="290" y="218" fill="#333" font-size="6.5" font-weight="700">D</text><text x="302" y="218" fill="#555" font-size="6">3.3V Regulator</text>' +
+             '<text x="40" y="232" fill="#333" font-size="6.5" font-weight="700">E</text><text x="52" y="232" fill="#555" font-size="6">SPI + Power Header Pins</text>' +
+             '<text x="220" y="250" text-anchor="middle" fill="#222" font-size="6">Module footprint: 60mm x 40mm — common in access control and inventory systems</text>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'rfid-chip',
+                name: 'A — MFRC522 RF Controller IC',
+                purpose: 'The core chip. Generates the 13.56 MHz RF field, modulates/demodulates ISO 14443A signals, handles the anti-collision protocol (for reading multiple cards simultaneously), and provides the SPI interface to the Arduino. Contains a 64-byte FIFO buffer for data transfer.',
+                specs: ['13.56 MHz RF', 'ISO 14443A/B', 'SPI up to 10 MHz', 'QFN-32 package', '2.5-3.3V supply']
+            },
+            {
+                id: 'antenna',
+                name: 'B — PCB Loop Antenna',
+                purpose: 'A flat spiral conductor etched directly into the PCB. This is what creates the electromagnetic field that powers passive RFID tags and exchanges data. Range is 2-4 cm for MIFARE cards. Larger loop antennas can extend this to 10+ cm for industrial readers.',
+                specs: ['PCB trace antenna', '2-4 cm read range', '13.56 MHz resonance', 'Matched to RF output', 'No separate component']
+            },
+            {
+                id: 'xtal',
+                name: 'C — 27.12 MHz Crystal',
+                purpose: 'Provides the precise clock reference. The MFRC522 internally divides this to generate the 13.56 MHz RF carrier (27.12 / 2 = 13.56). Crystal accuracy is critical — frequency error shifts the RF carrier off-spec, causing read failures at range.',
+                specs: ['27.12 MHz', 'Divided to 13.56 MHz', 'SMD package', '+/-30 ppm', 'RF timing reference']
+            },
+            {
+                id: 'regulator',
+                name: 'D — AMS1117 3.3V Regulator',
+                purpose: 'Allows the module to accept 5V input even though the MFRC522 is a 3.3V device. Step-down from 5V to 3.3V. This is why some MFRC522 modules specify VCC = 3.3V (bypasses regulator) and others accept 3.3V-5V (uses the onboard regulator). Check your module datsheet.',
+                specs: ['AMS1117-3.3', 'Input: 3.3-5V', 'Output: 3.3V', '800 mA max', 'SOT-223 package']
+            },
+            {
+                id: 'pins',
+                name: 'E — SPI + Power Header',
+                purpose: 'The 8-pin header that connects the module to your microcontroller. SDA is the SPI Slave Select (chip select) — it is mislabeled SDA but functions as SS/CS. The IRQ pin can signal the host when a card is detected, allowing interrupt-driven reads instead of polling.',
+                specs: ['SDA (SS/CS)', 'SCK MOSI MISO', 'IRQ (interrupt)', 'GND + 3.3V', '2.54mm pitch']
+            }
+        ]
+    },
+
+    // =========================================================================
+    // SIG-4: Common mistakes — wiring errors for RFID access controller
+    // =========================================================================
+    commonMistakes: [
+        {
+            title: 'MFRC522 VCC connected to 5V instead of 3.3V',
+            correct: 'Connect MFRC522 VCC (or 3.3V pin) to the Arduino Mega 3.3V power output. The module runs on 3.3V. If your module has an onboard AMS1117 regulator, some versions accept 3.3V-5V — check the silkscreen on your specific board.',
+            incorrect: 'Connecting MFRC522 VCC to the Arduino 5V rail. Most bare MFRC522 modules (without the onboard regulator) run the IC directly at VCC. 5V exceeds the MFRC522 maximum of 3.6V.',
+            consequence: 'Immediate or gradual failure of the MFRC522 IC. Symptoms: no card reads at all, module gets hot, SPI returns 0x00 for all register reads. The IC may survive briefly but will fail permanently. Check your module version before powering.',
+            svgDiff: '<svg viewBox="0 0 640 136" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg11-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="136" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="124" fill="url(#sg11-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="108" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="32" width="80" height="70" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="62" y="50" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Arduino</text>' +
+                     '<text x="62" y="64" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">3.3V OUT</text>' +
+                     '<text x="62" y="76" text-anchor="middle" fill="#555" font-size="6">5V (unused)</text>' +
+                     '<text x="62" y="88" text-anchor="middle" fill="#555" font-size="6">GND</text>' +
+                     '<line x1="102" y1="64" x2="212" y2="64" stroke="#22c55e" stroke-width="2.5"/>' +
+                     '<circle cx="106" cy="64" r="3" fill="#22c55e"/>' +
+                     '<text x="157" y="57" text-anchor="middle" fill="#4ade80" font-size="7">3.3V wire</text>' +
+                     '<rect x="214" y="32" width="84" height="70" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+                     '<text x="256" y="50" text-anchor="middle" fill="#c084fc" font-size="7.5" font-weight="700">MFRC522</text>' +
+                     '<text x="256" y="64" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">VCC (3.3V)</text>' +
+                     '<text x="256" y="76" text-anchor="middle" fill="#555" font-size="6">GND</text>' +
+                     '<text x="161" y="114" text-anchor="middle" fill="#22c55e" font-size="7">Within 2.5-3.6V spec — IC operates correctly</text>' +
+                     '<rect x="330" y="12" width="298" height="108" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="32" width="80" height="70" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="380" y="50" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Arduino</text>' +
+                     '<text x="380" y="64" text-anchor="middle" fill="#555" font-size="6">3.3V OUT</text>' +
+                     '<text x="380" y="76" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">5V (used!)</text>' +
+                     '<text x="380" y="88" text-anchor="middle" fill="#555" font-size="6">GND</text>' +
+                     '<line x1="420" y1="76" x2="532" y2="64" stroke="#ef4444" stroke-width="2.5"/>' +
+                     '<circle cx="424" cy="76" r="3" fill="#ef4444"/>' +
+                     '<text x="476" y="57" text-anchor="middle" fill="#f87171" font-size="7">5V wire !!!</text>' +
+                     '<rect x="534" y="32" width="84" height="70" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+                     '<text x="576" y="50" text-anchor="middle" fill="#c084fc" font-size="7.5" font-weight="700">MFRC522</text>' +
+                     '<text x="576" y="64" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">VCC gets 5V</text>' +
+                     '<text x="576" y="76" text-anchor="middle" fill="#ef4444" font-size="6.5">OVERVOLTAGE</text>' +
+                     '<text x="576" y="88" text-anchor="middle" fill="#555" font-size="6">GND</text>' +
+                     '<text x="479" y="114" text-anchor="middle" fill="#ef4444" font-size="7">IC max = 3.6V. 5V destroys or degrades the MFRC522 — no reads possible</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'SDA pin wired to wrong Arduino pin (Uno vs Mega)',
+            correct: 'On the Arduino Mega, the SPI SS pin is Pin 53. Wire MFRC522 SDA to Mega Pin 53. The MFRC522 library defaults to SS_PIN = 53 in the Mega configuration.',
+            incorrect: 'Wiring MFRC522 SDA to Pin 10 (which is the Uno default SS pin). On the Mega, Pin 10 is a regular digital pin with no SPI function. The chip select signal never reaches the MFRC522.',
+            consequence: 'SPI transactions proceed on the bus but the MFRC522 never responds because its chip select line stays HIGH. The library reports "initialization failed" or returns 0x00 for all register reads. Serial Monitor shows nothing when cards are scanned.',
+            svgDiff: '<svg viewBox="0 0 640 136" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg11-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="136" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="124" fill="url(#sg11-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="108" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="32" width="90" height="78" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="67" y="50" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Mega 2560</text>' +
+                     '<text x="67" y="64" text-anchor="middle" fill="#8b949e" font-size="6.5">Pin 50 MISO</text>' +
+                     '<text x="67" y="76" text-anchor="middle" fill="#8b949e" font-size="6.5">Pin 51 MOSI</text>' +
+                     '<text x="67" y="88" text-anchor="middle" fill="#8b949e" font-size="6.5">Pin 52 SCK</text>' +
+                     '<text x="67" y="100" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">Pin 53 SS</text>' +
+                     '<line x1="112" y1="100" x2="208" y2="72" stroke="#22c55e" stroke-width="2"/>' +
+                     '<circle cx="116" cy="100" r="3" fill="#22c55e"/>' +
+                     '<text x="160" y="88" text-anchor="middle" fill="#4ade80" font-size="6.5">SDA wire</text>' +
+                     '<rect x="210" y="32" width="88" height="78" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+                     '<text x="254" y="50" text-anchor="middle" fill="#c084fc" font-size="7.5" font-weight="700">MFRC522</text>' +
+                     '<text x="254" y="64" text-anchor="middle" fill="#8b949e" font-size="6.5">MISO</text>' +
+                     '<text x="254" y="76" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">SDA (SS)</text>' +
+                     '<text x="254" y="88" text-anchor="middle" fill="#8b949e" font-size="6.5">SCK MOSI</text>' +
+                     '<text x="254" y="100" text-anchor="middle" fill="#8b949e" font-size="6.5">RST GND 3.3V</text>' +
+                     '<text x="161" y="120" text-anchor="middle" fill="#22c55e" font-size="7">Pin 53 = Mega SPI SS — chip select works correctly</text>' +
+                     '<rect x="330" y="12" width="298" height="108" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="32" width="90" height="78" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="385" y="50" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Mega 2560</text>' +
+                     '<text x="385" y="64" text-anchor="middle" fill="#8b949e" font-size="6.5">Pin 50 MISO</text>' +
+                     '<text x="385" y="76" text-anchor="middle" fill="#8b949e" font-size="6.5">Pin 51 MOSI</text>' +
+                     '<text x="385" y="88" text-anchor="middle" fill="#8b949e" font-size="6.5">Pin 52 SCK</text>' +
+                     '<text x="385" y="100" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">Pin 10 (Uno pin!)</text>' +
+                     '<line x1="430" y1="100" x2="528" y2="76" stroke="#ef4444" stroke-width="2"/>' +
+                     '<circle cx="434" cy="100" r="3" fill="#ef4444"/>' +
+                     '<rect x="464" y="84" width="18" height="18" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>' +
+                     '<text x="473" y="96" text-anchor="middle" fill="#f87171" font-size="8" font-weight="700">X</text>' +
+                     '<rect x="530" y="32" width="88" height="78" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1"/>' +
+                     '<text x="574" y="50" text-anchor="middle" fill="#c084fc" font-size="7.5" font-weight="700">MFRC522</text>' +
+                     '<text x="574" y="64" text-anchor="middle" fill="#8b949e" font-size="6.5">MISO</text>' +
+                     '<text x="574" y="76" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">SDA (CS HIGH)</text>' +
+                     '<text x="574" y="88" text-anchor="middle" fill="#666" font-size="6.5">never selected</text>' +
+                     '<text x="574" y="100" text-anchor="middle" fill="#8b949e" font-size="6.5">RST GND 3.3V</text>' +
+                     '<text x="479" y="120" text-anchor="middle" fill="#ef4444" font-size="7">Pin 10 has no SPI function on Mega — MFRC522 is never selected. Fix: move to Pin 53.</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Forgetting startup delay — servo jitters on power-on',
+            correct: 'Call <code>lockServo.write(0)</code> in setup() immediately after <code>lockServo.attach()</code>. This positions the servo before the SPI bus initializes. Add a 500ms delay before <code>mfrc522.PCD_Init()</code> to let the servo settle.',
+            incorrect: 'Calling <code>lockServo.attach()</code> without immediately writing a position. The servo pin floats briefly, causing the servo to seek a random position. SPI initialization during servo movement can create noise on the power rail.',
+            consequence: 'Servo jitters or rotates erratically on power-on, sometimes actuating the lock mechanism unexpectedly. In a physical security context this means the lock briefly opens on every power cycle. Always set servo position immediately after attach().',
+            svgDiff: '<svg viewBox="0 0 640 128" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg11-m3-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="128" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="116" fill="url(#sg11-m3-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="100" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="32" width="278" height="70" rx="4" fill="#1e2736" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="38" y="50" fill="#4ade80" font-size="7" font-weight="600">setup() order:</text>' +
+                     '<text x="38" y="64" fill="#c084fc" font-size="7">lockServo.attach(SERVO_PIN);</text>' +
+                     '<text x="38" y="76" fill="#4ade80" font-size="7">lockServo.write(0);  // lock immediately</text>' +
+                     '<text x="38" y="88" fill="#8b949e" font-size="7">delay(500);          // let servo settle</text>' +
+                     '<text x="38" y="100" fill="#c084fc" font-size="7">mfrc522.PCD_Init(); // then init SPI</text>' +
+                     '<rect x="330" y="12" width="298" height="100" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="32" width="278" height="70" rx="4" fill="#1e2736" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="356" y="50" fill="#f87171" font-size="7" font-weight="600">setup() order:</text>' +
+                     '<text x="356" y="64" fill="#c084fc" font-size="7">lockServo.attach(SERVO_PIN);</text>' +
+                     '<text x="356" y="76" fill="#555" font-size="7">// no write() — servo floats!</text>' +
+                     '<text x="356" y="88" fill="#c084fc" font-size="7">mfrc522.PCD_Init(); // SPI noise</text>' +
+                     '<text x="356" y="100" fill="#ef4444" font-size="6.5">// servo jitters, may unlock momentarily</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 
@@ -1214,7 +1546,272 @@ if __name__ == '__main__':
 
     challenges: `<p><strong>1. Desktop Notifications:</strong> Use <code>notify-send</code> (on a Pi with desktop) or send alerts to a Slack/Discord webhook when a suspicious device is detected. This turns passive logging into active alerting.</p>
 <p><strong>2. USB Traffic Analysis:</strong> Use <code>usbmon</code> (the kernel's USB packet monitor) to capture actual USB traffic from a suspicious device and analyze the HID reports. This is how you would confirm a device is actually keylogging.</p>
-<p><strong>3. Network Reporting:</strong> Have the Pi send its audit report to a central server via HTTPS POST. In an enterprise environment, you would deploy these detectors across the organization and aggregate results.</p>`
+<p><strong>3. Network Reporting:</strong> Have the Pi send its audit report to a central server via HTTPS POST. In an enterprise environment, you would deploy these detectors across the organization and aggregate results.</p>`,
+
+    // =========================================================================
+    // SIG-2: Step visuals
+    // =========================================================================
+    stepVisuals: {
+        // Step 1 — Understand USB Device Descriptors: descriptor anatomy
+        1: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg12-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="172" fill="url(#sg12-sv1-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">USB DEVICE DESCRIPTOR — FIELDS DECODED</text>' +
+           '<rect x="20" y="32" width="640" height="118" rx="6" fill="#111827" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="36" y="50" fill="#555" font-size="7" font-weight="700" letter-spacing="0.1em">FIELD</text>' +
+           '<text x="180" y="50" fill="#555" font-size="7" font-weight="700" letter-spacing="0.1em">VALUE</text>' +
+           '<text x="300" y="50" fill="#555" font-size="7" font-weight="700" letter-spacing="0.1em">MEANING</text>' +
+           '<text x="36" y="64" fill="#8b949e" font-size="7">bDescriptorType</text><text x="180" y="64" fill="#60a5fa" font-size="7">0x01</text><text x="300" y="64" fill="#666" font-size="7">Device Descriptor</text>' +
+           '<text x="36" y="76" fill="#8b949e" font-size="7">bDeviceClass</text><text x="180" y="76" fill="#22c55e" font-size="7">0x00</text><text x="300" y="76" fill="#666" font-size="7">Class defined per-interface</text>' +
+           '<text x="36" y="88" fill="#8b949e" font-size="7">idVendor</text><text x="180" y="88" fill="#ff6b35" font-size="7">0x1c4f</text><text x="300" y="88" fill="#f97316" font-size="7" font-weight="600">KeyGrabber VID — triggers CRITICAL alert</text>' +
+           '<text x="36" y="100" fill="#8b949e" font-size="7">idProduct</text><text x="180" y="100" fill="#ff6b35" font-size="7">0x0002</text><text x="300" y="100" fill="#f97316" font-size="7" font-weight="600">KeyGrabber USB model — exact match</text>' +
+           '<text x="36" y="112" fill="#8b949e" font-size="7">bNumConfigurations</text><text x="180" y="112" fill="#60a5fa" font-size="7">0x01</text><text x="300" y="112" fill="#666" font-size="7">Standard: 1 configuration</text>' +
+           '<text x="36" y="124" fill="#8b949e" font-size="7">iManufacturer</text><text x="180" y="124" fill="#ef4444" font-size="7">0x00</text><text x="300" y="124" fill="#ef4444" font-size="7" font-weight="600">Empty string — heuristic flag: suspicious HID</text>' +
+           '<text x="36" y="136" fill="#8b949e" font-size="7">bInterfaceClass</text><text x="180" y="136" fill="#eab308" font-size="7">0x03</text><text x="300" y="136" fill="#eab308" font-size="7" font-weight="600">HID — claims to be keyboard</text>' +
+           '<line x1="20" y1="54" x2="660" y2="54" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>' +
+           '<rect x="170" y="84" width="120" height="28" rx="3" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>' +
+           '<text x="340" y="168" text-anchor="middle" fill="#555" font-size="7">lsusb -v -d 1c4f:0002 — dumps full descriptor tree for any connected device</text>' +
+           '<text x="340" y="179" text-anchor="middle" fill="#333" font-size="7">VID:PID match = CRITICAL. Empty iManufacturer on HID device = heuristic WARNING.</text>' +
+           '</svg>',
+
+        // Step 4 — Known Keylogger Signature Database: VID:PID detection model
+        4: '<svg viewBox="0 0 680 182" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg12-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg12-v4-arr-r" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ef4444"/></marker>' +
+           '<marker id="sg12-v4-arr-y" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eab308"/></marker>' +
+           '<marker id="sg12-v4-arr-g" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22c55e"/></marker>' +
+           '</defs>' +
+           '<rect width="680" height="182" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="166" fill="url(#sg12-sv4-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">DETECTION PIPELINE — NEW USB DEVICE EVENT</text>' +
+           '<rect x="20" y="34" width="120" height="78" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<rect x="20" y="34" width="120" height="18" rx="6" fill="rgba(59,130,246,0.15)"/>' +
+           '<text x="80" y="46" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Device Added</text>' +
+           '<text x="80" y="62" text-anchor="middle" fill="#8b949e" font-size="6.5">udev hotplug</text>' +
+           '<text x="80" y="74" text-anchor="middle" fill="#666" font-size="6">VID PID Vendor</text>' +
+           '<text x="80" y="84" text-anchor="middle" fill="#666" font-size="6">Model Serial</text>' +
+           '<text x="80" y="96" text-anchor="middle" fill="#666" font-size="6">SysPath</text>' +
+           '<line x1="142" y1="73" x2="176" y2="73" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#sg12-v4-arr-r)"/>' +
+           '<rect x="178" y="34" width="120" height="78" rx="6" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+           '<rect x="178" y="34" width="120" height="18" rx="6" fill="rgba(239,68,68,0.15)"/>' +
+           '<text x="238" y="46" text-anchor="middle" fill="#f87171" font-size="7.5" font-weight="700">1. Signature DB</text>' +
+           '<text x="238" y="62" text-anchor="middle" fill="#8b949e" font-size="6.5">KNOWN_KEYLOGGERS</text>' +
+           '<text x="238" y="74" text-anchor="middle" fill="#666" font-size="6">1c4f:0002 KeyGrabber</text>' +
+           '<text x="238" y="84" text-anchor="middle" fill="#666" font-size="6">04d8:0080 AirDrive</text>' +
+           '<text x="238" y="96" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="600">Match = CRITICAL</text>' +
+           '<line x1="300" y1="73" x2="334" y2="73" stroke="#eab308" stroke-width="1.5" marker-end="url(#sg12-v4-arr-y)"/>' +
+           '<rect x="336" y="34" width="120" height="78" rx="6" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+           '<rect x="336" y="34" width="120" height="18" rx="6" fill="rgba(234,179,8,0.15)"/>' +
+           '<text x="396" y="46" text-anchor="middle" fill="#eab308" font-size="7.5" font-weight="700">2. Baseline Check</text>' +
+           '<text x="396" y="62" text-anchor="middle" fill="#8b949e" font-size="6.5">~/.usb_baseline.json</text>' +
+           '<text x="396" y="74" text-anchor="middle" fill="#666" font-size="6">Was this VID:PID</text>' +
+           '<text x="396" y="84" text-anchor="middle" fill="#666" font-size="6">present at baseline?</text>' +
+           '<text x="396" y="96" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">New = WARNING</text>' +
+           '<line x1="458" y1="73" x2="492" y2="73" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg12-v4-arr-g)"/>' +
+           '<rect x="494" y="34" width="166" height="78" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<rect x="494" y="34" width="166" height="18" rx="6" fill="rgba(34,197,94,0.15)"/>' +
+           '<text x="577" y="46" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="700">3. Heuristics</text>' +
+           '<text x="577" y="62" text-anchor="middle" fill="#8b949e" font-size="6.5">Anomaly detection</text>' +
+           '<text x="577" y="74" text-anchor="middle" fill="#666" font-size="6">Empty iManufacturer?</text>' +
+           '<text x="577" y="84" text-anchor="middle" fill="#666" font-size="6">HID + storage interfaces?</text>' +
+           '<text x="577" y="96" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">Hit = WARNING</text>' +
+           '<rect x="20" y="130" width="620" height="30" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="40" y="142" fill="#555" font-size="7" font-weight="700">ALERT LEVELS:</text>' +
+           '<rect x="130" y="133" width="70" height="16" rx="3" fill="rgba(239,68,68,0.12)"/><text x="165" y="145" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="600">CRITICAL</text>' +
+           '<text x="206" y="145" fill="#555" font-size="6.5">Known keylogger VID:PID</text>' +
+           '<rect x="360" y="133" width="70" height="16" rx="3" fill="rgba(234,179,8,0.12)"/><text x="395" y="145" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">WARNING</text>' +
+           '<text x="436" y="145" fill="#555" font-size="6.5">New device or heuristic flag</text>' +
+           '<text x="340" y="168" text-anchor="middle" fill="#333" font-size="7">All three checks run on every ADD event. Results appended to ~/.usb_alerts.log as JSON lines.</text>' +
+           '</svg>'
+    },
+
+    // =========================================================================
+    // SIG-3: Component callouts — Raspberry Pi detection node diagram
+    // =========================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 270" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg12-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="270" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="258" fill="url(#sg12-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">DETECTION STATION — SOFTWARE STACK</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="170" rx="6" fill="#0f1a12" stroke="rgba(34,197,94,0.2)" stroke-width="1.5"/>' +
+             '<g data-callout="pyudev">' +
+             '<rect x="30" y="55" width="120" height="48" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="53" width="124" height="52" rx="5" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="90" y="73" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="700">pyudev</text>' +
+             '<text x="90" y="85" text-anchor="middle" fill="#8b949e" font-size="6.5">Hotplug monitor</text>' +
+             '<text x="90" y="95" text-anchor="middle" fill="#555" font-size="6">MonitorObserver</text>' +
+             '</g>' +
+             '<g data-callout="lsusb">' +
+             '<rect x="162" y="55" width="120" height="48" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="160" y="53" width="124" height="52" rx="5" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="222" y="73" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="700">lsusb</text>' +
+             '<text x="222" y="85" text-anchor="middle" fill="#8b949e" font-size="6.5">Descriptor parser</text>' +
+             '<text x="222" y="95" text-anchor="middle" fill="#555" font-size="6">VID PID enumerate</text>' +
+             '</g>' +
+             '<g data-callout="sigdb">' +
+             '<rect x="294" y="55" width="118" height="48" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="292" y="53" width="122" height="52" rx="5" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="353" y="73" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">Sig DB</text>' +
+             '<text x="353" y="85" text-anchor="middle" fill="#8b949e" font-size="6.5">Known keyloggers</text>' +
+             '<text x="353" y="95" text-anchor="middle" fill="#555" font-size="6">VID:PID dict</text>' +
+             '</g>' +
+             '<g data-callout="baseline">' +
+             '<rect x="30" y="118" width="120" height="48" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="116" width="124" height="52" rx="5" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="90" y="136" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="700">Baseline</text>' +
+             '<text x="90" y="148" text-anchor="middle" fill="#8b949e" font-size="6.5">JSON snapshot</text>' +
+             '<text x="90" y="158" text-anchor="middle" fill="#555" font-size="6">~/.usb_baseline.json</text>' +
+             '</g>' +
+             '<g data-callout="alertlog">' +
+             '<rect x="162" y="118" width="120" height="48" rx="4" fill="#1e2736" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="160" y="116" width="124" height="52" rx="5" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="222" y="136" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">Alert Log</text>' +
+             '<text x="222" y="148" text-anchor="middle" fill="#8b949e" font-size="6.5">JSON lines format</text>' +
+             '<text x="222" y="158" text-anchor="middle" fill="#555" font-size="6">~/.usb_alerts.log</text>' +
+             '</g>' +
+             '<g data-callout="systemd">' +
+             '<rect x="294" y="118" width="118" height="48" rx="4" fill="#1e2736" stroke="#ff6b35" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="292" y="116" width="122" height="52" rx="5" fill="none" stroke="#ff6b35" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="353" y="136" text-anchor="middle" fill="#ff6b35" font-size="9" font-weight="700">systemd</text>' +
+             '<text x="353" y="148" text-anchor="middle" fill="#8b949e" font-size="6.5">Persistence layer</text>' +
+             '<text x="353" y="158" text-anchor="middle" fill="#555" font-size="6">usb-detector.service</text>' +
+             '</g>' +
+             '<text x="40" y="224" fill="#333" font-size="6.5" font-weight="700">A</text><text x="52" y="224" fill="#555" font-size="6">pyudev — hotplug events</text>' +
+             '<text x="140" y="224" fill="#333" font-size="6.5" font-weight="700">B</text><text x="152" y="224" fill="#555" font-size="6">lsusb — descriptor parse</text>' +
+             '<text x="240" y="224" fill="#333" font-size="6.5" font-weight="700">C</text><text x="252" y="224" fill="#555" font-size="6">Signature DB</text>' +
+             '<text x="40" y="238" fill="#333" font-size="6.5" font-weight="700">D</text><text x="52" y="238" fill="#555" font-size="6">Baseline JSON</text>' +
+             '<text x="140" y="238" fill="#333" font-size="6.5" font-weight="700">E</text><text x="152" y="238" fill="#555" font-size="6">Alert log</text>' +
+             '<text x="240" y="238" fill="#333" font-size="6.5" font-weight="700">F</text><text x="252" y="238" fill="#555" font-size="6">systemd service</text>' +
+             '<text x="220" y="256" text-anchor="middle" fill="#222" font-size="6">All Python — no hardware wiring. Runs on Raspberry Pi OS Lite (64-bit)</text>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'pyudev',
+                name: 'A — pyudev (Hotplug Monitor)',
+                purpose: 'Python binding to the Linux udev subsystem. Creates a MonitorObserver that fires a callback on every USB add/remove event. This is the detection trigger — without it you would have to poll lsusb in a loop. Uses netlink socket, so it works without root on most Pi configurations.',
+                specs: ['pip3 install pyudev', 'pyudev.Monitor', 'MonitorObserver', 'filter_by(subsystem="usb")', 'Zero polling overhead']
+            },
+            {
+                id: 'lsusb',
+                name: 'B — lsusb (Descriptor Parser)',
+                purpose: 'Standard Linux utility from the usbutils package. Parses USB device descriptors and exposes VID, PID, bus address, and string descriptors. We call it via subprocess to build the baseline inventory. lsusb -v provides the full descriptor tree for deep inspection.',
+                specs: ['usbutils package', 'VID:PID parsing', 'Bus/Device address', 'String descriptors', 'lsusb -v for full dump']
+            },
+            {
+                id: 'sigdb',
+                name: 'C — Signature Database',
+                purpose: 'A Python dict keyed by VID:PID strings. Contains known hardware keylogger device identifiers sourced from public security research and device teardowns. Checked on every ADD event. Extend with new signatures as they are discovered — treat it like antivirus definitions.',
+                specs: ['Python dict', 'VID:PID keys', 'Risk level: HIGH/MEDIUM', 'Extensible', 'No external deps']
+            },
+            {
+                id: 'baseline',
+                name: 'D — Baseline Snapshot (JSON)',
+                purpose: 'A JSON file created on first run containing every USB device present at that moment. All future detections compare against this baseline. Devices not in the baseline generate WARNING alerts. Re-run baseline.py after adding legitimate new devices to update it.',
+                specs: ['~/.usb_baseline.json', 'JSON format', 'Created on first run', 'Manually updatable', 'Includes timestamp']
+            },
+            {
+                id: 'alertlog',
+                name: 'E — Alert Log (JSON Lines)',
+                purpose: 'Append-only log file. Each alert is a JSON object on its own line (JSONL format), making it easy to parse with jq, Python, or any log aggregator. Contains timestamp, level (CRITICAL/WARNING/INFO), message, and full device info. Used by the audit report generator.',
+                specs: ['~/.usb_alerts.log', 'JSON Lines format', 'CRITICAL/WARNING/INFO', 'Append-only', 'jq/Python parseable']
+            },
+            {
+                id: 'systemd',
+                name: 'F — systemd Service',
+                purpose: 'Makes the detector persistent across reboots. The service file sets WantedBy=multi-user.target so it starts automatically. Restart=on-failure ensures it restarts if the Python script crashes. Logs go to journald (view with journalctl -u usb-detector).',
+                specs: ['usb-detector.service', 'Auto-start on boot', 'Restart=on-failure', 'journalctl logging', 'systemctl enable']
+            }
+        ]
+    },
+
+    // =========================================================================
+    // SIG-4: Common mistakes
+    // =========================================================================
+    commonMistakes: [
+        {
+            title: 'Filtering only subsystem="usb" — misses actual device events',
+            correct: 'Filter with both <code>subsystem="usb"</code> AND <code>device_type="usb_device"</code>. This targets actual USB devices rather than the interfaces and endpoints that are also exposed as udev events for each device.',
+            incorrect: 'Using only <code>monitor.filter_by(subsystem="usb")</code> without the device_type parameter. This floods the callback with dozens of interface and endpoint events for every single device insertion.',
+            consequence: 'You receive hundreds of events per device insertion (one per USB interface and endpoint descriptor). The callback fires repeatedly for a single keyboard plug-in, creating duplicate alerts and making your baseline comparison logic fail.',
+            svgDiff: '<svg viewBox="0 0 640 128" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg12-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="128" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="116" fill="url(#sg12-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="100" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="32" width="278" height="70" rx="4" fill="#1e2736" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="38" y="52" fill="#8b949e" font-size="7">monitor.filter_by(</text>' +
+                     '<text x="38" y="64" fill="#4ade80" font-size="7">    subsystem=</text><text x="118" y="64" fill="#a5f3fc" font-size="7">\'usb\'</text><text x="145" y="64" fill="#4ade80" font-size="7">,</text>' +
+                     '<text x="38" y="76" fill="#4ade80" font-size="7">    device_type=</text><text x="130" y="76" fill="#a5f3fc" font-size="7">\'usb_device\'</text>' +
+                     '<text x="38" y="88" fill="#8b949e" font-size="7">)</text>' +
+                     '<text x="161" y="110" text-anchor="middle" fill="#22c55e" font-size="7">1 callback per device — correct behavior</text>' +
+                     '<rect x="330" y="12" width="298" height="100" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="32" width="278" height="70" rx="4" fill="#1e2736" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="356" y="52" fill="#8b949e" font-size="7">monitor.filter_by(</text>' +
+                     '<text x="356" y="64" fill="#f87171" font-size="7">    subsystem=</text><text x="436" y="64" fill="#a5f3fc" font-size="7">\'usb\'</text>' +
+                     '<text x="356" y="76" fill="#555" font-size="7">    # missing device_type!</text>' +
+                     '<text x="356" y="88" fill="#8b949e" font-size="7">)</text>' +
+                     '<text x="479" y="110" text-anchor="middle" fill="#ef4444" font-size="7">20-40 callbacks per device — duplicate alerts, broken logic</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Running baseline while suspect devices are already connected',
+            correct: 'Disconnect all unknown or guest USB devices before running <code>python3 baseline.py</code>. Only your known, trusted devices (keyboard, mouse, USB hub) should be connected when creating the baseline snapshot.',
+            incorrect: 'Running the baseline script with all currently-connected devices including ones you do not recognize. Any unknown device present at baseline time becomes "trusted" and will never trigger a WARNING alert.',
+            consequence: 'An attacker-placed keylogger present during baseline creation becomes permanently whitelisted. The detector will never flag it as new. Always run baseline from a known-clean state and re-create it when the trusted device list changes.',
+            svgDiff: '<svg viewBox="0 0 640 128" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg12-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="128" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="116" fill="url(#sg12-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="100" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<text x="30" y="50" fill="#4ade80" font-size="7" font-weight="600">Before baseline.py:</text>' +
+                     '<text x="30" y="64" fill="#8b949e" font-size="7">Connected: keyboard, mouse, USB hub</text>' +
+                     '<text x="30" y="76" fill="#8b949e" font-size="7">All devices verified as trusted</text>' +
+                     '<text x="30" y="88" fill="#4ade80" font-size="7">Run: python3 baseline.py</text>' +
+                     '<text x="30" y="100" fill="#22c55e" font-size="7">Baseline = only known-good devices</text>' +
+                     '<text x="161" y="114" text-anchor="middle" fill="#22c55e" font-size="7">Any future unknown device triggers WARNING</text>' +
+                     '<rect x="330" y="12" width="298" height="100" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<text x="348" y="50" fill="#f87171" font-size="7" font-weight="600">Before baseline.py:</text>' +
+                     '<text x="348" y="64" fill="#8b949e" font-size="7">Connected: keyboard, mouse, hub</text>' +
+                     '<text x="348" y="76" fill="#ef4444" font-size="7">+ unknown USB device present</text>' +
+                     '<text x="348" y="88" fill="#ef4444" font-size="7">Run: python3 baseline.py</text>' +
+                     '<text x="348" y="100" fill="#f87171" font-size="7">Unknown device now whitelisted forever</text>' +
+                     '<text x="479" y="114" text-anchor="middle" fill="#ef4444" font-size="7">Keylogger evades detection — re-create baseline from clean state</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'No permission to read udev netlink socket',
+            correct: 'Either run the detector as root (<code>sudo python3 detector.py</code>), or add your user to the <code>plugdev</code> group (<code>sudo usermod -aG plugdev $USER</code>) and log out/in. The systemd service uses <code>User=root</code> in the service file for production use.',
+            incorrect: 'Running the detector as a regular user without plugdev group membership. The pyudev Monitor cannot bind to the udev netlink socket, silently fails to receive events, and the script appears to run but detects nothing.',
+            consequence: 'The detector starts without errors but receives zero hotplug events. USB devices are inserted and removed with no alerts generated. The service appears healthy (process running) but is completely blind. Always test by plugging in a device and verifying a log entry appears.',
+            svgDiff: '<svg viewBox="0 0 640 118" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg12-m3-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="118" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="106" fill="url(#sg12-m3-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="90" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<text x="30" y="44" fill="#4ade80" font-size="7">sudo python3 detector.py</text>' +
+                     '<text x="30" y="56" fill="#555" font-size="6.5">-- OR --</text>' +
+                     '<text x="30" y="68" fill="#4ade80" font-size="7">sudo usermod -aG plugdev $USER</text>' +
+                     '<text x="30" y="80" fill="#8b949e" font-size="7">then log out and back in</text>' +
+                     '<text x="30" y="92" fill="#8b949e" font-size="7">then: python3 detector.py</text>' +
+                     '<rect x="330" y="12" width="298" height="90" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<text x="348" y="44" fill="#f87171" font-size="7">python3 detector.py  # no sudo</text>' +
+                     '<text x="348" y="56" fill="#8b949e" font-size="7">Script runs, no error shown</text>' +
+                     '<text x="348" y="68" fill="#ef4444" font-size="7">Plug in USB device...</text>' +
+                     '<text x="348" y="80" fill="#ef4444" font-size="7">No log entry. No alert. Silent.</text>' +
+                     '<text x="348" y="92" fill="#555" font-size="6.5">udev socket permission denied</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 
@@ -1745,7 +2342,252 @@ if __name__ == '__main__':
 
     challenges: `<p><strong>1. Keystroke Timing Analysis:</strong> Write a Python script that monitors <code>/dev/input/event*</code> devices and measures the inter-keystroke timing of all keyboard input. Human typing averages 50-100ms between keystrokes; a Bad USB device will show near-zero delays. Alert when typing speed exceeds 500 characters per second.</p>
 <p><strong>2. USB Firewall:</strong> Build a "USB firewall" using a Raspberry Pi as a USB proxy. The Pi sits between the keyboard and the target computer, forwarding legitimate keystrokes but rate-limiting or blocking injected input that exceeds human typing speed.</p>
-<p><strong>3. Payload Obfuscation vs Detection:</strong> Modify the demo payload to add random delays between keystrokes (mimicking human typing speed). Then update your detection script to catch this evasion technique by looking for other signals: no serial number, known dev board VID, or device that connects and disconnects rapidly.</p>`
+<p><strong>3. Payload Obfuscation vs Detection:</strong> Modify the demo payload to add random delays between keystrokes (mimicking human typing speed). Then update your detection script to catch this evasion technique by looking for other signals: no serial number, known dev board VID, or device that connects and disconnects rapidly.</p>`,
+
+    // =========================================================================
+    // SIG-2: Step visuals
+    // =========================================================================
+    stepVisuals: {
+        // Step 0 — Understand the HID Attack Vector: attack timeline
+        0: '<svg viewBox="0 0 680 182" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg13-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg13-v0-arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8b949e"/></marker>' +
+           '</defs>' +
+           '<rect width="680" height="182" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="166" fill="url(#sg13-sv0-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">HID INJECTION TIMELINE — T+0 TO T+3s</text>' +
+           '<line x1="30" y1="100" x2="650" y2="100" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+           '<circle cx="80" cy="100" r="6" fill="#1e2736" stroke="#ef4444" stroke-width="2"/>' +
+           '<text x="80" y="126" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">T+0s</text>' +
+           '<text x="80" y="136" text-anchor="middle" fill="#666" font-size="6">Device plugs in</text>' +
+           '<text x="80" y="146" text-anchor="middle" fill="#666" font-size="6">OS trusts HID</text>' +
+           '<text x="80" y="156" text-anchor="middle" fill="#ef4444" font-size="6.5" font-weight="600">No prompt shown</text>' +
+           '<circle cx="220" cy="100" r="6" fill="#1e2736" stroke="#f97316" stroke-width="2"/>' +
+           '<text x="220" y="72" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="600">T+0.1s</text>' +
+           '<text x="220" y="62" text-anchor="middle" fill="#666" font-size="6">HID descriptor</text>' +
+           '<text x="220" y="52" text-anchor="middle" fill="#666" font-size="6">sent to host</text>' +
+           '<text x="220" y="42" text-anchor="middle" fill="#fb923c" font-size="6.5" font-weight="600">Driver loads</text>' +
+           '<circle cx="360" cy="100" r="6" fill="#1e2736" stroke="#eab308" stroke-width="2"/>' +
+           '<text x="360" y="126" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">T+0.5s</text>' +
+           '<text x="360" y="136" text-anchor="middle" fill="#666" font-size="6">5s delay (safe</text>' +
+           '<text x="360" y="146" text-anchor="middle" fill="#666" font-size="6">window elapses)</text>' +
+           '<text x="360" y="156" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">Keystroke inject</text>' +
+           '<circle cx="490" cy="100" r="6" fill="#1e2736" stroke="#a855f7" stroke-width="2"/>' +
+           '<text x="490" y="72" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="600">T+1s</text>' +
+           '<text x="490" y="62" text-anchor="middle" fill="#666" font-size="6">GUI+R fires Run</text>' +
+           '<text x="490" y="52" text-anchor="middle" fill="#666" font-size="6">dialog (Windows)</text>' +
+           '<text x="490" y="42" text-anchor="middle" fill="#c084fc" font-size="6.5" font-weight="600">Command types</text>' +
+           '<circle cx="620" cy="100" r="6" fill="#1e2736" stroke="#22c55e" stroke-width="2"/>' +
+           '<text x="620" y="126" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">T+3s</text>' +
+           '<text x="620" y="136" text-anchor="middle" fill="#666" font-size="6">Payload executed</text>' +
+           '<text x="620" y="146" text-anchor="middle" fill="#666" font-size="6">Device goes silent</text>' +
+           '<text x="620" y="156" text-anchor="middle" fill="#4ade80" font-size="6.5" font-weight="600">Entire attack done</text>' +
+           '<line x1="86" y1="100" x2="214" y2="100" stroke="#ef4444" stroke-width="1.5" marker-end="url(#sg13-v0-arr)"/>' +
+           '<line x1="226" y1="100" x2="354" y2="100" stroke="#f97316" stroke-width="1.5" marker-end="url(#sg13-v0-arr)"/>' +
+           '<line x1="366" y1="100" x2="484" y2="100" stroke="#eab308" stroke-width="1.5" marker-end="url(#sg13-v0-arr)"/>' +
+           '<line x1="496" y1="100" x2="614" y2="100" stroke="#a855f7" stroke-width="1.5" marker-end="url(#sg13-v0-arr)"/>' +
+           '<text x="340" y="172" text-anchor="middle" fill="#333" font-size="7">Human typing: 50-100ms between keystrokes. ATmega32U4 injection: 1-5ms. OS cannot distinguish — both are "keyboard" to the HID driver.</text>' +
+           '</svg>',
+
+        // Step 3 — Write a Demo Payload: USB descriptor class comparison
+        3: '<svg viewBox="0 0 680 174" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg13-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="174" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="158" fill="url(#sg13-sv3-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">USB DEVICE CLASS — REAL KEYBOARD VS BAD USB</text>' +
+           '<rect x="20" y="32" width="300" height="106" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<rect x="20" y="32" width="300" height="18" rx="6" fill="rgba(59,130,246,0.15)"/>' +
+           '<text x="170" y="44" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">Real Keyboard (Logitech, etc.)</text>' +
+           '<text x="36" y="62" fill="#8b949e" font-size="7">bDeviceClass</text><text x="180" y="62" fill="#22c55e" font-size="7">0x00 (per interface)</text>' +
+           '<text x="36" y="74" fill="#8b949e" font-size="7">bInterfaceClass</text><text x="180" y="74" fill="#22c55e" font-size="7">0x03 (HID)</text>' +
+           '<text x="36" y="86" fill="#8b949e" font-size="7">bInterfaceSubClass</text><text x="180" y="86" fill="#22c55e" font-size="7">0x01 (Boot)</text>' +
+           '<text x="36" y="98" fill="#8b949e" font-size="7">bInterfaceProtocol</text><text x="180" y="98" fill="#22c55e" font-size="7">0x01 (Keyboard)</text>' +
+           '<text x="36" y="110" fill="#8b949e" font-size="7">iManufacturer</text><text x="180" y="110" fill="#22c55e" font-size="7">"Logitech" (present)</text>' +
+           '<text x="36" y="122" fill="#8b949e" font-size="7">iSerialNumber</text><text x="180" y="122" fill="#22c55e" font-size="7">Unique per unit</text>' +
+           '<text x="170" y="132" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Looks legitimate</text>' +
+           '<rect x="360" y="32" width="300" height="106" rx="6" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
+           '<rect x="360" y="32" width="300" height="18" rx="6" fill="rgba(239,68,68,0.15)"/>' +
+           '<text x="510" y="44" text-anchor="middle" fill="#f87171" font-size="8" font-weight="700">Pro Micro Bad USB</text>' +
+           '<text x="376" y="62" fill="#8b949e" font-size="7">bDeviceClass</text><text x="520" y="62" fill="#f87171" font-size="7">0x00 (per interface)</text>' +
+           '<text x="376" y="74" fill="#8b949e" font-size="7">bInterfaceClass</text><text x="520" y="74" fill="#f87171" font-size="7">0x03 (HID) — matches!</text>' +
+           '<text x="376" y="86" fill="#8b949e" font-size="7">bInterfaceSubClass</text><text x="520" y="86" fill="#f87171" font-size="7">0x01 (Boot)</text>' +
+           '<text x="376" y="98" fill="#8b949e" font-size="7">bInterfaceProtocol</text><text x="520" y="98" fill="#f87171" font-size="7">0x01 (Keyboard)</text>' +
+           '<text x="376" y="110" fill="#8b949e" font-size="7">iManufacturer</text><text x="520" y="110" fill="#eab308" font-size="7">"Arduino LLC" — flag!</text>' +
+           '<text x="376" y="122" fill="#8b949e" font-size="7">iSerialNumber</text><text x="520" y="122" fill="#eab308" font-size="7">None or generic</text>' +
+           '<text x="510" y="132" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">Detectable by VID/manufacturer</text>' +
+           '<text x="340" y="158" text-anchor="middle" fill="#333" font-size="7">Defense: block VID 0x2341 (Arduino LLC) from connecting as HID. Check manufacturer string. Rate-limit keystrokes via /dev/input monitoring.</text>' +
+           '</svg>'
+    },
+
+    // =========================================================================
+    // SIG-3: Component callouts — ATmega32U4 / Pro Micro anatomy
+    // =========================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 256" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg13-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="256" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="244" fill="url(#sg13-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">ARDUINO PRO MICRO — COMPONENT ANATOMY</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="150" rx="6" fill="#0d1117" stroke="rgba(239,68,68,0.2)" stroke-width="1.5"/>' +
+             '<g data-callout="atmega">' +
+             '<rect x="150" y="60" width="140" height="100" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="148" y="58" width="144" height="104" rx="5" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="220" y="100" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">ATmega32U4</text>' +
+             '<text x="220" y="112" text-anchor="middle" fill="#8b949e" font-size="6">Native USB — no UART bridge</text>' +
+             '<text x="220" y="122" text-anchor="middle" fill="#555" font-size="5.5">QFP-44, 16 MHz, 32KB flash</text>' +
+             '</g>' +
+             '<g data-callout="usb-micro">' +
+             '<rect x="30" y="78" width="44" height="28" rx="3" fill="#1e2736" stroke="#3b82f6" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="76" width="48" height="32" rx="4" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="52" y="91" text-anchor="middle" fill="#60a5fa" font-size="6.5" font-weight="700">USB</text>' +
+             '<text x="52" y="100" text-anchor="middle" fill="#8b949e" font-size="5.5">Micro-B</text>' +
+             '</g>' +
+             '<g data-callout="xtal-16">' +
+             '<rect x="30" y="126" width="44" height="26" rx="3" fill="#1e2736" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="124" width="48" height="30" rx="4" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="52" y="139" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="700">16 MHz</text>' +
+             '<text x="52" y="149" text-anchor="middle" fill="#666" font-size="5.5">Crystal</text>' +
+             '</g>' +
+             '<g data-callout="tx-led">' +
+             '<circle cx="366" cy="76" r="12" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<circle class="sp-callout-ring" cx="366" cy="76" r="14" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="366" y="79" text-anchor="middle" fill="#4ade80" font-size="5.5" font-weight="700">TX LED</text>' +
+             '</g>' +
+             '<g data-callout="regulator">' +
+             '<rect x="348" y="120" width="56" height="26" rx="3" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="346" y="118" width="60" height="30" rx="4" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="376" y="132" text-anchor="middle" fill="#c084fc" font-size="6.5" font-weight="700">3.3V Reg</text>' +
+             '<text x="376" y="142" text-anchor="middle" fill="#555" font-size="5.5">150 mA</text>' +
+             '</g>' +
+             '<text x="40" y="210" fill="#333" font-size="6.5" font-weight="700">A</text><text x="52" y="210" fill="#555" font-size="6">ATmega32U4 — native USB HID</text>' +
+             '<text x="170" y="210" fill="#333" font-size="6.5" font-weight="700">B</text><text x="182" y="210" fill="#555" font-size="6">USB Micro-B connector</text>' +
+             '<text x="290" y="210" fill="#333" font-size="6.5" font-weight="700">C</text><text x="302" y="210" fill="#555" font-size="6">16 MHz crystal</text>' +
+             '<text x="40" y="224" fill="#333" font-size="6.5" font-weight="700">D</text><text x="52" y="224" fill="#555" font-size="6">TX LED (pin 17) — payload status</text>' +
+             '<text x="220" y="224" fill="#333" font-size="6.5" font-weight="700">E</text><text x="232" y="224" fill="#555" font-size="6">3.3V regulator</text>' +
+             '<text x="220" y="242" text-anchor="middle" fill="#222" font-size="6">VID: 0x2341 (Arduino LLC) — detectable by USB device policy enforcement</text>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'atmega',
+                name: 'A — ATmega32U4 MCU',
+                purpose: 'The key chip. Has a native full-speed USB 2.0 controller built in — no separate USB-to-UART bridge needed. This is why it can present itself as a HID keyboard directly. Arduino IDE programs it as any other AVR but the Keyboard library routes through the hardware USB peripheral.',
+                specs: ['8-bit AVR', '16 MHz', '32 KB Flash', '2.5 KB SRAM', 'Native USB 2.0 FS']
+            },
+            {
+                id: 'usb-micro',
+                name: 'B — USB Micro-B Connector',
+                purpose: 'The physical interface to the target machine. When plugged into a host, VBUS provides power and the D+/D- lines carry USB traffic. The ATmega32U4 drives D+/D- directly from its hardware USB peripheral — no level shifting or external oscillator needed for USB signaling.',
+                specs: ['USB Micro-B', '5-pin connector', 'D+ D- VBUS GND ID', 'Full-speed 12 Mbit/s', 'Powers board from host']
+            },
+            {
+                id: 'xtal-16',
+                name: 'C — 16 MHz Crystal',
+                purpose: 'Provides the AVR core clock. The ATmega32U4 derives its USB timing from a 48 MHz PLL that locks to this crystal. Accurate USB timing requires a stable external crystal — the internal RC oscillator is not precise enough for USB protocol compliance.',
+                specs: ['16 MHz', 'AVR clock source', '48 MHz USB PLL', 'SMD HC49 package', '+/-50 ppm']
+            },
+            {
+                id: 'tx-led',
+                name: 'D — TX LED (Pin 17)',
+                purpose: 'The onboard transmit indicator, connected active-low to pin 17. Useful for payload status feedback: blink it at start of injection to confirm the payload is running. In production Bad USB devices, there is often no LED to maintain a low profile — this one is useful for development.',
+                specs: ['Pin 17 (active LOW)', 'TX activity indicator', 'Green LED', 'Use for debugging', 'Omit in covert builds']
+            },
+            {
+                id: 'regulator',
+                name: 'E — 3.3V Regulator',
+                purpose: 'Provides 3.3V for peripherals. The ATmega32U4 itself runs at 5V (USB VBUS). If you add a BLE module or SPI display to your device, power it from this rail. Not needed for a basic HID-only payload.',
+                specs: ['LDO regulator', '3.3V output', '150 mA max', 'From 5V VBUS', 'For 3.3V peripherals']
+            }
+        ]
+    },
+
+    // =========================================================================
+    // SIG-4: Common mistakes
+    // =========================================================================
+    commonMistakes: [
+        {
+            title: 'No startup delay — payload fires before OS driver loads',
+            correct: 'Begin every payload with <code>delay(5000)</code> after <code>Keyboard.begin()</code>. This gives the OS time to enumerate the device and bind the HID driver. Without the delay, keystrokes are sent before any application can receive them.',
+            incorrect: 'Sending keystrokes immediately in setup() with no delay. The device enumerates and begins injecting while the OS is still loading the USB HID driver. Keystrokes are lost or land in unexpected applications.',
+            consequence: 'The payload silently fails. On Windows, GUI+R fires in a different context and the Run dialog never opens. On Linux, the keystrokes may go to a virtual console. Always start with a 5-second delay minimum — longer for slower machines.',
+            svgDiff: '<svg viewBox="0 0 640 118" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg13-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="118" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="106" fill="url(#sg13-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="90" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="32" width="278" height="60" rx="4" fill="#1e2736" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="38" y="50" fill="#c084fc" font-size="7">Keyboard.begin();</text>' +
+                     '<text x="38" y="62" fill="#4ade80" font-size="7">delay(5000);  // wait for HID driver</text>' +
+                     '<text x="38" y="74" fill="#c084fc" font-size="7">Keyboard.press(KEY_LEFT_GUI);</text>' +
+                     '<text x="38" y="86" fill="#c084fc" font-size="7">Keyboard.press(\'r\');  // Run dialog</text>' +
+                     '<text x="161" y="108" text-anchor="middle" fill="#22c55e" font-size="7">Driver ready — keystrokes land in correct context</text>' +
+                     '<rect x="330" y="12" width="298" height="90" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="32" width="278" height="60" rx="4" fill="#1e2736" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="356" y="50" fill="#c084fc" font-size="7">Keyboard.begin();</text>' +
+                     '<text x="356" y="62" fill="#555" font-size="7">// no delay!</text>' +
+                     '<text x="356" y="74" fill="#c084fc" font-size="7">Keyboard.press(KEY_LEFT_GUI);</text>' +
+                     '<text x="356" y="86" fill="#ef4444" font-size="7">// driver not ready — keys lost</text>' +
+                     '<text x="479" y="108" text-anchor="middle" fill="#ef4444" font-size="7">Payload fails silently — add delay(5000) minimum after Keyboard.begin()</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Testing payload on production machine instead of isolated VM',
+            correct: 'Always use a dedicated test VM (VirtualBox or VMware) or a spare machine with no sensitive data. Configure the VM to snapshot before each test so you can revert. Physically label the test machine "TEST ONLY" to prevent accidental use.',
+            incorrect: 'Plugging the programmed Pro Micro into your development machine or any computer with sensitive data, production credentials, or network access to important systems.',
+            consequence: 'The payload executes on the wrong machine. Even benign payloads (opening Notepad) can cause disruption. More dangerous: if you accidentally flash an aggressive payload and test it on a connected machine, it could open real network connections, exfiltrate real data, or create persistence. Physical separation is mandatory.',
+            svgDiff: '<svg viewBox="0 0 640 118" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg13-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="118" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="106" fill="url(#sg13-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="90" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="35" width="120" height="60" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+                     '<text x="82" y="55" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="700">Dev Machine</text>' +
+                     '<text x="82" y="67" text-anchor="middle" fill="#8b949e" font-size="6.5">Programs Pro Micro</text>' +
+                     '<text x="82" y="79" text-anchor="middle" fill="#555" font-size="6">safe — code only</text>' +
+                     '<rect x="160" y="35" width="120" height="60" rx="4" fill="#1e2736" stroke="#f97316" stroke-width="1"/>' +
+                     '<text x="220" y="55" text-anchor="middle" fill="#fb923c" font-size="7.5" font-weight="700">Isolated VM</text>' +
+                     '<text x="220" y="67" text-anchor="middle" fill="#8b949e" font-size="6.5">Receives payload</text>' +
+                     '<text x="220" y="79" text-anchor="middle" fill="#555" font-size="6">no real data</text>' +
+                     '<text x="161" y="108" text-anchor="middle" fill="#22c55e" font-size="7">Separate machines — payload can only affect the isolated VM</text>' +
+                     '<rect x="330" y="12" width="298" height="90" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="35" width="278" height="60" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1"/>' +
+                     '<text x="479" y="55" text-anchor="middle" fill="#f87171" font-size="7.5" font-weight="700">Dev / Work Machine</text>' +
+                     '<text x="479" y="67" text-anchor="middle" fill="#ef4444" font-size="6.5">Programs AND receives payload</text>' +
+                     '<text x="479" y="79" text-anchor="middle" fill="#ef4444" font-size="6.5">Production data at risk</text>' +
+                     '<text x="479" y="108" text-anchor="middle" fill="#ef4444" font-size="7">Never test on a machine with real credentials or network access</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Wrong board selected in Arduino IDE — Pro Micro shows as Uno',
+            correct: 'Select <strong>Tools &rarr; Board &rarr; SparkFun AVR Boards &rarr; SparkFun Pro Micro</strong>. Then select <strong>Tools &rarr; Processor &rarr; ATmega32U4 (5V, 16 MHz)</strong>. The Keyboard library only works on boards with native USB (ATmega32U4).',
+            incorrect: 'Selecting Arduino Uno or Arduino Leonardo. Compiling for the Uno fails because the Uno uses an ATmega328P which has no USB peripheral. Even if upload succeeds via another method, the Keyboard library will not work.',
+            consequence: 'Compilation fails with "Keyboard.h: No such file" or similar errors. If somehow uploaded, the sketch runs but Keyboard.begin() does nothing — the ATmega328P has no USB HID capability. The device will not enumerate as a keyboard on the target machine.',
+            svgDiff: '<svg viewBox="0 0 640 118" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg13-m3-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="118" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="106" fill="url(#sg13-m3-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="90" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<text x="30" y="46" fill="#8b949e" font-size="7">Tools > Board:</text>' +
+                     '<text x="30" y="58" fill="#4ade80" font-size="7" font-weight="600">SparkFun Pro Micro</text>' +
+                     '<text x="30" y="70" fill="#8b949e" font-size="7">Tools > Processor:</text>' +
+                     '<text x="30" y="82" fill="#4ade80" font-size="7" font-weight="600">ATmega32U4 (5V, 16 MHz)</text>' +
+                     '<text x="30" y="94" fill="#22c55e" font-size="7">Keyboard.h compiles — HID works</text>' +
+                     '<rect x="330" y="12" width="298" height="90" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<text x="348" y="46" fill="#8b949e" font-size="7">Tools > Board:</text>' +
+                     '<text x="348" y="58" fill="#f87171" font-size="7" font-weight="600">Arduino Uno</text>' +
+                     '<text x="348" y="70" fill="#555" font-size="7">ATmega328P — no USB HID!</text>' +
+                     '<text x="348" y="82" fill="#ef4444" font-size="7">Compile error: Keyboard.h missing</text>' +
+                     '<text x="348" y="94" fill="#555" font-size="7">or: sketch uploads, nothing happens</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 
@@ -2296,7 +3138,273 @@ void checkSerial() {
 
     challenges: `<p><strong>1. SD Card Logging:</strong> Connect the SD card module (included in the ELEGOO kit) and write events to a CSV file on the card. This gives you persistent storage that survives power cycles, and the CSV can be opened in Excel for analysis.</p>
 <p><strong>2. LCD Status Display:</strong> Add the 16x2 LCD to show the current zone status, last event time, and total event count. Display "ALERT" in large text when motion is detected.</p>
-<p><strong>3. Variable Alert Levels:</strong> Track how many times each zone triggers within a time window. If a zone triggers more than 5 times in 60 seconds, escalate to a "high alert" mode with continuous buzzer and rapid LED blink until manually reset via serial command.</p>`
+<p><strong>3. Variable Alert Levels:</strong> Track how many times each zone triggers within a time window. If a zone triggers more than 5 times in 60 seconds, escalate to a "high alert" mode with continuous buzzer and rapid LED blink until manually reset via serial command.</p>`,
+
+    // =========================================================================
+    // SIG-2: Step visuals
+    // =========================================================================
+    stepVisuals: {
+        // Step 0 — Single PIR sensor: how PIR works internally
+        0: '<svg viewBox="0 0 680 180" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg14-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="180" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="164" fill="url(#sg14-sv0-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">PIR SENSOR — INTERNAL ARCHITECTURE</text>' +
+           '<rect x="20" y="34" width="200" height="110" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<rect x="20" y="34" width="200" height="18" rx="6" fill="rgba(34,197,94,0.15)"/>' +
+           '<text x="120" y="46" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="700">PIR Module (HC-SR501)</text>' +
+           '<ellipse cx="120" cy="85" rx="36" ry="36" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+           '<ellipse cx="120" cy="85" rx="26" ry="26" fill="none" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+           '<text x="120" y="80" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="700">Fresnel</text>' +
+           '<text x="120" y="90" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="700">Lens</text>' +
+           '<text x="120" y="100" text-anchor="middle" fill="#555" font-size="5.5">focuses IR</text>' +
+           '<rect x="30" y="120" width="34" height="16" rx="3" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+           '<text x="47" y="131" text-anchor="middle" fill="#eab308" font-size="5.5">Sx sens</text>' +
+           '<rect x="70" y="120" width="34" height="16" rx="3" fill="rgba(249,115,22,0.1)" stroke="rgba(249,115,22,0.3)" stroke-width="0.5"/>' +
+           '<text x="87" y="131" text-anchor="middle" fill="#f97316" font-size="5.5">Tx time</text>' +
+           '<rect x="158" y="68" width="48" height="34" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+           '<text x="182" y="82" text-anchor="middle" fill="#22c55e" font-size="5.5">Dual</text>' +
+           '<text x="182" y="91" text-anchor="middle" fill="#22c55e" font-size="5.5">Pyro</text>' +
+           '<text x="182" y="100" text-anchor="middle" fill="#555" font-size="5">elements</text>' +
+           '<rect x="240" y="34" width="200" height="110" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<rect x="240" y="34" width="200" height="18" rx="6" fill="rgba(59,130,246,0.15)"/>' +
+           '<text x="340" y="46" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Detection Logic</text>' +
+           '<text x="256" y="64" fill="#8b949e" font-size="6.5">1. Fresnel lens focuses IR onto dual</text>' +
+           '<text x="256" y="75" fill="#8b949e" font-size="6.5">   pyroelectric elements</text>' +
+           '<text x="256" y="87" fill="#8b949e" font-size="6.5">2. Moving body shifts IR from element</text>' +
+           '<text x="256" y="98" fill="#8b949e" font-size="6.5">   A to element B (differential signal)</text>' +
+           '<text x="256" y="110" fill="#8b949e" font-size="6.5">3. BISS0001 IC amplifies + compares</text>' +
+           '<text x="256" y="121" fill="#8b949e" font-size="6.5">4. OUT goes HIGH for Tx seconds</text>' +
+           '<text x="256" y="133" fill="#22c55e" font-size="6.5" font-weight="600">5. Arduino reads HIGH = motion</text>' +
+           '<rect x="460" y="34" width="200" height="110" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+           '<rect x="460" y="34" width="200" height="18" rx="6" fill="rgba(255,107,53,0.15)"/>' +
+           '<text x="560" y="46" text-anchor="middle" fill="#ff6b35" font-size="7.5" font-weight="700">Key Specs (HC-SR501)</text>' +
+           '<text x="476" y="64" fill="#8b949e" font-size="6.5">Supply voltage:</text><text x="580" y="64" fill="#c9d1d9" font-size="6.5">5-20V</text>' +
+           '<text x="476" y="76" fill="#8b949e" font-size="6.5">Output:</text><text x="580" y="76" fill="#c9d1d9" font-size="6.5">3.3V digital HIGH</text>' +
+           '<text x="476" y="88" fill="#8b949e" font-size="6.5">Range:</text><text x="580" y="88" fill="#c9d1d9" font-size="6.5">up to 7m</text>' +
+           '<text x="476" y="100" fill="#8b949e" font-size="6.5">Warm-up:</text><text x="580" y="100" fill="#ef4444" font-size="6.5" font-weight="600">30-60 seconds!</text>' +
+           '<text x="476" y="112" fill="#8b949e" font-size="6.5">Angle:</text><text x="580" y="112" fill="#c9d1d9" font-size="6.5">120 degrees cone</text>' +
+           '<text x="476" y="124" fill="#8b949e" font-size="6.5">Sx pot:</text><text x="580" y="124" fill="#c9d1d9" font-size="6.5">sensitivity (range)</text>' +
+           '<text x="476" y="136" fill="#8b949e" font-size="6.5">Tx pot:</text><text x="580" y="136" fill="#c9d1d9" font-size="6.5">hold time (3s-300s)</text>' +
+           '<text x="340" y="166" text-anchor="middle" fill="#333" font-size="7">Warm-up is critical: connect PIR and wait 60 seconds BEFORE the sketch starts checking the OUT pin.</text>' +
+           '</svg>',
+
+        // Step 4 — Multi-zone system: zone layout diagram
+        4: '<svg viewBox="0 0 680 174" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg14-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="174" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="158" fill="url(#sg14-sv4-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">MULTI-ZONE PIR COVERAGE MAP</text>' +
+           '<rect x="100" y="34" width="480" height="100" rx="6" fill="#111827" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="340" y="50" text-anchor="middle" fill="#333" font-size="7" letter-spacing="0.1em">FLOOR PLAN VIEW</text>' +
+           '<ellipse cx="160" cy="100" rx="50" ry="38" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>' +
+           '<text x="160" y="97" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="600">ZONE A</text>' +
+           '<text x="160" y="107" text-anchor="middle" fill="#555" font-size="6">Pin 2 / INT0</text>' +
+           '<circle cx="160" cy="85" r="4" fill="#22c55e"/>' +
+           '<text x="160" y="81" text-anchor="middle" fill="#22c55e" font-size="5">PIR1</text>' +
+           '<ellipse cx="340" cy="88" rx="50" ry="38" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1" stroke-dasharray="4,3"/>' +
+           '<text x="340" y="85" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">ZONE B</text>' +
+           '<text x="340" y="95" text-anchor="middle" fill="#555" font-size="6">Pin 3 / INT1</text>' +
+           '<circle cx="340" cy="73" r="4" fill="#eab308"/>' +
+           '<text x="340" y="69" text-anchor="middle" fill="#eab308" font-size="5">PIR2</text>' +
+           '<ellipse cx="510" cy="100" rx="50" ry="38" fill="rgba(249,115,22,0.06)" stroke="#f97316" stroke-width="1" stroke-dasharray="4,3"/>' +
+           '<text x="510" y="97" text-anchor="middle" fill="#f97316" font-size="6.5" font-weight="600">ZONE C</text>' +
+           '<text x="510" y="107" text-anchor="middle" fill="#555" font-size="6">Pin 4</text>' +
+           '<circle cx="510" cy="85" r="4" fill="#f97316"/>' +
+           '<text x="510" y="81" text-anchor="middle" fill="#f97316" font-size="5">PIR3</text>' +
+           '<rect x="20" y="148" width="640" height="18" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>' +
+           '<text x="40" y="160" fill="#555" font-size="7" font-weight="700">TIP:</text>' +
+           '<text x="70" y="160" fill="#555" font-size="7">Space PIR sensors at least 1m apart. Point them in different directions. Use cooldown per zone to prevent one trigger from masking another.</text>' +
+           '</svg>'
+    },
+
+    // =========================================================================
+    // SIG-3: Component callouts — PIR sensor module anatomy
+    // =========================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 260" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg14-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="260" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="248" fill="url(#sg14-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">HC-SR501 PIR MODULE — COMPONENT ANATOMY</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="160" rx="6" fill="#0f1a2e" stroke="rgba(34,197,94,0.2)" stroke-width="1.5"/>' +
+             '<g data-callout="fresnel">' +
+             '<ellipse cx="110" cy="118" rx="56" ry="56" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<ellipse class="sp-callout-ring" cx="110" cy="118" rx="60" ry="60" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<ellipse cx="110" cy="118" rx="40" ry="40" fill="none" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+             '<ellipse cx="110" cy="118" rx="22" ry="22" fill="none" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
+             '<text x="110" y="115" text-anchor="middle" fill="#22c55e" font-size="7.5" font-weight="700">Fresnel</text>' +
+             '<text x="110" y="125" text-anchor="middle" fill="#22c55e" font-size="7.5" font-weight="700">Lens</text>' +
+             '</g>' +
+             '<g data-callout="pyro">' +
+             '<rect x="195" y="82" width="70" height="70" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="193" y="80" width="74" height="74" rx="5" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="230" y="112" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">Dual Pyro</text>' +
+             '<text x="230" y="122" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">Element</text>' +
+             '<text x="230" y="132" text-anchor="middle" fill="#555" font-size="5.5">BISS0001 IC</text>' +
+             '</g>' +
+             '<g data-callout="sx-pot">' +
+             '<rect x="285" y="82" width="40" height="28" rx="3" fill="#1e2736" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="283" y="80" width="44" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="305" y="96" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="700">Sx</text>' +
+             '<text x="305" y="106" text-anchor="middle" fill="#555" font-size="5.5">Sensitivity</text>' +
+             '</g>' +
+             '<g data-callout="tx-pot">' +
+             '<rect x="285" y="124" width="40" height="28" rx="3" fill="#1e2736" stroke="#f97316" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="283" y="122" width="44" height="32" rx="4" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="305" y="138" text-anchor="middle" fill="#f97316" font-size="6.5" font-weight="700">Tx</text>' +
+             '<text x="305" y="148" text-anchor="middle" fill="#555" font-size="5.5">Hold time</text>' +
+             '</g>' +
+             '<g data-callout="header">' +
+             '<rect x="344" y="96" width="64" height="42" rx="3" fill="#1e2736" stroke="#3b82f6" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="342" y="94" width="68" height="46" rx="4" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="376" y="113" text-anchor="middle" fill="#60a5fa" font-size="6.5" font-weight="700">VCC</text>' +
+             '<text x="376" y="123" text-anchor="middle" fill="#60a5fa" font-size="6.5" font-weight="700">OUT</text>' +
+             '<text x="376" y="133" text-anchor="middle" fill="#60a5fa" font-size="6.5" font-weight="700">GND</text>' +
+             '</g>' +
+             '<text x="40" y="216" fill="#333" font-size="6.5" font-weight="700">A</text><text x="52" y="216" fill="#555" font-size="6">Fresnel lens (focus IR)</text>' +
+             '<text x="170" y="216" fill="#333" font-size="6.5" font-weight="700">B</text><text x="182" y="216" fill="#555" font-size="6">Dual pyroelectric element + BISS0001</text>' +
+             '<text x="40" y="230" fill="#333" font-size="6.5" font-weight="700">C</text><text x="52" y="230" fill="#555" font-size="6">Sx pot — detection range/sensitivity</text>' +
+             '<text x="220" y="230" fill="#333" font-size="6.5" font-weight="700">D</text><text x="232" y="230" fill="#555" font-size="6">Tx pot — output hold time (3s-300s)</text>' +
+             '<text x="40" y="244" fill="#333" font-size="6.5" font-weight="700">E</text><text x="52" y="244" fill="#555" font-size="6">3-pin header: VCC OUT GND</text>' +
+             '<text x="220" y="250" text-anchor="middle" fill="#222" font-size="6">Output is 3.3V HIGH — safe to connect directly to Arduino digital input</text>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'fresnel',
+                name: 'A — Fresnel Lens',
+                purpose: 'A segmented plastic lens that focuses infrared radiation from a wide field of view onto the tiny dual pyroelectric element. Without this lens, the sensor would only detect objects directly in front of it. The lens creates a detection cone of about 120 degrees horizontally.',
+                specs: ['120 degree FOV', 'Focuses IR radiation', 'White polycarbonate', 'Segmented Fresnel optics', 'Replaceable']
+            },
+            {
+                id: 'pyro',
+                name: 'B — Dual Pyroelectric Element + BISS0001 IC',
+                purpose: 'The sensing core. Two pyroelectric crystals side by side generate a tiny voltage when IR radiation hits them. A moving heat source shifts IR from one element to the other, creating a differential voltage. The BISS0001 amplifies this difference and drives the OUT pin HIGH when it exceeds the comparator threshold.',
+                specs: ['Dual pyroelectric', 'Differential detection', 'BISS0001 controller', '10-year shelf life', 'No warm-body bias']
+            },
+            {
+                id: 'sx-pot',
+                name: 'C — Sx Potentiometer (Sensitivity)',
+                purpose: 'Controls the detection range. Fully clockwise = maximum sensitivity (~7m). Counter-clockwise = minimum (~3m). Reduce sensitivity if you get false triggers from HVAC airflow, sunlight changes through windows, or pets. Most applications work well at the midpoint.',
+                specs: ['Trim potentiometer', 'Adjusts threshold', 'CW = more sensitive', 'CCW = less sensitive', '3m to 7m range']
+            },
+            {
+                id: 'tx-pot',
+                name: 'D — Tx Potentiometer (Hold Time)',
+                purpose: 'Controls how long the OUT pin stays HIGH after motion is detected. Range is approximately 3 seconds (fully CCW) to 300 seconds (fully CW). Set to minimum (CCW) and handle timing in your Arduino sketch with millis() — this gives you more precise control.',
+                specs: ['Trim potentiometer', 'Output hold duration', 'CCW = 3s minimum', 'CW = 300s maximum', 'Set CCW for Arduino control']
+            },
+            {
+                id: 'header',
+                name: 'E — 3-Pin Header (VCC / OUT / GND)',
+                purpose: 'The connection to your Arduino. VCC accepts 5-20V (connect to Arduino 5V). OUT provides a 3.3V HIGH signal when motion is detected — compatible with Arduino digital pins. GND is the common reference. The pin order varies by manufacturer; always verify with your module\'s silkscreen.',
+                specs: ['VCC: 5-20V input', 'OUT: 3.3V HIGH', 'GND: common return', '2.54mm header', 'Check silkscreen order']
+            }
+        ]
+    },
+
+    // =========================================================================
+    // SIG-4: Common mistakes
+    // =========================================================================
+    commonMistakes: [
+        {
+            title: 'Skipping the 60-second PIR warm-up period',
+            correct: 'Add a 60-second blocking delay at the start of setup(), or set a flag that prevents the main loop from arming the sensor until millis() exceeds 60000. Print "Warming up..." to serial during this period so the user knows to wait.',
+            incorrect: 'Starting to poll the PIR OUT pin immediately in setup() or loop(). The pyroelectric elements need time to stabilize at ambient temperature before they can detect differential changes.',
+            consequence: 'The sensor fires continuously for the first 30-60 seconds after power-on, triggering false alerts on every scan. This can fill a serial log with hundreds of phantom events and confuse any connected buzzer or LED feedback. Always implement the warm-up delay.',
+            svgDiff: '<svg viewBox="0 0 640 128" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg14-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="128" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="116" fill="url(#sg14-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="100" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="32" width="278" height="70" rx="4" fill="#1e2736" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<text x="38" y="50" fill="#c084fc" font-size="7">void setup() {</text>' +
+                     '<text x="38" y="62" fill="#c084fc" font-size="7">  Serial.begin(9600);</text>' +
+                     '<text x="38" y="74" fill="#4ade80" font-size="7">  Serial.println("Warming up... 60s");</text>' +
+                     '<text x="38" y="86" fill="#4ade80" font-size="7">  delay(60000);  // PIR stabilize</text>' +
+                     '<text x="38" y="98" fill="#c084fc" font-size="7">  Serial.println("System armed.");</text>' +
+                     '<text x="161" y="114" text-anchor="middle" fill="#22c55e" font-size="7">Sensor stable — zero false triggers</text>' +
+                     '<rect x="330" y="12" width="298" height="100" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="32" width="278" height="70" rx="4" fill="#1e2736" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<text x="356" y="50" fill="#c084fc" font-size="7">void setup() {</text>' +
+                     '<text x="356" y="62" fill="#c084fc" font-size="7">  Serial.begin(9600);</text>' +
+                     '<text x="356" y="74" fill="#555" font-size="7">  // no warm-up delay!</text>' +
+                     '<text x="356" y="86" fill="#c084fc" font-size="7">  pinMode(PIR_PIN, INPUT);</text>' +
+                     '<text x="356" y="98" fill="#ef4444" font-size="7">  // PIR fires immediately = phantom alerts</text>' +
+                     '<text x="479" y="114" text-anchor="middle" fill="#ef4444" font-size="7">60s of false motion events — sensor not yet thermally stable</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'PIR connected to 3.3V instead of 5V',
+            correct: 'Connect the PIR module VCC pin to the Arduino 5V pin. The HC-SR501 requires 5-20V supply. The OUT pin outputs 3.3V HIGH regardless of supply voltage, so it is safe to connect directly to Arduino 5V digital inputs.',
+            incorrect: 'Connecting the PIR VCC to the Arduino 3.3V pin (available on some boards). The BISS0001 IC inside the module requires at least 5V to operate correctly. At 3.3V, the comparator threshold is shifted and detection may be unreliable or fail entirely.',
+            consequence: 'Sensor may appear to work (some readings) but detection range is severely reduced, false positive rate increases, and the OUT signal amplitude may be insufficient to register as HIGH on a 5V Arduino. Fix by moving VCC to the 5V rail.',
+            svgDiff: '<svg viewBox="0 0 640 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg14-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="120" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="108" fill="url(#sg14-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="92" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="32" width="80" height="62" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="62" y="50" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Arduino</text>' +
+                     '<text x="62" y="64" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">5V</text>' +
+                     '<text x="62" y="76" text-anchor="middle" fill="#555" font-size="6">3.3V</text>' +
+                     '<text x="62" y="86" text-anchor="middle" fill="#555" font-size="6">GND</text>' +
+                     '<line x1="102" y1="64" x2="210" y2="64" stroke="#ef4444" stroke-width="2.5"/>' +
+                     '<circle cx="106" cy="64" r="3" fill="#ef4444"/>' +
+                     '<rect x="212" y="32" width="86" height="62" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+                     '<text x="255" y="50" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="700">PIR HC-SR501</text>' +
+                     '<text x="255" y="64" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="600">VCC (5V)</text>' +
+                     '<text x="255" y="76" text-anchor="middle" fill="#8b949e" font-size="6">OUT</text>' +
+                     '<text x="255" y="86" text-anchor="middle" fill="#555" font-size="6">GND</text>' +
+                     '<text x="161" y="106" text-anchor="middle" fill="#22c55e" font-size="7">5V within spec — full range, correct threshold</text>' +
+                     '<rect x="330" y="12" width="298" height="92" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="32" width="80" height="62" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="380" y="50" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Arduino</text>' +
+                     '<text x="380" y="64" text-anchor="middle" fill="#555" font-size="6">5V</text>' +
+                     '<text x="380" y="76" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">3.3V (wrong!)</text>' +
+                     '<text x="380" y="86" text-anchor="middle" fill="#555" font-size="6">GND</text>' +
+                     '<line x1="420" y1="76" x2="530" y2="64" stroke="#ef4444" stroke-width="2.5"/>' +
+                     '<circle cx="424" cy="76" r="3" fill="#ef4444"/>' +
+                     '<rect x="532" y="32" width="86" height="62" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
+                     '<text x="575" y="50" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="700">PIR HC-SR501</text>' +
+                     '<text x="575" y="64" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">VCC (3.3V)</text>' +
+                     '<text x="575" y="76" text-anchor="middle" fill="#8b949e" font-size="6">OUT</text>' +
+                     '<text x="575" y="86" text-anchor="middle" fill="#555" font-size="6">GND</text>' +
+                     '<text x="479" y="106" text-anchor="middle" fill="#ef4444" font-size="7">BISS0001 needs 5V min — reduced range, unreliable detection at 3.3V</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Both PIR sensors in multi-zone system share same cooldown flag',
+            correct: 'Use a struct array for zones, with each zone having its own <code>inCooldown</code> flag and <code>lastTriggerTime</code>. When Zone A is in cooldown, Zone B can still trigger independently.',
+            incorrect: 'Using a single global <code>inCooldown</code> boolean. When Zone A triggers and sets the flag, Zone B is also blocked from triggering until the cooldown expires.',
+            consequence: 'Multi-zone coverage fails. An intruder passing through Zone A followed immediately by Zone B generates only one alert. The second zone appears dead. Each zone must manage its own cooldown state independently.',
+            svgDiff: '<svg viewBox="0 0 640 118" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg14-m3-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="118" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="106" fill="url(#sg14-m3-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="90" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<text x="30" y="44" fill="#8b949e" font-size="7">struct Zone { bool inCooldown; ... };</text>' +
+                     '<text x="30" y="56" fill="#4ade80" font-size="7">Zone zones[3];  // each has own state</text>' +
+                     '<text x="30" y="68" fill="#8b949e" font-size="7">zones[0].inCooldown = true; // Zone A</text>' +
+                     '<text x="30" y="80" fill="#4ade80" font-size="7">// Zone B still active independently</text>' +
+                     '<text x="30" y="92" fill="#22c55e" font-size="7">if (!zones[i].inCooldown) trigger(i);</text>' +
+                     '<rect x="330" y="12" width="298" height="90" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<text x="348" y="44" fill="#8b949e" font-size="7">bool inCooldown = false;  // global</text>' +
+                     '<text x="348" y="56" fill="#f87171" font-size="7">inCooldown = true;  // Zone A fires</text>' +
+                     '<text x="348" y="68" fill="#ef4444" font-size="7">// Zone B now also blocked!</text>' +
+                     '<text x="348" y="80" fill="#555" font-size="7">if (!inCooldown) trigger(); // both zones</text>' +
+                     '<text x="348" y="92" fill="#ef4444" font-size="7">// share one flag — Zone B goes blind</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 
@@ -2917,5 +4025,252 @@ void loop() {
 
     challenges: `<p><strong>1. Multi-Sensor Coverage:</strong> Add a second HC-SR04 sensor covering a different direction (e.g., one for the door, one for the window). Track each sensor's zone independently and display the highest alert level.</p>
 <p><strong>2. Distance Graphing:</strong> Send distance readings to the Serial Plotter (Tools &rarr; Serial Plotter in the Arduino IDE) to see a real-time graph. Format the output as: <code>distance,threshold_yellow,threshold_red</code> on each line to see the zones overlaid on the distance graph.</p>
-<p><strong>3. Timed Arming Delay:</strong> When the button is pressed to arm, add a 30-second countdown (with a beep each second) before the alarm activates. This gives you time to leave the room. Display the countdown on the serial monitor and blink the green LED once per second during countdown.</p>`
+<p><strong>3. Timed Arming Delay:</strong> When the button is pressed to arm, add a 30-second countdown (with a beep each second) before the alarm activates. This gives you time to leave the room. Display the countdown on the serial monitor and blink the green LED once per second during countdown.</p>`,
+
+    // =========================================================================
+    // SIG-2: Step visuals
+    // =========================================================================
+    stepVisuals: {
+        // Step 0 — Distance Measurement: how HC-SR04 works
+        0: '<svg viewBox="0 0 680 182" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg15-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg15-v0-arr-o" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97316"/></marker>' +
+           '<marker id="sg15-v0-arr-b" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#3b82f6"/></marker>' +
+           '</defs>' +
+           '<rect width="680" height="182" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="166" fill="url(#sg15-sv0-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">HC-SR04 — ULTRASONIC TIMING SEQUENCE</text>' +
+           '<rect x="20" y="34" width="100" height="94" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+           '<rect x="20" y="34" width="100" height="16" rx="6" fill="rgba(255,107,53,0.15)"/>' +
+           '<text x="70" y="46" text-anchor="middle" fill="#ff6b35" font-size="7.5" font-weight="700">HC-SR04</text>' +
+           '<circle cx="48" cy="80" r="14" fill="rgba(255,107,53,0.06)" stroke="#ff6b35" stroke-width="1"/>' +
+           '<text x="48" y="84" text-anchor="middle" fill="#ff6b35" font-size="5.5">TRIG</text>' +
+           '<circle cx="92" cy="80" r="14" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>' +
+           '<text x="92" y="84" text-anchor="middle" fill="#3b82f6" font-size="5.5">ECHO</text>' +
+           '<text x="70" y="115" text-anchor="middle" fill="#555" font-size="6">TX / RX</text>' +
+           '<rect x="560" y="56" width="80" height="64" rx="6" fill="#1e2736" stroke="#8b949e" stroke-width="1"/>' +
+           '<text x="600" y="80" text-anchor="middle" fill="#8b949e" font-size="7.5" font-weight="700">Object</text>' +
+           '<text x="600" y="92" text-anchor="middle" fill="#555" font-size="6">reflects</text>' +
+           '<text x="600" y="102" text-anchor="middle" fill="#555" font-size="6">40 kHz pulse</text>' +
+           '<line x1="122" y1="76" x2="310" y2="76" stroke="#f97316" stroke-width="1.5" marker-end="url(#sg15-v0-arr-o)" stroke-dasharray="6,3"/>' +
+           '<text x="216" y="68" text-anchor="middle" fill="#f97316" font-size="6.5">40 kHz pulse burst</text>' +
+           '<text x="216" y="78" text-anchor="middle" fill="#555" font-size="5.5">(8 cycles, triggered by 10us HIGH)</text>' +
+           '<line x1="310" y1="88" x2="558" y2="88" stroke="#f97316" stroke-width="1.5" marker-end="url(#sg15-v0-arr-o)" stroke-dasharray="6,3"/>' +
+           '<line x1="558" y1="88" x2="558" y2="70" stroke="#f97316" stroke-width="1" stroke-dasharray="3,2"/>' +
+           '<line x1="558" y1="70" x2="310" y2="100" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#sg15-v0-arr-b)" stroke-dasharray="6,3"/>' +
+           '<text x="430" y="96" text-anchor="middle" fill="#3b82f6" font-size="6.5">echo return</text>' +
+           '<rect x="140" y="118" width="400" height="38" rx="6" fill="#111827" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="200" y="133" text-anchor="middle" fill="#444" font-size="7" font-weight="700">FORMULA</text>' +
+           '<text x="370" y="133" fill="#8b949e" font-size="7">distance (cm) =</text>' +
+           '<text x="462" y="133" fill="#ff6b35" font-size="7" font-weight="600">echo_duration_us / 58</text>' +
+           '<text x="200" y="148" text-anchor="middle" fill="#444" font-size="7" font-weight="700">DERIVATION</text>' +
+           '<text x="370" y="148" fill="#555" font-size="7">speed of sound 343 m/s = 29.15 us/cm one-way, x2 = 58 us/cm</text>' +
+           '<text x="340" y="172" text-anchor="middle" fill="#333" font-size="7">pulseIn(ECHO, HIGH) returns microseconds. Divide by 58 for cm. Max reliable range: ~300cm. Minimum: ~3cm (blanking zone).</text>' +
+           '</svg>',
+
+        // Step 2 — Zone Detection: proximity zone diagram
+        2: '<svg viewBox="0 0 680 168" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg15-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="168" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="152" fill="url(#sg15-sv2-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">PROXIMITY ZONES — GRADUATED ALERT SYSTEM</text>' +
+           '<rect x="30" y="50" width="340" height="70" rx="4" fill="rgba(34,197,94,0.04)" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+           '<text x="200" y="42" text-anchor="middle" fill="#22c55e" font-size="7.5" font-weight="600">ZONE GREEN — All Clear (&gt;100cm)</text>' +
+           '<rect x="70" y="54" width="260" height="60" rx="4" fill="rgba(234,179,8,0.04)" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+           '<text x="200" y="74" text-anchor="middle" fill="#eab308" font-size="7.5" font-weight="600">ZONE YELLOW — Approach (50-100cm)</text>' +
+           '<rect x="110" y="58" width="180" height="50" rx="4" fill="rgba(239,68,68,0.04)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>' +
+           '<text x="200" y="82" text-anchor="middle" fill="#ef4444" font-size="7.5" font-weight="600">ZONE RED</text>' +
+           '<text x="200" y="93" text-anchor="middle" fill="#ef4444" font-size="7">Breach (&lt;50cm)</text>' +
+           '<rect x="185" y="96" width="30" height="16" rx="3" fill="#1e2736" stroke="#ff6b35" stroke-width="1"/>' +
+           '<text x="200" y="107" text-anchor="middle" fill="#ff6b35" font-size="6.5" font-weight="700">HC-SR04</text>' +
+           '<rect x="430" y="50" width="220" height="90" rx="6" fill="#111827" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="540" y="66" text-anchor="middle" fill="#444" font-size="7" font-weight="700">ALERT BEHAVIOR</text>' +
+           '<text x="445" y="82" fill="#22c55e" font-size="6.5" font-weight="700">GREEN:</text><text x="495" y="82" fill="#666" font-size="6.5">LED only — silent</text>' +
+           '<text x="445" y="96" fill="#eab308" font-size="6.5" font-weight="700">YELLOW:</text><text x="503" y="96" fill="#666" font-size="6.5">LED + slow beep 1kHz</text>' +
+           '<text x="445" y="110" fill="#ef4444" font-size="6.5" font-weight="700">RED:</text><text x="475" y="110" fill="#666" font-size="6.5">LED + rapid 2.5kHz alarm</text>' +
+           '<text x="445" y="126" fill="#555" font-size="6">Thresholds configurable</text>' +
+           '<text x="445" y="137" fill="#555" font-size="6">in sketch defines</text>' +
+           '<text x="340" y="155" text-anchor="middle" fill="#333" font-size="7">Zone boundaries: YELLOW_DIST = 100, RED_DIST = 50. Adjust to match your environment and sensor mounting distance.</text>' +
+           '</svg>'
+    },
+
+    // =========================================================================
+    // SIG-3: Component callouts — HC-SR04 sensor anatomy
+    // =========================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 260" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg15-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="260" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="248" fill="url(#sg15-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">HC-SR04 ULTRASONIC SENSOR — COMPONENT ANATOMY</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="160" rx="6" fill="#0f1520" stroke="rgba(255,107,53,0.2)" stroke-width="1.5"/>' +
+             '<g data-callout="trig-xdcr">' +
+             '<ellipse cx="100" cy="118" rx="50" ry="50" fill="#1e2736" stroke="#f97316" stroke-width="1" class="sp-callout-circle"/>' +
+             '<ellipse class="sp-callout-ring" cx="100" cy="118" rx="54" ry="54" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<ellipse cx="100" cy="118" rx="34" ry="34" fill="none" stroke="rgba(249,115,22,0.2)" stroke-width="0.5"/>' +
+             '<ellipse cx="100" cy="118" rx="18" ry="18" fill="rgba(249,115,22,0.08)"/>' +
+             '<text x="100" y="114" text-anchor="middle" fill="#f97316" font-size="7.5" font-weight="700">TRIG</text>' +
+             '<text x="100" y="124" text-anchor="middle" fill="#f97316" font-size="7.5" font-weight="700">Xdcr</text>' +
+             '</g>' +
+             '<g data-callout="echo-xdcr">' +
+             '<ellipse cx="250" cy="118" rx="50" ry="50" fill="#1e2736" stroke="#3b82f6" stroke-width="1" class="sp-callout-circle"/>' +
+             '<ellipse class="sp-callout-ring" cx="250" cy="118" rx="54" ry="54" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<ellipse cx="250" cy="118" rx="34" ry="34" fill="none" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+             '<ellipse cx="250" cy="118" rx="18" ry="18" fill="rgba(59,130,246,0.08)"/>' +
+             '<text x="250" y="114" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">ECHO</text>' +
+             '<text x="250" y="124" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Xdcr</text>' +
+             '</g>' +
+             '<g data-callout="controller-ic">' +
+             '<rect x="316" y="84" width="82" height="68" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="314" y="82" width="86" height="72" rx="5" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="357" y="114" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">Control</text>' +
+             '<text x="357" y="124" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="700">IC</text>' +
+             '<text x="357" y="134" text-anchor="middle" fill="#555" font-size="5.5">40kHz gen</text>' +
+             '</g>' +
+             '<g data-callout="header-pins">' +
+             '<rect x="158" y="52" width="74" height="26" rx="3" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="156" y="50" width="78" height="30" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="195" y="65" text-anchor="middle" fill="#4ade80" font-size="6.5" font-weight="700">VCC TRIG ECHO GND</text>' +
+             '</g>' +
+             '<text x="40" y="216" fill="#333" font-size="6.5" font-weight="700">A</text><text x="52" y="216" fill="#555" font-size="6">TRIG transducer — emits 40kHz pulse</text>' +
+             '<text x="40" y="230" fill="#333" font-size="6.5" font-weight="700">B</text><text x="52" y="230" fill="#555" font-size="6">ECHO transducer — receives reflected pulse</text>' +
+             '<text x="40" y="244" fill="#333" font-size="6.5" font-weight="700">C</text><text x="52" y="244" fill="#555" font-size="6">Controller IC — timing and signal processing</text>' +
+             '<text x="240" y="244" fill="#333" font-size="6.5" font-weight="700">D</text><text x="252" y="244" fill="#555" font-size="6">4-pin header: VCC TRIG ECHO GND</text>' +
+             '<text x="220" y="256" text-anchor="middle" fill="#222" font-size="6">Range: 3cm to 400cm. Resolution: ~3mm. Reading rate: max 40 Hz (25ms between triggers)</text>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'trig-xdcr',
+                name: 'A — TRIG Transducer (Emitter)',
+                purpose: 'A piezoelectric ultrasonic transducer that converts electrical signals into 40 kHz sound waves. When the Arduino drives TRIG HIGH for 10 microseconds, the control IC fires a burst of 8 ultrasonic pulses through this transducer. The pulses travel outward at the speed of sound (~343 m/s at room temperature).',
+                specs: ['40 kHz piezoelectric', '8-pulse burst', '10us TRIG pulse', '23 dB SPL output', 'Directional cone']
+            },
+            {
+                id: 'echo-xdcr',
+                name: 'B — ECHO Transducer (Receiver)',
+                purpose: 'A matched piezoelectric transducer tuned to 40 kHz. When reflected ultrasonic waves hit this transducer, they generate a tiny voltage signal. The control IC amplifies this and drives the ECHO pin HIGH for a duration proportional to the round-trip time. Divide this duration by 58 to get distance in centimeters.',
+                specs: ['40 kHz piezoelectric', 'Matched to emitter', 'Amplitude threshold', 'ECHO pin HIGH time', 'Blanking: first 3cm']
+            },
+            {
+                id: 'controller-ic',
+                name: 'C — Control IC',
+                purpose: 'Handles the timing logic. Generates the 40 kHz signal when TRIG fires, counts the echo return time, and drives the ECHO pin accordingly. Contains a blanking window (the first ~300 us) to prevent the large transmitted pulse from immediately triggering the receiver.',
+                specs: ['40 kHz oscillator', 'Echo timing circuit', 'Blanking window', 'Drives ECHO pin', 'Internal to module']
+            },
+            {
+                id: 'header-pins',
+                name: 'D — 4-Pin Header (VCC / TRIG / ECHO / GND)',
+                purpose: 'The connection interface. VCC: 5V supply. TRIG: Arduino drives HIGH for 10us to start a measurement. ECHO: returns a HIGH pulse whose width in microseconds equals the round-trip sound travel time. GND: common reference. Pin order is always VCC-TRIG-ECHO-GND from the component markings.',
+                specs: ['VCC: 5V', 'TRIG: 10us HIGH', 'ECHO: width = time', 'GND: common', '2.54mm pitch']
+            }
+        ]
+    },
+
+    // =========================================================================
+    // SIG-4: Common mistakes
+    // =========================================================================
+    commonMistakes: [
+        {
+            title: 'TRIG and ECHO pins swapped — sensor reads 0 or -1 always',
+            correct: 'Wire HC-SR04 TRIG to Arduino Pin 7 (<code>TRIG_PIN</code> = OUTPUT) and ECHO to Arduino Pin 6 (<code>ECHO_PIN</code> = INPUT). TRIG receives the trigger pulse from the Arduino; ECHO sends the timing signal back.',
+            incorrect: 'Swapping the wires so TRIG goes to Arduino Pin 6 (set as INPUT) and ECHO goes to Pin 7 (set as OUTPUT). The Arduino never drives the trigger, so no pulse is emitted. ECHO receives a driven signal it cannot measure.',
+            consequence: 'pulseIn() returns 0 immediately on every call because no echo pulse ever arrives. The sketch reports distance = 0 cm or -1 on every reading. No damage occurs — just swap the two wires and verify with a multimeter that Pin 7 pulses briefly every loop cycle.',
+            svgDiff: '<svg viewBox="0 0 640 130" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg15-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern>' +
+                     '<marker id="sg15-m1-arr-o" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97316"/></marker>' +
+                     '<marker id="sg15-m1-arr-b" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#3b82f6"/></marker>' +
+                     '</defs>' +
+                     '<rect width="640" height="130" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="118" fill="url(#sg15-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="102" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="32" width="82" height="72" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="63" y="52" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Arduino</text>' +
+                     '<text x="63" y="66" text-anchor="middle" fill="#f97316" font-size="7">Pin 7 OUT</text>' +
+                     '<text x="63" y="78" text-anchor="middle" fill="#3b82f6" font-size="7">Pin 6 IN</text>' +
+                     '<text x="63" y="90" text-anchor="middle" fill="#555" font-size="6">GND 5V</text>' +
+                     '<line x1="104" y1="66" x2="202" y2="66" stroke="#f97316" stroke-width="1.8" marker-end="url(#sg15-m1-arr-o)"/>' +
+                     '<line x1="202" y1="78" x2="104" y2="78" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#sg15-m1-arr-b)"/>' +
+                     '<rect x="204" y="32" width="94" height="72" rx="4" fill="#1e2736" stroke="#ff6b35" stroke-width="1"/>' +
+                     '<text x="251" y="52" text-anchor="middle" fill="#ff6b35" font-size="7.5" font-weight="700">HC-SR04</text>' +
+                     '<text x="251" y="66" text-anchor="middle" fill="#f97316" font-size="7">TRIG</text>' +
+                     '<text x="251" y="78" text-anchor="middle" fill="#3b82f6" font-size="7">ECHO</text>' +
+                     '<text x="251" y="90" text-anchor="middle" fill="#555" font-size="6">GND VCC</text>' +
+                     '<text x="161" y="114" text-anchor="middle" fill="#22c55e" font-size="7">Correct direction — TRIG receives pulse, ECHO returns timing</text>' +
+                     '<rect x="330" y="12" width="298" height="102" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="32" width="82" height="72" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
+                     '<text x="381" y="52" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Arduino</text>' +
+                     '<text x="381" y="66" text-anchor="middle" fill="#f87171" font-size="7">Pin 7 OUT</text>' +
+                     '<text x="381" y="78" text-anchor="middle" fill="#f87171" font-size="7">Pin 6 IN</text>' +
+                     '<text x="381" y="90" text-anchor="middle" fill="#555" font-size="6">GND 5V</text>' +
+                     '<line x1="422" y1="66" x2="520" y2="78" stroke="#ef4444" stroke-width="1.8"/>' +
+                     '<line x1="422" y1="78" x2="520" y2="66" stroke="#ef4444" stroke-width="1.8"/>' +
+                     '<rect x="456" y="64" width="16" height="16" rx="2" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>' +
+                     '<text x="464" y="75" text-anchor="middle" fill="#f87171" font-size="7" font-weight="700">X</text>' +
+                     '<rect x="522" y="32" width="94" height="72" rx="4" fill="#1e2736" stroke="#ff6b35" stroke-width="1"/>' +
+                     '<text x="569" y="52" text-anchor="middle" fill="#ff6b35" font-size="7.5" font-weight="700">HC-SR04</text>' +
+                     '<text x="569" y="66" text-anchor="middle" fill="#f97316" font-size="7">TRIG</text>' +
+                     '<text x="569" y="78" text-anchor="middle" fill="#3b82f6" font-size="7">ECHO</text>' +
+                     '<text x="569" y="90" text-anchor="middle" fill="#555" font-size="6">GND VCC</text>' +
+                     '<text x="479" y="114" text-anchor="middle" fill="#ef4444" font-size="7">Swapped pins — no trigger sent. pulseIn() always returns 0. Swap and verify.</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Triggering sensor too frequently — echo from previous pulse interferes',
+            correct: 'Wait at least 60ms between trigger pulses (use <code>READ_INTERVAL = 100</code> in your sketch). This ensures the previous echo has fully decayed before the next pulse fires.',
+            incorrect: 'Triggering the sensor continuously in a tight loop with no delay between measurements. Each new trigger fires before the previous echo has cleared. The receiver picks up the tail of the previous pulse as the echo for the new one.',
+            consequence: 'Distance readings are erratic and jump wildly between measurements. Values cluster around specific spurious distances that correspond to the blanking window artifacts. Serial Monitor shows readings like 3, 127, 3, 45, 127 with no correlation to actual distance. Fix: add 60-100ms delay between reads.',
+            svgDiff: '<svg viewBox="0 0 640 118" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg15-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="118" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="106" fill="url(#sg15-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="90" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<text x="30" y="44" fill="#8b949e" font-size="7">#define READ_INTERVAL 100  // ms</text>' +
+                     '<text x="30" y="56" fill="#4ade80" font-size="7">if (millis() - lastRead >= READ_INTERVAL) {</text>' +
+                     '<text x="30" y="68" fill="#4ade80" font-size="7">    lastRead = millis();</text>' +
+                     '<text x="30" y="80" fill="#4ade80" font-size="7">    distance = readDistance();</text>' +
+                     '<text x="30" y="92" fill="#8b949e" font-size="7">}</text>' +
+                     '<text x="161" y="106" text-anchor="middle" fill="#22c55e" font-size="7">100ms interval — echoes fully clear before next trigger</text>' +
+                     '<rect x="330" y="12" width="298" height="90" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<text x="348" y="44" fill="#8b949e" font-size="7">void loop() {</text>' +
+                     '<text x="348" y="56" fill="#f87171" font-size="7">  distance = readDistance();  // no delay</text>' +
+                     '<text x="348" y="68" fill="#f87171" font-size="7">  // fires every ~few microseconds</text>' +
+                     '<text x="348" y="80" fill="#ef4444" font-size="7">  // echo interference = wild readings</text>' +
+                     '<text x="348" y="92" fill="#555" font-size="7">}</text>' +
+                     '<text x="479" y="106" text-anchor="middle" fill="#ef4444" font-size="7">Previous echo contaminates next reading — add 60-100ms minimum between triggers</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Alarm triggers on DISARMED state — armed flag not checked',
+            correct: 'Wrap all LED and buzzer actuations inside <code>if (armed) { ... }</code>. The sensor should still read and log distance when disarmed, but the physical alarm outputs must be suppressed until the system is explicitly armed.',
+            incorrect: 'Calling <code>setLED(level)</code> and <code>soundAlert(level)</code> unconditionally in the loop. The alarm activates immediately on power-on even before the user arms it, with no way to suppress it.',
+            consequence: 'The alarm sounds every time power is applied and at every subsequent threshold breach, regardless of armed state. Users cannot set up the sensor or approach the area without triggering the alarm. The arm/disarm button becomes meaningless.',
+            svgDiff: '<svg viewBox="0 0 640 118" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg15-m3-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="118" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="106" fill="url(#sg15-m3-grid)" rx="3"/>' +
+                     '<rect x="12" y="12" width="298" height="90" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="26" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<text x="30" y="44" fill="#8b949e" font-size="7">logReading(distance, level);  // always</text>' +
+                     '<text x="30" y="56" fill="#4ade80" font-size="7">if (armed) {</text>' +
+                     '<text x="30" y="68" fill="#4ade80" font-size="7">    setLED(level);</text>' +
+                     '<text x="30" y="80" fill="#4ade80" font-size="7">    soundAlert(level);</text>' +
+                     '<text x="30" y="92" fill="#4ade80" font-size="7">}</text>' +
+                     '<text x="161" y="106" text-anchor="middle" fill="#22c55e" font-size="7">Alarm suppressed when disarmed — logging still active</text>' +
+                     '<rect x="330" y="12" width="298" height="90" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="26" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<text x="348" y="44" fill="#8b949e" font-size="7">logReading(distance, level);</text>' +
+                     '<text x="348" y="56" fill="#f87171" font-size="7">setLED(level);    // no armed check</text>' +
+                     '<text x="348" y="68" fill="#f87171" font-size="7">soundAlert(level);// always fires</text>' +
+                     '<text x="348" y="80" fill="#ef4444" font-size="7">// alarm on power-on, before arm btn</text>' +
+                     '<text x="348" y="92" fill="#555" font-size="7">// disarm button has no effect</text>' +
+                     '<text x="479" y="106" text-anchor="middle" fill="#ef4444" font-size="7">Wrap all alarm outputs in if(armed) — log without armed check is correct</text>' +
+                     '</svg>'
+        }
+    ]
 };

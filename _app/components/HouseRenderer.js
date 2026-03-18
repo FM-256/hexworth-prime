@@ -1066,6 +1066,35 @@ const HouseRenderer = (function() {
                 .hr-tab-label { display: none; }
                 .hr-tab-icon { font-size: 1.2rem; }
             }
+
+            /* Reduced motion */
+            @media (prefers-reduced-motion: reduce) {
+                .path-card,
+                .module-card,
+                .hr-hub-card,
+                .hr-feature-card,
+                .hr-tab,
+                .back-btn,
+                .stat-item,
+                .house-badge { transition: none !important; }
+                .path-card:hover,
+                .module-card:hover,
+                .hr-hub-card:hover { transform: none !important; }
+                .hr-spinner { animation: none; }
+            }
+
+            /* High contrast */
+            @media (prefers-contrast: more) {
+                .path-card,
+                .module-card,
+                .hr-hub-card { border-color: rgba(255, 255, 255, 0.4); }
+                .hr-tab { border: 1px solid rgba(255, 255, 255, 0.3); }
+                .hr-tab.active { border-color: var(--house-primary, #60a5fa); }
+                .house-badge-text { color: #fff; }
+                .stat-label { color: #ccc; }
+                .module-cat { color: #ccc; }
+                .hero-description { color: #ccc; }
+            }
         `;
         document.head.appendChild(style);
     }

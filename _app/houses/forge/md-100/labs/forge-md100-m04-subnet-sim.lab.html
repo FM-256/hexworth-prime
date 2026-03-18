@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation: Split Decision &mdash; MD-100 Subnet Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+            overflow: hidden;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .lab-header {
+            padding: 12px 24px;
+            background: rgba(10, 10, 15, 0.97);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky; top: 0; z-index: 200;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .back-btn {
+            padding: 7px 15px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.82rem;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+        .lab-title { font-size: 0.95rem; color: #f5e6d3; font-weight: 600; }
+        .lab-badge {
+            padding: 3px 11px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.66rem;
+            color: #ea580c;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .task-progress { font-size: 0.82rem; color: #8a7060; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        /* ── Main Layout ──────────────────────────────────────────── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            height: calc(100vh - 50px);
+        }
+
+        /* ── Objectives Panel ─────────────────────────────────────── */
+        .obj-panel {
+            background: rgba(12, 10, 8, 0.97);
+            border-right: 1px solid rgba(234, 88, 12, 0.12);
+            overflow-y: auto;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .obj-panel::-webkit-scrollbar { width: 5px; }
+        .obj-panel::-webkit-scrollbar-thumb { background: rgba(234,88,12,0.2); border-radius: 3px; }
+
+        .mission-brief {
+            padding: 16px 18px;
+            background: rgba(234,88,12,0.06);
+            border-bottom: 1px solid rgba(234,88,12,0.15);
+        }
+        .brief-from { font-size: 0.68rem; color: #ea580c; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .brief-text { font-size: 0.82rem; color: #c0b0a0; line-height: 1.55; }
+        .brief-text em { color: #f97316; font-style: normal; font-weight: 500; }
+
+        .sticky-note {
+            margin: 12px 16px;
+            padding: 12px 14px;
+            background: #3a3520;
+            border: 1px solid #5a5030;
+            border-radius: 4px;
+            font-family: 'Comic Sans MS', 'Segoe UI', cursive;
+            font-size: 0.78rem;
+            color: #d4c878;
+            transform: rotate(-0.5deg);
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+        }
+        .sticky-note .sticky-author { display: block; margin-top: 6px; font-size: 0.7rem; color: #a09860; }
+
+        .obj-section-title {
+            font-size: 0.66rem;
+            color: #6b5040;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            padding: 12px 18px 6px;
+        }
+
+        .obj-list { padding: 0 12px 16px; flex: 1; overflow-y: auto; }
+
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 9px 10px;
+            margin-bottom: 3px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .obj-item:hover { background: rgba(234,88,12,0.06); }
+        .obj-item.active { background: rgba(234,88,12,0.1); border-color: rgba(234,88,12,0.25); }
+        .obj-item.completed .obj-check { background: #22c55e; border-color: #22c55e; color: #fff; }
+        .obj-item.completed .obj-label { color: #6b7060; text-decoration: line-through; }
+
+        .obj-check {
+            width: 22px; height: 22px; min-width: 22px;
+            border: 2px solid rgba(234,88,12,0.3);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; color: transparent;
+            margin-top: 1px;
+            transition: all 0.3s;
+        }
+        .obj-num { font-size: 0.65rem; color: #ea580c; font-weight: 700; margin-top: 2px; min-width: 18px; }
+        .obj-label { font-size: 0.8rem; color: #c0b0a0; line-height: 1.4; }
+
+        /* ── GUI Workspace ────────────────────────────────────────── */
+        .gui-workspace {
+            background: #0a0a0f;
+            overflow-y: auto;
+            padding: 20px;
+            position: relative;
+        }
+        .gui-workspace::-webkit-scrollbar { width: 6px; }
+        .gui-workspace::-webkit-scrollbar-thumb { background: rgba(234,88,12,0.15); border-radius: 3px; }
+
+        /* ── Windows-Style Panels ─────────────────────────────────── */
+        .win-panel {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .win-panel.hidden { display: none; }
+
+        .win-titlebar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: #252540;
+            border-bottom: 1px solid #2a2a4e;
+        }
+        .win-titlebar-left { display: flex; align-items: center; gap: 10px; }
+        .win-titlebar-icon { font-size: 0.9rem; }
+        .win-titlebar-text { font-size: 0.82rem; color: #c0c0e0; font-weight: 500; }
+        .win-controls { display: flex; gap: 6px; }
+        .win-ctrl-btn {
+            width: 14px; height: 14px; border-radius: 50%;
+            border: none; cursor: pointer; opacity: 0.7;
+        }
+        .win-ctrl-min { background: #f5c542; }
+        .win-ctrl-max { background: #42f560; }
+        .win-ctrl-close { background: #f54242; }
+
+        .win-body { padding: 16px; }
+
+        /* ── Tabs ─────────────────────────────────────────────────── */
+        .win-tabs {
+            display: flex;
+            border-bottom: 1px solid #2a2a4e;
+            background: #1e1e36;
+        }
+        .win-tab {
+            padding: 8px 18px;
+            font-size: 0.78rem;
+            color: #8080a0;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+        .win-tab:hover { color: #b0b0d0; }
+        .win-tab.active { color: #f97316; border-bottom-color: #f97316; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── Network Form ─────────────────────────────────────────── */
+        .net-form { display: flex; flex-direction: column; gap: 12px; }
+        .form-row { display: flex; align-items: center; gap: 12px; }
+        .form-label {
+            font-size: 0.78rem; color: #8080a0; min-width: 160px; text-align: right;
+        }
+        .form-input {
+            flex: 1; max-width: 200px;
+            padding: 6px 10px;
+            background: #12122a;
+            border: 1px solid #3a3a5e;
+            border-radius: 4px;
+            color: #d0d0f0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .form-input:focus { border-color: #f97316; }
+        .form-input.correct { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); }
+        .form-input.incorrect { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); }
+        .form-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .form-select {
+            flex: 1; max-width: 200px;
+            padding: 6px 10px;
+            background: #12122a;
+            border: 1px solid #3a3a5e;
+            border-radius: 4px;
+            color: #d0d0f0;
+            font-size: 0.82rem;
+            outline: none;
+        }
+        .form-select:focus { border-color: #f97316; }
+
+        .radio-group { display: flex; gap: 16px; align-items: center; }
+        .radio-label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.8rem; color: #a0a0c0; cursor: pointer;
+        }
+        .radio-label input[type="radio"] { accent-color: #f97316; }
+
+        /* ── Command Prompt ────────────────────────────────────────── */
+        .cmd-window {
+            background: #0c0c0c;
+            border: 1px solid #333;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .cmd-titlebar {
+            padding: 5px 12px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .cmd-titlebar-text { font-size: 0.75rem; color: #aaa; font-family: 'Consolas', monospace; }
+        .cmd-body {
+            padding: 12px;
+            max-height: 320px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+        .cmd-body::-webkit-scrollbar { width: 5px; }
+        .cmd-body::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .cmd-output { color: #ccc; white-space: pre-wrap; word-break: break-all; }
+        .cmd-output .highlight { color: #f97316; font-weight: 600; }
+        .cmd-output .error { color: #ef4444; }
+        .cmd-output .success { color: #22c55e; }
+
+        .cmd-input-line {
+            display: flex; align-items: center; gap: 0; margin-top: 6px;
+        }
+        .cmd-prompt { color: #ccc; white-space: nowrap; }
+        .cmd-input-field {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #f0f0f0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.82rem;
+            outline: none;
+            padding: 2px 4px;
+        }
+
+        /* ── Action Buttons ────────────────────────────────────────── */
+        .action-btn {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.84rem;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .action-btn:hover { box-shadow: 0 3px 14px rgba(234,88,12,0.35); transform: translateY(-1px); }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .action-btn.success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+
+        .secondary-btn {
+            padding: 6px 14px;
+            background: rgba(234,88,12,0.12);
+            border: 1px solid rgba(234,88,12,0.3);
+            border-radius: 5px;
+            color: #f97316;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .secondary-btn:hover { background: rgba(234,88,12,0.22); }
+
+        /* ── Toast Notifications ──────────────────────────────────── */
+        .toast-container {
+            position: fixed;
+            top: 60px; right: 20px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 12px 18px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            border-left: 4px solid #f97316;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 360px;
+            animation: toastIn 0.35s ease-out, toastOut 0.4s ease-in 4.5s forwards;
+            pointer-events: auto;
+        }
+        .toast.success { border-left-color: #22c55e; }
+        .toast.warning { border-left-color: #eab308; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast-from { font-size: 0.68rem; color: #ea580c; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+        .toast-msg { font-size: 0.82rem; color: #c0c0d0; line-height: 1.45; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(60px); } }
+
+        /* ── Status Indicators ─────────────────────────────────────── */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 500;
+        }
+        .status-indicator.offline { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .status-indicator.online { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .status-indicator.warning { background: rgba(234,179,8,0.15); color: #eab308; }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .status-dot.offline { background: #ef4444; }
+        .status-dot.online { background: #22c55e; }
+        .status-dot.warning { background: #eab308; }
+
+        /* ── Network Diagram ──────────────────────────────────────── */
+        .net-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(12,12,30,0.6);
+            border: 1px solid #2a2a4e;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .net-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 14px;
+            background: #1e1e36;
+            border: 1px solid #3a3a5e;
+            border-radius: 6px;
+            min-width: 90px;
+            transition: all 0.3s;
+        }
+        .net-node.error { border-color: #ef4444; background: rgba(239,68,68,0.08); }
+        .net-node.ok { border-color: #22c55e; background: rgba(34,197,94,0.08); }
+        .net-node.warn { border-color: #eab308; background: rgba(234,179,8,0.08); }
+        .net-node.subnet-eng { border-color: #3b82f6; background: rgba(59,130,246,0.08); }
+        .net-node.subnet-mkt { border-color: #f97316; background: rgba(249,115,22,0.08); }
+        .net-node.subnet-guest { border-color: #22c55e; background: rgba(34,197,94,0.08); }
+        .net-node-icon { font-size: 1.4rem; }
+        .net-node-label { font-size: 0.7rem; color: #a0a0c0; text-align: center; }
+        .net-node-ip { font-size: 0.68rem; color: #6b6b8b; font-family: 'Consolas', monospace; }
+        .net-link { font-size: 1.2rem; color: #3a3a5e; }
+
+        /* ── Subnet Plan Table ─────────────────────────────────────── */
+        .subnet-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            margin-bottom: 16px;
+        }
+        .subnet-table th {
+            text-align: left;
+            padding: 9px 10px;
+            background: #1e1e36;
+            color: #8080a0;
+            border-bottom: 1px solid #2a2a4e;
+            font-weight: 500;
+        }
+        .subnet-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(42,42,78,0.5);
+            vertical-align: middle;
+        }
+        .subnet-table .dept-label {
+            font-weight: 500;
+            font-size: 0.8rem;
+        }
+        .subnet-table .dept-label.eng { color: #3b82f6; }
+        .subnet-table .dept-label.mkt { color: #f97316; }
+        .subnet-table .dept-label.guest { color: #22c55e; }
+        .subnet-table input.form-input {
+            max-width: 100%;
+            width: 100%;
+            padding: 5px 8px;
+            font-size: 0.78rem;
+        }
+
+        /* ── Progress Bar ──────────────────────────────────────────── */
+        .progress-bar {
+            width: 100%; height: 6px;
+            background: #1a1a2e;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ea580c, #f97316);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Info Box ──────────────────────────────────────────────── */
+        .info-box {
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            line-height: 1.55;
+            margin-bottom: 12px;
+        }
+        .info-box.warning {
+            background: rgba(234,179,8,0.08);
+            border: 1px solid rgba(234,179,8,0.25);
+            color: #fde68a;
+        }
+        .info-box.error {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+        }
+        .info-box.info {
+            background: rgba(59,130,246,0.08);
+            border: 1px solid rgba(59,130,246,0.25);
+            color: #93c5fd;
+        }
+        .info-box.success {
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.2);
+            color: #86efac;
+        }
+
+        /* ── Assessment Output ─────────────────────────────────────── */
+        .assessment-output {
+            display: none;
+            margin-top: 14px;
+            padding: 14px;
+            background: #0c0c1a;
+            border: 1px solid #2a2a4e;
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            line-height: 1.7;
+            color: #c0c0d0;
+        }
+        .assessment-output.show { display: block; }
+        .assessment-output .a-warning { color: #eab308; }
+        .assessment-output .a-error { color: #ef4444; }
+        .assessment-output .a-ok { color: #22c55e; }
+        .assessment-output .a-header { color: #f97316; font-weight: 700; }
+
+        /* ── Completion Banner ─────────────────────────────────────── */
+        .complete-banner {
+            display: none;
+            text-align: center;
+            padding: 32px 20px;
+            background: rgba(34,197,94,0.06);
+            border: 1px solid rgba(34,197,94,0.2);
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .complete-banner.show { display: block; }
+        .complete-banner h3 { color: #22c55e; font-size: 1.1rem; margin-bottom: 8px; }
+        .complete-banner p { color: #8a8a70; font-size: 0.88rem; margin-bottom: 18px; line-height: 1.5; }
+        .complete-btn {
+            padding: 12px 32px;
+            background: #22c55e;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.95rem;
+            cursor: pointer;
+            box-shadow: 0 3px 12px rgba(34,197,94,0.3);
+            transition: background 0.2s;
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        /* ── Subnet Group Display (Obj 8) ──────────────────────────── */
+        .subnet-groups {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .subnet-group {
+            flex: 1;
+            min-width: 180px;
+            padding: 14px;
+            border-radius: 8px;
+            border: 2px solid #3a3a5e;
+            background: #12122a;
+            transition: all 0.4s;
+        }
+        .subnet-group.eng { border-color: #3b82f6; background: rgba(59,130,246,0.05); }
+        .subnet-group.mkt { border-color: #f97316; background: rgba(249,115,22,0.05); }
+        .subnet-group.guest { border-color: #22c55e; background: rgba(34,197,94,0.05); }
+        .subnet-group-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .subnet-group.eng .subnet-group-title { color: #3b82f6; }
+        .subnet-group.mkt .subnet-group-title { color: #f97316; }
+        .subnet-group.guest .subnet-group-title { color: #22c55e; }
+        .subnet-group-nodes { display: flex; flex-direction: column; gap: 6px; }
+        .subnet-mini-node {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+            font-size: 0.72rem;
+        }
+        .subnet-mini-node .mn-label { color: #a0a0c0; flex: 1; }
+        .subnet-mini-node .mn-ip { font-family: 'Consolas', monospace; color: #8080a0; }
+        .subnet-info-line {
+            font-size: 0.7rem;
+            font-family: 'Consolas', monospace;
+            color: #6b6b8b;
+            margin-top: 6px;
+        }
+
+        /* ── Obj View Hide/Show ─────────────────────────────────────── */
+        .obj-view { display: none; }
+        .obj-view.active { display: block; }
+
+        /* ── Responsive ────────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; grid-template-rows: 200px 1fr; }
+            .obj-panel { max-height: 200px; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&larr; Back to MD-100</a>
+        <span class="lab-title">Operation: Split Decision</span>
+        <span class="lab-badge">SUBNET SIMULATOR</span>
+    </div>
+    <div class="task-progress">
+        Objectives: <span class="task-count" id="objProgress">0 / 8</span>
+    </div>
+</header>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="lab-container">
+    <!-- ── Objectives Panel ──────────────────────────────────── -->
+    <aside class="obj-panel">
+        <div class="mission-brief">
+            <div class="brief-from">Mission Brief &mdash; Diane Walsh, IT Manager</div>
+            <div class="brief-text">
+                "We've got <em>200 devices</em> all crammed on one flat /24 network and it's a mess. Broadcast storms twice this month, Guest WiFi can reach engineering drives, and the switch logs are screaming. Management wants <em>three clean subnets</em> &mdash; Engineering, Marketing, and Guest &mdash; by end of day. I need you to design it, configure it, and verify the isolation."
+            </div>
+        </div>
+
+        <div class="sticky-note">
+            "Current network is 192.168.1.0/24. ALL 200 devices share it. No VLANs, no segments, nothing. Good luck."
+            <span class="sticky-author">Taped to the rack door &mdash; previous tech (resigned)</span>
+        </div>
+
+        <div class="obj-section-title">Objectives</div>
+        <div class="obj-list" id="objList">
+            <div class="obj-item active" data-obj="1" onclick="activateObj(1)">
+                <div class="obj-check" id="chk-1">&#10003;</div>
+                <div class="obj-num">01</div>
+                <div class="obj-label">Assess the current flat network</div>
+            </div>
+            <div class="obj-item" data-obj="2" onclick="activateObj(2)">
+                <div class="obj-check" id="chk-2">&#10003;</div>
+                <div class="obj-num">02</div>
+                <div class="obj-label">Design the subnet plan (/26 per department)</div>
+            </div>
+            <div class="obj-item" data-obj="3" onclick="activateObj(3)">
+                <div class="obj-check" id="chk-3">&#10003;</div>
+                <div class="obj-num">03</div>
+                <div class="obj-label">Configure Engineering gateway IP</div>
+            </div>
+            <div class="obj-item" data-obj="4" onclick="activateObj(4)">
+                <div class="obj-check" id="chk-4">&#10003;</div>
+                <div class="obj-num">04</div>
+                <div class="obj-label">Configure Marketing workstation IP</div>
+            </div>
+            <div class="obj-item" data-obj="5" onclick="activateObj(5)">
+                <div class="obj-check" id="chk-5">&#10003;</div>
+                <div class="obj-num">05</div>
+                <div class="obj-label">Configure Guest WiFi access point</div>
+            </div>
+            <div class="obj-item" data-obj="6" onclick="activateObj(6)">
+                <div class="obj-check" id="chk-6">&#10003;</div>
+                <div class="obj-num">06</div>
+                <div class="obj-label">Test cross-subnet connectivity with ping</div>
+            </div>
+            <div class="obj-item" data-obj="7" onclick="activateObj(7)">
+                <div class="obj-check" id="chk-7">&#10003;</div>
+                <div class="obj-num">07</div>
+                <div class="obj-label">Verify Guest subnet isolation</div>
+            </div>
+            <div class="obj-item" data-obj="8" onclick="activateObj(8)">
+                <div class="obj-check" id="chk-8">&#10003;</div>
+                <div class="obj-num">08</div>
+                <div class="obj-label">Document the final network layout</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── GUI Workspace ─────────────────────────────────────── -->
+    <main class="gui-workspace" id="workspace">
+
+        <!-- ═════ OBJECTIVE 1: Assess Current Network ═════ -->
+        <div class="obj-view active" id="view-1">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">
+                            <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        </span>
+                        <span class="win-titlebar-text">Network and Sharing Center &mdash; Meridian Corp</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-tabs">
+                    <button class="win-tab active">Overview</button>
+                    <button class="win-tab" style="opacity:0.5;">Change adapter settings</button>
+                    <button class="win-tab" style="opacity:0.5;">Advanced sharing</button>
+                </div>
+                <div class="win-body">
+                    <div class="info-box warning">
+                        <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block;object-fit:contain"> Network Warning:</strong> Excessive broadcast traffic detected. Switch logs show 68% broadcast saturation. All departments share a single /24 segment.
+                    </div>
+
+                    <!-- Flat network diagram — all on one subnet -->
+                    <div class="net-diagram" id="flatDiagram">
+                        <div class="net-node warn">
+                            <div class="net-node-icon"><img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                            <div class="net-node-label">Engineering</div>
+                            <div class="net-node-ip">192.168.1.x</div>
+                        </div>
+                        <div class="net-link">&mdash;&mdash;</div>
+                        <div class="net-node warn">
+                            <div class="net-node-icon"><img src="/assets/images/icons/icon-printer.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                            <div class="net-node-label">Marketing</div>
+                            <div class="net-node-ip">192.168.1.x</div>
+                        </div>
+                        <div class="net-link">&mdash;&mdash;</div>
+                        <div class="net-node warn">
+                            <div class="net-node-icon"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                            <div class="net-node-label">Guest WiFi</div>
+                            <div class="net-node-ip">192.168.1.x</div>
+                        </div>
+                        <div class="net-link">&mdash;&mdash;</div>
+                        <div class="net-node warn">
+                            <div class="net-node-icon"><img src="/assets/images/icons/icon-cabinet.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                            <div class="net-node-label">Core Switch</div>
+                            <div class="net-node-ip">192.168.1.0/24</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                        <div>
+                            <div style="font-size:0.78rem; color:#8080a0; margin-bottom:4px;">Current Network</div>
+                            <div style="font-family:'Consolas',monospace; font-size:0.88rem; color:#d0d0f0;">192.168.1.0/24</div>
+                        </div>
+                        <div style="flex:1;"></div>
+                        <div>
+                            <div style="font-size:0.78rem; color:#8080a0; margin-bottom:4px;">Total Hosts</div>
+                            <div style="font-size:0.88rem; color:#eab308; font-weight:600;">254 usable</div>
+                        </div>
+                        <div style="width:1px; height:36px; background:#2a2a4e;"></div>
+                        <div>
+                            <div style="font-size:0.78rem; color:#8080a0; margin-bottom:4px;">Devices Found</div>
+                            <div style="font-size:0.88rem; color:#ef4444; font-weight:600;">212 active</div>
+                        </div>
+                        <div style="width:1px; height:36px; background:#2a2a4e;"></div>
+                        <div>
+                            <div style="font-size:0.78rem; color:#8080a0; margin-bottom:4px;">Segmentation</div>
+                            <div style="font-size:0.88rem; color:#ef4444; font-weight:600;">None</div>
+                        </div>
+                    </div>
+
+                    <button class="action-btn" id="assessBtn" onclick="runAssessment()">Run Network Assessment</button>
+
+                    <div class="assessment-output" id="assessOutput">
+<span class="a-header">== MERIDIAN CORP NETWORK ASSESSMENT =====================</span>
+<span class="a-ok">Scan initiated... complete.</span>
+
+Network:         192.168.1.0/24
+Subnet Mask:     255.255.255.0
+Usable Hosts:    254
+Active Devices:  <span class="a-error">212</span>
+
+Departments discovered on same subnet:
+  - Engineering  (~60 devices)
+  - Marketing    (~80 devices)
+  - Guest WiFi   (~72 devices)
+
+<span class="a-warning">ISSUE: All broadcast traffic reaches all 212 devices.</span>
+<span class="a-warning">ISSUE: Guest WiFi has direct Layer-2 access to Engineering.</span>
+<span class="a-warning">ISSUE: Broadcast saturation at 68%. Performance degraded.</span>
+
+<span class="a-error">RECOMMENDATION: Subnet the network into 3 separate /26 segments.</span>
+<span class="a-ok">A /26 provides 62 usable hosts per subnet — adequate for each dept.</span>
+<span class="a-header">=========================================================</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 2: Design Subnet Plan ═════ -->
+        <div class="obj-view" id="view-2">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">
+                            <img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        </span>
+                        <span class="win-titlebar-text">Subnet Planning Tool &mdash; Meridian Corp</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:14px;">
+                        Using the parent network <strong style="color:#f97316; font-family:'Consolas',monospace;">192.168.1.0/24</strong>, divide into three equal /26 subnets. Fill in the subnet table below. Each /26 has 62 usable host addresses.
+                    </p>
+
+                    <div style="font-size:0.76rem; color:#6b5040; margin-bottom:10px;">
+                        Hint: /26 = 255.255.255.192 &mdash; Block size 64. Subnets start at: .0, .64, .128, .192
+                    </div>
+
+                    <table class="subnet-table" id="subnetPlanTable">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th>Network Address</th>
+                                <th>First Host</th>
+                                <th>Last Host</th>
+                                <th>Broadcast</th>
+                                <th>Subnet Mask</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Engineering row -->
+                            <tr>
+                                <td><span class="dept-label eng">Engineering</span><br><span style="font-size:0.68rem; color:#6b6b8b; font-family:'Consolas',monospace;">.0/26</span></td>
+                                <td><input class="form-input" id="eng-net" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.0')"></td>
+                                <td><input class="form-input" id="eng-first" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.1')"></td>
+                                <td><input class="form-input" id="eng-last" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.62')"></td>
+                                <td><input class="form-input" id="eng-bcast" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.63')"></td>
+                                <td><input class="form-input" id="eng-mask" placeholder="255.255.255.?" spellcheck="false" oninput="validatePlanField(this, '255.255.255.192')"></td>
+                            </tr>
+                            <!-- Marketing row -->
+                            <tr>
+                                <td><span class="dept-label mkt">Marketing</span><br><span style="font-size:0.68rem; color:#6b6b8b; font-family:'Consolas',monospace;">.64/26</span></td>
+                                <td><input class="form-input" id="mkt-net" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.64')"></td>
+                                <td><input class="form-input" id="mkt-first" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.65')"></td>
+                                <td><input class="form-input" id="mkt-last" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.126')"></td>
+                                <td><input class="form-input" id="mkt-bcast" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.127')"></td>
+                                <td><input class="form-input" id="mkt-mask" placeholder="255.255.255.?" spellcheck="false" oninput="validatePlanField(this, '255.255.255.192')"></td>
+                            </tr>
+                            <!-- Guest WiFi row -->
+                            <tr>
+                                <td><span class="dept-label guest">Guest WiFi</span><br><span style="font-size:0.68rem; color:#6b6b8b; font-family:'Consolas',monospace;">.128/26</span></td>
+                                <td><input class="form-input" id="guest-net" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.128')"></td>
+                                <td><input class="form-input" id="guest-first" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.129')"></td>
+                                <td><input class="form-input" id="guest-last" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.190')"></td>
+                                <td><input class="form-input" id="guest-bcast" placeholder="192.168.1.?" spellcheck="false" oninput="validatePlanField(this, '192.168.1.191')"></td>
+                                <td><input class="form-input" id="guest-mask" placeholder="255.255.255.?" spellcheck="false" oninput="validatePlanField(this, '255.255.255.192')"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div id="planError" style="display:none; font-size:0.78rem; color:#ef4444; margin-bottom:10px;"></div>
+                    <button class="action-btn" onclick="submitSubnetPlan()">Submit Plan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 3: Configure Engineering Gateway ═════ -->
+        <div class="obj-view" id="view-3">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">
+                            <img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        </span>
+                        <span class="win-titlebar-text">Ethernet Properties &mdash; ENG-GATEWAY-01</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-tabs">
+                    <button class="win-tab active">Internet Protocol Version 4 (TCP/IPv4)</button>
+                    <button class="win-tab" style="opacity:0.5;">IPv6</button>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:14px;">
+                        Configure the Engineering subnet gateway. This device <em style="color:#f97316;">is</em> the gateway, so the Default Gateway field should be left empty.
+                    </p>
+                    <div class="info-box info" style="margin-bottom:14px;">
+                        Engineering subnet: <strong style="font-family:'Consolas',monospace;">192.168.1.0/26</strong> &mdash; range .1 through .62
+                    </div>
+                    <div class="net-form">
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="eng-gw-method" value="static" checked disabled>
+                                Use the following IP address:
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">IP Address:</span>
+                            <input class="form-input" id="eng-gw-ip" placeholder="192.168.1.?" spellcheck="false" oninput="liveValidate(this, '192.168.1.1')">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Subnet Mask:</span>
+                            <input class="form-input" id="eng-gw-mask" placeholder="255.255.255.?" spellcheck="false" oninput="liveValidate(this, '255.255.255.192')">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Default Gateway:</span>
+                            <input class="form-input" id="eng-gw-gw" placeholder="(leave blank — it IS the gateway)" spellcheck="false" style="max-width:280px;">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Preferred DNS:</span>
+                            <input class="form-input" id="eng-gw-dns" placeholder="192.168.1.?" spellcheck="false" oninput="liveValidate(this, '192.168.1.1')">
+                        </div>
+                        <button class="action-btn" onclick="applyEngGateway()">Apply Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 4: Configure Marketing Workstation ═════ -->
+        <div class="obj-view" id="view-4">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">
+                            <img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        </span>
+                        <span class="win-titlebar-text">Ethernet Properties &mdash; MKT-WS-04</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-tabs">
+                    <button class="win-tab active">Internet Protocol Version 4 (TCP/IPv4)</button>
+                    <button class="win-tab" style="opacity:0.5;">IPv6</button>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:14px;">
+                        Configure a Marketing department workstation with a valid IP in the Marketing subnet. Any valid host address in the range will be accepted.
+                    </p>
+                    <div class="info-box info" style="margin-bottom:14px;">
+                        Marketing subnet: <strong style="font-family:'Consolas',monospace;">192.168.1.64/26</strong> &mdash; valid hosts: .65 through .126. Gateway: .65, DNS: .65
+                    </div>
+                    <div class="net-form">
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="mkt-method" value="static" checked disabled>
+                                Use the following IP address:
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">IP Address:</span>
+                            <input class="form-input" id="mkt-ip" placeholder="192.168.1.?" spellcheck="false" oninput="liveMktIpValidate(this)">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Subnet Mask:</span>
+                            <input class="form-input" id="mkt-mask-cfg" placeholder="255.255.255.?" spellcheck="false" oninput="liveValidate(this, '255.255.255.192')">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Default Gateway:</span>
+                            <input class="form-input" id="mkt-gw" placeholder="192.168.1.?" spellcheck="false" oninput="liveValidate(this, '192.168.1.65')">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Preferred DNS:</span>
+                            <input class="form-input" id="mkt-dns" placeholder="192.168.1.?" spellcheck="false" oninput="liveValidate(this, '192.168.1.65')">
+                        </div>
+                        <button class="action-btn" onclick="applyMktWorkstation()">Apply Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 5: Configure Guest WiFi AP ═════ -->
+        <div class="obj-view" id="view-5">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">
+                            <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        </span>
+                        <span class="win-titlebar-text">Ethernet Properties &mdash; GUEST-AP-01</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-tabs">
+                    <button class="win-tab active">IP / Network</button>
+                    <button class="win-tab" style="opacity:0.5;">Wireless Settings</button>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:14px;">
+                        Configure the Guest WiFi access point. This device acts as the gateway for the Guest subnet &mdash; leave Default Gateway blank. Also configure the wireless SSID and security.
+                    </p>
+                    <div class="info-box info" style="margin-bottom:14px;">
+                        Guest subnet: <strong style="font-family:'Consolas',monospace;">192.168.1.128/26</strong> &mdash; range .129 through .190
+                    </div>
+                    <div class="net-form">
+                        <div class="form-row">
+                            <span class="form-label">IP Address:</span>
+                            <input class="form-input" id="guest-ap-ip" placeholder="192.168.1.?" spellcheck="false" oninput="liveValidate(this, '192.168.1.129')">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Subnet Mask:</span>
+                            <input class="form-input" id="guest-ap-mask" placeholder="255.255.255.?" spellcheck="false" oninput="liveValidate(this, '255.255.255.192')">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Default Gateway:</span>
+                            <input class="form-input" id="guest-ap-gw" placeholder="(leave blank — it IS the gateway)" spellcheck="false" style="max-width:280px;">
+                        </div>
+                        <div style="height:1px; background:#2a2a4e; margin:8px 0;"></div>
+                        <div class="form-row">
+                            <span class="form-label">SSID (Network Name):</span>
+                            <input class="form-input" id="guest-ap-ssid" placeholder="e.g. Meridian-Guest" spellcheck="false" oninput="liveValidate(this, 'Meridian-Guest')" style="max-width:220px;">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Security Protocol:</span>
+                            <select class="form-select" id="guest-ap-security">
+                                <option value="">-- Select --</option>
+                                <option value="open">Open (No Security)</option>
+                                <option value="wep">WEP</option>
+                                <option value="wpa">WPA</option>
+                                <option value="wpa2">WPA2</option>
+                                <option value="wpa3">WPA3</option>
+                            </select>
+                        </div>
+                        <button class="action-btn" onclick="applyGuestAP()">Apply Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 6: Test Connectivity ═════ -->
+        <div class="obj-view" id="view-6">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9646;</span>
+                        <span class="win-titlebar-text">Command Prompt &mdash; ENG-WS-01 (192.168.1.10)</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="cmd-window" style="border:none; border-radius:0;">
+                    <div class="cmd-body" id="cmd6-body">
+                        <div class="cmd-output">Microsoft Windows [Version 10.0.19045.3803]
+(c) Microsoft Corporation. All rights reserved.
+
+<span class="highlight">ENG-WS-01 &mdash; Engineering Subnet (192.168.1.0/26)</span>
+Current IP: 192.168.1.10 | Gateway: 192.168.1.1
+
+C:\Users\Forge&gt;</div>
+                    </div>
+                    <div class="cmd-input-line" style="padding: 0 12px 10px;">
+                        <span class="cmd-prompt">C:\Users\Forge&gt; </span>
+                        <input class="cmd-input-field" id="cmd6-input" placeholder="ping 192.168.1.65" spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <p style="font-size:0.76rem; color:#6b5040; margin-top:4px;">
+                Ping devices in each of the other two subnets to verify routing works. Try: <code style="color:#f97316;">ping 192.168.1.65</code> (Marketing) and <code style="color:#f97316;">ping 192.168.1.129</code> (Guest).
+                Complete after 2 successful pings to different subnets.
+            </p>
+            <div id="ping6-progress" style="margin-top:10px; font-size:0.76rem; color:#6b6b8b;">
+                Successful cross-subnet pings: <span id="ping6-count" style="color:#f97316;">0</span> / 2
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 7: Verify Subnet Isolation ═════ -->
+        <div class="obj-view" id="view-7">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9646;</span>
+                        <span class="win-titlebar-text">Command Prompt &mdash; GUEST-DEVICE-01 (192.168.1.140)</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="cmd-window" style="border:none; border-radius:0;">
+                    <div class="cmd-body" id="cmd7-body">
+                        <div class="cmd-output">Microsoft Windows [Version 10.0.19045.3803]
+(c) Microsoft Corporation. All rights reserved.
+
+<span class="highlight">GUEST-DEVICE-01 &mdash; Guest WiFi Subnet (192.168.1.128/26)</span>
+
+C:\Users\Guest&gt; ipconfig
+<span class="success">
+Windows IP Configuration
+
+Ethernet adapter Wireless LAN:
+   IPv4 Address. . . . . . . . : 192.168.1.140
+   Subnet Mask . . . . . . . . : 255.255.255.192
+   Default Gateway . . . . . . : 192.168.1.129
+   DNS Servers . . . . . . . . : 192.168.1.129
+</span>
+C:\Users\Guest&gt;</div>
+                    </div>
+                    <div class="cmd-input-line" style="padding: 0 12px 10px;">
+                        <span class="cmd-prompt">C:\Users\Guest&gt; </span>
+                        <input class="cmd-input-field" id="cmd7-input" placeholder="ping 192.168.1.10" spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <p style="font-size:0.76rem; color:#6b5040; margin-top:4px;">
+                From the Guest device, ping an Engineering IP (<code style="color:#f97316;">ping 192.168.1.10</code>) to confirm isolation, then ping the Guest gateway (<code style="color:#f97316;">ping 192.168.1.129</code>) to confirm local connectivity.
+            </p>
+            <div id="iso7-status" style="display:none; margin-top:10px;" class="info-box info">
+                Isolation check in progress...
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 8: Document the Network ═════ -->
+        <div class="obj-view" id="view-8">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">
+                            <img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        </span>
+                        <span class="win-titlebar-text">Network Documentation &mdash; Meridian Corp Final Layout</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:16px;">
+                        Review the final network diagram showing all three segmented subnets. Confirm the layout is correct, then click Complete Documentation.
+                    </p>
+
+                    <div class="subnet-groups">
+                        <div class="subnet-group eng">
+                            <div class="subnet-group-title">Engineering</div>
+                            <div class="subnet-group-nodes">
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-cabinet.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">ENG-GW-01</span>
+                                    <span class="mn-ip">192.168.1.1</span>
+                                </div>
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">ENG-WS-01</span>
+                                    <span class="mn-ip">192.168.1.10</span>
+                                </div>
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">ENG-WS-02</span>
+                                    <span class="mn-ip">192.168.1.11</span>
+                                </div>
+                            </div>
+                            <div class="subnet-info-line">192.168.1.0/26 &mdash; mask 255.255.255.192<br>Hosts: .1 &mdash; .62 | BCast: .63</div>
+                        </div>
+
+                        <div class="subnet-group mkt">
+                            <div class="subnet-group-title">Marketing</div>
+                            <div class="subnet-group-nodes">
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-cabinet.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">MKT-GW-01</span>
+                                    <span class="mn-ip">192.168.1.65</span>
+                                </div>
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">MKT-WS-04</span>
+                                    <span class="mn-ip" id="doc-mkt-ip">192.168.1.80</span>
+                                </div>
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-printer.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">MKT-PRINT</span>
+                                    <span class="mn-ip">192.168.1.90</span>
+                                </div>
+                            </div>
+                            <div class="subnet-info-line">192.168.1.64/26 &mdash; mask 255.255.255.192<br>Hosts: .65 &mdash; .126 | BCast: .127</div>
+                        </div>
+
+                        <div class="subnet-group guest">
+                            <div class="subnet-group-title">Guest WiFi</div>
+                            <div class="subnet-group-nodes">
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">GUEST-AP-01</span>
+                                    <span class="mn-ip">192.168.1.129</span>
+                                </div>
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">GUEST-DEV-01</span>
+                                    <span class="mn-ip">192.168.1.140</span>
+                                </div>
+                                <div class="subnet-mini-node">
+                                    <img src="/assets/images/icons/icon-laptop.webp" alt="" style="width:1em;height:1em;object-fit:contain;">
+                                    <span class="mn-label">GUEST-DEV-02</span>
+                                    <span class="mn-ip">192.168.1.155</span>
+                                </div>
+                            </div>
+                            <div class="subnet-info-line">192.168.1.128/26 &mdash; mask 255.255.255.192<br>Hosts: .129 &mdash; .190 | BCast: .191</div>
+                        </div>
+                    </div>
+
+                    <!-- Cross-subnet isolation table -->
+                    <div style="background:#0c0c1a; border:1px solid #2a2a4e; border-radius:6px; padding:14px; margin-bottom:16px;">
+                        <div style="font-size:0.76rem; color:#6b5040; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.1em;">Routing Matrix</div>
+                        <table style="width:100%; font-size:0.76rem; border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left; padding:6px 10px; color:#6b6b8b; border-bottom:1px solid #2a2a4e;">From \ To</th>
+                                    <th style="padding:6px 10px; color:#3b82f6; border-bottom:1px solid #2a2a4e; text-align:center;">Engineering</th>
+                                    <th style="padding:6px 10px; color:#f97316; border-bottom:1px solid #2a2a4e; text-align:center;">Marketing</th>
+                                    <th style="padding:6px 10px; color:#22c55e; border-bottom:1px solid #2a2a4e; text-align:center;">Guest WiFi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding:6px 10px; color:#3b82f6; border-bottom:1px solid rgba(42,42,78,0.4);">Engineering</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#22c55e; border-bottom:1px solid rgba(42,42,78,0.4);">Local</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#eab308; border-bottom:1px solid rgba(42,42,78,0.4);">Via Router</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#ef4444; border-bottom:1px solid rgba(42,42,78,0.4);">Blocked</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:6px 10px; color:#f97316; border-bottom:1px solid rgba(42,42,78,0.4);">Marketing</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#eab308; border-bottom:1px solid rgba(42,42,78,0.4);">Via Router</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#22c55e; border-bottom:1px solid rgba(42,42,78,0.4);">Local</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#ef4444; border-bottom:1px solid rgba(42,42,78,0.4);">Blocked</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:6px 10px; color:#22c55e;">Guest WiFi</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#ef4444;">Blocked</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#ef4444;">Blocked</td>
+                                    <td style="padding:6px 10px; text-align:center; color:#22c55e;">Local</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button class="action-btn" onclick="completeDocumentation()">Complete Documentation</button>
+                </div>
+            </div>
+
+            <!-- Completion Banner -->
+            <div class="complete-banner" id="completeBanner">
+                <h3>Network Segmentation Complete</h3>
+                <p>
+                    Meridian Corp now has three isolated /26 subnets. Broadcast storms are eliminated, Guest WiFi cannot reach Engineering, and each department has 62 usable host addresses. Network documentation has been filed.
+                </p>
+                <button class="complete-btn" onclick="finalComplete()">Complete Module</button>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    'use strict';
+
+    /* ─────────────────────────────────────────────────────
+       STORAGE & STATE
+    ───────────────────────────────────────────────────── */
+    const STORAGE_KEY = 'forge-md100-m04-subnet-sim';
+    const TOTAL_OBJ = 8;
+
+    // Mutable state for this session
+    const state = {
+        completed: new Set(),   // set of completed objective numbers (1-8)
+        activeObj: 1,           // currently displayed objective
+        ping6Subnets: new Set(), // tracks which subnets pinged in obj 6
+        iso7Steps: { engBlocked: false, gwReply: false }, // obj 7 step tracking
+        mktIpEntered: ''        // stores Marketing workstation IP for obj 8 diagram
+    };
+
+    /* ── Load persisted progress ── */
+    (function loadProgress() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            if (saved.completed && Array.isArray(saved.completed)) {
+                saved.completed.forEach(n => markComplete(n, true)); // silent restore
+            }
+            if (saved.mktIp) {
+                state.mktIpEntered = saved.mktIp;
+            }
+        } catch (e) {
+            // Corrupted storage — start fresh
+            localStorage.removeItem(STORAGE_KEY);
+        }
+    })();
+
+    /* ── Persist state to localStorage ── */
+    function saveProgress() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                completed: Array.from(state.completed),
+                mktIp: state.mktIpEntered
+            }));
+        } catch (e) { /* quota exceeded — silently skip */ }
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE NAVIGATION
+    ───────────────────────────────────────────────────── */
+
+    /**
+     * Switch the workspace to show the selected objective view.
+     * Clicking a locked (not yet unlocked) objective does nothing.
+     */
+    function activateObj(num) {
+        // Allow clicking completed or the next unlocked objective
+        const maxAllowed = Math.min(nextUnlocked(), TOTAL_OBJ);
+        if (num > maxAllowed) return;
+
+        state.activeObj = num;
+
+        // Update sidebar highlight
+        document.querySelectorAll('.obj-item').forEach(el => {
+            el.classList.toggle('active', parseInt(el.dataset.obj, 10) === num);
+        });
+
+        // Show/hide workspace panels
+        document.querySelectorAll('.obj-view').forEach(el => {
+            el.classList.toggle('active', el.id === 'view-' + num);
+        });
+
+        // If switching to Obj 8, populate the Marketing IP in the diagram
+        if (num === 8 && state.mktIpEntered) {
+            const docIp = document.getElementById('doc-mkt-ip');
+            if (docIp) docIp.textContent = state.mktIpEntered;
+        }
+    }
+
+    /** Returns the next objective number the student should be working on. */
+    function nextUnlocked() {
+        for (let i = 1; i <= TOTAL_OBJ; i++) {
+            if (!state.completed.has(i)) return i;
+        }
+        return TOTAL_OBJ;
+    }
+
+    /* ─────────────────────────────────────────────────────
+       MARK OBJECTIVE COMPLETE
+    ───────────────────────────────────────────────────── */
+
+    /**
+     * Mark objective `num` complete and optionally stay silent (for restore).
+     * Advances the view to the next objective unless restoring.
+     */
+    function markComplete(num, silent = false) {
+        if (state.completed.has(num)) return;
+        state.completed.add(num);
+
+        // Update sidebar item styling
+        const item = document.querySelector(`.obj-item[data-obj="${num}"]`);
+        if (item) item.classList.add('completed');
+
+        const chk = document.getElementById('chk-' + num);
+        if (chk) chk.style.color = '#fff';
+
+        updateProgressCounter();
+        saveProgress();
+
+        if (!silent && num < TOTAL_OBJ) {
+            // Advance to next objective after brief delay for satisfaction
+            setTimeout(() => activateObj(num + 1), 900);
+        } else if (!silent && num === TOTAL_OBJ) {
+            // All done — show completion banner
+            document.getElementById('completeBanner').classList.add('show');
+        }
+    }
+
+    /** Update the "Objectives: X / 8" counter in the header. */
+    function updateProgressCounter() {
+        document.getElementById('objProgress').textContent =
+            state.completed.size + ' / ' + TOTAL_OBJ;
+    }
+
+    /* ─────────────────────────────────────────────────────
+       TOAST SYSTEM
+    ───────────────────────────────────────────────────── */
+
+    /**
+     * Display a toast notification.
+     * @param {string} from  - Sender label (shown in uppercase)
+     * @param {string} msg   - Message body
+     * @param {string} type  - 'default' | 'success' | 'warning' | 'error'
+     */
+    function showToast(from, msg, type = 'default') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast' + (type !== 'default' ? ' ' + type : '');
+
+        const fromEl = document.createElement('div');
+        fromEl.className = 'toast-from';
+        fromEl.textContent = from;
+
+        const msgEl = document.createElement('div');
+        msgEl.className = 'toast-msg';
+        msgEl.textContent = msg;
+
+        toast.appendChild(fromEl);
+        toast.appendChild(msgEl);
+        container.appendChild(toast);
+
+        // Remove from DOM after animation completes
+        setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 5000);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       FORM VALIDATION HELPERS
+    ───────────────────────────────────────────────────── */
+
+    /**
+     * Live-validate a form input against an exact expected value.
+     * Adds correct/incorrect CSS classes immediately.
+     */
+    function liveValidate(input, expected) {
+        const val = input.value.trim();
+        if (val === '') {
+            input.classList.remove('correct', 'incorrect');
+            return;
+        }
+        input.classList.toggle('correct', val === expected);
+        input.classList.toggle('incorrect', val !== expected);
+    }
+
+    /**
+     * Validate a subnet plan table field (exact match).
+     * Used inline on table inputs.
+     */
+    function validatePlanField(input, expected) {
+        liveValidate(input, expected);
+    }
+
+    /**
+     * Validate Marketing workstation IP — must be in range 192.168.1.66 through 192.168.1.126
+     * (66 to avoid conflict with the .65 gateway itself, 126 = last host).
+     * Actually we accept .65 as the gateway but students should pick a different host.
+     */
+    function liveMktIpValidate(input) {
+        const val = input.value.trim();
+        if (val === '') {
+            input.classList.remove('correct', 'incorrect');
+            return;
+        }
+        const valid = isInMktRange(val);
+        input.classList.toggle('correct', valid);
+        input.classList.toggle('incorrect', !valid);
+    }
+
+    /** Check if an IP string is a valid Marketing workstation host (.66-.126). */
+    function isInMktRange(ipStr) {
+        const m = ipStr.match(/^192\.168\.1\.(\d+)$/);
+        if (!m) return false;
+        const last = parseInt(m[1], 10);
+        return last >= 66 && last <= 126;
+    }
+
+    /** Returns true if the IP is in Marketing subnet (65-126, accepting gateway at .65). */
+    function isInMktSubnet(ipStr) {
+        const m = ipStr.match(/^192\.168\.1\.(\d+)$/);
+        if (!m) return false;
+        const last = parseInt(m[1], 10);
+        return last >= 65 && last <= 126;
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE 1 — ASSESSMENT
+    ───────────────────────────────────────────────────── */
+
+    function runAssessment() {
+        const btn = document.getElementById('assessBtn');
+        btn.disabled = true;
+        btn.textContent = 'Scanning...';
+
+        // Simulate scan delay
+        setTimeout(() => {
+            document.getElementById('assessOutput').classList.add('show');
+            btn.textContent = 'Assessment Complete';
+            btn.classList.add('success');
+
+            showToast('Network Scanner', 'Assessment complete — network segmentation required.', 'warning');
+            markComplete(1);
+        }, 1200);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE 2 — SUBNET PLAN
+    ───────────────────────────────────────────────────── */
+
+    /**
+     * Definitions for all 18 subnet plan fields.
+     * Keyed by input element ID.
+     */
+    const PLAN_ANSWERS = {
+        'eng-net':    '192.168.1.0',
+        'eng-first':  '192.168.1.1',
+        'eng-last':   '192.168.1.62',
+        'eng-bcast':  '192.168.1.63',
+        'eng-mask':   '255.255.255.192',
+        'mkt-net':    '192.168.1.64',
+        'mkt-first':  '192.168.1.65',
+        'mkt-last':   '192.168.1.126',
+        'mkt-bcast':  '192.168.1.127',
+        'mkt-mask':   '255.255.255.192',
+        'guest-net':  '192.168.1.128',
+        'guest-first':'192.168.1.129',
+        'guest-last': '192.168.1.190',
+        'guest-bcast':'192.168.1.191',
+        'guest-mask': '255.255.255.192'
+    };
+
+    function submitSubnetPlan() {
+        const errEl = document.getElementById('planError');
+        const errors = [];
+
+        Object.entries(PLAN_ANSWERS).forEach(([id, expected]) => {
+            const input = document.getElementById(id);
+            const val = input ? input.value.trim() : '';
+            if (val !== expected) {
+                errors.push(id);
+                if (input) {
+                    input.classList.add('incorrect');
+                    input.classList.remove('correct');
+                }
+            } else {
+                if (input) {
+                    input.classList.add('correct');
+                    input.classList.remove('incorrect');
+                }
+            }
+        });
+
+        if (errors.length > 0) {
+            errEl.textContent = errors.length + ' field(s) are incorrect. Check highlighted entries.';
+            errEl.style.display = 'block';
+            showToast('Subnet Planner', 'Plan has errors — check highlighted fields.', 'error');
+            return;
+        }
+
+        errEl.style.display = 'none';
+        showToast('Subnet Planner', 'Subnet plan validated — three /26 networks confirmed.', 'success');
+        markComplete(2);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE 3 — ENGINEERING GATEWAY
+    ───────────────────────────────────────────────────── */
+
+    function applyEngGateway() {
+        const ip   = document.getElementById('eng-gw-ip').value.trim();
+        const mask = document.getElementById('eng-gw-mask').value.trim();
+        const gw   = document.getElementById('eng-gw-gw').value.trim();
+        const dns  = document.getElementById('eng-gw-dns').value.trim();
+
+        const errors = [];
+        if (ip !== '192.168.1.1')         errors.push('IP Address should be 192.168.1.1');
+        if (mask !== '255.255.255.192')    errors.push('Subnet Mask should be 255.255.255.192');
+        if (gw !== '')                     errors.push('Default Gateway should be empty (this device IS the gateway)');
+        if (dns !== '192.168.1.1')         errors.push('Preferred DNS should be 192.168.1.1');
+
+        if (errors.length > 0) {
+            showToast('Configuration Error', errors[0], 'error');
+            return;
+        }
+
+        showToast('ENG-GATEWAY-01', 'Engineering gateway configured successfully on 192.168.1.1/26.', 'success');
+        markComplete(3);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE 4 — MARKETING WORKSTATION
+    ───────────────────────────────────────────────────── */
+
+    function applyMktWorkstation() {
+        const ip   = document.getElementById('mkt-ip').value.trim();
+        const mask = document.getElementById('mkt-mask-cfg').value.trim();
+        const gw   = document.getElementById('mkt-gw').value.trim();
+        const dns  = document.getElementById('mkt-dns').value.trim();
+
+        const errors = [];
+        if (!isInMktRange(ip))          errors.push('IP must be a valid host in 192.168.1.66 - 192.168.1.126');
+        if (mask !== '255.255.255.192') errors.push('Subnet Mask should be 255.255.255.192');
+        if (gw !== '192.168.1.65')      errors.push('Default Gateway should be 192.168.1.65');
+        if (dns !== '192.168.1.65')     errors.push('Preferred DNS should be 192.168.1.65');
+
+        if (errors.length > 0) {
+            showToast('Configuration Error', errors[0], 'error');
+            return;
+        }
+
+        // Store the Marketing IP so the documentation diagram can show it
+        state.mktIpEntered = ip;
+        saveProgress();
+
+        showToast('MKT-WS-04', 'Marketing workstation configured at ' + ip + '/26.', 'success');
+        markComplete(4);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE 5 — GUEST WIFI AP
+    ───────────────────────────────────────────────────── */
+
+    function applyGuestAP() {
+        const ip       = document.getElementById('guest-ap-ip').value.trim();
+        const mask     = document.getElementById('guest-ap-mask').value.trim();
+        const gw       = document.getElementById('guest-ap-gw').value.trim();
+        const ssid     = document.getElementById('guest-ap-ssid').value.trim();
+        const security = document.getElementById('guest-ap-security').value;
+
+        const errors = [];
+        if (ip !== '192.168.1.129')     errors.push('IP Address should be 192.168.1.129');
+        if (mask !== '255.255.255.192') errors.push('Subnet Mask should be 255.255.255.192');
+        if (gw !== '')                  errors.push('Default Gateway should be empty (AP is the gateway)');
+        if (ssid !== 'Meridian-Guest')  errors.push('SSID should be exactly: Meridian-Guest');
+        if (security !== 'wpa2')        errors.push('Security should be WPA2');
+
+        if (errors.length > 0) {
+            showToast('Configuration Error', errors[0], 'error');
+            return;
+        }
+
+        showToast('GUEST-AP-01', 'Guest AP configured. SSID "Meridian-Guest" broadcasting on 192.168.1.128/26.', 'success');
+        markComplete(5);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE 6 — PING TEST (Cross-Subnet)
+    ───────────────────────────────────────────────────── */
+
+    // Wire up the command input on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const cmd6 = document.getElementById('cmd6-input');
+        if (cmd6) cmd6.addEventListener('keydown', e => { if (e.key === 'Enter') handleCmd6(cmd6); });
+
+        const cmd7 = document.getElementById('cmd7-input');
+        if (cmd7) cmd7.addEventListener('keydown', e => { if (e.key === 'Enter') handleCmd7(cmd7); });
+
+        // Restore active view from progress
+        const next = nextUnlocked();
+        activateObj(Math.min(next, TOTAL_OBJ));
+        updateProgressCounter();
+    });
+
+    /**
+     * Parse and simulate a ping command in Objective 6.
+     * Accepts pings to any IP in the Marketing (.64/26) or Guest (.128/26) subnets.
+     * Source is Engineering (.0/26).
+     */
+    function handleCmd6(input) {
+        const raw = input.value.trim();
+        input.value = '';
+
+        const body = document.getElementById('cmd6-body');
+        appendCmd(body, 'C:\\Users\\Forge&gt; ' + raw);
+
+        if (raw === '') return;
+
+        const lower = raw.toLowerCase();
+
+        if (lower.startsWith('ping ')) {
+            const target = raw.substring(5).trim();
+            const output = simulatePing6(target);
+            appendOutput(body, output.html, output.cls);
+        } else if (lower === 'ipconfig') {
+            appendOutput(body, simulateIpconfig6());
+        } else if (lower === 'help' || lower === '/?') {
+            appendOutput(body, 'Available commands: ping &lt;ip&gt;, ipconfig');
+        } else {
+            appendOutput(body, '<span class="error">\''+escHtml(raw)+'\' is not recognized as an internal or external command.</span>');
+        }
+
+        body.scrollTop = body.scrollHeight;
+    }
+
+    /** Determine ping result for Obj 6 — source is Engineering 192.168.1.0/26. */
+    function simulatePing6(target) {
+        const m = target.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+        if (!m) {
+            return { html: '<span class="error">Ping request could not find host ' + escHtml(target) + '. Check name and try again.</span>', cls: '' };
+        }
+
+        const last = parseInt(m[4], 10);
+        const prefix3 = m[1] + '.' + m[2] + '.' + m[3];
+
+        if (prefix3 !== '192.168.1') {
+            return { html: '<span class="error">PING: transmit failed. General failure. (Destination unreachable)</span>', cls: '' };
+        }
+
+        // Engineering range (.1-.62) — same subnet, always works
+        if (last >= 1 && last <= 62) {
+            return pingReply(target, 'same');
+        }
+
+        // Marketing range (.65-.126) — routed, allowed
+        if (last >= 65 && last <= 126) {
+            trackPing6('marketing');
+            return pingReply(target, 'cross');
+        }
+
+        // Guest range (.129-.190) — routed, allowed
+        if (last >= 129 && last <= 190) {
+            trackPing6('guest');
+            return pingReply(target, 'cross');
+        }
+
+        // Broadcast or network addresses
+        return { html: '<span class="error">Reply: Destination host unreachable.</span>', cls: '' };
+    }
+
+    /** Build a simulated ping reply block. */
+    function pingReply(ip, kind) {
+        const times = [kind === 'cross' ? '1ms' : '<1ms', kind === 'cross' ? '1ms' : '<1ms', kind === 'cross' ? '2ms' : '1ms', kind === 'cross' ? '1ms' : '<1ms'];
+        const lines = [
+            'Pinging ' + ip + ' with 32 bytes of data:',
+            '<span class="success">Reply from ' + ip + ': bytes=32 time=' + times[0] + ' TTL=128</span>',
+            '<span class="success">Reply from ' + ip + ': bytes=32 time=' + times[1] + ' TTL=128</span>',
+            '<span class="success">Reply from ' + ip + ': bytes=32 time=' + times[2] + ' TTL=128</span>',
+            '<span class="success">Reply from ' + ip + ': bytes=32 time=' + times[3] + ' TTL=128</span>',
+            '',
+            'Ping statistics for ' + ip + ':',
+            '    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss)',
+            'Approximate round trip times in milli-seconds:',
+            '    Minimum = ' + times[0] + ', Maximum = ' + times[2] + ', Average = ' + times[1]
+        ];
+        return { html: lines.join('\n'), cls: '' };
+    }
+
+    /** Track cross-subnet pings for Obj 6 completion. */
+    function trackPing6(subnet) {
+        if (state.completed.has(6)) return;
+
+        state.ping6Subnets.add(subnet);
+        const count = state.ping6Subnets.size;
+
+        document.getElementById('ping6-count').textContent = count;
+
+        if (count >= 2) {
+            showToast('Ping Test', 'Cross-subnet routing confirmed for Marketing and Guest subnets.', 'success');
+            markComplete(6);
+        } else {
+            showToast('Ping Test', 'One subnet reached. Ping the other to complete this objective.', 'default');
+        }
+    }
+
+    /** Simulated ipconfig output for Obj 6 source device. */
+    function simulateIpconfig6() {
+        return `Windows IP Configuration
+
+Ethernet adapter Local Area Connection:
+   IPv4 Address. . . . . . . . : <span class="highlight">192.168.1.10</span>
+   Subnet Mask . . . . . . . . : 255.255.255.192
+   Default Gateway . . . . . . : 192.168.1.1
+   DNS Servers . . . . . . . . : 192.168.1.1`;
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE 7 — SUBNET ISOLATION
+    ───────────────────────────────────────────────────── */
+
+    /**
+     * Parse and simulate commands in Objective 7.
+     * Source is Guest device 192.168.1.140.
+     */
+    function handleCmd7(input) {
+        const raw = input.value.trim();
+        input.value = '';
+
+        const body = document.getElementById('cmd7-body');
+        appendCmd(body, 'C:\\Users\\Guest&gt; ' + raw);
+
+        if (raw === '') return;
+
+        const lower = raw.toLowerCase();
+
+        if (lower.startsWith('ping ')) {
+            const target = raw.substring(5).trim();
+            const result = simulatePing7(target);
+            appendOutput(body, result.html);
+        } else if (lower === 'ipconfig') {
+            appendOutput(body, simulateIpconfig7());
+        } else if (lower === 'help' || lower === '/?') {
+            appendOutput(body, 'Available commands: ping &lt;ip&gt;, ipconfig');
+        } else {
+            appendOutput(body, '<span class="error">\''+escHtml(raw)+'\' is not recognized as an internal or external command.</span>');
+        }
+
+        body.scrollTop = body.scrollHeight;
+    }
+
+    /** Determine ping result for Obj 7 — source is Guest 192.168.1.140. */
+    function simulatePing7(target) {
+        if (state.completed.has(7)) {
+            return pingReply(target, 'cross');
+        }
+
+        const m = target.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+        if (!m) {
+            return { html: '<span class="error">Ping request could not find host ' + escHtml(target) + '. Check name and try again.</span>' };
+        }
+
+        const last = parseInt(m[4], 10);
+        const prefix3 = m[1] + '.' + m[2] + '.' + m[3];
+
+        if (prefix3 !== '192.168.1') {
+            return { html: '<span class="error">PING: transmit failed. General failure.</span>' };
+        }
+
+        // Guest subnet same-net
+        if (last >= 129 && last <= 190) {
+            // Pinging the gateway specifically triggers step 2
+            if (last === 129) {
+                state.iso7Steps.gwReply = true;
+                checkIso7Complete();
+            }
+            return pingReply(target, 'same');
+        }
+
+        // Engineering range — should be BLOCKED (no inter-subnet routing without router)
+        if (last >= 1 && last <= 62) {
+            state.iso7Steps.engBlocked = true;
+            checkIso7Complete();
+            return {
+                html: [
+                    'Pinging ' + target + ' with 32 bytes of data:',
+                    '<span class="error">Request timed out.</span>',
+                    '<span class="error">Request timed out.</span>',
+                    '<span class="error">Request timed out.</span>',
+                    '<span class="error">Request timed out.</span>',
+                    '',
+                    'Ping statistics for ' + target + ':',
+                    '    Packets: Sent = 4, Received = 0, Lost = 4 (100% loss)'
+                ].join('\n')
+            };
+        }
+
+        // Marketing range — also blocked for Guest
+        if (last >= 65 && last <= 126) {
+            return {
+                html: [
+                    'Pinging ' + target + ' with 32 bytes of data:',
+                    '<span class="error">Request timed out.</span>',
+                    '<span class="error">Request timed out.</span>',
+                    '<span class="error">Request timed out.</span>',
+                    '<span class="error">Request timed out.</span>',
+                    '',
+                    'Ping statistics for ' + target + ':',
+                    '    Packets: Sent = 4, Received = 0, Lost = 4 (100% loss)'
+                ].join('\n')
+            };
+        }
+
+        return { html: '<span class="error">Destination host unreachable.</span>' };
+    }
+
+    /** Check if both isolation steps are complete and advance objective. */
+    function checkIso7Complete() {
+        if (state.completed.has(7)) return;
+
+        const statusEl = document.getElementById('iso7-status');
+
+        if (state.iso7Steps.engBlocked && !state.iso7Steps.gwReply) {
+            statusEl.style.display = 'block';
+            statusEl.className = 'info-box warning';
+            statusEl.textContent = 'Isolation confirmed for Engineering — now ping the Guest gateway (192.168.1.129) to verify local connectivity.';
+            showToast('Isolation Test', 'Subnets are isolated — Guest cannot reach Engineering without a router.', 'default');
+        }
+
+        if (state.iso7Steps.engBlocked && state.iso7Steps.gwReply) {
+            statusEl.style.display = 'block';
+            statusEl.className = 'info-box success';
+            statusEl.textContent = 'Isolation verified. Guest subnet is isolated from Engineering. Local gateway reachable.';
+            showToast('Isolation Test', 'Guest subnet isolation fully verified.', 'success');
+            markComplete(7);
+        }
+    }
+
+    /** Simulated ipconfig for Obj 7 source device. */
+    function simulateIpconfig7() {
+        return `Windows IP Configuration
+
+Wireless LAN adapter Wi-Fi:
+   IPv4 Address. . . . . . . . : <span class="highlight">192.168.1.140</span>
+   Subnet Mask . . . . . . . . : 255.255.255.192
+   Default Gateway . . . . . . : 192.168.1.129
+   DNS Servers . . . . . . . . : 192.168.1.129`;
+    }
+
+    /* ─────────────────────────────────────────────────────
+       OBJECTIVE 8 — DOCUMENTATION
+    ───────────────────────────────────────────────────── */
+
+    function completeDocumentation() {
+        showToast('Documentation', 'Network layout documented and saved to IT asset management system.', 'success');
+        markComplete(8);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       FINAL COMPLETION
+    ───────────────────────────────────────────────────── */
+
+    function finalComplete() {
+        ModuleProgress.complete('forge', 'forge-md100-m04-subnet-sim', {
+            type: 'lab',
+            returnUrl: '../index.html'
+        });
+    }
+
+    /* ─────────────────────────────────────────────────────
+       COMMAND TERMINAL HELPERS
+    ───────────────────────────────────────────────────── */
+
+    /**
+     * Append a command line (input echo) to a terminal body element.
+     * Uses textContent-safe approach via a div with innerHTML only for
+     * the prompt prefix (safe literal) and the escaped user input.
+     */
+    function appendCmd(body, text) {
+        const div = document.createElement('div');
+        div.className = 'cmd-output';
+        // text is already escaped via caller — use innerHTML for color spans
+        div.innerHTML = escHtml(text);
+        body.appendChild(div);
+    }
+
+    /**
+     * Append simulated command output to a terminal body.
+     * html parameter may contain safe span tags for color styling.
+     */
+    function appendOutput(body, html, cls = '') {
+        const div = document.createElement('div');
+        div.className = 'cmd-output' + (cls ? ' ' + cls : '');
+        // Output is generated internally (not from user input) — innerHTML is safe here
+        div.innerHTML = html;
+        body.appendChild(div);
+    }
+
+    /** Escape HTML special characters in user-supplied strings. */
+    function escHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+</script>
+</body>
+</html>

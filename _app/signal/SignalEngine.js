@@ -273,6 +273,7 @@ const SignalEngine = (() => {
                     ${projectListHtml}
                 </div>`;
 
+            card.setAttribute('aria-expanded', 'false');
             card.addEventListener('click', (e) => {
                 if (e.target.closest('.se-plat-project')) return; // let links navigate
                 const list = card.querySelector('.se-plat-projects');
@@ -280,6 +281,7 @@ const SignalEngine = (() => {
                 const open = !list.hidden;
                 list.hidden = open;
                 card.classList.toggle('se-plat-card--open', !open);
+                card.setAttribute('aria-expanded', String(!open));
                 hint.innerHTML = open ? '&#9662;' : '&#9652;';
             });
 
@@ -297,13 +299,19 @@ const SignalEngine = (() => {
         // Tab bar
         const tabBar = document.createElement('div');
         tabBar.className = 'se-track-tabs';
+        tabBar.setAttribute('role', 'tablist');
+        tabBar.setAttribute('aria-label', 'Project tracks');
 
-        SignalData.tracks.forEach(track => {
+        SignalData.tracks.forEach((track, idx) => {
             const stats = SignalData.getTrackStats(track.id, _progress);
             const tab = document.createElement('button');
             tab.className = 'se-track-tab';
             tab.id = `tab-${track.id}`;
             tab.setAttribute('data-track', track.id);
+            tab.setAttribute('role', 'tab');
+            tab.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
+            tab.setAttribute('aria-controls', `panel-${track.id}`);
+            tab.setAttribute('aria-label', `${track.name} - ${stats.pct}% complete`);
             tab.innerHTML = `
                 <img class="se-tab-icon" src="${_icon(track.icon)}" alt="" width="20" height="20">
                 <span class="se-tab-name">${track.name}</span>
@@ -331,6 +339,8 @@ const SignalEngine = (() => {
         const panel = document.createElement('div');
         panel.className = 'se-track-panel';
         panel.id = `panel-${track.id}`;
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', `tab-${track.id}`);
         panel.setAttribute('hidden', '');
 
         // Track header
@@ -360,6 +370,7 @@ const SignalEngine = (() => {
         const card = document.createElement('a');
         card.className = 'se-section-card';
         card.href = `sections/${sec.id}/index.html`;
+        card.setAttribute('aria-label', `${sec.name} - ${stats.completed} of ${stats.total} projects complete`);
         card.style.setProperty('--section-color', sec.color);
 
         // Platform breakdown
@@ -390,7 +401,9 @@ const SignalEngine = (() => {
 
     function _activateTrack(trackId) {
         document.querySelectorAll('.se-track-tab').forEach(t => {
-            t.classList.toggle('se-track-tab--active', t.getAttribute('data-track') === trackId);
+            var isActive = t.getAttribute('data-track') === trackId;
+            t.classList.toggle('se-track-tab--active', isActive);
+            t.setAttribute('aria-selected', String(isActive));
         });
         SignalData.tracks.forEach(track => {
             const panel = document.getElementById(`panel-${track.id}`);
@@ -731,6 +744,18 @@ a { color: inherit; text-decoration: none; }
 .se-footer {
     text-align: center; padding: 32px 0 16px; font-size: 12px; color: #555;
     border-top: 1px solid rgba(255,255,255,0.05); margin-top: 48px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .se-particle { animation: none; display: none; }
+    .se-progress-fill { transition: none; }
+    .svg-check-row { animation: none; opacity: 1; }
+}
+
+/* High contrast */
+@media (prefers-contrast: more) {
+    .se-footer { color: #999; border-top-color: rgba(255,255,255,0.2); }
 }
 `;
     }
@@ -1448,6 +1473,217 @@ a { color: inherit; text-decoration: none; }
         });
     }
 
+    // =========================================================================
+    // USB Enumeration animation — sg-32
+    // =========================================================================
+
+    function _initEnumAnim(container) {
+        var wrap = container.querySelector('.svg-enum-wrap');
+        if (!wrap) return;
+
+        // Ordered list of step data-step attribute values in sequence
+        var STEPS = ['1', '2', '3', '4', '5', '6', '7', '7b', '8', '9', '10', '10b', '11'];
+
+        // Human-readable labels for the counter display
+        var STEP_LABELS = {
+            '1':   'Step 1/11 — Physical Connection (VBUS)',
+            '2':   'Step 2/11 — Device Detection (D+ pull-up)',
+            '3':   'Step 3/11 — USB Reset (SE0, 10ms)',
+            '4':   'Step 4/11 — GET_DESCRIPTOR (Device)',
+            '5':   'Step 5/11 — Device Descriptor Response',
+            '6':   'Step 6/11 — SET_ADDRESS',
+            '7':   'Step 7/11 — GET_DESCRIPTOR (Config)',
+            '7b':  'Step 7/11 — Config Descriptor Response',
+            '8':   'Step 8/11 — SET_CONFIGURATION',
+            '9':   'Step 9/11 — SCSI INQUIRY',
+            '10':  'Step 10/11 — SCSI READ_CAPACITY',
+            '10b': 'Step 10/11 — Capacity Response',
+            '11':  'Step 11/11 — Drive Mounted'
+        };
+
+        var nextBtn    = wrap.querySelector('.svg-enum-next-btn');
+        var playBtn    = wrap.querySelector('.svg-enum-play-btn');
+        var resetBtn   = wrap.querySelector('.svg-enum-reset-btn');
+        var counter    = wrap.querySelector('.svg-enum-counter');
+        var tooltip    = wrap.querySelector('.svg-enum-tooltip');
+        var statusText = wrap.querySelector('.svg-enum-status');
+
+        var currentIdx = -1;   // index into STEPS — -1 means nothing shown yet
+        var playTimer  = null;  // setTimeout handle when playing automatically
+
+        // --- Tooltip: hover on completed steps shows protocol detail ---
+        wrap.style.position = 'relative';
+
+        function _attachStepTooltip(stepEl) {
+            var tip = stepEl.getAttribute('data-tip');
+            if (!tip) return;
+            stepEl.style.cursor = 'pointer';
+
+            stepEl.addEventListener('mouseenter', function (e) {
+                if (!tooltip) return;
+                tooltip.textContent = tip;
+                tooltip.style.display = 'block';
+                // Position relative to wrap
+                var r = stepEl.getBoundingClientRect();
+                var wr = wrap.getBoundingClientRect();
+                var left = r.left - wr.left + r.width / 2;
+                var top  = r.top  - wr.top  - tooltip.offsetHeight - 8;
+                if (top < 4) top = r.bottom - wr.top + 6;
+                tooltip.style.left = Math.max(4, Math.min(left, wr.width - 4)) + 'px';
+                tooltip.style.top  = top + 'px';
+                tooltip.style.transform = 'translateX(-50%)';
+            });
+
+            stepEl.addEventListener('mouseleave', function () {
+                if (tooltip) tooltip.style.display = 'none';
+            });
+        }
+
+        // Attach tooltips to all steps immediately (they will be invisible until revealed)
+        wrap.querySelectorAll('.svg-enum-step').forEach(function (el) {
+            _attachStepTooltip(el);
+        });
+
+        // --- Core: reveal steps up to and including targetIdx ---
+        function _revealUpTo(targetIdx) {
+            STEPS.forEach(function (stepKey, i) {
+                var el = wrap.querySelector('.svg-enum-step[data-step="' + stepKey + '"]');
+                if (!el) return;
+                if (i <= targetIdx) {
+                    el.style.opacity = '1';
+                    el.style.transition = 'opacity 0.4s ease';
+                } else {
+                    el.style.opacity = '0';
+                    el.style.transition = 'none';
+                }
+            });
+
+            currentIdx = targetIdx;
+
+            // Update counter display
+            if (targetIdx < 0) {
+                if (counter) counter.textContent = '';
+                if (statusText) statusText.textContent = '';
+            } else {
+                var key = STEPS[targetIdx];
+                if (counter) counter.textContent = STEP_LABELS[key] || '';
+                if (statusText) statusText.textContent = STEP_LABELS[key] || '';
+            }
+
+            // Update button states
+            var atEnd = (targetIdx >= STEPS.length - 1);
+            if (nextBtn) {
+                nextBtn.disabled = atEnd;
+                nextBtn.style.opacity = atEnd ? '0.4' : '1';
+            }
+            if (playBtn) {
+                playBtn.disabled = atEnd;
+                playBtn.style.opacity = atEnd ? '0.4' : '1';
+            }
+        }
+
+        // --- Play all: auto-advance every 1500ms ---
+        function _stopPlay() {
+            if (playTimer) {
+                clearTimeout(playTimer);
+                playTimer = null;
+            }
+            if (playBtn) {
+                playBtn.textContent = 'Play All';
+                playBtn.dataset.state = 'idle';
+            }
+        }
+
+        function _playNext() {
+            if (currentIdx >= STEPS.length - 1) {
+                _stopPlay();
+                return;
+            }
+            _revealUpTo(currentIdx + 1);
+            if (currentIdx < STEPS.length - 1) {
+                playTimer = setTimeout(_playNext, 1500);
+            } else {
+                _stopPlay();
+            }
+        }
+
+        // --- Button handlers ---
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function () {
+                _stopPlay();
+                if (currentIdx < STEPS.length - 1) {
+                    _revealUpTo(currentIdx + 1);
+                }
+            });
+        }
+
+        if (playBtn) {
+            playBtn.addEventListener('click', function () {
+                var state = playBtn.dataset.state;
+                if (state === 'playing') {
+                    _stopPlay();
+                    return;
+                }
+                // If already at end, reset first then play
+                if (currentIdx >= STEPS.length - 1) {
+                    _revealUpTo(-1);
+                }
+                playBtn.textContent = 'Pause';
+                playBtn.dataset.state = 'playing';
+                playTimer = setTimeout(_playNext, 400);
+            });
+        }
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function () {
+                _stopPlay();
+                _revealUpTo(-1);
+            });
+        }
+
+        // Inject CSS for the enumeration animation (scoped to svg-enum-* prefix)
+        var existingStyle = document.getElementById('svg-enum-styles');
+        if (!existingStyle) {
+            var style = document.createElement('style');
+            style.id = 'svg-enum-styles';
+            style.textContent = [
+                '.svg-enum-wrap { background:#0d1117; border-radius:8px; overflow:hidden; }',
+                '.svg-enum-controls {',
+                '  display:flex; align-items:center; gap:10px; padding:12px 16px 10px;',
+                '  background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.06);',
+                '  flex-wrap:wrap; }',
+                '.svg-enum-btn {',
+                '  padding:6px 14px; border-radius:5px; border:1px solid rgba(255,255,255,0.15);',
+                '  background:rgba(255,255,255,0.06); color:#ccd6f6; font-size:12px;',
+                '  font-family:Cascadia Code,Fira Code,Consolas,monospace; cursor:pointer;',
+                '  transition:background 0.2s, border-color 0.2s; }',
+                '.svg-enum-btn:hover:not(:disabled) { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.3); }',
+                '.svg-enum-btn:disabled { cursor:default; }',
+                '.svg-enum-counter {',
+                '  font-size:11px; color:#4a6a8a; font-family:Cascadia Code,Fira Code,Consolas,monospace;',
+                '  margin-left:6px; }',
+                '.svg-enum-diagram { display:block; width:100%; }',
+                '.svg-enum-step { transition:opacity 0.4s ease; }',
+                '.svg-enum-tooltip {',
+                '  display:none; position:absolute; z-index:20;',
+                '  max-width:320px; padding:10px 13px; border-radius:6px;',
+                '  background:#111827; border:1px solid rgba(96,165,250,0.3);',
+                '  color:#c9d1d9; font-size:11px; line-height:1.55;',
+                '  font-family:Cascadia Code,Fira Code,Consolas,monospace;',
+                '  pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,0.6); }',
+                '@media(max-width:600px){',
+                '  .svg-enum-controls { gap:6px; padding:8px 10px; }',
+                '  .svg-enum-btn { padding:5px 10px; font-size:11px; }',
+                '  .svg-enum-counter { font-size:10px; width:100%; }',
+                '}'
+            ].join('\n');
+            document.head.appendChild(style);
+        }
+
+        // Initial state
+        _revealUpTo(-1);
+    }
+
     function _buildGuide(guide, color) {
         const wrap = document.createElement('div');
         wrap.className = 'sp-guide';
@@ -1479,6 +1715,15 @@ a { color: inherit; text-decoration: none; }
                 wrap.appendChild(wireBox);
             }
             if (guide.wiringSvg) _initBuildAnim(wireBox);
+        }
+
+        // Enumeration sequence diagram
+        if (guide.enumerationSvg) {
+            var enumBox = document.createElement('div');
+            enumBox.className = 'sp-card';
+            enumBox.innerHTML = '<div class="sp-card-label">USB Enumeration Flow</div><div class="sp-wiring-svg">' + guide.enumerationSvg + '</div>';
+            wrap.appendChild(enumBox);
+            _initEnumAnim(enumBox);
         }
 
         // Steps (with optional sticky diagram layout)
@@ -1515,6 +1760,10 @@ a { color: inherit; text-decoration: none; }
                 stepBox.className = 'sp-card sp-step-card';
                 let html = `<div class="sp-step-header"><span class="sp-step-num">Step ${i + 1}</span><span class="sp-step-title">${step.title}</span></div>`;
                 html += `<div class="sp-step-body">${step.content}</div>`;
+                // SIG-2: step visual illustration (inline SVG keyed by 0-based step index)
+                if (guide.stepVisuals && guide.stepVisuals[i]) {
+                    html += `<div class="sp-step-visual">${guide.stepVisuals[i]}</div>`;
+                }
                 if (step.code) {
                     html += `<div class="sp-code-label">${step.language || 'Code'}</div><pre class="sp-code"><code>${_escHtml(step.code)}</code></pre>`;
                 }
@@ -1542,6 +1791,64 @@ a { color: inherit; text-decoration: none; }
             wrap.appendChild(troubleBox);
         }
 
+        // SIG-3: Component callouts — interactive PCB teardown
+        if (guide.componentCallouts) {
+            const ccBox = document.createElement('div');
+            ccBox.className = 'sp-card sp-callouts-card';
+            let ccHtml = '<div class="sp-card-label">Component Anatomy</div>';
+            ccHtml += '<div class="sp-callouts-wrap">';
+            // SVG diagram (provided inline by guide)
+            if (guide.componentCallouts.svg) {
+                ccHtml += `<div class="sp-callouts-svg">${guide.componentCallouts.svg}</div>`;
+            }
+            // Component detail list
+            if (guide.componentCallouts.components && guide.componentCallouts.components.length) {
+                ccHtml += '<div class="sp-callouts-list">';
+                guide.componentCallouts.components.forEach(comp => {
+                    ccHtml += `<div class="sp-callout-item" data-comp="${comp.id || ''}">`;
+                    ccHtml += `<div class="sp-callout-name">${comp.name}</div>`;
+                    ccHtml += `<div class="sp-callout-purpose">${comp.purpose}</div>`;
+                    if (comp.specs) {
+                        ccHtml += '<div class="sp-callout-specs">';
+                        comp.specs.forEach(s => {
+                            ccHtml += `<span class="sp-callout-spec">${s}</span>`;
+                        });
+                        ccHtml += '</div>';
+                    }
+                    ccHtml += '</div>';
+                });
+                ccHtml += '</div>';
+            }
+            ccHtml += '</div>';
+            ccBox.innerHTML = ccHtml;
+            wrap.appendChild(ccBox);
+            // Wire up hover interactions between list items and SVG callout circles
+            _initCalloutInteractions(ccBox);
+        }
+
+        // SIG-4: Common mistakes — visual diffs
+        if (guide.commonMistakes && guide.commonMistakes.length) {
+            const mistakesBox = document.createElement('div');
+            mistakesBox.className = 'sp-card sp-mistakes-card';
+            let mHtml = '<div class="sp-card-label">Common Mistakes</div>';
+            mHtml += '<div class="sp-mistakes-intro">These are the three wiring errors that destroy components or produce silent failures. Study the diffs &mdash; get them into muscle memory.</div>';
+            guide.commonMistakes.forEach((m, idx) => {
+                mHtml += `<div class="sp-mistake" data-idx="${idx}">`;
+                mHtml += `<div class="sp-mistake-header"><span class="sp-mistake-num">${idx + 1}</span><span class="sp-mistake-title">${m.title}</span></div>`;
+                if (m.svgDiff) {
+                    mHtml += `<div class="sp-mistake-svg">${m.svgDiff}</div>`;
+                }
+                mHtml += '<div class="sp-mistake-detail">';
+                mHtml += `<div class="sp-mistake-correct"><span class="sp-mistake-label sp-mistake-label--correct">Correct</span>${m.correct}</div>`;
+                mHtml += `<div class="sp-mistake-wrong"><span class="sp-mistake-label sp-mistake-label--wrong">Mistake</span>${m.incorrect}</div>`;
+                mHtml += `<div class="sp-mistake-consequence"><span class="sp-mistake-label sp-mistake-label--consequence">Consequence</span>${m.consequence}</div>`;
+                mHtml += '</div>';
+                mHtml += '</div>';
+            });
+            mistakesBox.innerHTML = mHtml;
+            wrap.appendChild(mistakesBox);
+        }
+
         // Challenge / stretch goals
         if (guide.challenges) {
             const chalBox = document.createElement('div');
@@ -1551,6 +1858,26 @@ a { color: inherit; text-decoration: none; }
         }
 
         return wrap;
+    }
+
+    /**
+     * Wire up hover interactions for the component callouts section.
+     * Hovering a list item highlights the matching SVG circle (by data-comp id).
+     */
+    function _initCalloutInteractions(ccBox) {
+        var items = ccBox.querySelectorAll('.sp-callout-item');
+        items.forEach(function(item) {
+            var compId = item.getAttribute('data-comp');
+            var svgTarget = ccBox.querySelector('[data-callout="' + compId + '"]');
+            item.addEventListener('mouseenter', function() {
+                item.classList.add('sp-callout-item--active');
+                if (svgTarget) svgTarget.classList.add('sp-callout-svg-active');
+            });
+            item.addEventListener('mouseleave', function() {
+                item.classList.remove('sp-callout-item--active');
+                if (svgTarget) svgTarget.classList.remove('sp-callout-svg-active');
+            });
+        });
     }
 
     function _escHtml(str) {
@@ -1867,6 +2194,127 @@ a { color: inherit; text-decoration: none; }
     .sp-hero-title { font-size: 22px; }
     .sp-card { padding: 16px; }
     .sp-parts-header, .sp-parts-row { grid-template-columns: 1fr 40px 50px; }
+}
+
+/* ---- SIG-2: Step visuals ---- */
+.sp-step-visual {
+    margin: 14px 0 4px;
+    border-radius: 8px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.sp-step-visual svg { display: block; max-width: 100%; height: auto; }
+
+/* ---- SIG-1: Component hover labels on main wiring SVG ---- */
+.sp-wiring-svg .svg-comp-label {
+    opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
+}
+.sp-wiring-svg .svg-component:hover .svg-comp-label { opacity: 1; }
+.sp-wiring-svg .svg-comp-specs {
+    opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
+}
+.sp-wiring-svg .svg-component:hover .svg-comp-specs { opacity: 1; }
+
+/* ---- SIG-3: Component callouts ---- */
+.sp-callouts-card { max-width: 100%; }
+.sp-callouts-wrap {
+    display: grid; grid-template-columns: 1fr 340px; gap: 20px;
+    align-items: start;
+}
+.sp-callouts-svg svg { display: block; max-width: 100%; height: auto; }
+.sp-callouts-svg .sp-callout-circle {
+    transition: opacity 0.2s ease;
+}
+.sp-callouts-svg .sp-callout-circle.sp-callout-svg-active {
+    opacity: 1 !important;
+}
+.sp-callouts-svg [data-callout] .sp-callout-ring {
+    transition: stroke-opacity 0.2s ease, stroke-width 0.2s ease;
+}
+.sp-callouts-svg [data-callout].sp-callout-svg-active .sp-callout-ring {
+    stroke-opacity: 1; stroke-width: 2;
+}
+.sp-callouts-list {
+    display: flex; flex-direction: column; gap: 8px;
+}
+.sp-callout-item {
+    padding: 10px 14px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+    cursor: default; transition: all 0.2s ease;
+}
+.sp-callout-item--active,
+.sp-callout-item:hover {
+    border-color: rgba(255,107,53,0.35);
+    background: rgba(255,107,53,0.06);
+}
+.sp-callout-name {
+    font-size: 12px; font-weight: 700; color: #e0e0e0;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    margin-bottom: 3px;
+}
+.sp-callout-purpose { font-size: 12px; color: #8b949e; line-height: 1.4; }
+.sp-callout-specs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.sp-callout-spec {
+    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 3px;
+    background: rgba(255,255,255,0.04); color: #666;
+    border: 1px solid rgba(255,255,255,0.06);
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+}
+@media (max-width: 860px) {
+    .sp-callouts-wrap { grid-template-columns: 1fr; }
+}
+
+/* ---- SIG-4: Common mistakes ---- */
+.sp-mistakes-card { max-width: 100%; }
+.sp-mistakes-intro {
+    font-size: 12px; color: #666; line-height: 1.5;
+    margin-bottom: 20px; font-style: italic;
+}
+.sp-mistake {
+    margin-bottom: 28px; padding-bottom: 28px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.sp-mistake:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.sp-mistake-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.sp-mistake-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+    color: #f87171; font-size: 11px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.sp-mistake-title { font-size: 14px; font-weight: 700; color: #fff; }
+.sp-mistake-svg svg { display: block; max-width: 100%; height: auto; }
+.sp-mistake-svg { margin-bottom: 14px; border-radius: 8px; overflow: hidden; }
+.sp-mistake-detail {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+}
+.sp-mistake-correct,
+.sp-mistake-wrong,
+.sp-mistake-consequence {
+    padding: 10px 14px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+}
+.sp-mistake-correct {
+    background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2); color: #86efac;
+}
+.sp-mistake-wrong {
+    background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5;
+}
+.sp-mistake-consequence {
+    background: rgba(234,179,8,0.05); border: 1px solid rgba(234,179,8,0.2); color: #fde68a;
+}
+.sp-mistake-label {
+    display: block; font-size: 9px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 4px;
+}
+.sp-mistake-label--correct { color: #22c55e; }
+.sp-mistake-label--wrong { color: #ef4444; }
+.sp-mistake-label--consequence { color: #eab308; }
+@media (max-width: 700px) {
+    .sp-mistake-detail { grid-template-columns: 1fr; }
 }
 `;
     }

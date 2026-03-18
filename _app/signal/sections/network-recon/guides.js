@@ -203,7 +203,317 @@ window.SignalGuides['sg-06'] = {
 
     challenges: '<p><strong>Challenge 1: Channel Utilization Graph</strong> -- Add a second screen (accessible by swiping) that shows a bar chart of how many networks are on each channel (1-13). This helps identify the least congested channel for your own network.</p>' +
                 '<p><strong>Challenge 2: BSSID Vendor Lookup</strong> -- The first 3 bytes of a MAC address identify the manufacturer (OUI). Embed a small lookup table of common vendors (Apple, Samsung, Cisco, Ubiquiti, TP-Link) and display the vendor name alongside each network.</p>' +
-                '<p><strong>Challenge 3: Signal Strength Heatmap</strong> -- Pick one target SSID and display a real-time RSSI graph over time. Walk around your space and observe how the signal fluctuates. This is the basis for WiFi site surveys used in enterprise network planning.</p>'
+                '<p><strong>Challenge 3: Signal Strength Heatmap</strong> -- Pick one target SSID and display a real-time RSSI graph over time. Walk around your space and observe how the signal fluctuates. This is the basis for WiFi site surveys used in enterprise network planning.</p>',
+
+    // ======================================================================
+    // SIG-2: Step visual illustrations (0-based step index)
+    // ======================================================================
+    stepVisuals: {
+        // Step 1 — Configure TFT_eSPI (User_Setup.h pin mapping)
+        1: '<svg viewBox="0 0 680 190" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg06-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="190" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="174" fill="url(#sg06-sv1-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">TFT_eSPI — USER_SETUP.H PIN MAP FOR ESP32 CYD</text>' +
+           '<rect x="20" y="32" width="300" height="136" rx="6" fill="#111827" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="170" y="48" text-anchor="middle" fill="#555" font-size="7" font-weight="700" letter-spacing="0.1em">ESP32-2432S028R PCB TRACES</text>' +
+           '<rect x="36" y="56" width="268" height="100" rx="4" fill="#0a1628" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+           '<text x="170" y="70" text-anchor="middle" fill="#3b82f6" font-size="7" font-weight="600">ILI9341 TFT Controller</text>' +
+           '<text x="46" y="86" fill="#eab308" font-size="6.5">SCLK</text><text x="90" y="86" fill="#555" font-size="6.5">= GPIO 14</text>' +
+           '<text x="46" y="100" fill="#22c55e" font-size="6.5">MOSI</text><text x="90" y="100" fill="#555" font-size="6.5">= GPIO 13</text>' +
+           '<text x="46" y="114" fill="#3b82f6" font-size="6.5">MISO</text><text x="90" y="114" fill="#555" font-size="6.5">= GPIO 12</text>' +
+           '<text x="46" y="128" fill="#f97316" font-size="6.5">CS</text><text x="90" y="128" fill="#555" font-size="6.5">= GPIO 15</text>' +
+           '<text x="46" y="142" fill="#c084fc" font-size="6.5">DC</text><text x="90" y="142" fill="#555" font-size="6.5">= GPIO  2</text>' +
+           '<text x="190" y="86" fill="#a855f7" font-size="6.5">T_CS</text><text x="224" y="86" fill="#555" font-size="6.5">= GPIO 33</text>' +
+           '<text x="190" y="100" fill="#a855f7" font-size="6.5">T_IRQ</text><text x="228" y="100" fill="#555" font-size="6.5">= GPIO 36</text>' +
+           '<text x="190" y="114" fill="#ef4444" font-size="6.5">BL</text><text x="210" y="114" fill="#555" font-size="6.5">= GPIO 21</text>' +
+           '<text x="170" y="158" text-anchor="middle" fill="#2a3a2a" font-size="6.5">All traces are on-PCB — no external wiring</text>' +
+           '<rect x="340" y="32" width="320" height="136" rx="6" fill="#111827" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="500" y="48" text-anchor="middle" fill="#555" font-size="7" font-weight="700" letter-spacing="0.1em">USER_SETUP.H (compiled defines)</text>' +
+           '<rect x="356" y="56" width="288" height="100" rx="4" fill="#0a1628" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>' +
+           '<text x="366" y="70" fill="#ff6b35" font-size="6.5">#define ILI9341_DRIVER</text>' +
+           '<text x="366" y="83" fill="#eab308" font-size="6.5">#define TFT_SCLK</text><text x="450" y="83" fill="#8b949e" font-size="6.5">14</text>' +
+           '<text x="366" y="96" fill="#22c55e" font-size="6.5">#define TFT_MOSI</text><text x="450" y="96" fill="#8b949e" font-size="6.5">13</text>' +
+           '<text x="366" y="109" fill="#3b82f6" font-size="6.5">#define TFT_MISO</text><text x="450" y="109" fill="#8b949e" font-size="6.5">12</text>' +
+           '<text x="366" y="122" fill="#f97316" font-size="6.5">#define TFT_CS</text><text x="450" y="122" fill="#8b949e" font-size="6.5">15</text>' +
+           '<text x="366" y="135" fill="#c084fc" font-size="6.5">#define TFT_DC</text><text x="450" y="135" fill="#8b949e" font-size="6.5"> 2</text>' +
+           '<text x="366" y="148" fill="#a855f7" font-size="6.5">#define TOUCH_CS</text><text x="450" y="148" fill="#8b949e" font-size="6.5">33</text>' +
+           '<text x="500" y="174" text-anchor="middle" fill="#2a3a2a" font-size="6.5">TFT_eSPI compiles pins at build time for speed</text>' +
+           '</svg>',
+
+        // Step 3 — WiFi scan result structure / 802.11 beacon frame anatomy
+        3: '<svg viewBox="0 0 680 185" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg06-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg06-arr-o" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#ff6b35"/></marker></defs>' +
+           '<rect width="680" height="185" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="169" fill="url(#sg06-sv3-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">802.11 BEACON FRAME -- WHAT WiFi.scanNetworks() SEES</text>' +
+           '<rect x="16" y="32" width="648" height="52" rx="4" fill="#0f1923" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="26" y="45" fill="#555" font-size="6.5" font-weight="700">BEACON FRAME FIELDS (broadcast by every AP every 100ms)</text>' +
+           '<rect x="20" y="50" width="56" height="24" rx="2" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+           '<text x="48" y="65" text-anchor="middle" fill="#60a5fa" font-size="6" font-weight="700">BSSID</text>' +
+           '<rect x="82" y="50" width="120" height="24" rx="2" fill="rgba(255,107,53,0.1)" stroke="rgba(255,107,53,0.3)" stroke-width="0.5"/>' +
+           '<text x="142" y="65" text-anchor="middle" fill="#ff6b35" font-size="6" font-weight="700">SSID (0-32 chars)</text>' +
+           '<rect x="208" y="50" width="54" height="24" rx="2" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+           '<text x="235" y="65" text-anchor="middle" fill="#eab308" font-size="6" font-weight="700">Channel</text>' +
+           '<rect x="268" y="50" width="64" height="24" rx="2" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+           '<text x="300" y="65" text-anchor="middle" fill="#22c55e" font-size="6" font-weight="700">RSSI (dBm)</text>' +
+           '<rect x="338" y="50" width="88" height="24" rx="2" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+           '<text x="382" y="65" text-anchor="middle" fill="#a855f7" font-size="6" font-weight="700">Encryption Type</text>' +
+           '<rect x="432" y="50" width="56" height="24" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="0.5"/>' +
+           '<text x="460" y="65" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="700">Hidden?</text>' +
+           '<rect x="494" y="50" width="64" height="24" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+           '<text x="526" y="65" text-anchor="middle" fill="#8b949e" font-size="6" font-weight="700">Capabilities</text>' +
+           '<rect x="20" y="96" width="644" height="68" rx="4" fill="#0a1628" stroke="rgba(255,107,53,0.15)" stroke-width="0.5"/>' +
+           '<text x="30" y="110" fill="#555" font-size="6.5" font-weight="700">NetworkInfo STRUCT MAPPING</text>' +
+           '<text x="48" y="124" fill="#3b82f6" font-size="6.5">bssid[6]</text><text x="110" y="124" fill="#666" font-size="6.5">= WiFi.BSSID(i)  — 6-byte MAC, uniquely identifies AP hardware</text>' +
+           '<text x="48" y="137" fill="#ff6b35" font-size="6.5">ssid</text><text x="90" y="137" fill="#666" font-size="6.5">= WiFi.SSID(i)   — empty string if hidden; still has valid BSSID</text>' +
+           '<text x="48" y="150" fill="#eab308" font-size="6.5">channel</text><text x="110" y="150" fill="#666" font-size="6.5">= WiFi.channel(i) — 1-13 (2.4GHz), 36-165 (5GHz)</text>' +
+           '<text x="48" y="163" fill="#22c55e" font-size="6.5">rssi</text><text x="90" y="163" fill="#666" font-size="6.5">= WiFi.RSSI(i)   — negative dBm; -30 = strong, -90 = weak</text>' +
+           '<text x="380" y="124" fill="#a855f7" font-size="6.5">encType</text><text x="430" y="124" fill="#666" font-size="6.5">= WiFi.encryptionType(i) — OPEN/WEP/WPA/WPA2/WPA3</text>' +
+           '<text x="380" y="137" fill="#ef4444" font-size="6.5">hidden</text><text x="426" y="137" fill="#666" font-size="6.5">= ssid.length() == 0  — SSID element is empty in beacon</text>' +
+           '</svg>',
+
+        // Step 4 — TFT display layout / RSSI bar color scale
+        4: '<svg viewBox="0 0 680 195" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg06-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="195" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="179" fill="url(#sg06-sv4-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">ILI9341 DISPLAY LAYOUT (320x240, landscape)</text>' +
+           '<rect x="20" y="30" width="360" height="148" rx="6" fill="#0a0e16" stroke="rgba(34,197,94,0.25)" stroke-width="1.5"/>' +
+           '<rect x="20" y="30" width="360" height="24" rx="6" fill="#0f1e2e"/>' +
+           '<text x="34" y="44" fill="#07ffff" font-size="6.5" font-weight="700">WIFI RECON SCANNER</text>' +
+           '<text x="34" y="54" fill="#666" font-size="5.5">12 networks found  |  Tap to rescan</text>' +
+           '<rect x="20" y="54" width="360" height="12" fill="#0d1a1d"/>' +
+           '<text x="34" y="63" fill="#07ffff" font-size="5">Open:0</text>' +
+           '<text x="90" y="63" fill="#ffe000" font-size="5">Hidden:1</text>' +
+           '<text x="160" y="63" fill="#07ffff" font-size="5">WPA3:2</text>' +
+           '<text x="230" y="63" fill="#666" font-size="5">Busy:Ch6</text>' +
+           '<rect x="20" y="66" width="360" height="1" fill="rgba(255,255,255,0.05)"/>' +
+           '<text x="34" y="78" fill="#ffffff" font-size="6">HomeNetwork_5G</text>' +
+           '<text x="210" y="78" fill="#999" font-size="6">Ch6</text>' +
+           '<text x="248" y="78" fill="#07e000" font-size="6">WPA2</text>' +
+           '<rect x="296" y="73" width="48" height="7" rx="1" fill="#07e000" opacity="0.8"/>' +
+           '<text x="34" y="95" fill="#ffffff" font-size="6">OfficeWiFi</text>' +
+           '<text x="210" y="95" fill="#999" font-size="6">Ch1</text>' +
+           '<text x="248" y="95" fill="#07e000" font-size="6">WPA2</text>' +
+           '<rect x="296" y="90" width="32" height="7" rx="1" fill="#07ffff" opacity="0.8"/>' +
+           '<text x="34" y="112" fill="#ffe000" font-size="6">[HIDDEN]</text>' +
+           '<text x="210" y="112" fill="#999" font-size="6">Ch11</text>' +
+           '<text x="248" y="112" fill="#07e000" font-size="6">WPA2</text>' +
+           '<rect x="296" y="107" width="18" height="7" rx="1" fill="#ffaa00" opacity="0.8"/>' +
+           '<text x="34" y="129" fill="#ffffff" font-size="6">Starbucks_Guest</text>' +
+           '<text x="210" y="129" fill="#999" font-size="6">Ch6</text>' +
+           '<text x="248" y="129" fill="#ff0000" font-size="6">OPEN</text>' +
+           '<rect x="296" y="124" width="10" height="7" rx="1" fill="#ff4444" opacity="0.8"/>' +
+           '<rect x="20" y="66" width="360" height="27" rx="0" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>' +
+           '<text x="34" y="170" fill="#333" font-size="5.5">320 x 240 px — landscape rotation(1) — ILI9341 on SPI</text>' +
+           '<rect x="400" y="30" width="268" height="148" rx="6" fill="#111827" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="534" y="48" text-anchor="middle" fill="#555" font-size="7" font-weight="700">RSSI COLOR SCALE</text>' +
+           '<rect x="420" y="58" width="20" height="14" rx="2" fill="#07e000"/><text x="450" y="68" fill="#86efac" font-size="6.5">-30 to -50 dBm — Strong (green)</text>' +
+           '<rect x="420" y="78" width="20" height="14" rx="2" fill="#07ffff"/><text x="450" y="88" fill="#67e8f9" font-size="6.5">-50 to -65 dBm — Good (cyan)</text>' +
+           '<rect x="420" y="98" width="20" height="14" rx="2" fill="#ffe000"/><text x="450" y="108" fill="#fde68a" font-size="6.5">-65 to -75 dBm — Fair (yellow)</text>' +
+           '<rect x="420" y="118" width="20" height="14" rx="2" fill="#ff8800"/><text x="450" y="128" fill="#fdba74" font-size="6.5">-75 to -85 dBm — Weak (orange)</text>' +
+           '<rect x="420" y="138" width="20" height="14" rx="2" fill="#ff0000"/><text x="450" y="148" fill="#fca5a5" font-size="6.5">below -85 dBm — Very weak (red)</text>' +
+           '<text x="534" y="172" text-anchor="middle" fill="#333" font-size="6">rssiColor() maps RSSI range to TFT 16-bit color</text>' +
+           '</svg>'
+    },
+
+    // ======================================================================
+    // SIG-3: Component callouts — interactive CYD board teardown
+    // ======================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg06-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="280" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="268" fill="url(#sg06-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">ESP32 CYD — INTERACTIVE BOARD TEARDOWN</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover component list items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="180" rx="6" fill="#111a28" stroke="rgba(59,130,246,0.2)" stroke-width="1.5"/>' +
+             '<g data-callout="esp32-module">' +
+             '<rect x="100" y="55" width="130" height="65" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="98" y="53" width="134" height="69" rx="5" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="165" y="82" text-anchor="middle" fill="#c084fc" font-size="7.5" font-weight="700">ESP32-WROOM-32</text>' +
+             '<text x="165" y="94" text-anchor="middle" fill="#8b949e" font-size="6">WiFi 802.11 b/g/n</text>' +
+             '<text x="165" y="105" text-anchor="middle" fill="#666" font-size="5.5">Dual-core 240MHz</text>' +
+             '</g>' +
+             '<g data-callout="ili9341">' +
+             '<rect x="30" y="55" width="64" height="90" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="53" width="68" height="94" rx="5" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="62" y="96" text-anchor="middle" fill="#4ade80" font-size="6.5" font-weight="700">ILI9341</text>' +
+             '<text x="62" y="107" text-anchor="middle" fill="#8b949e" font-size="5.5">TFT 2.8"</text>' +
+             '<text x="62" y="117" text-anchor="middle" fill="#666" font-size="5">320x240</text>' +
+             '</g>' +
+             '<g data-callout="xpt2046">' +
+             '<rect x="30" y="155" width="64" height="34" rx="3" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="153" width="68" height="38" rx="4" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="62" y="171" text-anchor="middle" fill="#c084fc" font-size="6" font-weight="700">XPT2046</text>' +
+             '<text x="62" y="181" text-anchor="middle" fill="#8b949e" font-size="5.5">Touch ctrl</text>' +
+             '</g>' +
+             '<g data-callout="usb-c">' +
+             '<rect x="186" y="38" width="68" height="16" rx="3" fill="#2a2a3a" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="184" y="36" width="72" height="20" rx="4" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="220" y="49" text-anchor="middle" fill="#fde68a" font-size="6" font-weight="700">USB-C</text>' +
+             '</g>' +
+             '<g data-callout="backlight">' +
+             '<rect x="240" y="55" width="56" height="22" rx="3" fill="#1e2736" stroke="#ef4444" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="238" y="53" width="60" height="26" rx="4" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="268" y="69" text-anchor="middle" fill="#f87171" font-size="6" font-weight="700">BL GPIO21</text>' +
+             '</g>' +
+             '<g data-callout="ch340">' +
+             '<rect x="310" y="130" width="80" height="38" rx="4" fill="#1e2736" stroke="#f97316" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="308" y="128" width="84" height="42" rx="5" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="350" y="148" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="700">CH340</text>' +
+             '<text x="350" y="160" text-anchor="middle" fill="#8b949e" font-size="5.5">USB-Serial</text>' +
+             '</g>' +
+             '<line x1="94" y1="100" x2="98" y2="100" stroke="rgba(168,85,247,0.15)" stroke-width="1"/>' +
+             '<line x1="94" y1="172" x2="98" y2="172" stroke="rgba(168,85,247,0.15)" stroke-width="1"/>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'esp32-module',
+                name: 'A — ESP32-WROOM-32 Module',
+                purpose: 'The brain of the CYD. Contains the dual-core Tensilica Xtensa LX6 processor, 4MB flash, 520KB SRAM, the WiFi 802.11 b/g/n radio, Bluetooth Classic, and BLE — all in one shielded module. In this project the WiFi radio is the scanner.',
+                specs: ['Dual-core 240 MHz', '520 KB SRAM', '4 MB flash', 'WiFi 802.11 b/g/n', 'BT + BLE', '2.4 GHz band']
+            },
+            {
+                id: 'ili9341',
+                name: 'B — ILI9341 2.8" TFT Display',
+                purpose: 'A 320x240 pixel color TFT LCD controller interfaced via SPI. Renders scan results, signal bars, and encryption badges. Driven by the TFT_eSPI library with DMA for fast full-screen redraws after each scan cycle.',
+                specs: ['320 x 240 px', 'SPI interface', '65K colors (16-bit)', 'ILI9341 driver', 'GPIO 13/12/14/15/2']
+            },
+            {
+                id: 'xpt2046',
+                name: 'C — XPT2046 Resistive Touch Controller',
+                purpose: 'A resistive touchscreen controller that converts finger pressure on the display into X/Y coordinates. Shares the SPI bus with the TFT but uses a separate chip-select on GPIO 33. Used to trigger rescans and scroll through network lists.',
+                specs: ['Resistive touch', 'SPI shared bus', 'CS GPIO 33', 'IRQ GPIO 36', 'Needs calibration']
+            },
+            {
+                id: 'usb-c',
+                name: 'D — USB-C Connector',
+                purpose: 'Powers the CYD from any USB-C charger or laptop port, and provides the serial programming interface. The CH340 chip bridges USB to the ESP32 UART, allowing Arduino IDE to flash firmware without any external programmer.',
+                specs: ['5V input', 'Power + programming', 'CH340 bridge', '921600 baud upload']
+            },
+            {
+                id: 'backlight',
+                name: 'E — TFT Backlight (GPIO 21)',
+                purpose: 'The TFT backlight LED is controlled by GPIO 21. Writing HIGH turns it on. Writing LOW saves power. In this project we drive it HIGH at startup and leave it on. Future projects could dim it using PWM for power saving.',
+                specs: ['GPIO 21 control', 'PWM dimming capable', 'Full brightness default', '~60 mA at full power']
+            },
+            {
+                id: 'ch340',
+                name: 'F — CH340 USB-to-Serial',
+                purpose: 'Converts USB signals to the UART that the ESP32 uses for programming and serial debugging. The Serial Monitor output you see in Arduino IDE flows through this chip. If your OS does not detect the CYD, you likely need the CH340 driver.',
+                specs: ['USB-UART bridge', 'Requires OS driver', '921600 baud support', 'Auto-reset circuit']
+            }
+        ]
+    },
+
+    // ======================================================================
+    // SIG-4: Common mistakes for SG-06
+    // ======================================================================
+    commonMistakes: [
+        {
+            title: 'Wrong TFT_eSPI setup — using generic pin numbers instead of CYD-specific ones',
+            correct: 'Edit User_Setup.h in the TFT_eSPI library folder and set exactly: TFT_SCLK=14, TFT_MOSI=13, TFT_MISO=12, TFT_CS=15, TFT_DC=2. These match the CYD PCB trace routing.',
+            incorrect: 'Leaving the default TFT_eSPI pin definitions (which target a generic ESP32 pinout like SCLK=18, MOSI=23) causes the TFT to stay blank or show garbage. Many tutorials show wrong pin numbers for the CYD.',
+            consequence: 'The TFT display stays white or shows random color noise. No scan results appear. The ESP32 runs normally (you can see serial output) but the display gets wrong SPI signals because the library talks to the wrong GPIO pins.',
+            svgDiff: '<svg viewBox="0 0 640 148" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg06-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="148" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="136" fill="url(#sg06-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="118" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="34" width="270" height="86" rx="4" fill="#0a1628" stroke="rgba(255,107,53,0.15)" stroke-width="0.5"/>' +
+                     '<text x="30" y="50" fill="#555" font-size="6">// User_Setup.h — CYD-specific</text>' +
+                     '<text x="30" y="64" fill="#eab308" font-size="6.5">#define TFT_SCLK  14</text>' +
+                     '<text x="30" y="77" fill="#22c55e" font-size="6.5">#define TFT_MOSI  13</text>' +
+                     '<text x="30" y="90" fill="#3b82f6" font-size="6.5">#define TFT_MISO  12</text>' +
+                     '<text x="30" y="103" fill="#f97316" font-size="6.5">#define TFT_CS    15</text>' +
+                     '<text x="30" y="116" fill="#c084fc" font-size="6.5">#define TFT_DC     2</text>' +
+                     '<text x="161" y="126" text-anchor="middle" fill="#22c55e" font-size="7">Matches CYD PCB traces -- display works</text>' +
+                     '<rect x="330" y="14" width="298" height="118" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="34" width="270" height="86" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="348" y="50" fill="#555" font-size="6">// User_Setup.h — generic ESP32 defaults</text>' +
+                     '<text x="348" y="64" fill="#ef4444" font-size="6.5">#define TFT_SCLK  18</text>' +
+                     '<text x="348" y="77" fill="#ef4444" font-size="6.5">#define TFT_MOSI  23</text>' +
+                     '<text x="348" y="90" fill="#ef4444" font-size="6.5">#define TFT_MISO  19</text>' +
+                     '<text x="348" y="103" fill="#ef4444" font-size="6.5">#define TFT_CS     5</text>' +
+                     '<text x="348" y="116" fill="#ef4444" font-size="6.5">#define TFT_DC    17</text>' +
+                     '<text x="479" y="126" text-anchor="middle" fill="#ef4444" font-size="7">Wrong GPIOs -- TFT stays white or shows garbage</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Missing WiFi.mode(WIFI_STA) before scan -- 0 networks found',
+            correct: 'Call WiFi.mode(WIFI_STA) then WiFi.disconnect() before WiFi.scanNetworks(). Station mode must be active for the radio to perform channel sweeps. Calling scanNetworks() without setting mode may return WIFI_SCAN_FAILED.',
+            incorrect: 'Calling WiFi.scanNetworks() directly without setting station mode, or calling it while connected to an AP. Some firmware versions return -1 (scan failed) or 0 networks in these states.',
+            consequence: 'scanNetworks() returns 0 or -2 (WIFI_SCAN_FAILED). The TFT shows "0 networks found" regardless of how many APs are in range. No error message is displayed -- it looks like a working scan that found nothing.',
+            svgDiff: '<svg viewBox="0 0 640 148" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg06-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="148" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="136" fill="url(#sg06-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="118" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="34" width="270" height="86" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="30" y="50" fill="#22c55e" font-size="6.5">WiFi.mode(WIFI_STA);</text>' +
+                     '<text x="30" y="64" fill="#22c55e" font-size="6.5">WiFi.disconnect();</text>' +
+                     '<text x="30" y="78" fill="#555" font-size="6.5">delay(100);</text>' +
+                     '<text x="30" y="92" fill="#ff6b35" font-size="6.5">int n = WiFi.scanNetworks(false, true);</text>' +
+                     '<text x="30" y="106" fill="#555" font-size="6">// n = number of found networks</text>' +
+                     '<text x="161" y="126" text-anchor="middle" fill="#22c55e" font-size="7">Radio initialized in STA mode -- scan works correctly</text>' +
+                     '<rect x="330" y="14" width="298" height="118" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="34" width="270" height="86" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="348" y="50" fill="#555" font-size="6">// No WiFi.mode() call</text>' +
+                     '<text x="348" y="64" fill="#555" font-size="6">// No disconnect()</text>' +
+                     '<text x="348" y="78" fill="#555" font-size="6.5">delay(100);</text>' +
+                     '<text x="348" y="92" fill="#ef4444" font-size="6.5">int n = WiFi.scanNetworks(false, true);</text>' +
+                     '<text x="348" y="106" fill="#ef4444" font-size="6">// n = 0 or -2 (WIFI_SCAN_FAILED)</text>' +
+                     '<text x="479" y="126" text-anchor="middle" fill="#ef4444" font-size="7">Returns 0 networks -- radio not in correct mode</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Touch coordinates inverted -- tapping header triggers scroll, bottom triggers rescan',
+            correct: 'After running the TFT_eSPI touch calibration sketch, replace calData[5] with the values specific to your CYD unit. Each panel differs slightly. Y=0 is the top of the screen in landscape rotation.',
+            incorrect: 'Using hardcoded calibration values from a tutorial that were measured on a different CYD unit. Resistive touch raw values vary between manufacturing batches and are not interchangeable.',
+            consequence: 'Touch zones are offset or inverted. Tapping the header area triggers bottom-area actions. Scrolling and rescanning become unreliable. The display still renders correctly -- only input mapping is wrong.',
+            svgDiff: '<svg viewBox="0 0 640 142" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg06-m3-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="142" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="130" fill="url(#sg06-m3-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="112" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="28" y="36" width="100" height="80" rx="3" fill="#0a0e16" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
+                     '<rect x="28" y="36" width="100" height="22" rx="3" fill="#0f1e2e"/>' +
+                     '<text x="78" y="50" text-anchor="middle" fill="#07ffff" font-size="5.5">RESCAN ZONE</text>' +
+                     '<rect x="28" y="96" width="100" height="20" rx="0" fill="rgba(34,197,94,0.08)"/>' +
+                     '<text x="78" y="109" text-anchor="middle" fill="#22c55e" font-size="5.5">SCROLL ZONE</text>' +
+                     '<text x="78" y="128" text-anchor="middle" fill="#22c55e" font-size="6">Calibrated per unit</text>' +
+                     '<rect x="148" y="36" width="148" height="90" rx="3" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="156" y="52" fill="#22c55e" font-size="6">// Run calibration sketch once:</text>' +
+                     '<text x="156" y="65" fill="#8b949e" font-size="6">uint16_t calData[5] =</text>' +
+                     '<text x="156" y="78" fill="#ff6b35" font-size="6">  { 389, 3461, 257, 3493, 1 };</text>' +
+                     '<text x="156" y="91" fill="#555" font-size="5.5">// Your values will differ</text>' +
+                     '<text x="156" y="104" fill="#22c55e" font-size="6">tft.setTouch(calData);</text>' +
+                     '<rect x="330" y="14" width="298" height="112" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="346" y="36" width="100" height="80" rx="3" fill="#0a0e16" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
+                     '<rect x="346" y="36" width="100" height="22" rx="3" fill="#1a0a0a"/>' +
+                     '<text x="396" y="50" text-anchor="middle" fill="#f87171" font-size="5.5">SCROLL ZONE</text>' +
+                     '<rect x="346" y="96" width="100" height="20" rx="0" fill="rgba(239,68,68,0.08)"/>' +
+                     '<text x="396" y="109" text-anchor="middle" fill="#ef4444" font-size="5.5">RESCAN ZONE</text>' +
+                     '<text x="396" y="128" text-anchor="middle" fill="#ef4444" font-size="6">Wrong unit calData</text>' +
+                     '<rect x="460" y="36" width="148" height="90" rx="3" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="468" y="52" fill="#ef4444" font-size="6">// Copy-pasted from tutorial:</text>' +
+                     '<text x="468" y="65" fill="#8b949e" font-size="6">uint16_t calData[5] =</text>' +
+                     '<text x="468" y="78" fill="#ef4444" font-size="6">  { 319, 3510, 280, 3420, 2 };</text>' +
+                     '<text x="468" y="91" fill="#555" font-size="5.5">// Different hardware unit</text>' +
+                     '<text x="468" y="104" fill="#ef4444" font-size="6">tft.setTouch(calData);</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 // =========================================================================
@@ -410,7 +720,248 @@ window.SignalGuides['sg-07'] = {
 
     challenges: '<p><strong>Challenge 1: Device Persistence Tracking</strong> -- Track how long each device has been visible. Print a "dwell time" column showing how many seconds since first detection. This data reveals which devices are stationary vs passing through.</p>' +
                 '<p><strong>Challenge 2: RSSI Distance Estimation</strong> -- Use the free-space path loss formula to estimate distance from RSSI: <code>distance = 10 ^ ((txPower - RSSI) / (10 * n))</code> where txPower is -59 dBm (typical) and n is 2.0 for open air. Display estimated distances in the report. Note that this is approximate -- walls, bodies, and multipath make real-world estimates rough.</p>' +
-                '<p><strong>Challenge 3: Add an OLED Display</strong> -- Wire a 0.96" I2C OLED (SSD1306) to GPIO 21 (SDA) and GPIO 22 (SCL). Display a live count of Classic and BLE devices, plus the name and RSSI of the strongest signal. This turns the project into a portable device without needing a laptop for the serial monitor.</p>'
+                '<p><strong>Challenge 3: Add an OLED Display</strong> -- Wire a 0.96" I2C OLED (SSD1306) to GPIO 21 (SDA) and GPIO 22 (SCL). Display a live count of Classic and BLE devices, plus the name and RSSI of the strongest signal. This turns the project into a portable device without needing a laptop for the serial monitor.</p>',
+
+    // ======================================================================
+    // SIG-2: Step visual illustrations (0-based step index)
+    // ======================================================================
+    stepVisuals: {
+        // Step 1 — Classic BT inquiry: CoD (Class of Device) breakdown
+        1: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg07-sv1-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="172" fill="url(#sg07-sv1-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">BLUETOOTH CLASS OF DEVICE (CoD) — 24-BIT FIELD</text>' +
+           '<rect x="16" y="30" width="648" height="40" rx="4" fill="#0f1923" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="26" y="44" fill="#555" font-size="6.5" font-weight="700">CoD BITFIELD (3 bytes, returned by BTAdvertisedDevice::getCOD())</text>' +
+           '<rect x="20" y="50" width="180" height="14" rx="2" fill="rgba(168,85,247,0.12)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+           '<text x="110" y="60" text-anchor="middle" fill="#c084fc" font-size="6" font-weight="700">bits [23:13] — Minor Device Class</text>' +
+           '<rect x="206" y="50" width="160" height="14" rx="2" fill="rgba(255,107,53,0.12)" stroke="rgba(255,107,53,0.3)" stroke-width="0.5"/>' +
+           '<text x="286" y="60" text-anchor="middle" fill="#ff6b35" font-size="6" font-weight="700">bits [12:8] — Major Device Class</text>' +
+           '<rect x="372" y="50" width="144" height="14" rx="2" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+           '<text x="444" y="60" text-anchor="middle" fill="#60a5fa" font-size="6" font-weight="700">bits [7:2] — Service Class</text>' +
+           '<rect x="522" y="50" width="120" height="14" rx="2" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>' +
+           '<text x="582" y="60" text-anchor="middle" fill="#555" font-size="6">bits [1:0] — Format bits</text>' +
+           '<rect x="16" y="82" width="648" height="88" rx="4" fill="#0a1628" stroke="rgba(255,107,53,0.1)" stroke-width="0.5"/>' +
+           '<text x="26" y="96" fill="#555" font-size="6.5" font-weight="700">MAJOR DEVICE CLASS VALUES (bits [12:8] — extracted as: (cod >> 8) &amp; 0x1F)</text>' +
+           '<rect x="24" y="102" width="72" height="16" rx="2" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="60" y="113" text-anchor="middle" fill="#c084fc" font-size="6">0x01 — Computer</text>' +
+           '<rect x="102" y="102" width="64" height="16" rx="2" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="134" y="113" text-anchor="middle" fill="#c084fc" font-size="6">0x02 — Phone</text>' +
+           '<rect x="172" y="102" width="86" height="16" rx="2" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="215" y="113" text-anchor="middle" fill="#c084fc" font-size="6">0x03 — LAN/Net</text>' +
+           '<rect x="264" y="102" width="86" height="16" rx="2" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="307" y="113" text-anchor="middle" fill="#c084fc" font-size="6">0x04 — Audio/Video</text>' +
+           '<rect x="356" y="102" width="80" height="16" rx="2" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="396" y="113" text-anchor="middle" fill="#c084fc" font-size="6">0x05 — Peripheral</text>' +
+           '<rect x="442" y="102" width="64" height="16" rx="2" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="474" y="113" text-anchor="middle" fill="#c084fc" font-size="6">0x07 — Wearable</text>' +
+           '<rect x="512" y="102" width="64" height="16" rx="2" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="544" y="113" text-anchor="middle" fill="#c084fc" font-size="6">0x09 — Health</text>' +
+           '<text x="26" y="135" fill="#555" font-size="6.5" font-weight="700">BLE APPEARANCE VALUES (haveAppearance() / getAppearance() -- top 10 bits = category)</text>' +
+           '<rect x="24" y="141" width="72" height="16" rx="2" fill="rgba(34,197,94,0.08)"/>' +
+           '<text x="60" y="152" text-anchor="middle" fill="#22c55e" font-size="6">0x01 — Phone</text>' +
+           '<rect x="102" y="141" width="72" height="16" rx="2" fill="rgba(34,197,94,0.08)"/>' +
+           '<text x="138" y="152" text-anchor="middle" fill="#22c55e" font-size="6">0x03 — Watch</text>' +
+           '<rect x="180" y="141" width="72" height="16" rx="2" fill="rgba(34,197,94,0.08)"/>' +
+           '<text x="216" y="152" text-anchor="middle" fill="#22c55e" font-size="6">0x0F — HID</text>' +
+           '<rect x="258" y="141" width="100" height="16" rx="2" fill="rgba(34,197,94,0.08)"/>' +
+           '<text x="308" y="152" text-anchor="middle" fill="#22c55e" font-size="6">0x31 — Fitness Tracker</text>' +
+           '<rect x="364" y="141" width="100" height="16" rx="2" fill="rgba(34,197,94,0.08)"/>' +
+           '<text x="414" y="152" text-anchor="middle" fill="#22c55e" font-size="6">0x0D — Heart Rate</text>' +
+           '</svg>',
+
+        // Step 2 — BLE advertising packet anatomy
+        2: '<svg viewBox="0 0 680 182" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg07-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg07-arr-g" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#22c55e"/></marker></defs>' +
+           '<rect width="680" height="182" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="166" fill="url(#sg07-sv2-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">BLE ADVERTISING PACKET ANATOMY</text>' +
+           '<rect x="16" y="30" width="648" height="32" rx="4" fill="#0f1923" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="26" y="43" fill="#555" font-size="6.5" font-weight="700">PDU STRUCTURE (over 3 advertising channels: 37, 38, 39)</text>' +
+           '<rect x="20" y="50" width="56" height="18" rx="2" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+           '<text x="48" y="62" text-anchor="middle" fill="#60a5fa" font-size="6">Preamble 1B</text>' +
+           '<rect x="82" y="50" width="60" height="18" rx="2" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
+           '<text x="112" y="62" text-anchor="middle" fill="#60a5fa" font-size="6">Access Addr 4B</text>' +
+           '<rect x="148" y="50" width="56" height="18" rx="2" fill="rgba(255,107,53,0.12)" stroke="rgba(255,107,53,0.3)" stroke-width="0.5"/>' +
+           '<text x="176" y="62" text-anchor="middle" fill="#ff6b35" font-size="6">PDU Header 2B</text>' +
+           '<rect x="210" y="50" width="60" height="18" rx="2" fill="rgba(168,85,247,0.12)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+           '<text x="240" y="62" text-anchor="middle" fill="#c084fc" font-size="6">AdvAddr 6B</text>' +
+           '<rect x="276" y="50" width="240" height="18" rx="2" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+           '<text x="396" y="62" text-anchor="middle" fill="#22c55e" font-size="6">AdvData (0-31B) -- AD structures</text>' +
+           '<rect x="522" y="50" width="54" height="18" rx="2" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>' +
+           '<text x="549" y="62" text-anchor="middle" fill="#555" font-size="6">CRC 3B</text>' +
+           '<rect x="16" y="80" width="648" height="82" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+           '<text x="26" y="93" fill="#555" font-size="6.5" font-weight="700">AD STRUCTURES INSIDE AdvData — each field is: length | type | value</text>' +
+           '<rect x="24" y="99" width="146" height="14" rx="2" fill="rgba(255,107,53,0.08)"/>' +
+           '<text x="97" y="109" text-anchor="middle" fill="#ff6b35" font-size="6">0x09 — Complete Local Name</text>' +
+           '<text x="97" y="120" text-anchor="middle" fill="#555" font-size="5.5">device.getName()</text>' +
+           '<rect x="176" y="99" width="146" height="14" rx="2" fill="rgba(59,130,246,0.08)"/>' +
+           '<text x="249" y="109" text-anchor="middle" fill="#60a5fa" font-size="6">0x03 — 16-bit Service UUIDs</text>' +
+           '<text x="249" y="120" text-anchor="middle" fill="#555" font-size="5.5">device.getServiceUUID()</text>' +
+           '<rect x="328" y="99" width="130" height="14" rx="2" fill="rgba(234,179,8,0.08)"/>' +
+           '<text x="393" y="109" text-anchor="middle" fill="#eab308" font-size="6">0x19 — Appearance</text>' +
+           '<text x="393" y="120" text-anchor="middle" fill="#555" font-size="5.5">device.getAppearance()</text>' +
+           '<rect x="464" y="99" width="166" height="14" rx="2" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="547" y="109" text-anchor="middle" fill="#c084fc" font-size="6">0xFF — Manufacturer Specific</text>' +
+           '<text x="547" y="120" text-anchor="middle" fill="#555" font-size="5.5">iBeacon, AltBeacon payloads</text>' +
+           '<text x="26" y="140" fill="#22c55e" font-size="6.5">Common service UUID shortcuts:  0x180D Heart Rate  0x180F Battery  0x1812 HID  0xFEAA Eddystone</text>' +
+           '<text x="26" y="153" fill="#555" font-size="6">Active scan triggers SCAN_REQ, device responds with SCAN_RSP containing additional AD structures (e.g., full name if too long for initial packet)</text>' +
+           '</svg>'
+    },
+
+    // ======================================================================
+    // SIG-3: Component callouts — ESP32 DevKit V1 teardown
+    // ======================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg07-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="280" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="268" fill="url(#sg07-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">ESP32 DEVKIT V1 — INTERACTIVE TEARDOWN</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover component list items to highlight</text>' +
+             '<rect x="110" y="38" width="220" height="200" rx="8" fill="#111a28" stroke="rgba(168,85,247,0.25)" stroke-width="1.5"/>' +
+             '<g data-callout="esp32-wroom">' +
+             '<rect x="140" y="68" width="160" height="72" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="138" y="66" width="164" height="76" rx="5" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="220" y="100" text-anchor="middle" fill="#c084fc" font-size="8" font-weight="700">ESP32-WROOM-32</text>' +
+             '<text x="220" y="113" text-anchor="middle" fill="#8b949e" font-size="6">BT Classic + BLE + WiFi</text>' +
+             '<text x="220" y="124" text-anchor="middle" fill="#666" font-size="5.5">2.4 GHz shared radio</text>' +
+             '</g>' +
+             '<g data-callout="pcb-ant">' +
+             '<rect x="200" y="48" width="40" height="16" rx="3" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="198" y="46" width="44" height="20" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="220" y="59" text-anchor="middle" fill="#4ade80" font-size="5.5" font-weight="700">PCB Ant</text>' +
+             '</g>' +
+             '<g data-callout="usb-micro">' +
+             '<rect x="188" y="38" width="64" height="14" rx="3" fill="#2a2a3a" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="186" y="36" width="68" height="18" rx="4" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="220" y="48" text-anchor="middle" fill="#fde68a" font-size="5.5" font-weight="700">USB Micro-B</text>' +
+             '</g>' +
+             '<g data-callout="cp2102">' +
+             '<rect x="140" y="158" width="80" height="40" rx="4" fill="#1e2736" stroke="#f97316" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="138" y="156" width="84" height="44" rx="5" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="180" y="176" text-anchor="middle" fill="#fb923c" font-size="7" font-weight="700">CP2102</text>' +
+             '<text x="180" y="188" text-anchor="middle" fill="#8b949e" font-size="5.5">USB-Serial</text>' +
+             '</g>' +
+             '<g data-callout="en-btn">' +
+             '<circle cx="310" cy="85" r="12" fill="#1e2736" stroke="#ef4444" stroke-width="1" class="sp-callout-circle"/>' +
+             '<circle class="sp-callout-ring" cx="310" cy="85" r="16" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="310" y="88" text-anchor="middle" fill="#f87171" font-size="6" font-weight="700">EN</text>' +
+             '</g>' +
+             '<g data-callout="boot-btn">' +
+             '<circle cx="310" cy="145" r="12" fill="#1e2736" stroke="#3b82f6" stroke-width="1" class="sp-callout-circle"/>' +
+             '<circle class="sp-callout-ring" cx="310" cy="145" r="16" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="310" y="148" text-anchor="middle" fill="#60a5fa" font-size="5.5" font-weight="700">BOOT</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'esp32-wroom',
+                name: 'A — ESP32-WROOM-32 Module',
+                purpose: 'The dual-core Xtensa LX6 processor with its entire wireless stack on a single shielded module. For Bluetooth scanning: Classic BT uses the inquiry scan (10s sweep), BLE uses the advertising scanner (passive or active). Both share the same 2.4 GHz radio -- they run sequentially, not simultaneously.',
+                specs: ['Dual-core 240 MHz', 'BT Classic 2.1+EDR', 'BLE 4.2', 'WiFi 802.11 b/g/n', '520 KB SRAM', '4 MB flash']
+            },
+            {
+                id: 'pcb-ant',
+                name: 'B — PCB Trace Antenna',
+                purpose: 'An etched copper trace on the PCB acts as the antenna for both WiFi and Bluetooth. Keep the antenna area clear of metal objects and conductive surfaces. Range degrades significantly when the antenna is obstructed by a hand, a metal case, or placed flat on a metal desk.',
+                specs: ['2.4 GHz tuned', 'Shared BT + WiFi', 'Omni-directional', 'Approx 80m BLE range']
+            },
+            {
+                id: 'usb-micro',
+                name: 'C — USB Micro-B Connector',
+                purpose: 'Provides 5V power and the serial programming interface. In this project, all output goes to the Serial Monitor over this connection. You can also power the board from a USB power bank for untethered field scanning.',
+                specs: ['5V input power', 'Serial output', 'Programming port', 'Power bank compatible']
+            },
+            {
+                id: 'cp2102',
+                name: 'D — CP2102 USB-Serial Bridge',
+                purpose: 'Converts USB signals from your laptop to the UART that the ESP32 uses for firmware upload and serial communication. The Serial Monitor data flows through this chip. Some DevKit clones use CH340 instead -- both work the same way but may need different OS drivers.',
+                specs: ['USB to UART', 'CP2102 or CH340', 'Up to 921600 baud', 'Auto-reset support']
+            },
+            {
+                id: 'en-btn',
+                name: 'E — EN (Reset) Button',
+                purpose: 'Resets the ESP32. Useful for restarting a scan cycle or recovering from a hang. During upload, Arduino IDE toggles the EN pin automatically via DTR/RTS on the USB-serial chip -- you rarely need to press this manually.',
+                specs: ['Hardware reset', 'Active LOW', 'Auto-reset via DTR', 'Tactile switch']
+            },
+            {
+                id: 'boot-btn',
+                name: 'F — BOOT Button (GPIO 0)',
+                purpose: 'Hold this while pressing EN (or while plugging in USB) to enter bootloader mode. Required if upload fails with "Failed to connect." Also used to trigger events in firmware -- GPIO 0 reads LOW when held. Most uploads succeed without needing it on modern DevKit revisions.',
+                specs: ['GPIO 0', 'Active LOW', 'Bootloader trigger', 'Input in firmware']
+            }
+        ]
+    },
+
+    // ======================================================================
+    // SIG-4: Common mistakes for SG-07
+    // ======================================================================
+    commonMistakes: [
+        {
+            title: 'Sketch too big -- Bluetooth stack + BLE fills more than default partition flash space',
+            correct: 'In Arduino IDE, go to Tools > Partition Scheme and select "Huge APP (3MB No OTA/1MB SPIFFS)". This gives 3MB for your compiled sketch, enough for both Classic BT and BLE stacks plus your code.',
+            incorrect: 'Leaving the default "Default 4MB with spiffs" partition scheme (which allocates only 1.2MB to the sketch). The combined BT Classic + BLE stack plus Arduino runtime exceeds this limit.',
+            consequence: 'Compilation succeeds but upload fails with "Sketch too big: ... Compress..." or the firmware uploads but crashes immediately on boot because the binary overflows the allocated flash region.',
+            svgDiff: '<svg viewBox="0 0 640 142" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg07-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="142" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="130" fill="url(#sg07-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="112" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<text x="26" y="46" fill="#555" font-size="6.5" font-weight="600">4MB Flash — Huge APP partition:</text>' +
+                     '<rect x="26" y="52" width="270" height="18" rx="2" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+                     '<text x="34" y="64" fill="#22c55e" font-size="6.5">APP:  3072 KB (3.0 MB) ---- Sketch fits</text>' +
+                     '<rect x="26" y="76" width="140" height="16" rx="2" fill="rgba(255,255,255,0.04)"/>' +
+                     '<text x="34" y="87" fill="#555" font-size="6">SPIFFS: 1024 KB</text>' +
+                     '<rect x="172" y="76" width="124" height="16" rx="2" fill="rgba(255,255,255,0.04)"/>' +
+                     '<text x="180" y="87" fill="#555" font-size="6">NVS + OTA: 20 KB</text>' +
+                     '<text x="161" y="120" text-anchor="middle" fill="#22c55e" font-size="7">BT + BLE + sketch ~2.8MB -- fits in 3MB region</text>' +
+                     '<rect x="330" y="14" width="298" height="112" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<text x="344" y="46" fill="#555" font-size="6.5" font-weight="600">4MB Flash — Default partition:</text>' +
+                     '<rect x="344" y="52" width="270" height="18" rx="2" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
+                     '<text x="352" y="64" fill="#ef4444" font-size="6.5">APP:  1280 KB (1.2 MB) ---- TOO SMALL</text>' +
+                     '<rect x="344" y="76" width="130" height="16" rx="2" fill="rgba(255,255,255,0.04)"/>' +
+                     '<text x="352" y="87" fill="#555" font-size="6">SPIFFS: 1536 KB</text>' +
+                     '<rect x="480" y="76" width="130" height="16" rx="2" fill="rgba(255,255,255,0.04)"/>' +
+                     '<text x="488" y="87" fill="#555" font-size="6">OTA: 1280 KB</text>' +
+                     '<text x="479" y="120" text-anchor="middle" fill="#ef4444" font-size="7">Sketch ~2.8MB overflows 1.2MB -- upload fails</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'BLE memory leak -- ESP32 crashes after 2-3 scan cycles due to unreleased scan results',
+            correct: 'After every BLE scan cycle, call pBLEScan->clearResults() to free advertising data from heap, then call BLEDevice::deinit(false) to release the BLE stack RAM. Reinitialize with BLEDevice::init("") before the next scan.',
+            incorrect: 'Calling pBLEScan->start() repeatedly without clearing results or deinitializing. Each BLE scan allocates heap for discovered devices. Without clearing, heap fills up after 2-3 cycles and the ESP32 triggers a watchdog reset.',
+            consequence: 'The ESP32 runs one or two scan cycles successfully, then reboots with a "Guru Meditation Error" or watchdog timeout. Serial shows "rst:0x8 (TG1WDT_SYS_RESET)" -- the classic ESP32 heap exhaustion symptom.',
+            svgDiff: '<svg viewBox="0 0 640 148" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg07-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="148" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="136" fill="url(#sg07-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="118" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="34" width="270" height="90" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="30" y="50" fill="#ff6b35" font-size="6.5">BLEScanResults r = pBLEScan->start(5, false);</text>' +
+                     '<text x="30" y="64" fill="#22c55e" font-size="6.5">pBLEScan->clearResults();  // free heap</text>' +
+                     '<text x="30" y="78" fill="#22c55e" font-size="6.5">BLEDevice::deinit(false);  // free stack</text>' +
+                     '<text x="30" y="92" fill="#555" font-size="6">// ... Classic BT scan ...</text>' +
+                     '<text x="30" y="106" fill="#ff6b35" font-size="6.5">BLEDevice::init("");        // re-init next cycle</text>' +
+                     '<text x="161" y="126" text-anchor="middle" fill="#22c55e" font-size="7">Heap released after each cycle -- stable long-term</text>' +
+                     '<rect x="330" y="14" width="298" height="118" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="34" width="270" height="90" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="348" y="50" fill="#ff6b35" font-size="6.5">BLEScanResults r = pBLEScan->start(5, false);</text>' +
+                     '<text x="348" y="64" fill="#ef4444" font-size="6.5">// clearResults() missing</text>' +
+                     '<text x="348" y="78" fill="#ef4444" font-size="6.5">// deinit() missing</text>' +
+                     '<text x="348" y="92" fill="#555" font-size="6">// Heap grows each cycle</text>' +
+                     '<text x="348" y="106" fill="#ef4444" font-size="6.5">BLEScanResults r = pBLEScan->start(5, false);</text>' +
+                     '<text x="479" y="126" text-anchor="middle" fill="#ef4444" font-size="7">Heap exhausted after 2-3 cycles -- watchdog reset</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 // =========================================================================
@@ -608,7 +1159,245 @@ window.SignalGuides['sg-08'] = {
 
     challenges: '<p><strong>Challenge 1: Per-Channel Traffic Histogram</strong> -- Track frame counts per channel separately during hopping. After a full sweep, display a mini bar chart showing which channels are busiest. This is useful for choosing the least congested channel for your own network.</p>' +
                 '<p><strong>Challenge 2: Unique Device Counter</strong> -- Extract the source MAC (addr2) from each frame and maintain a set of unique transmitters. Display the count of unique devices seen. This tells you how many active wireless devices are in range.</p>' +
-                '<p><strong>Challenge 3: Traffic Rate Graph</strong> -- Instead of cumulative counts, display a scrolling line graph of frames-per-second over the last 60 seconds. This shows traffic patterns over time and makes spikes instantly visible.</p>'
+                '<p><strong>Challenge 3: Traffic Rate Graph</strong> -- Instead of cumulative counts, display a scrolling line graph of frames-per-second over the last 60 seconds. This shows traffic patterns over time and makes spikes instantly visible.</p>',
+
+    // ======================================================================
+    // SIG-2: Step visual illustrations (0-based step index)
+    // ======================================================================
+    stepVisuals: {
+        // Step 0 — 802.11 Frame Control field bit layout
+        0: '<svg viewBox="0 0 680 192" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg08-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="192" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="176" fill="url(#sg08-sv0-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">802.11 FRAME CONTROL — 16-BIT FIELD BREAKDOWN</text>' +
+           '<rect x="16" y="30" width="648" height="40" rx="4" fill="#0f1923" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="26" y="42" fill="#555" font-size="6.5" font-weight="700">FRAME CONTROL (first 2 bytes of every 802.11 frame)</text>' +
+           '<rect x="20" y="47" width="56" height="18" rx="2" fill="rgba(255,255,255,0.06)"/>' +
+           '<text x="48" y="59" text-anchor="middle" fill="#8b949e" font-size="6">bits [1:0]</text>' +
+           '<rect x="82" y="47" width="76" height="18" rx="2" fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
+           '<text x="120" y="59" text-anchor="middle" fill="#22c55e" font-size="6" font-weight="700">bits [3:2] — TYPE</text>' +
+           '<rect x="164" y="47" width="120" height="18" rx="2" fill="rgba(255,107,53,0.12)" stroke="rgba(255,107,53,0.3)" stroke-width="0.5"/>' +
+           '<text x="224" y="59" text-anchor="middle" fill="#ff6b35" font-size="6" font-weight="700">bits [7:4] — SUBTYPE</text>' +
+           '<rect x="290" y="47" width="100" height="18" rx="2" fill="rgba(255,255,255,0.05)"/>' +
+           '<text x="340" y="59" text-anchor="middle" fill="#555" font-size="6">bits [8:11] flags</text>' +
+           '<rect x="396" y="47" width="240" height="18" rx="2" fill="rgba(255,255,255,0.04)"/>' +
+           '<text x="516" y="59" text-anchor="middle" fill="#444" font-size="6">bits [15:12] — more flags</text>' +
+           '<rect x="16" y="82" width="648" height="100" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+           '<text x="26" y="96" fill="#555" font-size="6.5" font-weight="700">TYPE FIELD (bits [3:2]) — ONLY 3 VALUES EXIST IN 802.11</text>' +
+           '<rect x="24" y="102" width="200" height="24" rx="3" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
+           '<text x="124" y="116" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="700">00 = Management</text>' +
+           '<text x="124" y="126" text-anchor="middle" fill="#555" font-size="5.5">Beacons, Probes, Deauths</text>' +
+           '<rect x="234" y="102" width="200" height="24" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
+           '<text x="334" y="116" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">01 = Control</text>' +
+           '<text x="334" y="126" text-anchor="middle" fill="#555" font-size="5.5">ACK, RTS, CTS, BlockACK</text>' +
+           '<rect x="444" y="102" width="200" height="24" rx="3" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
+           '<text x="544" y="116" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="700">10 = Data</text>' +
+           '<text x="544" y="126" text-anchor="middle" fill="#555" font-size="5.5">Encrypted user traffic</text>' +
+           '<text x="26" y="148" fill="#555" font-size="6.5" font-weight="700">KEY SUBTYPES (bits [7:4]):</text>' +
+           '<text x="26" y="161" fill="#22c55e" font-size="6.5">Mgmt: 0000=AssocReq  0100=ProbeReq  0101=ProbeResp  1000=Beacon  1100=Deauth  1010=Disassoc</text>' +
+           '<text x="26" y="174" fill="#eab308" font-size="6.5">Ctrl: 1011=RTS  1100=CTS  1101=ACK  1000=BlockACK</text>' +
+           '</svg>',
+
+        // Step 2 — Promiscuous callback data flow / IRAM_ATTR timing
+        2: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg08-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg08-arr-o" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#ff6b35"/></marker>' +
+           '<marker id="sg08-arr-g" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#22c55e"/></marker></defs>' +
+           '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="172" fill="url(#sg08-sv2-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">PROMISCUOUS CALLBACK — EXECUTION CONTEXT</text>' +
+           '<rect x="16" y="30" width="200" height="130" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<rect x="16" y="30" width="200" height="22" rx="6" fill="rgba(59,130,246,0.12)"/>' +
+           '<text x="116" y="44" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">WiFi Radio / Driver</text>' +
+           '<text x="116" y="60" text-anchor="middle" fill="#8b949e" font-size="6.5">Receives 802.11 frame on air</text>' +
+           '<text x="116" y="73" text-anchor="middle" fill="#8b949e" font-size="6.5">Decodes signal to bits</text>' +
+           '<text x="116" y="86" text-anchor="middle" fill="#8b949e" font-size="6.5">Validates CRC</text>' +
+           '<text x="116" y="99" text-anchor="middle" fill="#8b949e" font-size="6.5">Fills wifi_promiscuous_pkt_t</text>' +
+           '<text x="116" y="112" text-anchor="middle" fill="#ff6b35" font-size="6.5" font-weight="600">Fires callback</text>' +
+           '<text x="116" y="128" text-anchor="middle" fill="#555" font-size="5.5">Runs in WiFi task context</text>' +
+           '<text x="116" y="140" text-anchor="middle" fill="#555" font-size="5.5">~500-2000 calls/sec busy ch</text>' +
+           '<line x1="218" y1="112" x2="248" y2="112" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg08-arr-o)"/>' +
+           '<rect x="250" y="30" width="200" height="130" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+           '<rect x="250" y="30" width="200" height="22" rx="6" fill="rgba(255,107,53,0.12)"/>' +
+           '<text x="350" y="44" text-anchor="middle" fill="#fb923c" font-size="8" font-weight="700">IRAM_ATTR Callback</text>' +
+           '<text x="350" y="60" text-anchor="middle" fill="#8b949e" font-size="6.5">Runs in instruction RAM</text>' +
+           '<text x="350" y="73" text-anchor="middle" fill="#22c55e" font-size="6.5">frameType = (ctrl >> 2) &amp; 3</text>' +
+           '<text x="350" y="86" text-anchor="middle" fill="#22c55e" font-size="6.5">mgmtCount++ / ctrlCount++</text>' +
+           '<text x="350" y="99" text-anchor="middle" fill="#22c55e" font-size="6.5">probeReqCount++ if subtype==4</text>' +
+           '<text x="350" y="112" text-anchor="middle" fill="#ef4444" font-size="6.5">NO Serial.print here</text>' +
+           '<text x="350" y="125" text-anchor="middle" fill="#ef4444" font-size="6.5">NO TFT calls here</text>' +
+           '<text x="350" y="140" text-anchor="middle" fill="#555" font-size="5.5">Must return in &lt;10 microseconds</text>' +
+           '<line x1="452" y1="112" x2="482" y2="112" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg08-arr-g)"/>' +
+           '<rect x="484" y="30" width="180" height="130" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<rect x="484" y="30" width="180" height="22" rx="6" fill="rgba(34,197,94,0.12)"/>' +
+           '<text x="574" y="44" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="700">Main Loop (1Hz)</text>' +
+           '<text x="574" y="60" text-anchor="middle" fill="#8b949e" font-size="6.5">Reads volatile counters</text>' +
+           '<text x="574" y="73" text-anchor="middle" fill="#8b949e" font-size="6.5">Calculates fps = delta/sec</text>' +
+           '<text x="574" y="86" text-anchor="middle" fill="#8b949e" font-size="6.5">Calls drawDashboard()</text>' +
+           '<text x="574" y="99" text-anchor="middle" fill="#8b949e" font-size="6.5">Handles touch events</text>' +
+           '<text x="574" y="112" text-anchor="middle" fill="#8b949e" font-size="6.5">Calls hopChannel()</text>' +
+           '<text x="574" y="125" text-anchor="middle" fill="#555" font-size="5.5">Safe to Serial.print here</text>' +
+           '<text x="574" y="140" text-anchor="middle" fill="#555" font-size="5.5">TFT draw is safe here</text>' +
+           '<text x="340" y="172" text-anchor="middle" fill="#333" font-size="6.5">volatile keyword ensures main loop sees counter updates from callback running on WiFi task</text>' +
+           '</svg>'
+    },
+
+    // ======================================================================
+    // SIG-3: Component callouts -- 802.11 frame type breakdown
+    // ======================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg08-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="280" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="268" fill="url(#sg08-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">802.11 FRAME TYPE MAP — INTERACTIVE</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover component list items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="200" rx="6" fill="#0f1923" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+             '<g data-callout="mgmt-beacon">' +
+             '<rect x="30" y="52" width="116" height="44" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="50" width="120" height="48" rx="5" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="88" y="70" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="700">Beacon</text>' +
+             '<text x="88" y="83" text-anchor="middle" fill="#8b949e" font-size="5.5">Mgmt type=0, sub=8</text>' +
+             '</g>' +
+             '<g data-callout="mgmt-probe">' +
+             '<rect x="152" y="52" width="116" height="44" rx="4" fill="#1e2736" stroke="#f97316" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="150" y="50" width="120" height="48" rx="5" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="210" y="70" text-anchor="middle" fill="#fb923c" font-size="7.5" font-weight="700">Probe Req</text>' +
+             '<text x="210" y="83" text-anchor="middle" fill="#8b949e" font-size="5.5">Mgmt type=0, sub=4</text>' +
+             '</g>' +
+             '<g data-callout="mgmt-deauth">' +
+             '<rect x="274" y="52" width="116" height="44" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="272" y="50" width="120" height="48" rx="5" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="332" y="70" text-anchor="middle" fill="#f87171" font-size="7.5" font-weight="700">Deauth</text>' +
+             '<text x="332" y="83" text-anchor="middle" fill="#8b949e" font-size="5.5">Mgmt type=0, sub=12</text>' +
+             '</g>' +
+             '<g data-callout="ctrl-ack">' +
+             '<rect x="30" y="108" width="116" height="44" rx="4" fill="#1e2736" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="106" width="120" height="48" rx="5" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="88" y="126" text-anchor="middle" fill="#fde68a" font-size="7.5" font-weight="700">ACK / RTS</text>' +
+             '<text x="88" y="139" text-anchor="middle" fill="#8b949e" font-size="5.5">Ctrl type=1, sub=13/11</text>' +
+             '</g>' +
+             '<g data-callout="data-qos">' +
+             '<rect x="152" y="108" width="238" height="44" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="150" y="106" width="242" height="48" rx="5" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="271" y="126" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">Data / QoS Data</text>' +
+             '<text x="271" y="139" text-anchor="middle" fill="#8b949e" font-size="5.5">Data type=2 — encrypted payload frames</text>' +
+             '</g>' +
+             '<g data-callout="probe-ssid">' +
+             '<rect x="30" y="164" width="360" height="50" rx="4" fill="#1e2736" stroke="#ff6b35" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="162" width="364" height="54" rx="5" fill="none" stroke="#ff6b35" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="210" y="182" text-anchor="middle" fill="#ff6b35" font-size="7.5" font-weight="700">Probe Request SSID Extraction</text>' +
+             '<text x="210" y="195" text-anchor="middle" fill="#8b949e" font-size="5.5">payload[24] = tag 0 (SSID element), payload[25] = length, payload[26..] = SSID chars</text>' +
+             '<text x="210" y="206" text-anchor="middle" fill="#555" font-size="5.5">Reveals network names devices are actively searching for -- information leakage</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'mgmt-beacon',
+                name: 'A — Beacon Frame (Mgmt, subtype 8)',
+                purpose: 'Broadcast by every access point 10 times per second on their operating channel. Contains SSID, BSSID, supported rates, channel, and RSN (security) information element. On a typical home network, beacons account for 60-80% of all management frames captured.',
+                specs: ['Type=0 Subtype=0x08', 'Source: AP BSSID', 'Dest: FF:FF:FF:FF:FF:FF', '10 Hz interval', 'SSID in clear']
+            },
+            {
+                id: 'mgmt-probe',
+                name: 'B — Probe Request (Mgmt, subtype 4)',
+                purpose: 'Sent by client devices searching for known networks. Contains the target SSID in a tagged parameter element at offset 24 of the frame body. An empty SSID (wildcard probe) requests all APs to respond. Capturing these reveals which networks a device has previously connected to -- a significant privacy leak.',
+                specs: ['Type=0 Subtype=0x04', 'Source: Client MAC', 'Dest: FF:FF:FF:FF:FF:FF', 'SSID at payload[26]', 'Privacy concern']
+            },
+            {
+                id: 'mgmt-deauth',
+                name: 'C — Deauthentication (Mgmt, subtype 12)',
+                purpose: 'Sent to terminate an authenticated relationship. Legitimate deauths are rare. A burst of deauths (dozens per second) targeting broadcast or a specific client indicates an attack. Our deauth counter (and SG-10) specifically watches for this pattern. WPA3 Protected Management Frames (PMF) prevents forged deauths.',
+                specs: ['Type=0 Subtype=0x0C', '2-byte reason code', 'Unauth in WPA2', 'PMF prevents spoofing', 'Attack threshold: 3/2s']
+            },
+            {
+                id: 'ctrl-ack',
+                name: 'D — ACK / RTS / CTS (Control, subtype 13/11/12)',
+                purpose: 'Control frames coordinate medium access. Every data frame gets an ACK from the receiver. RTS/CTS is used for large frames to reserve the medium and prevent collisions. Control frames are the shortest frames and arrive at very high rates on busy channels, sometimes exceeding management frame counts.',
+                specs: ['Type=1', 'ACK: 14 bytes total', 'No SSID data', 'High rate on busy ch', 'Confirms delivery']
+            },
+            {
+                id: 'data-qos',
+                name: 'E — Data Frames (type 2)',
+                purpose: 'Carry encrypted user traffic. In WPA2/WPA3 networks, the payload is encrypted with AES-CCMP and is completely opaque to passive sniffers. However, source and destination MACs remain visible, revealing which devices are communicating. On idle networks, data frames are sparse -- busy video streams produce hundreds per second.',
+                specs: ['Type=2', 'Encrypted payload', 'MACs visible', 'QoS subtype common', 'AES-CCMP in WPA2']
+            },
+            {
+                id: 'probe-ssid',
+                name: 'F — Probe SSID Extraction',
+                purpose: 'The SSID in a probe request sits at a fixed offset: after the 24-byte MAC header comes the frame body. Byte [0] of the body is the Element ID (0 = SSID), byte [1] is the length, and bytes [2..length+1] are the SSID characters. Our parser extracts this and logs it to the circular probe buffer displayed on the TFT.',
+                specs: ['Offset: payload+24', 'Tag 0 = SSID element', 'Length byte at +25', 'String at +26', 'Max 32 chars']
+            }
+        ]
+    },
+
+    // ======================================================================
+    // SIG-4: Common mistakes for SG-08
+    // ======================================================================
+    commonMistakes: [
+        {
+            title: 'Calling Serial.print or TFT draw inside the promiscuous callback -- ESP32 crashes',
+            correct: 'Inside the callback, only increment volatile counters and copy raw data to a fixed-size circular buffer. All Serial output and TFT drawing happens in the main loop, which reads the counters once per second.',
+            incorrect: 'Adding Serial.printf() or tft.print() inside promiscuousCallback(). The callback fires up to 2000 times per second on a busy channel. Serial and SPI are not re-entrant in the WiFi task context and will cause stack overflows or bus collisions.',
+            consequence: 'ESP32 crashes with "Guru Meditation Error: Core 0 panic" or a watchdog reset within seconds of enabling promiscuous mode. The crash often happens inconsistently because it depends on traffic rate and timer alignment.',
+            svgDiff: '<svg viewBox="0 0 640 160" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg08-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="160" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="148" fill="url(#sg08-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="128" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="34" width="270" height="100" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="30" y="50" fill="#ff6b35" font-size="6.5">void IRAM_ATTR promiscuousCallback(...) {</text>' +
+                     '<text x="30" y="64" fill="#22c55e" font-size="6.5">  totalFrames++;      // fast</text>' +
+                     '<text x="30" y="78" fill="#22c55e" font-size="6.5">  mgmtCount++;       // fast</text>' +
+                     '<text x="30" y="92" fill="#22c55e" font-size="6.5">  // copy to buffer  // fast</text>' +
+                     '<text x="30" y="106" fill="#555" font-size="6.5">  // return immediately</text>' +
+                     '<text x="30" y="120" fill="#ff6b35" font-size="6.5">}</text>' +
+                     '<text x="161" y="134" text-anchor="middle" fill="#22c55e" font-size="7">Counter increments only -- returns in nanoseconds</text>' +
+                     '<rect x="330" y="14" width="298" height="128" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="34" width="270" height="100" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="348" y="50" fill="#ff6b35" font-size="6.5">void IRAM_ATTR promiscuousCallback(...) {</text>' +
+                     '<text x="348" y="64" fill="#ef4444" font-size="6.5">  Serial.printf("frame\\n"); // CRASH</text>' +
+                     '<text x="348" y="78" fill="#ef4444" font-size="6.5">  tft.print("frame");       // CRASH</text>' +
+                     '<text x="348" y="92" fill="#555" font-size="6.5">  totalFrames++;</text>' +
+                     '<text x="348" y="106" fill="#555" font-size="6.5">  ...</text>' +
+                     '<text x="348" y="120" fill="#ff6b35" font-size="6.5">}</text>' +
+                     '<text x="479" y="134" text-anchor="middle" fill="#ef4444" font-size="7">Stack overflow / SPI collision at high frame rates</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Promiscuous mode with WIFI_MODE_STA instead of WIFI_MODE_NULL -- 0 frames captured',
+            correct: 'Initialize WiFi with esp_wifi_set_mode(WIFI_MODE_NULL) before enabling promiscuous mode. NULL mode disables AP and station roles, leaving the radio free to monitor all channels without association conflicts.',
+            incorrect: 'Setting WIFI_MODE_STA then calling esp_wifi_set_promiscuous(true). In some ESP32 SDK versions, station mode and promiscuous mode conflict -- the radio filters to frames addressed to the station MAC and ignores all others.',
+            consequence: 'The callback fires rarely or not at all. Frame counters stay at 0. The dashboard shows "0 fps" even on a busy WiFi channel. No error is reported -- the API calls succeed but the radio is not in true monitor mode.',
+            svgDiff: '<svg viewBox="0 0 640 148" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg08-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="148" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="136" fill="url(#sg08-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="118" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="34" width="270" height="90" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="30" y="50" fill="#555" font-size="6.5">wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();</text>' +
+                     '<text x="30" y="64" fill="#555" font-size="6.5">esp_wifi_init(&amp;cfg);</text>' +
+                     '<text x="30" y="78" fill="#22c55e" font-size="6.5">esp_wifi_set_mode(WIFI_MODE_NULL);  // correct</text>' +
+                     '<text x="30" y="92" fill="#555" font-size="6.5">esp_wifi_start();</text>' +
+                     '<text x="30" y="106" fill="#ff6b35" font-size="6.5">esp_wifi_set_promiscuous(true);</text>' +
+                     '<text x="161" y="120" text-anchor="middle" fill="#22c55e" font-size="7">NULL mode -- radio captures all frames on channel</text>' +
+                     '<rect x="330" y="14" width="298" height="118" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="34" width="270" height="90" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="348" y="50" fill="#555" font-size="6.5">wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();</text>' +
+                     '<text x="348" y="64" fill="#555" font-size="6.5">esp_wifi_init(&amp;cfg);</text>' +
+                     '<text x="348" y="78" fill="#ef4444" font-size="6.5">esp_wifi_set_mode(WIFI_MODE_STA);   // wrong</text>' +
+                     '<text x="348" y="92" fill="#555" font-size="6.5">esp_wifi_start();</text>' +
+                     '<text x="348" y="106" fill="#ff6b35" font-size="6.5">esp_wifi_set_promiscuous(true);</text>' +
+                     '<text x="479" y="120" text-anchor="middle" fill="#ef4444" font-size="7">STA mode filters frames -- most traffic invisible</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 // =========================================================================
@@ -825,7 +1614,279 @@ window.SignalGuides['sg-09'] = {
 
     challenges: '<p><strong>Challenge 1: Network Topology Map</strong> -- Use the <code>python-nmap</code> library to parse nmap XML output and generate a simple text or HTML network diagram showing the router as a hub with connected devices as spokes. Include open port badges on each device.</p>' +
                 '<p><strong>Challenge 2: Alert on Unknown Devices</strong> -- Maintain a whitelist of known MAC addresses. When the monitor detects a device not in the whitelist, send an alert (email via <code>msmtp</code>, or a push notification via a webhook to Slack/Discord).</p>' +
-                '<p><strong>Challenge 3: Historical Tracking</strong> -- Log all monitor events to a SQLite database with timestamps. Build a query that shows device presence patterns over a week -- when each device typically appears and disappears. This is the foundation of network behavior analysis.</p>'
+                '<p><strong>Challenge 3: Historical Tracking</strong> -- Log all monitor events to a SQLite database with timestamps. Build a query that shows device presence patterns over a week -- when each device typically appears and disappears. This is the foundation of network behavior analysis.</p>',
+
+    // ======================================================================
+    // SIG-2: Step visual illustrations (0-based step index)
+    // ======================================================================
+    stepVisuals: {
+        // Step 2 — ARP request/reply flow: how arp-scan discovers devices
+        2: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg09-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg09-arr-y" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#eab308"/></marker>' +
+           '<marker id="sg09-arr-g" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#22c55e"/></marker>' +
+           '<marker id="sg09-arr-yl" markerWidth="7" markerHeight="5" refX="1" refY="2.5" orient="auto rotate-180"><polygon points="7 0, 0 2.5, 7 5" fill="#eab308"/></marker></defs>' +
+           '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="172" fill="url(#sg09-sv2-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">ARP DISCOVERY — HOW arp-scan FINDS DEVICES</text>' +
+           '<rect x="16" y="30" width="140" height="110" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
+           '<rect x="16" y="30" width="140" height="22" rx="6" fill="rgba(34,197,94,0.12)"/>' +
+           '<text x="86" y="44" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="700">Pi Probe</text>' +
+           '<text x="86" y="58" text-anchor="middle" fill="#8b949e" font-size="6.5">eth0: 192.168.1.10</text>' +
+           '<text x="86" y="72" text-anchor="middle" fill="#555" font-size="6">sudo arp-scan</text>' +
+           '<text x="86" y="83" text-anchor="middle" fill="#555" font-size="6">--localnet</text>' +
+           '<text x="86" y="98" text-anchor="middle" fill="#eab308" font-size="6.5" font-weight="600">Sends ARP Request</text>' +
+           '<text x="86" y="110" text-anchor="middle" fill="#555" font-size="6">"Who has 192.168.1.X?"</text>' +
+           '<text x="86" y="124" text-anchor="middle" fill="#555" font-size="6">to FF:FF:FF:FF:FF:FF</text>' +
+           '<line x1="157" y1="85" x2="230" y2="85" stroke="#eab308" stroke-width="1.5" marker-end="url(#sg09-arr-y)"/>' +
+           '<text x="193" y="79" text-anchor="middle" fill="#eab308" font-size="6">ARP REQ</text>' +
+           '<text x="193" y="91" text-anchor="middle" fill="#555" font-size="5.5">broadcast</text>' +
+           '<line x1="230" y1="100" x2="157" y2="100" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sg09-arr-g)"/>' +
+           '<text x="193" y="113" text-anchor="middle" fill="#22c55e" font-size="6">ARP REPLY</text>' +
+           '<text x="193" y="124" text-anchor="middle" fill="#555" font-size="5.5">unicast</text>' +
+           '<rect x="232" y="30" width="140" height="110" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+           '<rect x="232" y="30" width="140" height="22" rx="6" fill="rgba(59,130,246,0.12)"/>' +
+           '<text x="302" y="44" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">Laptop</text>' +
+           '<text x="302" y="58" text-anchor="middle" fill="#8b949e" font-size="6.5">192.168.1.25</text>' +
+           '<text x="302" y="72" text-anchor="middle" fill="#555" font-size="6.5">f4:d4:88:xx:xx:xx</text>' +
+           '<text x="302" y="90" text-anchor="middle" fill="#22c55e" font-size="6.5" font-weight="600">Responds:</text>' +
+           '<text x="302" y="102" text-anchor="middle" fill="#555" font-size="6">"I am 192.168.1.25"</text>' +
+           '<text x="302" y="114" text-anchor="middle" fill="#ff6b35" font-size="6">"MAC: f4:d4:88:..."</text>' +
+           '<text x="302" y="126" text-anchor="middle" fill="#555" font-size="6">"OUI: Apple, Inc."</text>' +
+           '<rect x="16" y="152" width="648" height="30" rx="4" fill="#0a1628" stroke="rgba(255,107,53,0.1)" stroke-width="0.5"/>' +
+           '<text x="26" y="164" fill="#555" font-size="6.5" font-weight="700">WHY ARP WORKS BETTER THAN PING:</text>' +
+           '<text x="26" y="177" fill="#8b949e" font-size="6.5">ARP operates at Layer 2 (Ethernet). Firewalls block ICMP ping (Layer 3) but cannot block ARP -- devices MUST reply to ARP to use the network at all.</text>' +
+           '</svg>',
+
+        // Step 3 — nmap port scan output anatomy
+        3: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg09-sv3-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="172" fill="url(#sg09-sv3-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">NMAP OUTPUT ANATOMY — READING SCAN RESULTS</text>' +
+           '<rect x="16" y="30" width="648" height="136" rx="4" fill="#0a0e16" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="26" y="46" fill="#ff6b35" font-size="7">$ sudo nmap -sV -O 192.168.1.1</text>' +
+           '<text x="26" y="60" fill="#555" font-size="6.5">Starting Nmap 7.92 ...</text>' +
+           '<rect x="20" y="64" width="644" height="18" rx="2" fill="rgba(34,197,94,0.04)"/>' +
+           '<text x="26" y="75" fill="#4ade80" font-size="7" font-weight="600">Nmap scan report for 192.168.1.1 (router.local)</text>' +
+           '<text x="26" y="90" fill="#eab308" font-size="6.5">Host is up (0.0012s latency).</text>' +
+           '<text x="26" y="104" fill="#555" font-size="6.5" font-weight="700">PORT       STATE  SERVICE   VERSION</text>' +
+           '<line x1="20" y1="108" x2="660" y2="108" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>' +
+           '<text x="26" y="120" fill="#3b82f6" font-size="6.5">22/tcp </text>' +
+           '<text x="86" y="120" fill="#22c55e" font-size="6.5">open</text>' +
+           '<text x="146" y="120" fill="#8b949e" font-size="6.5">ssh</text>' +
+           '<text x="200" y="120" fill="#555" font-size="6.5">OpenSSH 8.4 (protocol 2.0)</text>' +
+           '<rect x="22" y="112" width="30" height="12" rx="1" fill="rgba(59,130,246,0.08)"/>' +
+           '<text x="26" y="133" fill="#f97316" font-size="6.5">53/tcp </text>' +
+           '<text x="86" y="133" fill="#22c55e" font-size="6.5">open</text>' +
+           '<text x="146" y="133" fill="#8b949e" font-size="6.5">domain</text>' +
+           '<text x="200" y="133" fill="#555" font-size="6.5">dnsmasq 2.89</text>' +
+           '<rect x="22" y="125" width="30" height="12" rx="1" fill="rgba(249,115,22,0.08)"/>' +
+           '<text x="26" y="146" fill="#a855f7" font-size="6.5">80/tcp </text>' +
+           '<text x="86" y="146" fill="#22c55e" font-size="6.5">open</text>' +
+           '<text x="146" y="146" fill="#8b949e" font-size="6.5">http</text>' +
+           '<text x="200" y="146" fill="#555" font-size="6.5">nginx 1.22 (admin panel)</text>' +
+           '<rect x="22" y="138" width="30" height="12" rx="1" fill="rgba(168,85,247,0.08)"/>' +
+           '<text x="26" y="160" fill="#eab308" font-size="6.5">OS detection: Linux 5.10 - 5.15 (99%)</text>' +
+           '<text x="300" y="160" fill="#22c55e" font-size="6.5">MAC: a0:40:a0:xx:xx:xx (Cisco Meraki)</text>' +
+           '</svg>',
+
+        // Step 4 — Python scapy ARP monitor architecture
+        4: '<svg viewBox="0 0 680 188" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg09-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg09-arr-o" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#ff6b35"/></marker></defs>' +
+           '<rect width="680" height="188" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="172" fill="url(#sg09-sv4-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">SCAPY ARP MONITOR — DATA FLOW</text>' +
+           '<rect x="16" y="30" width="140" height="80" rx="6" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+           '<rect x="16" y="30" width="140" height="20" rx="6" fill="rgba(234,179,8,0.12)"/>' +
+           '<text x="86" y="43" text-anchor="middle" fill="#fde68a" font-size="7.5" font-weight="700">Network Traffic</text>' +
+           '<text x="86" y="58" text-anchor="middle" fill="#8b949e" font-size="6.5">ARP packets on eth0</text>' +
+           '<text x="86" y="71" text-anchor="middle" fill="#555" font-size="6">ARP Who-has / Is-at</text>' +
+           '<text x="86" y="83" text-anchor="middle" fill="#555" font-size="6">Ethernet broadcast</text>' +
+           '<text x="86" y="95" text-anchor="middle" fill="#555" font-size="6">Layer 2 frame</text>' +
+           '<line x1="157" y1="70" x2="195" y2="70" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg09-arr-o)"/>' +
+           '<text x="176" y="63" text-anchor="middle" fill="#555" font-size="6">sniff()</text>' +
+           '<rect x="197" y="30" width="160" height="80" rx="6" fill="#1e2736" stroke="#ff6b35" stroke-width="1.5"/>' +
+           '<rect x="197" y="30" width="160" height="20" rx="6" fill="rgba(255,107,53,0.12)"/>' +
+           '<text x="277" y="43" text-anchor="middle" fill="#ff6b35" font-size="7.5" font-weight="700">handle_arp()</text>' +
+           '<text x="277" y="58" text-anchor="middle" fill="#8b949e" font-size="6.5">Extracts ip + mac</text>' +
+           '<text x="277" y="71" text-anchor="middle" fill="#555" font-size="6">Checks MAC in db</text>' +
+           '<text x="277" y="83" text-anchor="middle" fill="#555" font-size="6">New? = alert + save</text>' +
+           '<text x="277" y="95" text-anchor="middle" fill="#555" font-size="6">Known? = update ts</text>' +
+           '<line x1="358" y1="70" x2="396" y2="70" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg09-arr-o)"/>' +
+           '<rect x="398" y="30" width="168" height="80" rx="6" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+           '<rect x="398" y="30" width="168" height="20" rx="6" fill="rgba(168,85,247,0.12)"/>' +
+           '<text x="482" y="43" text-anchor="middle" fill="#c084fc" font-size="7.5" font-weight="700">JSON Database</text>' +
+           '<text x="482" y="58" text-anchor="middle" fill="#8b949e" font-size="6.5">~/network_devices.json</text>' +
+           '<text x="482" y="71" text-anchor="middle" fill="#555" font-size="6">MAC: { ip, vendor,</text>' +
+           '<text x="482" y="83" text-anchor="middle" fill="#555" font-size="6">first_seen, last_seen,</text>' +
+           '<text x="482" y="95" text-anchor="middle" fill="#555" font-size="6">seen_count }</text>' +
+           '<rect x="16" y="122" width="648" height="50" rx="4" fill="#0a1628" stroke="rgba(255,107,53,0.1)" stroke-width="0.5"/>' +
+           '<text x="26" y="136" fill="#555" font-size="6.5" font-weight="700">ARP PACKET FIELDS EXTRACTED BY SCAPY (pkt[ARP]):</text>' +
+           '<text x="26" y="150" fill="#ff6b35" font-size="6.5">pkt[ARP].psrc</text><text x="112" y="150" fill="#666" font-size="6.5">= source IP address ("192.168.1.25")</text>' +
+           '<text x="26" y="163" fill="#ff6b35" font-size="6.5">pkt[ARP].hwsrc</text><text x="118" y="163" fill="#666" font-size="6.5">= source MAC address ("f4:d4:88:xx:xx:xx") -- used as unique device key in db</text>' +
+           '</svg>'
+    },
+
+    // ======================================================================
+    // SIG-3: Component callouts -- Raspberry Pi network probe setup
+    // ======================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg09-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="280" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="268" fill="url(#sg09-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">NETWORK PROBE STACK — INTERACTIVE</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover component list items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="200" rx="6" fill="#0f1923" stroke="rgba(34,197,94,0.15)" stroke-width="1"/>' +
+             '<g data-callout="pi-hw">' +
+             '<rect x="30" y="50" width="120" height="60" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="48" width="124" height="64" rx="5" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="90" y="72" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="700">Raspberry Pi</text>' +
+             '<text x="90" y="85" text-anchor="middle" fill="#8b949e" font-size="6">BCM2711 4x Cortex-A72</text>' +
+             '<text x="90" y="97" text-anchor="middle" fill="#666" font-size="5.5">GbE + WiFi on board</text>' +
+             '</g>' +
+             '<g data-callout="arp-scan">' +
+             '<rect x="164" y="50" width="120" height="60" rx="4" fill="#1e2736" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="162" y="48" width="124" height="64" rx="5" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="224" y="72" text-anchor="middle" fill="#fde68a" font-size="7.5" font-weight="700">arp-scan</text>' +
+             '<text x="224" y="85" text-anchor="middle" fill="#8b949e" font-size="6">Layer 2 discovery</text>' +
+             '<text x="224" y="97" text-anchor="middle" fill="#666" font-size="5.5">OUI vendor lookup</text>' +
+             '</g>' +
+             '<g data-callout="nmap">' +
+             '<rect x="298" y="50" width="110" height="60" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="296" y="48" width="114" height="64" rx="5" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="353" y="72" text-anchor="middle" fill="#4ade80" font-size="7.5" font-weight="700">nmap</text>' +
+             '<text x="353" y="85" text-anchor="middle" fill="#8b949e" font-size="6">Port + OS detect</text>' +
+             '<text x="353" y="97" text-anchor="middle" fill="#666" font-size="5.5">Service versions</text>' +
+             '</g>' +
+             '<g data-callout="scapy">' +
+             '<rect x="30" y="128" width="120" height="60" rx="4" fill="#1e2736" stroke="#f97316" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="126" width="124" height="64" rx="5" fill="none" stroke="#f97316" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="90" y="152" text-anchor="middle" fill="#fb923c" font-size="7.5" font-weight="700">scapy</text>' +
+             '<text x="90" y="165" text-anchor="middle" fill="#8b949e" font-size="6">ARP packet sniffer</text>' +
+             '<text x="90" y="177" text-anchor="middle" fill="#666" font-size="5.5">Real-time new device alert</text>' +
+             '</g>' +
+             '<g data-callout="cron">' +
+             '<rect x="164" y="128" width="120" height="60" rx="4" fill="#1e2736" stroke="#a855f7" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="162" y="126" width="124" height="64" rx="5" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="224" y="152" text-anchor="middle" fill="#c084fc" font-size="7.5" font-weight="700">cron / systemd</text>' +
+             '<text x="224" y="165" text-anchor="middle" fill="#8b949e" font-size="6">Scheduled scanning</text>' +
+             '<text x="224" y="177" text-anchor="middle" fill="#666" font-size="5.5">Daily reports at 06:00</text>' +
+             '</g>' +
+             '<g data-callout="ssh">' +
+             '<rect x="298" y="128" width="110" height="60" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="296" y="126" width="114" height="64" rx="5" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="353" y="152" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="700">SSH</text>' +
+             '<text x="353" y="165" text-anchor="middle" fill="#8b949e" font-size="6">Remote access</text>' +
+             '<text x="353" y="177" text-anchor="middle" fill="#666" font-size="5.5">pi@probe.local</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'pi-hw',
+                name: 'A — Raspberry Pi 4/5 (Headless)',
+                purpose: 'The probe platform. Running Pi OS Lite (no desktop) for minimal resource usage. Connected via Ethernet for reliable wired scanning. The BCM2711 4-core CPU handles nmap scans, Python scripts, and background services simultaneously without breaking a sweat.',
+                specs: ['BCM2711 4x Cortex-A72', '4-8 GB RAM', 'GbE + WiFi', 'Pi OS Lite 64-bit', 'Headless via SSH']
+            },
+            {
+                id: 'arp-scan',
+                name: 'B — arp-scan (Layer 2 Discovery)',
+                purpose: 'Sends ARP requests to every address in the subnet and collects replies. Faster and more reliable than ping because ARP is mandatory for network operation -- devices that block ICMP must still respond to ARP. Also resolves MAC addresses to manufacturer names via OUI lookup from its built-in database.',
+                specs: ['sudo required', 'Scans 254 hosts in ~2s', 'OUI vendor lookup', '--retry=3 for stragglers', '-x for parseable output']
+            },
+            {
+                id: 'nmap',
+                name: 'C — nmap (Port and Service Scanner)',
+                purpose: 'The gold standard for network reconnaissance. Goes beyond host discovery to probe TCP/UDP ports, identify running services and versions (-sV), detect operating systems (-O), and run scripted checks. Each scan depth level costs more time -- --top-ports 20 takes seconds per host, -A takes minutes.',
+                specs: ['-sn host discovery', '-sV service versions', '-O OS detection', '-oX XML output', 'sudo for raw sockets']
+            },
+            {
+                id: 'scapy',
+                name: 'D — scapy (Real-time ARP Monitor)',
+                purpose: 'A Python packet manipulation library that can capture, craft, and send any network packet. Used here with sniff(filter="arp") to watch for ARP traffic in real time. When a device sends its first ARP request (which happens when it joins the network), the callback fires and we log the new device.',
+                specs: ['Python 3 library', 'sudo required', 'sniff() captures L2', 'pkt[ARP].psrc = IP', 'pkt[ARP].hwsrc = MAC']
+            },
+            {
+                id: 'cron',
+                name: 'E — cron + systemd (Automation)',
+                purpose: 'The ARP monitor runs as a systemd service starting at boot (always-on). Daily reports are scheduled via cron at 06:00. This combination means the Pi works autonomously -- it monitors 24/7 without any manual intervention and generates fresh inventory reports every morning.',
+                specs: ['systemd service', 'Restart on failure', 'cron daily at 06:00', 'journalctl for logs', 'Boot-persistent']
+            },
+            {
+                id: 'ssh',
+                name: 'F — SSH (Remote Access)',
+                purpose: 'The primary interface to the headless Pi. Connect from any machine on the network with ssh pi@probe.local (mDNS) or ssh pi@192.168.1.X (IP). All administration, log viewing, and report retrieval happen over this encrypted connection. No monitor or keyboard ever needed.',
+                specs: ['OpenSSH server', 'mDNS: probe.local', 'Port 22 TCP', 'Password or key auth', 'Enabled in Imager']
+            }
+        ]
+    },
+
+    // ======================================================================
+    // SIG-4: Common mistakes for SG-09
+    // ======================================================================
+    commonMistakes: [
+        {
+            title: 'Running nmap or arp-scan without sudo -- permission denied on raw socket operations',
+            correct: 'Always prefix network scanning commands with sudo. Raw socket access (required for SYN scans, OS detection, and ARP scanning) needs root privileges on Linux. Add yourself to sudoers or run as root for automated scripts.',
+            incorrect: 'Running nmap 192.168.1.0/24 without sudo. Regular users can do a TCP connect scan (-sT) but not SYN scans (-sS), OS detection (-O), or raw packet operations. arp-scan always requires sudo.',
+            consequence: 'arp-scan fails immediately with "Operation not permitted". nmap falls back to -sT (connect scan) which is slower and detectable. OS detection is silently skipped. Results are incomplete and the scan takes longer.',
+            svgDiff: '<svg viewBox="0 0 640 142" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg09-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="142" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="130" fill="url(#sg09-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="112" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="34" width="270" height="82" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="30" y="50" fill="#22c55e" font-size="6.5">sudo arp-scan --localnet</text>' +
+                     '<text x="30" y="64" fill="#22c55e" font-size="6.5">sudo nmap -sV -O 192.168.1.1</text>' +
+                     '<text x="30" y="78" fill="#22c55e" font-size="6.5">sudo nmap -sS 192.168.1.0/24</text>' +
+                     '<text x="30" y="92" fill="#555" font-size="5.5">// Raw sockets, SYN scan, OS detect</text>' +
+                     '<text x="30" y="106" fill="#555" font-size="5.5">// All require root privileges</text>' +
+                     '<text x="161" y="122" text-anchor="middle" fill="#22c55e" font-size="7">sudo gives raw socket access -- full results</text>' +
+                     '<rect x="330" y="14" width="298" height="112" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="34" width="270" height="82" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="348" y="50" fill="#ef4444" font-size="6.5">arp-scan --localnet</text>' +
+                     '<text x="348" y="64" fill="#ef4444" font-size="6.5">nmap -sV -O 192.168.1.1</text>' +
+                     '<text x="348" y="78" fill="#ef4444" font-size="6.5">nmap -sS 192.168.1.0/24</text>' +
+                     '<text x="348" y="92" fill="#555" font-size="5.5">// "Operation not permitted"</text>' +
+                     '<text x="348" y="106" fill="#555" font-size="5.5">// OS detect silently skipped</text>' +
+                     '<text x="479" y="122" text-anchor="middle" fill="#ef4444" font-size="7">No raw socket access -- incomplete or failed results</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'scapy sniff() missing sudo -- ARP monitor sees no packets at all',
+            correct: 'Run the Python monitor with sudo: "sudo python3 network_monitor.py". Packet capture (libpcap) requires root on Linux. Alternatively, grant the Python interpreter cap_net_raw capability with setcap, but sudo is simpler for this use case.',
+            incorrect: 'Running "python3 network_monitor.py" as a normal user. The sniff() call does not raise an exception -- it simply captures no packets, which makes it look like no ARP traffic exists on the network.',
+            consequence: 'The monitor script starts and prints "Listening for ARP traffic..." but the callback never fires. No new devices are ever detected. No error is shown. The script appears to work correctly but is silently doing nothing.',
+            svgDiff: '<svg viewBox="0 0 640 142" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg09-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="142" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="130" fill="url(#sg09-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="112" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="34" width="270" height="82" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="30" y="50" fill="#22c55e" font-size="6.5">sudo python3 network_monitor.py</text>' +
+                     '<text x="30" y="64" fill="#555" font-size="6.5">Network Monitor started -- 4 known devices</text>' +
+                     '<text x="30" y="78" fill="#555" font-size="6.5">Listening for ARP traffic...</text>' +
+                     '<text x="30" y="92" fill="#22c55e" font-size="6.5">[NEW DEVICE] 192.168.1.45 (Samsung)</text>' +
+                     '<text x="30" y="106" fill="#22c55e" font-size="6.5">  First seen: 2026-03-18T09:22:41</text>' +
+                     '<text x="161" y="122" text-anchor="middle" fill="#22c55e" font-size="7">sudo enables packet capture -- devices detected</text>' +
+                     '<rect x="330" y="14" width="298" height="112" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="34" width="270" height="82" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="348" y="50" fill="#ef4444" font-size="6.5">python3 network_monitor.py</text>' +
+                     '<text x="348" y="64" fill="#555" font-size="6.5">Network Monitor started -- 4 known devices</text>' +
+                     '<text x="348" y="78" fill="#555" font-size="6.5">Listening for ARP traffic...</text>' +
+                     '<text x="348" y="92" fill="#ef4444" font-size="6.5">// Nothing ever prints here</text>' +
+                     '<text x="348" y="106" fill="#ef4444" font-size="6.5">// No error -- silently captures nothing</text>' +
+                     '<text x="479" y="122" text-anchor="middle" fill="#ef4444" font-size="7">No root access -- sniff() captures zero packets</text>' +
+                     '</svg>'
+        }
+    ]
 };
 
 // =========================================================================
@@ -1055,5 +2116,305 @@ window.SignalGuides['sg-10'] = {
 
     challenges: '<p><strong>Challenge 1: Add an OLED Status Display</strong> -- Wire a 0.96" SSD1306 OLED to I2C (GPIO 21 SDA, GPIO 22 SCL). Show: current channel, total deauths, alert status, and the MAC address of the most active attacker. This eliminates the need for a serial connection during field use.</p>' +
                 '<p><strong>Challenge 2: RSSI-Based Distance Estimation</strong> -- Track the attacker\'s RSSI over time. If you walk toward the source, RSSI increases. Display a simple proximity indicator (far/medium/close) to help physically locate the attacking device. Remember: RSSI is noisy, so average over 5-10 readings.</p>' +
-                '<p><strong>Challenge 3: Multi-Attack Differentiation</strong> -- A sophisticated attacker may use MAC spoofing or multiple devices. Add logic to detect when deauth frames target different BSSIDs (indicating a sweep across all nearby networks) vs a single BSSID (targeted attack). Also detect when the "source" MAC matches a known AP but the RSSI is different from the real AP\'s baseline -- this is a telltale sign of MAC spoofing.</p>'
+                '<p><strong>Challenge 3: Multi-Attack Differentiation</strong> -- A sophisticated attacker may use MAC spoofing or multiple devices. Add logic to detect when deauth frames target different BSSIDs (indicating a sweep across all nearby networks) vs a single BSSID (targeted attack). Also detect when the "source" MAC matches a known AP but the RSSI is different from the real AP\'s baseline -- this is a telltale sign of MAC spoofing.</p>',
+
+    // ======================================================================
+    // SIG-2: Step visual illustrations (0-based step index)
+    // ======================================================================
+    stepVisuals: {
+        // Step 0 — Deauth frame structure and detection logic
+        0: '<svg viewBox="0 0 680 192" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg10-sv0-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg10-arr-r" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#ef4444"/></marker>' +
+           '<marker id="sg10-arr-g" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#22c55e"/></marker></defs>' +
+           '<rect width="680" height="192" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="176" fill="url(#sg10-sv0-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">DEAUTH FRAME — STRUCTURE AND DETECTION</text>' +
+           '<rect x="16" y="30" width="648" height="42" rx="4" fill="#0f1923" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="26" y="43" fill="#555" font-size="6.5" font-weight="700">802.11 MAC HEADER (24 bytes) + DEAUTH BODY</text>' +
+           '<rect x="20" y="48" width="104" height="18" rx="2" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>' +
+           '<text x="72" y="60" text-anchor="middle" fill="#f87171" font-size="6.5" font-weight="700">Frame Ctrl 2B</text>' +
+           '<rect x="130" y="48" width="80" height="18" rx="2" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+           '<text x="170" y="60" text-anchor="middle" fill="#555" font-size="6.5">Duration 2B</text>' +
+           '<rect x="216" y="48" width="80" height="18" rx="2" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="0.5"/>' +
+           '<text x="256" y="60" text-anchor="middle" fill="#c084fc" font-size="6.5">Dest MAC 6B</text>' +
+           '<rect x="302" y="48" width="80" height="18" rx="2" fill="rgba(255,107,53,0.1)" stroke="rgba(255,107,53,0.3)" stroke-width="0.5"/>' +
+           '<text x="342" y="60" text-anchor="middle" fill="#ff6b35" font-size="6.5">Src MAC 6B</text>' +
+           '<rect x="388" y="48" width="80" height="18" rx="2" fill="rgba(234,179,8,0.1)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
+           '<text x="428" y="60" text-anchor="middle" fill="#eab308" font-size="6.5">BSSID 6B</text>' +
+           '<rect x="474" y="48" width="64" height="18" rx="2" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>' +
+           '<text x="506" y="60" text-anchor="middle" fill="#555" font-size="6.5">SeqCtrl 2B</text>' +
+           '<rect x="544" y="48" width="100" height="18" rx="2" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>' +
+           '<text x="594" y="60" text-anchor="middle" fill="#f87171" font-size="6.5" font-weight="700">Reason Code 2B</text>' +
+           '<rect x="16" y="82" width="648" height="46" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+           '<text x="26" y="96" fill="#555" font-size="6.5" font-weight="700">FRAME CONTROL BITS FOR DEAUTH (type=0 mgmt, subtype=12=0x0C)</text>' +
+           '<text x="26" y="112" fill="#ef4444" font-size="7" font-weight="600">frameCtrl = 0xC000</text>' +
+           '<text x="160" y="112" fill="#555" font-size="6.5">-- bits [3:2]=00 (management), bits [7:4]=1100 (subtype 12)</text>' +
+           '<text x="26" y="126" fill="#8b949e" font-size="6.5">Extract:  uint8_t type = (frameCtrl >> 2) &amp; 0x03;   // = 0 (management)</text>' +
+           '<text x="26" y="139" fill="#8b949e" font-size="6.5">          uint8_t sub  = (frameCtrl >> 4) &amp; 0x0F;  // = 12 (0x0C = deauth)</text>' +
+           '<rect x="16" y="140" width="648" height="44" rx="4" fill="#0f1a2e" stroke="rgba(239,68,68,0.15)" stroke-width="0.5"/>' +
+           '<text x="26" y="154" fill="#555" font-size="6.5" font-weight="700">SLIDING WINDOW ATTACK DETECTION:</text>' +
+           '<text x="26" y="168" fill="#8b949e" font-size="6.5">DEAUTH_ALERT_THRESHOLD = 3</text>' +
+           '<text x="200" y="168" fill="#555" font-size="6.5">-- 3+ deauths within 2s = attack. Legitimate disconnect = 1-2 total per hour.</text>' +
+           '<text x="26" y="181" fill="#ef4444" font-size="6.5">Broadcast deauth (dest FF:FF:FF:FF:FF:FF)</text>' +
+           '<text x="280" y="181" fill="#555" font-size="6.5">-- disconnects ALL clients simultaneously, strongest attack indicator.</text>' +
+           '</svg>',
+
+        // Step 2 — LED + Buzzer alert level state machine
+        2: '<svg viewBox="0 0 680 192" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg10-sv2-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern>' +
+           '<marker id="sg10-sv2-arr-w" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#555"/></marker>' +
+           '<marker id="sg10-sv2-arr-y" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#eab308"/></marker>' +
+           '<marker id="sg10-sv2-arr-r" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#ef4444"/></marker>' +
+           '<marker id="sg10-sv2-arr-g" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#22c55e"/></marker></defs>' +
+           '<rect width="680" height="192" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="176" fill="url(#sg10-sv2-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">ALERT LEVEL STATE MACHINE</text>' +
+           '<rect x="20" y="36" width="160" height="110" rx="8" fill="#1e2736" stroke="#555" stroke-width="1.5"/>' +
+           '<rect x="20" y="36" width="160" height="24" rx="8" fill="rgba(255,255,255,0.05)"/>' +
+           '<text x="100" y="51" text-anchor="middle" fill="#8b949e" font-size="9" font-weight="700">IDLE</text>' +
+           '<circle cx="100" cy="90" r="16" fill="rgba(0,0,0,0.3)" stroke="#555" stroke-width="1.5"/>' +
+           '<text x="100" y="93" text-anchor="middle" fill="#555" font-size="7">LED off</text>' +
+           '<text x="100" y="120" text-anchor="middle" fill="#555" font-size="6.5">deauths = 0</text>' +
+           '<text x="100" y="132" text-anchor="middle" fill="#555" font-size="6">Buzzer silent</text>' +
+           '<rect x="250" y="36" width="180" height="110" rx="8" fill="#1e2736" stroke="#eab308" stroke-width="1.5"/>' +
+           '<rect x="250" y="36" width="180" height="24" rx="8" fill="rgba(234,179,8,0.12)"/>' +
+           '<text x="340" y="51" text-anchor="middle" fill="#eab308" font-size="9" font-weight="700">WARNING</text>' +
+           '<circle cx="340" cy="90" r="16" fill="rgba(234,179,8,0.2)" stroke="#eab308" stroke-width="1.5"/>' +
+           '<text x="340" y="93" text-anchor="middle" fill="#fde68a" font-size="7">LED 1Hz</text>' +
+           '<text x="340" y="120" text-anchor="middle" fill="#eab308" font-size="6.5">1+ deauths seen</text>' +
+           '<text x="340" y="132" text-anchor="middle" fill="#555" font-size="6">Buzzer silent</text>' +
+           '<rect x="500" y="36" width="164" height="110" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="2"/>' +
+           '<rect x="500" y="36" width="164" height="24" rx="8" fill="rgba(239,68,68,0.15)"/>' +
+           '<text x="582" y="51" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">ATTACK</text>' +
+           '<circle cx="582" cy="90" r="16" fill="rgba(239,68,68,0.25)" stroke="#ef4444" stroke-width="2"/>' +
+           '<text x="582" y="93" text-anchor="middle" fill="#f87171" font-size="7">LED 5Hz</text>' +
+           '<text x="582" y="120" text-anchor="middle" fill="#ef4444" font-size="6.5">3+ deauths/2s</text>' +
+           '<text x="582" y="132" text-anchor="middle" fill="#ef4444" font-size="6" font-weight="600">Buzzer ON</text>' +
+           '<line x1="183" y1="91" x2="246" y2="91" stroke="#eab308" stroke-width="1.5" marker-end="url(#sg10-sv2-arr-y)"/>' +
+           '<text x="214" y="84" text-anchor="middle" fill="#eab308" font-size="6">1+ deauth</text>' +
+           '<line x1="246" y1="101" x2="183" y2="101" stroke="#555" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sg10-sv2-arr-w)"/>' +
+           '<text x="214" y="114" text-anchor="middle" fill="#555" font-size="6">window clear</text>' +
+           '<line x1="433" y1="91" x2="497" y2="91" stroke="#ef4444" stroke-width="1.5" marker-end="url(#sg10-sv2-arr-r)"/>' +
+           '<text x="465" y="84" text-anchor="middle" fill="#ef4444" font-size="6">3+ /2s</text>' +
+           '<line x1="497" y1="101" x2="433" y2="101" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sg10-sv2-arr-g)"/>' +
+           '<text x="465" y="114" text-anchor="middle" fill="#22c55e" font-size="6">attack clears</text>' +
+           '<text x="340" y="162" text-anchor="middle" fill="#333" font-size="6.5">Window resets every 2000ms. If deauthInWindow &lt; threshold after reset, attackDetected = false and state drops back.</text>' +
+           '<text x="340" y="175" text-anchor="middle" fill="#555" font-size="6">GPIO2 = LED (+ built-in LED on most DevKits). GPIO4 = active buzzer. All driven from updateAlerts() in main loop.</text>' +
+           '</svg>',
+
+        // Step 5 — Serial log format / reason code table
+        5: '<svg viewBox="0 0 680 185" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+           '<defs><pattern id="sg10-sv5-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+           '<rect width="680" height="185" fill="#0d1117" rx="6"/>' +
+           '<rect x="8" y="8" width="664" height="169" fill="url(#sg10-sv5-grid)" rx="3"/>' +
+           '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">SERIAL LOG FORMAT + DEAUTH REASON CODES</text>' +
+           '<rect x="16" y="30" width="648" height="60" rx="4" fill="#0a0e16" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+           '<text x="26" y="44" fill="#555" font-size="6.5" font-weight="700">EXPECTED LOG FORMAT (Serial Monitor at 115200 baud)</text>' +
+           '<text x="26" y="58" fill="#22c55e" font-size="6.5">[00:03:14] DEAUTH #1  | Ch:6 | RSSI:-62 | AA:BB:CC:DD:EE:FF -> FF:FF:FF:FF:FF:FF [BROADCAST] | BSSID:11:22:33:44:55:66 | Reason:3 (Leaving BSS)</text>' +
+           '<text x="26" y="72" fill="#ef4444" font-size="6.5">[00:03:14] DEAUTH #4  | Ch:6 | RSSI:-61 | AA:BB:CC:DD:EE:FF -> FF:FF:FF:FF:FF:FF [BROADCAST] | BSSID:11:22:33:44:55:66 | Reason:3 (Leaving BSS)</text>' +
+           '<text x="26" y="84" fill="#ef4444" font-size="6.5">** 3 deauths in 2s window -- ATTACK ACTIVE **  SRC: AA:BB:CC:DD:EE:FF  Locked Ch:6</text>' +
+           '<rect x="16" y="100" width="648" height="70" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+           '<text x="26" y="114" fill="#555" font-size="6.5" font-weight="700">DEAUTH REASON CODES (2-byte field in frame body)</text>' +
+           '<text x="26" y="128" fill="#8b949e" font-size="6.5">Reason 1:</text><text x="96" y="128" fill="#555" font-size="6.5">Unspecified  |  </text>' +
+           '<text x="200" y="128" fill="#8b949e" font-size="6.5">Reason 2:</text><text x="270" y="128" fill="#555" font-size="6.5">Auth no longer valid  |  </text>' +
+           '<text x="400" y="128" fill="#8b949e" font-size="6.5">Reason 3:</text><text x="470" y="128" fill="#555" font-size="6.5">Leaving BSS</text>' +
+           '<text x="26" y="142" fill="#8b949e" font-size="6.5">Reason 4:</text><text x="96" y="142" fill="#555" font-size="6.5">Inactivity timeout  |  </text>' +
+           '<text x="200" y="142" fill="#8b949e" font-size="6.5">Reason 6:</text><text x="270" y="142" fill="#555" font-size="6.5">Class 2 from non-auth  |  </text>' +
+           '<text x="400" y="142" fill="#8b949e" font-size="6.5">Reason 7:</text><text x="470" y="142" fill="#555" font-size="6.5">Class 3 from non-assoc</text>' +
+           '<text x="26" y="156" fill="#ef4444" font-size="6.5">Attack signature:</text><text x="126" y="156" fill="#555" font-size="6.5">Reason 3 or 7 in rapid bursts from same SRC MAC targeting broadcast destination.</text>' +
+           '<text x="26" y="169" fill="#22c55e" font-size="6.5">Legitimate disconnect:</text><text x="150" y="169" fill="#555" font-size="6.5">1-2 deauth frames total, reason 3/8, unicast dest (single client leaving).</text>' +
+           '</svg>'
+    },
+
+    // ======================================================================
+    // SIG-3: Component callouts -- deauth detector hardware teardown
+    // ======================================================================
+    componentCallouts: {
+        svg: '<svg viewBox="0 0 440 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;max-width:440px;width:100%;height:auto">' +
+             '<defs><pattern id="sg10-cc-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.7" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+             '<rect width="440" height="280" fill="#0d1117" rx="6"/>' +
+             '<rect x="6" y="6" width="428" height="268" fill="url(#sg10-cc-grid)" rx="3"/>' +
+             '<text x="220" y="20" text-anchor="middle" fill="#444" font-size="7" font-weight="700" letter-spacing="0.15em">DEAUTH DETECTOR — INTERACTIVE TEARDOWN</text>' +
+             '<text x="220" y="30" text-anchor="middle" fill="#333" font-size="6">Hover component list items to highlight</text>' +
+             '<rect x="20" y="38" width="400" height="200" rx="6" fill="#111a28" stroke="rgba(239,68,68,0.2)" stroke-width="1.5"/>' +
+             '<g data-callout="esp32-devkit">' +
+             '<rect x="90" y="50" width="150" height="80" rx="6" fill="#1e2736" stroke="#ef4444" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="88" y="48" width="154" height="84" rx="7" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="165" y="80" text-anchor="middle" fill="#f87171" font-size="8" font-weight="700">ESP32 DevKit V1</text>' +
+             '<text x="165" y="94" text-anchor="middle" fill="#8b949e" font-size="6.5">Promiscuous mode</text>' +
+             '<text x="165" y="106" text-anchor="middle" fill="#666" font-size="5.5">Ch 1-13, 250ms/ch hop</text>' +
+             '</g>' +
+             '<g data-callout="led-alert">' +
+             '<circle cx="298" cy="90" r="18" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5" class="sp-callout-circle"/>' +
+             '<circle class="sp-callout-ring" cx="298" cy="90" r="23" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<circle cx="298" cy="90" r="8" fill="rgba(239,68,68,0.35)"/>' +
+             '<text x="298" y="122" text-anchor="middle" fill="#f87171" font-size="6.5" font-weight="700">LED GPIO2</text>' +
+             '<text x="298" y="133" text-anchor="middle" fill="#555" font-size="5.5">220 ohm series</text>' +
+             '</g>' +
+             '<g data-callout="resistor">' +
+             '<rect x="336" y="80" width="50" height="16" rx="3" fill="#2a2a3a" stroke="#eab308" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="334" y="78" width="54" height="20" rx="4" fill="none" stroke="#eab308" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="361" y="92" text-anchor="middle" fill="#fde68a" font-size="6" font-weight="700">220 ohm</text>' +
+             '</g>' +
+             '<g data-callout="buzzer">' +
+             '<circle cx="340" cy="160" r="22" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5" class="sp-callout-circle"/>' +
+             '<circle class="sp-callout-ring" cx="340" cy="160" r="27" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<circle cx="340" cy="160" r="10" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="0.5"/>' +
+             '<text x="340" y="163" text-anchor="middle" fill="#4ade80" font-size="6.5" font-weight="700">BUZZER</text>' +
+             '<text x="340" y="196" text-anchor="middle" fill="#555" font-size="5.5">GPIO4 active</text>' +
+             '</g>' +
+             '<g data-callout="gnd-bus">' +
+             '<rect x="30" y="190" width="200" height="16" rx="3" fill="#1a1a1a" stroke="#555" stroke-width="1" class="sp-callout-circle"/>' +
+             '<rect class="sp-callout-ring" x="28" y="188" width="204" height="20" rx="4" fill="none" stroke="#555" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4,2"/>' +
+             '<text x="130" y="201" text-anchor="middle" fill="#888" font-size="6" font-weight="700">GND BUS (shared)</text>' +
+             '</g>' +
+             '</svg>',
+
+        components: [
+            {
+                id: 'esp32-devkit',
+                name: 'A — ESP32 DevKit V1 (Monitor)',
+                purpose: 'Running in WiFi promiscuous mode with management-only filter (WIFI_PROMIS_FILTER_MASK_MGMT). This reduces CPU load dramatically because data and control frames (the majority of traffic) are discarded by the hardware before the callback fires. Hops through channels 1-13 at 250ms per channel.',
+                specs: ['Dual-core 240 MHz', 'MGMT filter active', '250ms channel dwell', 'Sliding window detector', 'IRAM_ATTR callback']
+            },
+            {
+                id: 'led-alert',
+                name: 'B — Alert LED (GPIO 2)',
+                purpose: 'Visual indicator with three states: off (idle), 1Hz blink (warning -- deauths seen but below threshold), 5Hz blink (attack -- threshold exceeded). GPIO 2 is also the on-board LED on most ESP32 DevKits, so both the external and on-board LEDs respond to attack events.',
+                specs: ['GPIO 2', 'Also on-board LED', 'Off / 1Hz / 5Hz', '3.3V logic', 'Up to 40mA source']
+            },
+            {
+                id: 'resistor',
+                name: 'C — 220 Ohm Current Limiting Resistor',
+                purpose: 'In series with the LED to limit current. Without it, the LED draws too much current and can damage the ESP32 GPIO. Calculate: R = (3.3V - 2.0V forward voltage) / 10mA = 130 ohm minimum. 220 ohm gives ~6mA, bright enough for a clear visual alert.',
+                specs: ['220 ohm', 'Limits to ~6 mA', 'Min 130 ohm', 'In series with LED', 'Red/red/brown bands']
+            },
+            {
+                id: 'buzzer',
+                name: 'D — Active Piezo Buzzer (GPIO 4)',
+                purpose: 'An active buzzer has a built-in oscillator -- just drive the pin HIGH to produce a tone. Do NOT use a passive buzzer without code changes (passive buzzers need a PWM signal). The buzzer only sounds in ALERT_ATTACK state (5+ deauths in 2 seconds), making it clearly distinct from the silent warning state.',
+                specs: ['GPIO 4', 'Active buzzer only', 'HIGH = tone on', '3-12V operating', '+ marking on body']
+            },
+            {
+                id: 'gnd-bus',
+                name: 'E — Shared GND Bus',
+                purpose: 'Both the LED cathode (negative leg) and buzzer negative terminal connect to the same GND rail on the breadboard. The GND bus connects to any GND pin on the ESP32 DevKit -- there are multiple on both sides of the board. A shared reference ground is required for all components to work correctly.',
+                specs: ['Common reference', 'Multiple GND pins', 'Both sides of DevKit', 'LED cathode + Buzzer -', 'Black wire convention']
+            }
+        ]
+    },
+
+    // ======================================================================
+    // SIG-4: Common mistakes for SG-10
+    // ======================================================================
+    commonMistakes: [
+        {
+            title: 'Using a passive buzzer -- buzzer makes no sound even during confirmed attack',
+            correct: 'Use an active buzzer (has built-in oscillator). When GPIO 4 goes HIGH the buzzer sounds automatically. Active buzzers are usually labeled with a (+) mark and a sticker on top. They typically cost $0.50 and come in electronics starter kits.',
+            incorrect: 'Using a passive buzzer (just a piezoelectric disc with no oscillator). A passive buzzer needs a continuous PWM signal at the desired frequency. Driving it with digitalWrite(HIGH) produces a single click at power-on and then silence.',
+            consequence: 'The attack detection logic works correctly (LED blinks at 5Hz, serial shows ATTACK ACTIVE) but no sound is produced. The buzzer may make a single faint click when the state first transitions to ATTACK but then goes silent. Very easy to miss attacks in noisy environments.',
+            svgDiff: '<svg viewBox="0 0 640 148" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg10-m1-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="148" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="136" fill="url(#sg10-m1-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="118" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<circle cx="100" cy="80" r="40" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>' +
+                     '<circle cx="100" cy="80" r="20" fill="rgba(34,197,94,0.05)" stroke="#22c55e" stroke-width="0.5"/>' +
+                     '<text x="100" y="74" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="700">ACTIVE</text>' +
+                     '<text x="100" y="85" text-anchor="middle" fill="#22c55e" font-size="7">BUZZER</text>' +
+                     '<text x="100" y="132" text-anchor="middle" fill="#555" font-size="6">Has built-in oscillator</text>' +
+                     '<rect x="155" y="40" width="140" height="80" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="163" y="56" fill="#22c55e" font-size="6.5">digitalWrite(BUZZER, HIGH);</text>' +
+                     '<text x="163" y="70" fill="#555" font-size="6.5">// Produces steady tone</text>' +
+                     '<text x="163" y="84" fill="#555" font-size="6.5">// oscillator is inside</text>' +
+                     '<text x="163" y="98" fill="#22c55e" font-size="6.5">// Easy to use, 3-12V</text>' +
+                     '<text x="161" y="126" text-anchor="middle" fill="#22c55e" font-size="7">HIGH signal = sustained tone -- clear attack alert</text>' +
+                     '<rect x="330" y="14" width="298" height="118" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<circle cx="418" cy="80" r="40" fill="rgba(239,68,68,0.05)" stroke="#ef4444" stroke-width="1.5"/>' +
+                     '<circle cx="418" cy="80" r="20" fill="none" stroke="#ef4444" stroke-width="0.5" stroke-dasharray="3,2"/>' +
+                     '<text x="418" y="74" text-anchor="middle" fill="#f87171" font-size="7" font-weight="700">PASSIVE</text>' +
+                     '<text x="418" y="85" text-anchor="middle" fill="#ef4444" font-size="7">BUZZER</text>' +
+                     '<text x="418" y="132" text-anchor="middle" fill="#555" font-size="6">No oscillator inside</text>' +
+                     '<rect x="473" y="40" width="140" height="80" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="481" y="56" fill="#ef4444" font-size="6.5">digitalWrite(BUZZER, HIGH);</text>' +
+                     '<text x="481" y="70" fill="#ef4444" font-size="6.5">// Single click then silent</text>' +
+                     '<text x="481" y="84" fill="#555" font-size="6.5">// Needs PWM signal</text>' +
+                     '<text x="481" y="98" fill="#ef4444" font-size="6.5">// tone(BUZZER, 2000) works</text>' +
+                     '<text x="479" y="126" text-anchor="middle" fill="#ef4444" font-size="7">HIGH alone = silent -- attacks missed audibly</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'Setting filter to WIFI_PROMIS_FILTER_MASK_ALL -- callback overwhelmed, ESP32 reboots',
+            correct: 'Set the promiscuous filter to WIFI_PROMIS_FILTER_MASK_MGMT so only management frames reach the callback. Since we only care about deauth (management type), filtering early is both faster and safer.',
+            incorrect: 'Using WIFI_PROMIS_FILTER_MASK_ALL which passes all frame types (management, control, and data) to the callback. On a busy WiFi channel, the callback fires 500-2000+ times per second instead of 50-200 times.',
+            consequence: 'On a moderately busy WiFi channel, the callback fires too frequently for the ESP32 to keep up. The WiFi task queue overflows, the watchdog triggers, and the ESP32 reboots every 5-30 seconds. Serial shows "rst:0x8 (TG1WDT_SYS_RESET)" repeatedly.',
+            svgDiff: '<svg viewBox="0 0 640 148" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg10-m2-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern></defs>' +
+                     '<rect width="640" height="148" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="136" fill="url(#sg10-m2-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="118" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<rect x="22" y="34" width="270" height="90" rx="4" fill="#0a1628" stroke="rgba(34,197,94,0.1)" stroke-width="0.5"/>' +
+                     '<text x="30" y="50" fill="#555" font-size="6.5">wifi_promiscuous_filter_t filter = {</text>' +
+                     '<text x="30" y="64" fill="#22c55e" font-size="6.5">  .filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT</text>' +
+                     '<text x="30" y="78" fill="#555" font-size="6.5">};</text>' +
+                     '<text x="30" y="92" fill="#555" font-size="5.5">// Only mgmt frames pass -- ~50-200 fps</text>' +
+                     '<text x="30" y="106" fill="#22c55e" font-size="5.5">// Data + ctrl discarded by hardware</text>' +
+                     '<text x="161" y="120" text-anchor="middle" fill="#22c55e" font-size="7">50-200 callbacks/sec -- stable operation</text>' +
+                     '<rect x="330" y="14" width="298" height="118" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<rect x="340" y="34" width="270" height="90" rx="4" fill="#0a1628" stroke="rgba(239,68,68,0.1)" stroke-width="0.5"/>' +
+                     '<text x="348" y="50" fill="#555" font-size="6.5">wifi_promiscuous_filter_t filter = {</text>' +
+                     '<text x="348" y="64" fill="#ef4444" font-size="6.5">  .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL</text>' +
+                     '<text x="348" y="78" fill="#555" font-size="6.5">};</text>' +
+                     '<text x="348" y="92" fill="#ef4444" font-size="5.5">// All frames pass -- 500-2000+ fps</text>' +
+                     '<text x="348" y="106" fill="#ef4444" font-size="5.5">// Watchdog reset on busy channels</text>' +
+                     '<text x="479" y="120" text-anchor="middle" fill="#ef4444" font-size="7">500-2000 callbacks/sec -- watchdog reset loop</text>' +
+                     '</svg>'
+        },
+        {
+            title: 'LED polarity reversed -- LED never lights during attack, anode wired to GND',
+            correct: 'Connect the LED anode (longer leg, or the leg closest to the flat side on the LED body) to the resistor, then to GPIO 2. Connect the LED cathode (shorter leg) to GND. Current flows from GPIO 2 through the resistor through the LED to GND.',
+            incorrect: 'Connecting the LED backwards: cathode to GPIO 2 (via resistor) and anode to GND. No current can flow in reverse bias at 3.3V (LEDs have a reverse breakdown voltage of ~5V). The LED appears dead.',
+            consequence: 'The LED never lights regardless of GPIO state. The buzzer (if correctly wired) still alerts. Serial shows correct attack detection. The fault is invisible until you swap the LED orientation. No damage occurs -- reverse bias at 3.3V is safe for standard LEDs.',
+            svgDiff: '<svg viewBox="0 0 640 148" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+                     '<defs><pattern id="sg10-m3-grid" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="0.6" fill="rgba(255,255,255,0.03)"/></pattern>' +
+                     '<marker id="sg10-arr-o" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#ff6b35"/></marker>' +
+                     '<marker id="sg10-arr-r" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#ef4444"/></marker></defs>' +
+                     '<rect width="640" height="148" fill="#0d1117" rx="6"/>' +
+                     '<rect x="6" y="6" width="628" height="136" fill="url(#sg10-m3-grid)" rx="3"/>' +
+                     '<rect x="12" y="14" width="298" height="118" rx="6" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>' +
+                     '<text x="161" y="27" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700" letter-spacing="0.1em">CORRECT</text>' +
+                     '<text x="36" y="52" fill="#8b949e" font-size="6.5">GPIO2</text>' +
+                     '<line x1="70" y1="47" x2="110" y2="47" stroke="#eab308" stroke-width="2" marker-end="url(#sg10-arr-o)"/>' +
+                     '<rect x="112" y="38" width="44" height="18" rx="2" fill="#2a2a3a" stroke="#eab308" stroke-width="1"/>' +
+                     '<text x="134" y="50" text-anchor="middle" fill="#fde68a" font-size="6">220 ohm</text>' +
+                     '<line x1="156" y1="47" x2="196" y2="47" stroke="#eab308" stroke-width="2" marker-end="url(#sg10-arr-o)"/>' +
+                     '<polygon points="198,36 232,47 198,58" fill="rgba(239,68,68,0.3)" stroke="#22c55e" stroke-width="1.5"/>' +
+                     '<line x1="232" y1="36" x2="232" y2="58" stroke="#22c55e" stroke-width="1.5"/>' +
+                     '<text x="215" y="74" text-anchor="middle" fill="#4ade80" font-size="6.5">Anode (+)</text>' +
+                     '<text x="232" y="84" text-anchor="middle" fill="#4ade80" font-size="6">Cathode (-)</text>' +
+                     '<line x1="232" y1="47" x2="272" y2="47" stroke="#555" stroke-width="2"/>' +
+                     '<text x="280" y="52" fill="#8b949e" font-size="6.5">GND</text>' +
+                     '<text x="161" y="120" text-anchor="middle" fill="#22c55e" font-size="7">Current flows through LED -- lights during attack</text>' +
+                     '<rect x="330" y="14" width="298" height="118" rx="6" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.4)" stroke-width="1.5"/>' +
+                     '<text x="479" y="27" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700" letter-spacing="0.1em">MISTAKE</text>' +
+                     '<text x="354" y="52" fill="#8b949e" font-size="6.5">GPIO2</text>' +
+                     '<line x1="388" y1="47" x2="428" y2="47" stroke="#ef4444" stroke-width="2" marker-end="url(#sg10-arr-r)"/>' +
+                     '<rect x="430" y="38" width="44" height="18" rx="2" fill="#2a2a3a" stroke="#eab308" stroke-width="1"/>' +
+                     '<text x="452" y="50" text-anchor="middle" fill="#fde68a" font-size="6">220 ohm</text>' +
+                     '<line x1="474" y1="47" x2="514" y2="47" stroke="#ef4444" stroke-width="2" marker-end="url(#sg10-arr-r)"/>' +
+                     '<line x1="514" y1="36" x2="514" y2="58" stroke="#ef4444" stroke-width="1.5"/>' +
+                     '<polygon points="514,36 548,47 514,58" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3,2"/>' +
+                     '<text x="531" y="74" text-anchor="middle" fill="#f87171" font-size="6.5">Cathode (-)</text>' +
+                     '<text x="514" y="84" text-anchor="middle" fill="#f87171" font-size="6">Anode (+)</text>' +
+                     '<line x1="548" y1="47" x2="588" y2="47" stroke="#555" stroke-width="2"/>' +
+                     '<text x="596" y="52" fill="#8b949e" font-size="6.5">GND</text>' +
+                     '<text x="479" y="120" text-anchor="middle" fill="#ef4444" font-size="7">Reverse bias -- no current flows, LED stays dark</text>' +
+                     '</svg>'
+        }
+    ]
 };

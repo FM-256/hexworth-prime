@@ -132,6 +132,93 @@ winpmem_mini.exe %OUTPUT%\memory.raw</pre>
         </section>
 
         <section class="section">
+            <h2 class="section-title">Dead-Box Imaging Procedures</h2>
+            <p class="content-text">Dead-box imaging follows a strict protocol to ensure evidence integrity. Every step must be documented, and the resulting image must be verified against the source.</p>
+            <div class="code-block">
+                <div class="code-block-header">Standard Dead-Box Imaging Workflow</div>
+                <pre><span class="cm"># 1. Document the physical state before touching anything</span>
+<span class="cm">#    Photograph: front, back, cables, screen state, serial numbers</span>
+
+<span class="cm"># 2. Power off (if running, capture volatile data first)</span>
+<span class="cm">#    For desktops: pull the power cord (do NOT use shutdown)</span>
+<span class="cm">#    Reason: shutdown modifies timestamps, deletes temp files</span>
+
+<span class="cm"># 3. Remove storage media and connect via write blocker</span>
+<span class="cm">#    Verify write blocker is functioning: check indicator LEDs</span>
+<span class="cm">#    Connect source drive to write-blocked port</span>
+
+<span class="cm"># 4. Calculate source hash BEFORE imaging</span>
+md5sum /dev/sdb > source_hash_md5.txt
+sha256sum /dev/sdb > source_hash_sha256.txt
+
+<span class="cm"># 5. Create forensic image (E01 format with compression)</span>
+ewfacquire /dev/sdb \
+  -t evidence_image \
+  -C "Case 2026-0318" \
+  -D "Seagate 1TB SN:ABC123" \
+  -e "Analyst Name" \
+  -E "Organization" \
+  -f encase6 \
+  -S 2G
+
+<span class="cm"># 6. Verify image hash matches source hash</span>
+ewfverify evidence_image.E01
+<span class="cm"># Output must show: MD5 hash match, SHA-256 hash match</span>
+
+<span class="cm"># 7. Create a second image copy for working analysis</span>
+<span class="cm"># 8. Store original image on write-once media if possible</span></pre>
+            </div>
+            <div class="callout callout--info"><h4>Pull the Plug vs Shutdown</h4><p>For evidence preservation, pulling the power cord is preferred over graceful shutdown. A shutdown command modifies hundreds of files: updates last-access timestamps, writes to the pagefile, flushes caches, updates registry hives, and deletes temporary files. Pulling the plug preserves the disk state as-is. The trade-off is potential filesystem inconsistencies, but forensic tools handle these gracefully.</p></div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Linux Live Response Toolkit</h2>
+            <p class="content-text">While the Windows live response script covers the most common corporate scenario, Linux systems require a different toolkit. The same principle applies: run everything from external media, minimize writes to the evidence disk.</p>
+            <div class="code-block">
+                <div class="code-block-header">Linux Live Response Script</div>
+                <pre><span class="cm">#!/bin/bash</span>
+<span class="cm"># Run from USB: /mnt/usb/linux_live_response.sh</span>
+OUT="/mnt/usb/output/$(hostname)_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$OUT"
+
+<span class="cm"># System info</span>
+uname -a > "$OUT/uname.txt"
+cat /etc/os-release > "$OUT/os_release.txt"
+uptime > "$OUT/uptime.txt"
+date -u > "$OUT/utc_time.txt"
+
+<span class="cm"># Network state</span>
+ss -tulnp > "$OUT/listening_ports.txt"
+ss -anp > "$OUT/all_connections.txt"
+ip addr show > "$OUT/ip_addresses.txt"
+ip route show > "$OUT/routes.txt"
+iptables -L -n -v > "$OUT/iptables.txt" 2>&1
+cat /etc/resolv.conf > "$OUT/dns_config.txt"
+
+<span class="cm"># Processes and open files</span>
+ps auxf > "$OUT/processes.txt"
+lsof -nP > "$OUT/open_files.txt" 2>&1
+
+<span class="cm"># Users and authentication</span>
+who > "$OUT/logged_in.txt"
+last -50 > "$OUT/last_logins.txt"
+cat /etc/passwd > "$OUT/passwd.txt"
+cat /etc/shadow > "$OUT/shadow.txt" 2>/dev/null
+
+<span class="cm"># Persistence mechanisms</span>
+crontab -l > "$OUT/crontab_root.txt" 2>&1
+ls -la /etc/cron.d/ > "$OUT/cron_d.txt"
+systemctl list-unit-files --type=service > "$OUT/services.txt"
+
+<span class="cm"># Memory acquisition (requires LiME kernel module)</span>
+<span class="cm"># insmod /mnt/usb/tools/lime.ko "path=$OUT/memory.lime format=lime"</span>
+
+echo "Collection complete: $OUT"
+sha256sum "$OUT"/* > "$OUT/collection_hashes.txt"</pre>
+            </div>
+        </section>
+
+        <section class="section">
             <h2 class="section-title">Decision Matrix</h2>
             <table class="evidence-table">
                 <thead><tr><th>Factor</th><th>Choose Live</th><th>Choose Dead-Box</th></tr></thead>
