@@ -202,10 +202,23 @@ const ContentDiscovery = (function() {
     // PLATFORM HUBS — Cross-House Hub Cards
     // ========================================
     //
-    // These are the major content hubs that appear in every house's Explore All tab.
-    // Each card links to a standalone hub page (not inside any house directory).
+    // WHAT: Compact icon card grid of ALL cross-house content hubs.
+    // WHERE: Injected into every house's Explore All tab, below the search bar.
+    // WHY: Gives students quick-access navigation to every hub from any house.
+    //
+    // This is SEPARATE from the "Special Features" section in HouseRenderer.js.
+    // Special Features = curated editorial cards with rich descriptions.
+    // Platform Hubs = data-driven compact grid for quick navigation.
+    // Both are intentional — they complement each other.
+    //
+    // TO ADD A NEW HUB: Add an entry to PLATFORM_HUBS below.
+    //   - name: Display name (uppercase convention)
+    //   - desc: Short subtitle
+    //   - icon: Primary icon path
+    //   - fallback: Fallback icon if primary fails to load
+    //   - href: Path relative to _app/ (prefix ../../ is added at render time)
+    //
     // Hrefs are relative to the house page location (../../ goes up from houses/X/).
-    // To add a new hub: add an entry to PLATFORM_HUBS and it appears everywhere.
 
     const PLATFORM_HUBS = [
         { name: 'THE ARCTIC',          desc: 'Linux Content Hub',           icon: '/assets/images/categories/linux.webp',              fallback: '/assets/images/icons/icon-penguin.webp',    href: 'arctic/index.html' },

@@ -114,6 +114,10 @@ const HouseRenderer = (function() {
         initTabs();
         updateStats();
 
+        // Force-loop mascot video (some browsers ignore the loop attribute)
+        var mv = document.querySelector('.hero-mascot video');
+        if (mv) mv.addEventListener('ended', function() { this.currentTime = 0; this.play(); });
+
         console.log(`%c${config.icon} ${config.fullTitle}`, `color: var(--house-primary, #60a5fa); font-size: 14px;`);
     }
 
@@ -267,7 +271,16 @@ const HouseRenderer = (function() {
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
             }
 
-            .hero-mascot img:hover {
+            .hero-mascot video {
+                width: 266px;
+                height: auto;
+                border-radius: 16px;
+                border: 2px solid var(--house-primary);
+                box-shadow: 0 0 50px var(--house-glow), 0 0 100px rgba(0,0,0,0.5);
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            .hero-mascot img:hover, .hero-mascot video:hover {
                 transform: scale(1.05);
                 box-shadow: 0 0 70px var(--house-glow), 0 0 120px rgba(0,0,0,0.5);
             }
@@ -1058,6 +1071,7 @@ const HouseRenderer = (function() {
                     margin: 0 auto;
                 }
                 .hero-mascot img { width: 150px; height: 200px; }
+                .hero-mascot video { width: 200px; height: auto; }
                 .hero-title { font-size: 1.8rem; }
                 .stats-bar { flex-wrap: wrap; gap: 20px; }
                 .stat-item { flex: 1 1 45%; }
@@ -1146,7 +1160,9 @@ const HouseRenderer = (function() {
             <section class="hero-section" role="region" aria-label="${config.fullTitle} overview">
                 <div class="hero-left">
                     ${config.mascot ? `<div class="hero-mascot mascot-fx mascot-fx-${mascotId} holo-card holo-subtle">
-                        <img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.parentElement.style.display='none'">
+                        ${config.mascotVideo
+                            ? `<video poster="${config.mascot}" autoplay loop muted playsinline><source src="${config.mascotVideo}" type="video/mp4"></video>`
+                            : `<img src="${config.mascot}" alt="${config.fullTitle} mascot" onerror="this.parentElement.style.display='none'">`}
                         ${lore ? `<div class="hero-mascot-name">${lore.name}</div><div class="hero-mascot-species">${lore.species}</div>` : ''}
                     </div>` : ''}
                 </div>
@@ -1706,6 +1722,25 @@ const HouseRenderer = (function() {
     // EXPLORE PANEL
     // ========================================
 
+    /**
+     * Render the Explore All tab panel.
+     *
+     * This tab has TWO distinct sections:
+     *
+     *   1. SPECIAL FEATURES (below) — Curated highlight cards with rich descriptions,
+     *      colored names, and links to major platform experiences (Arena, Hive, Arctic,
+     *      Operator, etc.). These are hand-crafted promotional cards.
+     *      TO ADD A NEW FEATURE: Add an <a> element to the hr-feature-grid below.
+     *
+     *   2. PLATFORM HUBS (injected by ContentDiscovery.js) — Compact icon grid of ALL
+     *      cross-house content hubs. Appears below the search bar via renderPlatformHubs().
+     *      Data-driven from the PLATFORM_HUBS array in ContentDiscovery.js.
+     *      TO ADD A NEW HUB: Add an entry to PLATFORM_HUBS in ContentDiscovery.js.
+     *
+     * Both sections are intentional — Special Features provides editorial curation
+     * with descriptions, while Platform Hubs provides quick-access navigation.
+     * They complement each other; do not remove one thinking it duplicates the other.
+     */
     function renderExplorePanel() {
         const panel = document.getElementById('hr-panel-explore');
         panel.innerHTML = `
