@@ -218,7 +218,7 @@ const B18Config = {
         },
         {
             id: 'hint3',
-            text: 'The temporal anomaly timestamp is in Fragment 3 of the Chronos log: 2077-10-23_13:07:42_EST. The flag format is flag{2077-10-23_13:07:42_EST}.',
+            text: 'The temporal anomaly timestamp is in Fragment 3 of the Chronos log: 2077-10-23_13:07:42_EST. The flag format is {{FLAG:user}}.',
             cost: 75,
             penalty: -75
         },

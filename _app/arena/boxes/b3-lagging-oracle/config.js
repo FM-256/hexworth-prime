@@ -321,7 +321,7 @@ const B3Config = {
                                         },
                                         'performance_report.php': {
                                             type: 'file',
-                                            content: '<?php\n// Performance Report - generates after optimization\n// This page will display the verification token once\n// the database is optimized and queries run under 1s\nrequire_once \'config.php\';\n\n$start = microtime(true);\n$stmt = $pdo->query("SELECT COUNT(*) FROM sensor_queries WHERE query_timestamp > \'2026-03-01\'");\n$elapsed = microtime(true) - $start;\n\nif ($elapsed < 1.0) {\n    echo "PERFORMANCE VERIFIED\\n";\n    echo "Query time: " . round($elapsed * 1000) . "ms\\n";\n    echo "Token: flag{0r4cl3_0pt1m1z3d_p3rf0rm4nc3_r3p0rt}\\n";\n} else {\n    echo "PERFORMANCE STILL DEGRADED\\n";\n    echo "Query time: " . round($elapsed * 1000) . "ms (target: < 1000ms)\\n";\n}\n?>'
+                                            content: '<?php\n// Performance Report - generates after optimization\n// This page will display the verification token once\n// the database is optimized and queries run under 1s\nrequire_once \'config.php\';\n\n$start = microtime(true);\n$stmt = $pdo->query("SELECT COUNT(*) FROM sensor_queries WHERE query_timestamp > \'2026-03-01\'");\n$elapsed = microtime(true) - $start;\n\nif ($elapsed < 1.0) {\n    echo "PERFORMANCE VERIFIED\\n";\n    echo "Query time: " . round($elapsed * 1000) . "ms\\n";\n    echo "Token: {{FLAG:user}}\\n";\n} else {\n    echo "PERFORMANCE STILL DEGRADED\\n";\n    echo "Query time: " . round($elapsed * 1000) . "ms (target: < 1000ms)\\n";\n}\n?>'
                                         }
                                     }
                                 }
@@ -387,7 +387,7 @@ const B3Config = {
         },
         {
             id: 'hint3',
-            text: 'Connect to MySQL and run SHOW INDEX FROM sensor_queries; — there is no index on query_timestamp. The user flag is: flag{m1ss1ng_1nd3x_s3ns0r_qu3r13s_t1m3st4mp}',
+            text: 'Connect to MySQL and run SHOW INDEX FROM sensor_queries; — there is no index on query_timestamp. The user flag is: {{FLAG:user}}',
             cost: 50,
             penalty: -50
         },
@@ -651,7 +651,7 @@ Version: '8.0.35'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306
 
             if (url.includes('10.10.20.5') && url.includes('performance_report')) {
                 if (engine && engine._b3IndexCreated) {
-                    return 'PERFORMANCE VERIFIED\nQuery time: 12ms\nToken: flag{0r4cl3_0pt1m1z3d_p3rf0rm4nc3_r3p0rt}';
+                    return 'PERFORMANCE VERIFIED\nQuery time: 12ms\nToken: {{FLAG:user}}';
                 }
                 return 'PERFORMANCE STILL DEGRADED\nQuery time: 28412ms (target: < 1000ms)\nFix the database performance issue to unlock the verification token.';
             }

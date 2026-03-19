@@ -286,7 +286,7 @@ const B2Config = {
         },
         {
             id: 'hint3',
-            text: 'There is an iptables DROP rule blocking traffic from 10.0.1.0/24 to 10.0.3.0/24 in the FORWARD chain. The user flag is: flag{iptables_d_forward_drop_10.0.1.0_to_10.0.3.0}',
+            text: 'There is an iptables DROP rule blocking traffic from 10.0.1.0/24 to 10.0.3.0/24 in the FORWARD chain. The user flag is: {{FLAG:user}}',
             cost: 50,
             penalty: -50
         },
@@ -644,7 +644,7 @@ ${hasLineNumbers ? 'num   ' : ''}target     prot opt ${isVerbose ? 'in     out  
 
             if (fullCmd.includes('cat /opt/hub_comm/verification_token.txt') || fullCmd.includes('cat /root/verification')) {
                 if (engine && engine._b2FirewallFixed && engine._b2CurrentHost === 'hub') {
-                    return 'flag{n3tw0rk_p4th_r3st0r3d_9f4e2a}';
+                    return '{{FLAG:user}}';
                 }
                 return 'cat: /opt/hub_comm/verification_token.txt: No such file or directory';
             }
@@ -658,7 +658,7 @@ ${hasLineNumbers ? 'num   ' : ''}target     prot opt ${isVerbose ? 'in     out  
 
             if (url.includes('10.0.3.10') && url.includes('verification')) {
                 if (engine && engine._b2FirewallFixed) {
-                    return 'flag{n3tw0rk_p4th_r3st0r3d_9f4e2a}';
+                    return '{{FLAG:user}}';
                 }
                 return 'curl: (7) Failed to connect to 10.0.3.10 port 8080: Connection timed out';
             }
@@ -676,7 +676,7 @@ ${hasLineNumbers ? 'num   ' : ''}target     prot opt ${isVerbose ? 'in     out  
             const source = args[0] || '';
             if (source.includes('10.0.3.10') && source.includes('verification')) {
                 if (engine && engine._b2FirewallFixed) {
-                    return 'verification_token.txt                    100%   42     0.0KB/s   00:00\nToken: flag{n3tw0rk_p4th_r3st0r3d_9f4e2a}';
+                    return 'verification_token.txt                    100%   42     0.0KB/s   00:00\nToken: {{FLAG:user}}';
                 }
                 return 'ssh: connect to host 10.0.3.10 port 22: Connection timed out\nlost connection';
             }

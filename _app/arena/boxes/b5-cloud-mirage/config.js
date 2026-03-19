@@ -259,13 +259,13 @@ const B5Config = {
         },
         {
             id: 'hint3',
-            text: 'The SkyWatchAgentRole has s3:GetObject and s3:ListBucket but is MISSING s3:PutObject. The user flag is: flag{m1ss1ng_s3_put0bj3ct_sky_w4tch_r0l3}',
+            text: 'The SkyWatchAgentRole has s3:GetObject and s3:ListBucket but is MISSING s3:PutObject. The user flag is: {{FLAG:user}}',
             cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
-            text: 'The root flag is the corrected policy JSON: flag{s3_put0bj3ct_p0l1cy_4dd3d_sky_w4tch}',
+            text: 'The root flag is the corrected policy JSON: {{FLAG:user}}',
             cost: 75,
             penalty: -75
         }

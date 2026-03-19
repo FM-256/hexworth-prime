@@ -289,7 +289,7 @@ const B4Config = {
                     children: {
                         'vault_status.txt': {
                             type: 'file',
-                            content: 'ARCTIC VAULT ENVIRONMENTAL CONTROL SYSTEM\n==========================================\nStatus: OPERATIONAL\nKernel: 5.15.0-91-generic (stable)\nTemperature: 2.1C (nominal)\nPressure: 1013 hPa (nominal)\nOxygen: 20.9% (nominal)\n\nVERIFICATION TOKEN: flag{fr0z3n_c0r3_th4w3d_k3rn3l_f1x3d}\n\nAll environmental systems nominal.\nVault integrity confirmed.\n'
+                            content: 'ARCTIC VAULT ENVIRONMENTAL CONTROL SYSTEM\n==========================================\nStatus: OPERATIONAL\nKernel: 5.15.0-91-generic (stable)\nTemperature: 2.1C (nominal)\nPressure: 1013 hPa (nominal)\nOxygen: 20.9% (nominal)\n\nVERIFICATION TOKEN: {{FLAG:user}}\n\nAll environmental systems nominal.\nVault integrity confirmed.\n'
                         },
                         '.bash_history': {
                             type: 'file',
@@ -355,7 +355,7 @@ const B4Config = {
         },
         {
             id: 'hint3',
-            text: 'The root cause is GRUB_DEFAULT=0 pointing to the corrupted 5.19.0-45-generic kernel. The user flag is: flag{grub_d3fault_p01nts_t0_c0rrupt3d_k3rn3l}',
+            text: 'The root cause is GRUB_DEFAULT=0 pointing to the corrupted 5.19.0-45-generic kernel. The user flag is: {{FLAG:user}}',
             cost: 50,
             penalty: -50
         },
@@ -591,7 +591,7 @@ Temperature: 2.1C (nominal)
 Pressure: 1013 hPa (nominal)
 Oxygen: 20.9% (nominal)
 
-VERIFICATION TOKEN: flag{fr0z3n_c0r3_th4w3d_k3rn3l_f1x3d}
+VERIFICATION TOKEN: {{FLAG:user}}
 
 All environmental systems nominal.
 Vault integrity confirmed.`;
