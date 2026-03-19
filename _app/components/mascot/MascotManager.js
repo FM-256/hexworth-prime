@@ -65,7 +65,7 @@ const MascotManager = (function () {
             color: '#a855f7',
             house: 'Shield',
             domain: 'Defense & Compliance',
-            idleAnimation: 'mascot-idle-battle-ready',
+            idleAnimation: 'mascot-idle-breathe',
             personality: 'Steadfast protector. Calm under fire.',
             reactions: {
                 achievement: { text: 'Defenses reinforced.', anim: 'mascot-react-achievement' },
