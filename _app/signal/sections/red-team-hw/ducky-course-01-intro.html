@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuckyScript 01: Introduction to Keystroke Injection | Signal Red Team Hardware</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0f;
+            --bg-card: #0f0f18;
+            --bg-code: #0d0d14;
+            --accent: #ff6b35;
+            --accent-dim: rgba(255,107,53,0.12);
+            --accent-border: rgba(255,107,53,0.3);
+            --text: #c8c8d8;
+            --text-dim: #6b6b80;
+            --text-bright: #e8e8f0;
+            --border: rgba(255,255,255,0.07);
+            --green: #4ade80;
+            --yellow: #fbbf24;
+            --red: #f87171;
+            --blue: #60a5fa;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+        /* Header */
+        .page-header {
+            background: rgba(15,15,24,0.95);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .back-btn {
+            background: rgba(255,107,53,0.1);
+            border: 1px solid var(--accent-border);
+            color: var(--accent);
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: rgba(255,107,53,0.2); }
+        .course-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+        .header-right {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mod-badge {
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            color: var(--accent);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+        }
+        /* Scroll progress */
+        .scroll-bar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 2px;
+            background: var(--accent);
+            z-index: 200;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        /* Content */
+        .content {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 50px 40px;
+        }
+        /* Hero */
+        .module-hero {
+            text-align: center;
+            padding: 50px 0 60px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 60px;
+        }
+        .module-number {
+            font-size: 0.7rem;
+            color: var(--accent);
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+        .module-title {
+            font-size: 2.6rem;
+            color: var(--text-bright);
+            font-weight: 300;
+            letter-spacing: 0.03em;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+        .module-subtitle {
+            font-size: 1rem;
+            color: var(--text-dim);
+            max-width: 680px;
+            margin: 0 auto 28px;
+        }
+        .meta-pills {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .pill {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .pill-orange { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+        .pill-green { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.25); color: var(--green); }
+        .pill-blue { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.25); color: var(--blue); }
+        /* Section */
+        .section {
+            margin-bottom: 70px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .section.visible { opacity: 1; transform: translateY(0); }
+        .section-label {
+            font-size: 0.65rem;
+            color: var(--accent);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .section-title {
+            font-size: 1.6rem;
+            color: var(--text-bright);
+            font-weight: 400;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-icon { color: var(--accent); font-size: 1.2rem; }
+        p { color: var(--text); margin-bottom: 16px; font-size: 0.97rem; }
+        /* Code blocks */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid rgba(255,107,53,0.15);
+            border-radius: 6px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .code-header {
+            background: rgba(255,107,53,0.08);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,107,53,0.12);
+        }
+        .code-lang {
+            font-size: 0.68rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        .copy-btn {
+            background: none;
+            border: 1px solid var(--accent-border);
+            color: var(--text-dim);
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover { background: var(--accent-dim); color: var(--accent); }
+        pre {
+            padding: 20px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.88rem;
+            line-height: 1.7;
+            color: #e8e8f0;
+            overflow-x: auto;
+            tab-size: 4;
+        }
+        .kw { color: #ff6b35; }
+        .cm { color: #6b7280; font-style: italic; }
+        .str { color: #4ade80; }
+        .num { color: #60a5fa; }
+        .fn { color: #fbbf24; }
+        /* Info cards */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+        .info-card:hover { border-color: var(--accent-border); }
+        .info-card-label {
+            font-size: 0.65rem;
+            color: var(--accent);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .info-card-title {
+            font-size: 1rem;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+        }
+        .info-card-body { font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; }
+        /* Callouts */
+        .callout {
+            border-radius: 6px;
+            padding: 18px 22px;
+            margin: 22px 0;
+            border-left: 3px solid;
+        }
+        .callout-warn { background: rgba(251,191,36,0.08); border-color: var(--yellow); }
+        .callout-danger { background: rgba(248,113,113,0.08); border-color: var(--red); }
+        .callout-info { background: var(--accent-dim); border-color: var(--accent); }
+        .callout-tip { background: rgba(74,222,128,0.08); border-color: var(--green); }
+        .callout-title {
+            font-size: 0.72rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .callout-warn .callout-title { color: var(--yellow); }
+        .callout-danger .callout-title { color: var(--red); }
+        .callout-info .callout-title { color: var(--accent); }
+        .callout-tip .callout-title { color: var(--green); }
+        .callout p { margin-bottom: 0; font-size: 0.9rem; }
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.88rem;
+        }
+        th {
+            background: rgba(255,107,53,0.08);
+            color: var(--text-bright);
+            padding: 11px 16px;
+            text-align: left;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--accent-border);
+            font-weight: 500;
+        }
+        td {
+            padding: 11px 16px;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        tr:hover td { background: rgba(255,107,53,0.04); }
+        code {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: rgba(255,107,53,0.1);
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+        /* ASCII diagram */
+        .ascii-diagram {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 24px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: #7dd3fc;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin: 20px 0;
+            white-space: pre;
+        }
+        /* List */
+        ul.content-list {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 16px;
+        }
+        ul.content-list li {
+            padding: 6px 0 6px 22px;
+            position: relative;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+        ul.content-list li::before {
+            content: '›';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-size: 1.1rem;
+        }
+        /* Ethical disclaimer */
+        .ethical-banner {
+            background: rgba(248,113,113,0.06);
+            border: 1px solid rgba(248,113,113,0.2);
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 50px;
+        }
+        .ethical-banner-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--red);
+            margin-bottom: 8px;
+        }
+        .ethical-banner p { font-size: 0.88rem; color: #c8a0a0; margin-bottom: 0; }
+        /* Nav */
+        .module-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 0;
+            border-top: 1px solid var(--border);
+            margin-top: 60px;
+        }
+        .nav-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 12px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+        .nav-btn.next { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+        .nav-btn.next:hover { background: rgba(255,107,53,0.2); }
+        .nav-center { font-size: 0.75rem; color: var(--text-dim); }
+    </style>
+</head>
+<body>
+<div class="scroll-bar" id="scrollBar"></div>
+
+<header class="page-header">
+    <div class="header-left">
+        <a href="index.html" class="back-btn">&#8592; Red Team Hardware</a>
+        <span class="course-label">DuckyScript Mastery Course</span>
+    </div>
+    <div class="header-right">
+        <span class="mod-badge">Module 01 of 08</span>
+    </div>
+</header>
+
+<main class="content">
+
+    <div class="ethical-banner">
+        <div class="ethical-banner-title">Authorized Use Only</div>
+        <p>All techniques in this course are for authorized security testing, research, and education only. Deploying keystroke injection devices against systems without explicit written authorization is illegal under the Computer Fraud and Abuse Act (18 U.S.C. § 1030), the UK Computer Misuse Act 1990, and equivalent statutes worldwide. Always obtain written authorization before testing.</p>
+    </div>
+
+    <div class="module-hero">
+        <div class="module-number">Module 01 — DuckyScript Mastery</div>
+        <h1 class="module-title">Introduction to Keystroke Injection</h1>
+        <p class="module-subtitle">Understand how HID devices work, why computers implicitly trust keyboards, and set up a Pi Pico development environment for DuckyScript payloads.</p>
+        <div class="meta-pills">
+            <span class="pill pill-orange">Beginner</span>
+            <span class="pill pill-green">~45 min</span>
+            <span class="pill pill-blue">Theory + Setup</span>
+        </div>
+    </div>
+
+    <!-- Section 1: What is HID -->
+    <div class="section" id="s1">
+        <div class="section-label">Section 1</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> What is a Human Interface Device (HID)?</h2>
+        <p>The Human Interface Device (HID) class is a USB specification that defines how input devices — keyboards, mice, gamepads, and joysticks — communicate with a host computer. Defined in the USB HID Specification 1.11 (published by the USB Implementers Forum), HID was designed for simplicity: the host polls the device, the device reports state changes, and the OS translates those reports into keystrokes or mouse movements.</p>
+        <p>Every USB keyboard enumerates with a HID descriptor that tells the OS: "I am a keyboard. Here is how to interpret my reports." The OS loads its built-in HID driver (no third-party software required) and begins accepting input immediately. This plug-and-play convenience is exactly what keystroke injection attacks exploit.</p>
+
+        <div class="ascii-diagram">  HOST (Windows / macOS / Linux)
+         |
+         |  USB Stack
+         |    |
+         |    +---> HID Class Driver (usbhid.sys / IOHIDFamily.kext)
+         |               |
+         |               +---> Keyboard Input Device
+         |               |       Vendor ID:  0x046D (Logitech example)
+         |               |       Product ID: 0xC31C
+         |               |       Usage Page: 0x01 (Generic Desktop)
+         |               |       Usage:      0x06 (Keyboard)
+         |               |
+         |               +---> Reports: key scan codes sent every ~8ms (125 Hz)
+         |
+         v  Application Layer receives WM_KEYDOWN / WM_KEYUP events</div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-card-label">HID Report Rate</div>
+                <div class="info-card-title">8ms / 125 Hz</div>
+                <div class="info-card-body">Default polling interval. High-performance keyboards use 1ms (1000 Hz). DuckyScript payloads inject at whatever rate the firmware allows.</div>
+            </div>
+            <div class="info-card">
+                <div class="info-card-label">Driver Requirement</div>
+                <div class="info-card-title">None Required</div>
+                <div class="info-card-body">Every modern OS ships with a built-in HID class driver. No user prompt, no UAC dialog, no installation — just plug in and type.</div>
+            </div>
+            <div class="info-card">
+                <div class="info-card-label">USB Spec</div>
+                <div class="info-card-title">HID 1.11 / USB 2.0</div>
+                <div class="info-card-body">The HID specification has not changed significantly since 2001. Legacy compatibility means any OS from Windows XP onward accepts HID keyboards.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Trust Model -->
+    <div class="section" id="s2">
+        <div class="section-label">Section 2</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> Why Computers Trust Keyboards Implicitly</h2>
+        <p>The USB threat model assumes physical access means game over — if an attacker can plug in a device, you have bigger problems. This assumption baked implicit trust into HID at the protocol level. There is no authentication handshake, no certificate, and no user confirmation when a keyboard connects. The OS simply accepts it.</p>
+        <p>This trust extends to every action a keyboard can perform: launching applications via keyboard shortcuts, executing commands, bypassing application-layer controls that rely on mouse input, and even bypassing screen lock timeouts when combined with wake events. A USB keyboard is, from the OS perspective, an unconditionally trusted input source.</p>
+
+        <div class="callout callout-danger">
+            <div class="callout-title">Attack Surface Reality</div>
+            <p>A locked workstation (screen locked, not powered off) still accepts HID keyboard input. On Windows, the Win+R shortcut is active on the lock screen and can open the Run dialog. On macOS, the lock screen accepts keyboard input for the password field. Keystroke injection payloads can send characters before and after unlocking, staging a full attack with sub-second dwell time.</p>
+        </div>
+
+        <table>
+            <thead>
+                <tr><th>OS</th><th>HID Trust Level</th><th>Notable Behavior</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Windows 10/11</td><td>Unconditional</td><td>Run dialog (Win+R) active on lock screen; PowerShell accepts input immediately</td></tr>
+                <tr><td>macOS 14 Sonoma</td><td>Unconditional</td><td>Accessibility permissions NOT required for HID keyboard input</td></tr>
+                <tr><td>Ubuntu 22.04 LTS</td><td>Unconditional</td><td>No polkit prompt for HID; usbguard required to restrict</td></tr>
+                <tr><td>Android 14</td><td>Conditional</td><td>USB debug prompt shown; HID input accepted on non-debug builds</td></tr>
+                <tr><td>iOS 17</td><td>Restricted</td><td>Requires device trust before HID keyboards work on lock screen</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 3: History -->
+    <div class="section" id="s3">
+        <div class="section-label">Section 3</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> History: From Teensy to Rubber Ducky to Pi Pico</h2>
+        <p>Keystroke injection hardware has evolved significantly over the past two decades. Understanding the lineage helps you appreciate why modern platforms like the Raspberry Pi Pico running CircuitPython are the preferred development target for learning and research.</p>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-card-label">~2007–2010</div>
+                <div class="info-card-title">Teensy (PJRC)</div>
+                <div class="info-card-body">Arduino-compatible board with native USB HID support. First widely accessible platform for custom HID devices. Required C/C++ firmware programming.</div>
+            </div>
+            <div class="info-card">
+                <div class="info-card-label">2010–present</div>
+                <div class="info-card-title">USB Rubber Ducky (Hak5)</div>
+                <div class="info-card-body">First commercial product purpose-built for keystroke injection. Introduced DuckyScript as a simple scripting language. Version 3 (2022) added conditional logic, variables, and OS detection.</div>
+            </div>
+            <div class="info-card">
+                <div class="info-card-label">2020–present</div>
+                <div class="info-card-title">Raspberry Pi Pico</div>
+                <div class="info-card-body">$4 microcontroller running CircuitPython with adafruit_hid library. Supports DuckyScript via community firmware (pico-ducky). Industry-standard for learning due to low cost and open ecosystem.</div>
+            </div>
+            <div class="info-card">
+                <div class="info-card-label">2021–present</div>
+                <div class="info-card-title">Flipper Zero</div>
+                <div class="info-card-body">Multi-tool device with USB HID BadUSB mode. Runs DuckyScript-compatible scripts. Adds NFC, sub-GHz radio, and IR to the toolkit.</div>
+            </div>
+        </div>
+
+        <div class="callout callout-info">
+            <div class="callout-title">This Course Uses</div>
+            <p>We use the <strong>Raspberry Pi Pico W</strong> running <strong>CircuitPython 9.x</strong> with the <strong>pico-ducky</strong> firmware. All payloads are written in DuckyScript 3.0 syntax and tested on Windows 11 22H2, macOS 14.4, and Ubuntu 22.04 LTS.</p>
+        </div>
+    </div>
+
+    <!-- Section 4: Legal Framework -->
+    <div class="section" id="s4">
+        <div class="section-label">Section 4</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> Legal and Ethical Framework</h2>
+        <p>Keystroke injection is a powerful technique that carries serious legal risk when misused. Before you ever connect a HID attack device to any system, you must understand the legal landscape and professional obligations that govern authorized testing.</p>
+
+        <table>
+            <thead>
+                <tr><th>Jurisdiction</th><th>Relevant Law</th><th>Maximum Penalty</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>United States</td><td>Computer Fraud and Abuse Act (18 U.S.C. § 1030)</td><td>10 years imprisonment (first offense)</td></tr>
+                <tr><td>United Kingdom</td><td>Computer Misuse Act 1990 (amended 2015)</td><td>10 years imprisonment</td></tr>
+                <tr><td>European Union</td><td>Directive 2013/40/EU on attacks against information systems</td><td>Varies by member state, min. 2 years</td></tr>
+                <tr><td>Australia</td><td>Criminal Code Act 1995, Division 477</td><td>10 years imprisonment</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout-warn">
+            <div class="callout-title">The Golden Rule: Written Authorization</div>
+            <p>A verbal "go ahead" is not sufficient. Always obtain a signed Statement of Work (SOW) or Rules of Engagement (ROE) document that explicitly authorizes HID attack techniques against specific systems and IP ranges. Keep this document accessible during testing.</p>
+        </div>
+
+        <p>For students and researchers, always test on equipment you personally own, on dedicated lab VMs, or in approved lab environments. Never test on school, employer, or public systems without explicit written authorization from the system owner — not just IT staff, but the organizational authority responsible for security testing approvals.</p>
+    </div>
+
+    <!-- Section 5: Dev Environment -->
+    <div class="section" id="s5">
+        <div class="section-label">Section 5</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> Setting Up Your Development Environment</h2>
+        <p>We will set up a Raspberry Pi Pico (or Pico W) with the pico-ducky firmware, enabling CircuitPython-based DuckyScript payload execution. This setup costs approximately $4–$6 USD in hardware.</p>
+
+        <p><strong>Hardware required:</strong></p>
+        <ul class="content-list">
+            <li>Raspberry Pi Pico or Pico W (RP2040 microcontroller)</li>
+            <li>USB Micro-B to USB-A cable (data-capable, not charge-only)</li>
+            <li>A host computer with a free USB-A port</li>
+        </ul>
+
+        <p><strong>Step 1 — Flash CircuitPython 9.x onto the Pico:</strong></p>
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Shell — Flash Procedure</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre><span class="cm"># 1. Hold BOOTSEL button on the Pico while plugging into USB
+#    The Pico mounts as a USB Mass Storage device named RPI-RP2</span>
+
+<span class="cm"># 2. Download CircuitPython 9.x UF2 for Raspberry Pi Pico
+#    from https://circuitpython.org/board/raspberry_pi_pico/</span>
+<span class="cm"># 3. Copy the UF2 file to the RPI-RP2 drive</span>
+
+cp adafruit-circuitpython-raspberry_pi_pico-en_US-9.1.4.uf2 /Volumes/RPI-RP2/
+
+<span class="cm"># The Pico reboots automatically and mounts as CIRCUITPY</span>
+<span class="cm"># You will see: boot.py  code.py  lib/</span></pre>
+        </div>
+
+        <p><strong>Step 2 — Install pico-ducky firmware:</strong></p>
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Shell — pico-ducky Setup</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre><span class="cm"># Clone the pico-ducky repository</span>
+git clone https://github.com/dbisu/pico-ducky.git
+cd pico-ducky
+
+<span class="cm"># Copy required files to the CIRCUITPY drive
+# (adjust mount point for your OS)</span>
+
+<span class="cm"># macOS:</span>
+cp duckyinpython.py /Volumes/CIRCUITPY/code.py
+cp -r lib/ /Volumes/CIRCUITPY/lib/
+
+<span class="cm"># Linux (typical mount point):</span>
+cp duckyinpython.py /media/$USER/CIRCUITPY/code.py
+cp -r lib/ /media/$USER/CIRCUITPY/lib/
+
+<span class="cm"># Windows (Pico appears as drive letter, e.g., D:\):</span>
+<span class="cm"># Copy duckyinpython.py to D:\code.py</span>
+<span class="cm"># Copy lib\ folder to D:\lib\</span></pre>
+        </div>
+
+        <p><strong>Step 3 — Create your payload file:</strong></p>
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">DuckyScript — payload.dd</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre><span class="cm">REM Test payload — verifies the Pico is working correctly</span>
+<span class="kw">DELAY</span> 2000
+<span class="kw">GUI</span> r
+<span class="kw">DELAY</span> 500
+<span class="kw">STRING</span> <span class="str">notepad</span>
+<span class="kw">ENTER</span>
+<span class="kw">DELAY</span> 800
+<span class="kw">STRING</span> <span class="str">pico-ducky is operational</span>
+<span class="kw">ENTER</span></pre>
+        </div>
+
+        <p><strong>Step 4 — Trigger-switch wiring (optional but recommended):</strong></p>
+        <p>pico-ducky supports a hardware safety switch. Connecting GPIO pins 1 and 2 with a jumper wire puts the device in "setup mode" (does not execute the payload), allowing you to update scripts safely while plugged in.</p>
+
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">GPIO Safety Switch Diagram</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>  Pi Pico GPIO Layout (relevant pins)
+
+  [GP0] ---- [GP1]   <-- Connect with jumper = SETUP MODE (safe)
+                          Remove jumper        = ATTACK MODE (payload runs)
+
+  Board orientation: USB connector at top
+  Pin 1 = GP0 (leftmost top row)
+  Pin 2 = GP1 (second from left, top row)</pre>
+        </div>
+
+        <div class="callout callout-tip">
+            <div class="callout-title">Pro Tip: VS Code + CircuitPython Extension</div>
+            <p>Install the CircuitPython extension for VS Code (by Joedevivo). It provides serial console access, syntax highlighting, and direct file sync to the CIRCUITPY drive. The serial console at 115200 baud shows print() output from your code.py — essential for debugging payloads.</p>
+        </div>
+    </div>
+
+    <!-- Section 6: Objectives Summary -->
+    <div class="section" id="s6">
+        <div class="section-label">Module Summary</div>
+        <h2 class="section-title"><span class="section-icon">&#9654;</span> What You Have Learned</h2>
+        <ul class="content-list">
+            <li>HID is a USB class that defines how keyboards communicate with host computers using report descriptors and polling</li>
+            <li>Operating systems grant unconditional trust to HID keyboards — no driver installation, no authentication, no user prompt</li>
+            <li>Keystroke injection has evolved from hand-programmed Teensy boards to consumer products like the USB Rubber Ducky and DIY platforms like the Pi Pico</li>
+            <li>All keystroke injection testing requires explicit written authorization from the system owner</li>
+            <li>The Pi Pico running CircuitPython 9.x with pico-ducky firmware is the recommended learning platform: $4–$6 hardware, open source, and fully scriptable</li>
+        </ul>
+    </div>
+
+    <nav class="module-nav">
+        <span></span>
+        <span class="nav-center">Module 01 of 08</span>
+        <a href="ducky-course-02-basics.html" class="nav-btn next">Module 02: DuckyScript Fundamentals &#8594;</a>
+    </nav>
+
+</main>
+
+<script>
+    // Scroll progress bar
+    window.addEventListener('scroll', () => {
+        const el = document.getElementById('scrollBar');
+        const doc = document.documentElement;
+        const scrolled = doc.scrollTop / (doc.scrollHeight - doc.clientHeight) * 100;
+        el.style.width = scrolled + '%';
+    });
+
+    // Section reveal on scroll
+    const sections = document.querySelectorAll('.section');
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.08 });
+    sections.forEach(s => observer.observe(s));
+
+    // Copy button
+    function copyCode(btn) {
+        const pre = btn.closest('.code-block').querySelector('pre');
+        navigator.clipboard.writeText(pre.innerText).then(() => {
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 2000);
+        });
+    }
+</script>
+
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
