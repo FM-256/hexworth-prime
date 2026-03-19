@@ -209,6 +209,16 @@ class BrowserInstance {
             }
         }
 
+        // Try without leading slash
+        if (!pageDef && !path.startsWith('/')) {
+            pageDef = pages['/' + path];
+        }
+
+        // Try with leading slash removed
+        if (!pageDef && path.startsWith('/')) {
+            pageDef = pages[path.substring(1)];
+        }
+
         if (!pageDef) {
             this._render404(path);
             return;
