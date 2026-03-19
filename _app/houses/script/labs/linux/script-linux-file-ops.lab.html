@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mission: File Operations - Script House</title>
     <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
     <script src="../../../../components/LinuxTerminal.js"></script>
     <script src="../../../../components/ProgressiveHints.js"></script>
-    <style id="access-guard-preload">body { visibility: hidden; }</style>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%); color: #e0e0e0; min-height: 100vh; }
@@ -216,13 +216,28 @@
         LinuxTerminal.print('Build a course module from scratch.');
     }
 
+    // Check ALL objectives on every command — not just the current one.
+    // This handles out-of-order completion and re-validation after page reload.
     function checkObjectives() {
-        const obj = MISSION.objectives[state.currentObjective];
-        if (!obj || state.completedObjectives.has(obj.id)) return;
-        if (obj.validate()) {
-            state.completedObjectives.add(obj.id);
-            LinuxTerminal.print(`[OBJECTIVE ${obj.id} COMPLETE] ${obj.title}`, 'lt-success');
-            if (state.currentObjective < MISSION.objectives.length - 1) state.currentObjective++;
+        let anyCompleted = false;
+        MISSION.objectives.forEach((obj, i) => {
+            if (state.completedObjectives.has(obj.id)) return;
+            try {
+                if (obj.validate()) {
+                    state.completedObjectives.add(obj.id);
+                    LinuxTerminal.print('[OBJECTIVE ' + obj.id + ' COMPLETE] ' + obj.title, 'lt-success');
+                    anyCompleted = true;
+                }
+            } catch (e) { /* validate may fail if filesystem state missing */ }
+        });
+        if (anyCompleted) {
+            // Advance currentObjective to next incomplete
+            for (let i = 0; i < MISSION.objectives.length; i++) {
+                if (!state.completedObjectives.has(MISSION.objectives[i].id)) {
+                    state.currentObjective = i;
+                    break;
+                }
+            }
             renderList(); updatePanel(); updateProgress();
             if (state.completedObjectives.size === MISSION.objectives.length) setTimeout(showCompletion, 500);
             saveState();
@@ -249,6 +264,17 @@
     }
 
     function updateProgress() { const n = state.completedObjectives.size; document.getElementById('completedCount').textContent = n; document.getElementById('progressFill').style.width = (n/MISSION.objectives.length*100)+'%'; }
+
+    // Inject reset button into sidebar
+    document.addEventListener('DOMContentLoaded', function() {
+        var sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+            var resetDiv = document.createElement('div');
+            resetDiv.style.cssText = 'margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);';
+            resetDiv.innerHTML = '<button onclick="resetMission()" style="background: none; border: 1px solid rgba(239,68,68,0.3); color: #f87171; font-size: 0.8rem; padding: 8px 16px; border-radius: 6px; cursor: pointer; width: 100%; font-family: inherit;">Reset Lab</button>';
+            sidebar.appendChild(resetDiv);
+        }
+    });
     function showCompletion() { document.getElementById('commandsUsed').textContent = state.commandCount; document.getElementById('hintsUsed').textContent = state.hintsRevealed; document.getElementById('completionOverlay').classList.add('show'); saveState(); }
     function resetMission() { localStorage.removeItem(MISSION.storageKey); location.reload(); }
     function saveState() { localStorage.setItem(MISSION.storageKey, JSON.stringify({ completedObjectives: [...state.completedObjectives], currentObjective: state.currentObjective, commandCount: state.commandCount, hintsRevealed: state.hintsRevealed, timestamp: Date.now() })); }
@@ -259,7 +285,8 @@
         function completeModule() {
             if (typeof ModuleProgress !== 'undefined') {
                 ModuleProgress.complete('script', 'script-linux-file-ops', {
-                    returnUrl: '../../index.html'
+                    silent: true,
+                    returnToDashboard: false
                 });
             }
         }
