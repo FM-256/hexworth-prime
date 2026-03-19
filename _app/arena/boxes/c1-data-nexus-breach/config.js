@@ -383,6 +383,38 @@ const C1Config = {
                     </div>`;
                 }
             },
+            '/shell.php': {
+                title: 'Web Shell',
+                html: function() {
+                    if (!C1Config._shellUploaded) {
+                        return '<div style="text-align:center;padding:40px;"><h1 style="color:#e74c3c;font-size:2rem;">404 Not Found</h1><p style="color:#888;">The requested URL /shell.php was not found on this server.</p></div>';
+                    }
+                    return '<div style="max-width:600px;margin:0 auto;padding:20px;">'
+                        + '<h2 style="color:#2ecc71;margin-bottom:10px;">Web Shell Active</h2>'
+                        + '<p style="color:#888;font-size:0.8rem;margin-bottom:16px;">www-data@WEB-EXT-01 &mdash; Use the terminal with curl to execute commands:</p>'
+                        + '<div style="background:#1a1a2e;color:#2ecc71;padding:16px;border-radius:6px;font-family:monospace;font-size:0.8rem;margin-bottom:12px;">'
+                        + '$ curl "http://192.168.1.100/shell.php?cmd=id"<br>'
+                        + '<span style="color:#ccc;">uid=33(www-data) gid=33(www-data) groups=33(www-data)</span><br><br>'
+                        + '$ curl "http://192.168.1.100/shell.php?cmd=ls"<br>'
+                        + '<span style="color:#ccc;">config  index.html  shell.php  upload.php  uploads</span><br><br>'
+                        + '$ curl "http://192.168.1.100/shell.php?cmd=cat+/var/www/html/config/ssh_creds.txt"<br>'
+                        + '<span style="color:#ccc;">[Try this to find SSH credentials]</span>'
+                        + '</div>'
+                        + '<p style="color:#666;font-size:0.7rem;">Tip: Use the terminal (not the browser) to execute shell commands via curl.</p>'
+                        + '</div>';
+                },
+                formHandler: null
+            },
+            '/uploads/shell.php': {
+                title: 'Web Shell',
+                html: function() {
+                    if (!C1Config._shellUploaded) {
+                        return '<div style="text-align:center;padding:40px;"><h1 style="color:#e74c3c;font-size:2rem;">404 Not Found</h1></div>';
+                    }
+                    return C1Config.webApp.pages['/shell.php'].html();
+                },
+                formHandler: null
+            },
             '/config/': {
                 title: 'Forbidden',
                 html: `<div style="text-align:center; padding:40px;">
