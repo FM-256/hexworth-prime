@@ -1777,36 +1777,116 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
         return null;
     }
 
+    /**
+     * cp — copy files and directories.
+     * Supports: cp src dst, cp src1 src2 dir/, cp -r dir1 dir2, cp dir/* dst/
+     * Handles -r flag for recursive copy and basic glob expansion (*).
+     */
     function _cp(args) {
         if (args.length < 2) {
             return '<span class="lt-error">cp: missing file operand</span>';
         }
 
-        const src = _resolvePath(args[args.length - 2]);
-        const dst = _resolvePath(args[args.length - 1]);
-        const srcNode = state.fs[src];
-
-        if (!srcNode) {
-            return `<span class="lt-error">cp: cannot stat '${args[args.length - 2]}': No such file or directory</span>`;
+        // Parse flags
+        var recursive = false;
+        var fileArgs = [];
+        for (var i = 0; i < args.length; i++) {
+            if (args[i] === '-r' || args[i] === '-R' || args[i] === '-a' || args[i] === '-rp' || args[i] === '-pr') {
+                recursive = true;
+            } else {
+                fileArgs.push(args[i]);
+            }
         }
 
-        const dstNode = state.fs[dst];
-        let targetPath = dst;
-
-        if (dstNode && dstNode.type === 'dir') {
-            targetPath = dst + '/' + src.split('/').pop();
+        if (fileArgs.length < 2) {
+            return '<span class="lt-error">cp: missing file operand</span>';
         }
 
-        state.fs[targetPath] = { ...srcNode };
+        var dst = _resolvePath(fileArgs[fileArgs.length - 1]);
+        var sources = fileArgs.slice(0, -1);
 
-        const parentPath = targetPath.split('/').slice(0, -1).join('/') || '/';
-        const fileName = targetPath.split('/').pop();
-        const parent = state.fs[parentPath];
-        if (parent && parent.children && !parent.children.includes(fileName)) {
-            parent.children.push(fileName);
+        // Expand globs in sources
+        var expandedSources = [];
+        for (var s = 0; s < sources.length; s++) {
+            var expanded = _expandGlob(sources[s]);
+            for (var e = 0; e < expanded.length; e++) expandedSources.push(expanded[e]);
+        }
+
+        if (expandedSources.length === 0) {
+            return '<span class="lt-error">cp: cannot stat \'' + sources[0] + '\': No such file or directory</span>';
+        }
+
+        for (var si = 0; si < expandedSources.length; si++) {
+            var src = expandedSources[si];
+            var srcNode = state.fs[src];
+            if (!srcNode) continue;
+
+            if (srcNode.type === 'dir' && !recursive) {
+                return '<span class="lt-error">cp: -r not specified; omitting directory \'' + src.split('/').pop() + '\'</span>';
+            }
+
+            var dstNode = state.fs[dst];
+            var targetPath = dst;
+
+            if (dstNode && dstNode.type === 'dir') {
+                targetPath = dst + '/' + src.split('/').pop();
+            }
+
+            // Copy the node
+            state.fs[targetPath] = JSON.parse(JSON.stringify(srcNode));
+
+            var parentPath = targetPath.split('/').slice(0, -1).join('/') || '/';
+            var fileName = targetPath.split('/').pop();
+            var parent = state.fs[parentPath];
+            if (parent && parent.children && parent.children.indexOf(fileName) === -1) {
+                parent.children.push(fileName);
+            }
+
+            // Recursive: copy all children
+            if (srcNode.type === 'dir' && recursive) {
+                var keys = Object.keys(state.fs);
+                for (var k = 0; k < keys.length; k++) {
+                    if (keys[k].indexOf(src + '/') === 0) {
+                        var relPath = keys[k].substring(src.length);
+                        var newPath = targetPath + relPath;
+                        state.fs[newPath] = JSON.parse(JSON.stringify(state.fs[keys[k]]));
+                        // Ensure parent dir has child
+                        var newParent = newPath.split('/').slice(0, -1).join('/') || '/';
+                        var newName = newPath.split('/').pop();
+                        if (state.fs[newParent] && state.fs[newParent].children && state.fs[newParent].children.indexOf(newName) === -1) {
+                            state.fs[newParent].children.push(newName);
+                        }
+                    }
+                }
+            }
         }
 
         return null;
+    }
+
+    /**
+     * Expand basic glob patterns (e.g., /dir/* → list of files in /dir/).
+     * Returns array of resolved paths.
+     */
+    function _expandGlob(pattern) {
+        if (pattern.indexOf('*') === -1) {
+            return [_resolvePath(pattern)];
+        }
+
+        // Handle dir/* pattern
+        var parts = pattern.split('*');
+        var dirPath = _resolvePath(parts[0].replace(/\/$/, ''));
+        var dirNode = state.fs[dirPath];
+
+        if (!dirNode || dirNode.type !== 'dir' || !dirNode.children) {
+            return [];
+        }
+
+        var results = [];
+        for (var i = 0; i < dirNode.children.length; i++) {
+            results.push(dirPath + '/' + dirNode.children[i]);
+        }
+        return results;
     }
 
     function _mv(args) {
