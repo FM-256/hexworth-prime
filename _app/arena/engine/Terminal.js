@@ -189,9 +189,15 @@ class TerminalInstance {
                 return;
             }
             const output = customCommands[cmd](args, this, this.engine);
-            if (output) this._appendOutput(output);
-            this._scrollToBottom();
-            return;
+            // If custom command returns null, fall through to built-in handler
+            // This allows context-aware overrides that defer to defaults when not in their context
+            if (output === null) {
+                // Fall through to built-in commands below
+            } else {
+                if (output) this._appendOutput(output);
+                this._scrollToBottom();
+                return;
+            }
         }
 
         // Built-in commands
@@ -515,6 +521,8 @@ class TerminalInstance {
     // ────────────────────────────────────────────────
 
     _getPromptText() {
+        // Custom prompt override — set by box configs for context switching
+        if (this._customPrompt) return this._customPrompt;
         if (this.config.terminal?.promptStyle === 'windows') {
             return `${this.cwd}>`;
         }

@@ -190,8 +190,19 @@ const C1Config = {
     _portForwardActive: false,
     _dbConnected: false,
 
-    _switchContext(ctx) {
+    _switchContext(ctx, term) {
         C1Config._context = ctx;
+        // Update terminal prompt to match context
+        if (term && term.config) {
+            var prompt = C1Config._getPrompt();
+            if (prompt) {
+                term.config.user = prompt.split('@')[0] || 'kali';
+                term.config.hostname = 'context';
+                term._customPrompt = prompt;
+            } else {
+                term._customPrompt = null;
+            }
+        }
     },
 
     _getPrompt() {
@@ -842,7 +853,7 @@ postgres:x:26:26:PostgreSQL Server:/var/lib/pgsql:/bin/bash`;
             // SSH to WEB-EXT-01
             if (fullCmd.includes('nexusadmin') || fullCmd.includes('192.168.1.100')) {
                 C1Config._sshAuthenticated = true;
-                C1Config._switchContext('ssh-web');
+                C1Config._switchContext('ssh-web', term);
                 if (engine) engine.advancePhase && engine.advancePhase('foothold');
                 return `The authenticity of host '192.168.1.100 (192.168.1.100)' can't be established.
 ED25519 key fingerprint is SHA256:xR4j8kF2nP9mQw7tB5vE1dL6cY0uA3hS8gN4iJ2oK5.
@@ -942,7 +953,7 @@ rtt min/avg/max/mdev = 0.380/0.416/0.450/0.029 ms`;
 
             if (fullCmd.includes('clientuser') && fullCmd.includes('nexus_clients')) {
                 C1Config._dbConnected = true;
-                C1Config._switchContext('db');
+                C1Config._switchContext('db', term);
                 return `Password for user clientuser: ********
 psql (14.10)
 SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384)
@@ -1039,12 +1050,73 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
             return C1Config.commands.ss(args);
         },
 
+        // Context-aware built-in overrides — these intercept ls/cat/whoami/id
+        // when in ssh-web context so they show WEB-EXT-01's files, not kali's
+        'cat': function(args, term, engine) {
+            if (C1Config._context !== 'ssh-web') return null; // fall through to built-in
+            var path = args[0] || '';
+            if (path.includes('ssh_creds') || path.includes('config/ssh')) {
+                return '# SSH Credentials for WEB-EXT-01\n# Left by IT for remote maintenance\n# TODO: Remove this file before production\n\nUsername: nexusadmin\nPassword: nexusadmin\n\n{{FLAG:user}}';
+            }
+            if (path.includes('database.php') || path.includes('config/database')) {
+                return '<?php\n// Database configuration — DB-CLIENTS-01\n// Internal network only\n$db_host = "10.10.1.10";\n$db_port = 5432;\n$db_name = "nexus_clients";\n$db_user = "clientuser";\n$db_pass = "clientpass";\n\n// Connection string:\n// psql -h 10.10.1.10 -U clientuser -d nexus_clients\n?>\n\n{{FLAG:internal}}';
+            }
+            if (path.includes('/etc/passwd')) {
+                return 'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\nnexusadmin:x:1001:1001:Nexus Admin:/home/nexusadmin:/bin/bash\npostgres:x:26:26:PostgreSQL Server:/var/lib/pgsql:/bin/bash';
+            }
+            if (path.includes('/etc/hostname')) return 'WEB-EXT-01';
+            if (path.includes('.bash_history')) return 'sudo systemctl restart apache2\ncd /var/www/html\nnano config/database.php\nps aux | grep python\nsudo tail -f /var/log/auth.log';
+            return 'cat: ' + path + ': No such file or directory';
+        },
+
+        'ls': function(args, term, engine) {
+            if (C1Config._context !== 'ssh-web') return null; // fall through to built-in
+            var path = args.find(function(a) { return !a.startsWith('-'); }) || '.';
+            if (path === '.' || path === '/home/nexusadmin' || path === '~') {
+                return '.bash_history  .bashrc  .profile  .ssh';
+            }
+            if (path.includes('/var/www/html') || path.includes('www')) {
+                return 'config  index.html  shell.php  upload.php  uploads';
+            }
+            if (path.includes('config')) {
+                return 'database.php  ssh_creds.txt';
+            }
+            return '';
+        },
+
+        'whoami': function(args, term, engine) {
+            if (C1Config._context === 'ssh-web') return 'nexusadmin';
+            if (C1Config._context === 'db') return 'clientuser';
+            return null; // fall through to built-in
+        },
+
+        'id': function(args, term, engine) {
+            if (C1Config._context === 'ssh-web') return 'uid=1001(nexusadmin) gid=1001(nexusadmin) groups=1001(nexusadmin),27(sudo)';
+            return null; // fall through to built-in
+        },
+
+        'hostname': function(args, term, engine) {
+            if (C1Config._context === 'ssh-web') return 'WEB-EXT-01';
+            if (C1Config._context === 'db') return 'DB-CLIENTS-01';
+            return null; // fall through to built-in
+        },
+
+        'pwd': function(args, term, engine) {
+            if (C1Config._context === 'ssh-web') return '/home/nexusadmin';
+            return null; // fall through to built-in
+        },
+
+        'cd': function(args, term, engine) {
+            if (C1Config._context === 'ssh-web') return ''; // silently accept
+            return null; // fall through to built-in
+        },
+
         'exit': function(args, term, engine) {
             if (C1Config._context === 'db') {
                 return C1Config.commands['\\q']([], term, engine);
             }
             if (C1Config._context === 'ssh-web') {
-                C1Config._switchContext('attacker');
+                C1Config._switchContext('attacker', term);
                 return 'Connection to 192.168.1.100 closed.\n[+] Returned to attacker machine.';
             }
             return 'logout';
