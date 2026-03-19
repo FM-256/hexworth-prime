@@ -1,0 +1,2499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Dojo — Interactive Vulnerability Training</title>
+    <style>
+        /* ===================================================
+           BASE & RESET
+           =================================================== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-base:        #0a0508;
+            --bg-panel:       #0f0814;
+            --bg-code:        #1a1025;
+            --bg-elevated:    #140d1e;
+            --border-subtle:  rgba(100, 60, 130, 0.15);
+            --border-med:     rgba(100, 60, 130, 0.25);
+            --border-accent:  rgba(147, 51, 234, 0.4);
+            --purple-main:    #9333ea;
+            --purple-light:   #a855f7;
+            --purple-dim:     #6a4a7a;
+            --purple-muted:   #5a3a6a;
+            --purple-faint:   #3a2a4a;
+            --text-bright:    #c4a0d8;
+            --text-mid:       #8a6a9a;
+            --text-dim:       #6a4a7a;
+            --text-faint:     #4a3a5a;
+            --green-bright:   #22c55e;
+            --green-dim:      rgba(34, 197, 94, 0.15);
+            --green-border:   rgba(34, 197, 94, 0.4);
+            --red-bright:     #ef4444;
+            --red-dim:        rgba(239, 68, 68, 0.12);
+            --red-border:     rgba(239, 68, 68, 0.35);
+            --yellow-bright:  #f59e0b;
+            --yellow-dim:     rgba(245, 158, 11, 0.12);
+            --yellow-border:  rgba(245, 158, 11, 0.35);
+            --blue-bright:    #3b82f6;
+            --font-mono:      'Courier New', 'Lucida Console', monospace;
+            --font-serif:     'Georgia', 'Times New Roman', serif;
+            --radius-sm:      4px;
+            --radius-md:      6px;
+            --radius-lg:      8px;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-base);
+            font-family: var(--font-serif);
+            color: var(--text-mid);
+            overflow-x: hidden;
+        }
+
+        /* Ambient background gradient — matches vault style */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 25% 15%, rgba(80, 40, 100, 0.08) 0%, transparent 55%),
+                radial-gradient(ellipse at 75% 85%, rgba(60, 20, 80, 0.06) 0%, transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ===================================================
+           HEADER
+           =================================================== */
+        .dojo-header {
+            padding: 18px 32px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(10, 5, 15, 0.95);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .back-btn {
+            color: var(--purple-dim);
+            text-decoration: none;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            transition: all 0.25s;
+            font-family: var(--font-serif);
+        }
+
+        .back-btn:hover {
+            color: var(--purple-main);
+            border-color: var(--border-accent);
+            background: rgba(147, 51, 234, 0.05);
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-title-main {
+            font-size: 0.95rem;
+            color: var(--text-bright);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .header-title-sub {
+            font-size: 0.6rem;
+            color: var(--purple-dim);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .header-progress {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .progress-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+        }
+
+        .progress-pips {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .pip {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1px solid var(--border-med);
+            background: transparent;
+            transition: all 0.4s ease;
+        }
+
+        .pip.solved {
+            background: var(--green-bright);
+            border-color: var(--green-border);
+            box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+        }
+
+        .pip.active {
+            background: var(--purple-main);
+            border-color: var(--border-accent);
+            box-shadow: 0 0 6px rgba(147, 51, 234, 0.6);
+        }
+
+        /* ===================================================
+           MAIN LAYOUT
+           =================================================== */
+        .dojo-wrapper {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 24px 24px 40px;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* ===================================================
+           CHALLENGE SELECTOR BAR
+           =================================================== */
+        .challenge-bar {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .challenge-bar-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .challenge-select {
+            flex: 1;
+            min-width: 200px;
+            background: var(--bg-code);
+            border: 1px solid var(--border-med);
+            color: var(--text-bright);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.25s;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236a4a7a' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+        }
+
+        .challenge-select:focus {
+            border-color: var(--border-accent);
+        }
+
+        .challenge-select option {
+            background: #1a1025;
+            color: #c4a0d8;
+        }
+
+        .difficulty-badge {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+
+        .difficulty-badge.beginner {
+            color: var(--green-bright);
+            border-color: var(--green-border);
+            background: var(--green-dim);
+        }
+
+        .difficulty-badge.intermediate {
+            color: var(--yellow-bright);
+            border-color: var(--yellow-border);
+            background: var(--yellow-dim);
+        }
+
+        .difficulty-badge.advanced {
+            color: var(--red-bright);
+            border-color: var(--red-border);
+            background: var(--red-dim);
+        }
+
+        .lang-badge {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            background: rgba(59, 130, 246, 0.08);
+            color: var(--blue-bright);
+            white-space: nowrap;
+        }
+
+        .challenge-desc-text {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+            flex-basis: 100%;
+            padding-top: 8px;
+            border-top: 1px solid var(--border-subtle);
+            margin-top: 2px;
+        }
+
+        .challenge-objective {
+            font-size: 0.72rem;
+            color: var(--purple-light);
+            margin-top: 4px;
+        }
+
+        /* ===================================================
+           MAIN DOJO GRID — two columns
+           =================================================== */
+        .dojo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* ===================================================
+           PANELS — shared base style
+           =================================================== */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(10, 5, 15, 0.4);
+            flex-shrink: 0;
+        }
+
+        .panel-title {
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .panel-title-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        .panel-title-dot.purple { background: var(--purple-main); box-shadow: 0 0 5px rgba(147,51,234,0.6); }
+        .panel-title-dot.green  { background: var(--green-bright); box-shadow: 0 0 5px rgba(34,197,94,0.5); }
+        .panel-title-dot.yellow { background: var(--yellow-bright); box-shadow: 0 0 5px rgba(245,158,11,0.5); }
+        .panel-title-dot.red    { background: var(--red-bright); box-shadow: 0 0 5px rgba(239,68,68,0.5); }
+
+        .panel-body {
+            flex: 1;
+            overflow: auto;
+        }
+
+        /* ===================================================
+           SOURCE CODE PANEL
+           =================================================== */
+        .code-panel .panel-body {
+            padding: 0;
+        }
+
+        .code-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            line-height: 1.7;
+        }
+
+        .code-table tr {
+            transition: background 0.25s ease;
+        }
+
+        /* Line highlight states */
+        .code-table tr.hl-input   { background: rgba(245, 158, 11, 0.12); }
+        .code-table tr.hl-filter  { background: rgba(245, 158, 11, 0.18); }
+        .code-table tr.hl-sink    { background: rgba(239, 68, 68, 0.15); }
+        .code-table tr.hl-output  { background: rgba(34, 197, 94, 0.08); }
+        .code-table tr.hl-pulse   { animation: line-pulse 0.6s ease; }
+
+        @keyframes line-pulse {
+            0%   { background: rgba(147, 51, 234, 0.0); }
+            30%  { background: rgba(147, 51, 234, 0.25); }
+            100% { background: rgba(147, 51, 234, 0.0); }
+        }
+
+        .line-num {
+            width: 40px;
+            text-align: right;
+            padding: 0 14px 0 8px;
+            color: var(--text-faint);
+            user-select: none;
+            border-right: 1px solid rgba(100, 60, 130, 0.1);
+            vertical-align: top;
+            font-size: 0.7rem;
+        }
+
+        .line-gutter {
+            width: 18px;
+            padding: 0 4px;
+            vertical-align: top;
+            text-align: center;
+        }
+
+        .line-marker {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-top: 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .line-marker.active { opacity: 1; }
+        .line-marker.m-input  { background: var(--yellow-bright); }
+        .line-marker.m-filter { background: var(--yellow-bright); }
+        .line-marker.m-sink   { background: var(--red-bright); }
+        .line-marker.m-output { background: var(--green-bright); }
+
+        .line-code {
+            padding: 0 16px 0 4px;
+            white-space: pre;
+        }
+
+        /* Syntax highlighting classes */
+        .tok-keyword  { color: #c084fc; }      /* purple */
+        .tok-string   { color: #86efac; }      /* green */
+        .tok-variable { color: #fde68a; }      /* amber */
+        .tok-comment  { color: #4a5a6a; font-style: italic; }
+        .tok-function { color: #93c5fd; }      /* blue */
+        .tok-operator { color: #f9a8d4; }      /* pink */
+        .tok-number   { color: #fdba74; }      /* orange */
+        .tok-sink     { color: #f87171; }      /* red — dangerous function */
+        .tok-input    { color: #fde68a; }      /* amber — user input point */
+        .tok-normal   { color: #b090c0; }      /* default code color */
+
+        /* Inline value preview shown during animation */
+        .val-preview {
+            display: inline-block;
+            background: rgba(147, 51, 234, 0.15);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.7rem;
+            color: #a78bfa;
+            margin-left: 8px;
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: middle;
+            opacity: 0;
+            transform: translateX(-4px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .val-preview.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* ===================================================
+           EXECUTION TRACE PANEL
+           =================================================== */
+        .trace-panel .panel-body {
+            padding: 12px 14px;
+            min-height: 200px;
+        }
+
+        .trace-idle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 160px;
+            gap: 10px;
+            color: var(--text-faint);
+        }
+
+        .trace-idle-icon {
+            width: 32px;
+            height: 32px;
+            opacity: 0.3;
+        }
+
+        .trace-idle-text {
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        /* Individual trace step */
+        .trace-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+            border: 1px solid transparent;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+        }
+
+        .trace-step.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .trace-step.ts-assign {
+            background: rgba(245, 158, 11, 0.07);
+            border-color: rgba(245, 158, 11, 0.2);
+        }
+
+        .trace-step.ts-filter {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .trace-step.ts-blocked {
+            background: rgba(239, 68, 68, 0.08);
+            border-color: rgba(239, 68, 68, 0.25);
+        }
+
+        .trace-step.ts-sink {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.35);
+        }
+
+        .trace-step.ts-output {
+            background: rgba(34, 197, 94, 0.07);
+            border-color: rgba(34, 197, 94, 0.2);
+        }
+
+        .trace-step.ts-skip {
+            background: rgba(100, 60, 130, 0.06);
+            border-color: rgba(100, 60, 130, 0.12);
+        }
+
+        .trace-step-num {
+            font-size: 0.6rem;
+            color: var(--text-faint);
+            min-width: 18px;
+            padding-top: 1px;
+        }
+
+        .trace-step-icon {
+            font-size: 0.75rem;
+            min-width: 16px;
+        }
+
+        .trace-step-content {
+            flex: 1;
+            line-height: 1.5;
+        }
+
+        .trace-step-action {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .trace-step.ts-assign .trace-step-action  { color: var(--yellow-bright); }
+        .trace-step.ts-filter .trace-step-action  { color: var(--yellow-bright); }
+        .trace-step.ts-blocked .trace-step-action { color: var(--red-bright); }
+        .trace-step.ts-sink .trace-step-action    { color: var(--red-bright); }
+        .trace-step.ts-output .trace-step-action  { color: var(--green-bright); }
+        .trace-step.ts-skip .trace-step-action    { color: var(--purple-dim); }
+
+        .trace-step-detail {
+            color: var(--text-mid);
+            word-break: break-all;
+        }
+
+        .trace-step-detail .hi-val {
+            color: #fde68a;
+            font-weight: bold;
+        }
+
+        .trace-step-detail .hi-filtered {
+            color: #f87171;
+            text-decoration: line-through;
+            margin-right: 4px;
+        }
+
+        .trace-step-detail .hi-result {
+            color: var(--green-bright);
+        }
+
+        /* Line ref badge */
+        .line-ref {
+            font-size: 0.58rem;
+            background: rgba(100, 60, 130, 0.15);
+            border: 1px solid var(--border-subtle);
+            border-radius: 3px;
+            padding: 1px 5px;
+            color: var(--purple-dim);
+            margin-left: 4px;
+        }
+
+        /* ===================================================
+           PAYLOAD INPUT ROW
+           =================================================== */
+        .payload-row {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            transition: border-color 0.3s;
+        }
+
+        .payload-row:focus-within {
+            border-color: var(--border-accent);
+        }
+
+        .payload-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .payload-input {
+            flex: 1;
+            background: var(--bg-code);
+            border: 1px solid var(--border-med);
+            color: #fde68a;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 9px 14px;
+            border-radius: var(--radius-sm);
+            outline: none;
+            transition: border-color 0.25s;
+            letter-spacing: 0.03em;
+        }
+
+        .payload-input:focus {
+            border-color: rgba(147, 51, 234, 0.5);
+        }
+
+        .payload-input::placeholder {
+            color: var(--text-faint);
+            font-style: italic;
+        }
+
+        .execute-btn {
+            background: linear-gradient(135deg, #7c3aed, #9333ea);
+            color: #fff;
+            border: none;
+            padding: 9px 22px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.25s;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .execute-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 0 16px rgba(147, 51, 234, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .execute-btn:active {
+            transform: translateY(0);
+        }
+
+        .execute-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Executing pulse animation on button */
+        .execute-btn.running::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            animation: btn-shimmer 0.8s linear infinite;
+        }
+
+        @keyframes btn-shimmer {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* ===================================================
+           BOTTOM PANELS — filters and output
+           =================================================== */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* ===================================================
+           FILTER / WAF PANEL
+           =================================================== */
+        .filter-panel .panel-body {
+            padding: 14px;
+        }
+
+        .filter-none-msg {
+            font-size: 0.7rem;
+            color: var(--text-faint);
+            font-style: italic;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        /* Pipeline step */
+        .filter-step {
+            margin-bottom: 10px;
+        }
+
+        .filter-step-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .filter-step-num {
+            font-size: 0.58rem;
+            letter-spacing: 0.1em;
+            color: var(--text-faint);
+            min-width: 14px;
+        }
+
+        .filter-step-name {
+            font-size: 0.62rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--yellow-bright);
+        }
+
+        .filter-step-rule {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            background: var(--bg-code);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 6px 10px;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+        /* Before / after display */
+        .filter-transform {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+        }
+
+        .filter-before {
+            flex: 1;
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: var(--radius-sm);
+            padding: 5px 8px;
+            color: #f87171;
+            word-break: break-all;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .filter-before.visible { opacity: 1; }
+
+        .filter-arrow {
+            color: var(--text-faint);
+            flex-shrink: 0;
+            font-size: 0.7rem;
+        }
+
+        .filter-after {
+            flex: 1;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.15);
+            border-radius: var(--radius-sm);
+            padding: 5px 8px;
+            color: var(--green-bright);
+            word-break: break-all;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .filter-after.visible { opacity: 1; }
+
+        .filter-divider {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 10px 0;
+        }
+
+        /* Final value display at bottom of filter panel */
+        .filter-final {
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .filter-final.visible { opacity: 1; }
+
+        .filter-final-label {
+            font-size: 0.58rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-bottom: 4px;
+        }
+
+        .filter-final-value {
+            color: #fde68a;
+            word-break: break-all;
+        }
+
+        /* ===================================================
+           OUTPUT PREVIEW PANEL
+           =================================================== */
+        .output-panel .panel-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .output-idle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 140px;
+            gap: 8px;
+            color: var(--text-faint);
+        }
+
+        .output-idle-icon {
+            width: 28px;
+            height: 28px;
+            opacity: 0.3;
+        }
+
+        .output-idle-text {
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        /* The simulated browser / server response */
+        .output-frame {
+            background: var(--bg-code);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .output-frame.visible { opacity: 1; }
+
+        .output-frame-bar {
+            background: rgba(10, 5, 15, 0.6);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .output-frame-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .output-frame-dot:nth-child(1) { background: rgba(239, 68, 68, 0.5); }
+        .output-frame-dot:nth-child(2) { background: rgba(245, 158, 11, 0.5); }
+        .output-frame-dot:nth-child(3) { background: rgba(34, 197, 94, 0.5); }
+
+        .output-frame-url {
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            color: var(--text-faint);
+            margin-left: 6px;
+        }
+
+        .output-frame-body {
+            padding: 14px 16px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: #c4b5fd;
+            min-height: 60px;
+            word-break: break-all;
+        }
+
+        /* Result verdict */
+        .output-verdict {
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.4s, transform 0.4s;
+        }
+
+        .output-verdict.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .output-verdict.exploited {
+            background: var(--green-dim);
+            border: 1px solid var(--green-border);
+        }
+
+        .output-verdict.blocked {
+            background: var(--red-dim);
+            border: 1px solid var(--red-border);
+        }
+
+        .output-verdict.no-effect {
+            background: rgba(100, 60, 130, 0.08);
+            border: 1px solid var(--border-med);
+        }
+
+        .verdict-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .verdict-text-main {
+            font-size: 0.8rem;
+            font-weight: bold;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .output-verdict.exploited .verdict-text-main { color: var(--green-bright); }
+        .output-verdict.blocked   .verdict-text-main { color: var(--red-bright); }
+        .output-verdict.no-effect .verdict-text-main { color: var(--purple-dim); }
+
+        .verdict-text-sub {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+            line-height: 1.4;
+        }
+
+        /* ===================================================
+           GLOW EFFECT — wraps entire dojo-wrapper on exploit
+           =================================================== */
+        .dojo-wrapper.exploit-glow .dojo-grid,
+        .dojo-wrapper.exploit-glow .bottom-grid {
+            animation: glow-pulse 1.2s ease-out;
+        }
+
+        @keyframes glow-pulse {
+            0%   { box-shadow: none; }
+            30%  { box-shadow: 0 0 40px rgba(34, 197, 94, 0.25), 0 0 80px rgba(34, 197, 94, 0.1); }
+            100% { box-shadow: none; }
+        }
+
+        /* ===================================================
+           PARTICLE CANVAS — success celebration
+           =================================================== */
+        #particleCanvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #particleCanvas.active { opacity: 1; }
+
+        /* ===================================================
+           ACTION BAR — hint, reset, next
+           =================================================== */
+        .action-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-dim);
+            font-family: var(--font-serif);
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            padding: 7px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .action-btn:hover {
+            border-color: var(--border-accent);
+            color: var(--purple-light);
+            background: rgba(147, 51, 234, 0.05);
+        }
+
+        .action-btn.next {
+            margin-left: auto;
+            border-color: rgba(147, 51, 234, 0.3);
+            color: var(--purple-light);
+        }
+
+        .action-btn.next:hover {
+            background: rgba(147, 51, 234, 0.1);
+        }
+
+        /* Hint panel */
+        .hint-panel {
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 0.75rem;
+            color: var(--purple-light);
+            line-height: 1.5;
+            display: none;
+        }
+
+        .hint-panel.visible { display: block; }
+
+        .hint-label {
+            font-size: 0.58rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--purple-dim);
+            margin-bottom: 4px;
+        }
+
+        /* ===================================================
+           ETHICAL WARNING BANNER
+           =================================================== */
+        .ethical-note {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(153, 27, 27, 0.05) 100%);
+            border: 1px solid rgba(220, 38, 38, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 10px 16px;
+            font-size: 0.68rem;
+            color: #fca5a5;
+            line-height: 1.5;
+        }
+
+        .ethical-note strong { color: #ef4444; }
+
+        /* ===================================================
+           RESPONSIVE
+           =================================================== */
+        @media (max-width: 900px) {
+            .dojo-grid   { grid-template-columns: 1fr; }
+            .bottom-grid { grid-template-columns: 1fr; }
+            .dojo-header { padding: 14px 16px; flex-wrap: wrap; gap: 10px; }
+            .dojo-wrapper { padding: 14px 12px 30px; }
+            .challenge-bar { gap: 10px; }
+        }
+
+        @media (max-width: 600px) {
+            .header-progress { display: none; }
+            .payload-row { flex-wrap: wrap; }
+            .payload-input { width: 100%; }
+        }
+
+        /* ===================================================
+           SCROLLBAR STYLING
+           =================================================== */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 60, 130, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(147, 51, 234, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================
+     PARTICLE CANVAS — success effect
+     ============================================================ -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- ============================================================
+     HEADER
+     ============================================================ -->
+<header class="dojo-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&larr; Bug Hunting</a>
+        <div class="header-title">
+            <span class="header-title-main">The Dojo</span>
+            <span class="header-title-sub">Interactive Vulnerability Training</span>
+        </div>
+    </div>
+    <div class="header-progress">
+        <span class="progress-label">Progress</span>
+        <div class="progress-pips" id="progressPips"></div>
+        <span class="progress-label" id="progressCount">0 / 8</span>
+    </div>
+</header>
+
+<!-- ============================================================
+     MAIN WRAPPER
+     ============================================================ -->
+<div class="dojo-wrapper" id="dojoWrapper">
+
+    <!-- Ethical note -->
+    <div class="ethical-note">
+        <strong>Authorized Training Only.</strong>
+        All exploits are simulated client-side. No real systems are targeted.
+        Apply these techniques only against systems you own or have explicit written permission to test.
+    </div>
+
+    <!-- Challenge selector bar -->
+    <div class="challenge-bar">
+        <span class="challenge-bar-label">Challenge</span>
+        <select class="challenge-select" id="challengeSelect">
+            <!-- Populated by JS -->
+        </select>
+        <span class="difficulty-badge" id="difficultyBadge">Beginner</span>
+        <span class="lang-badge" id="langBadge">PHP</span>
+        <div class="challenge-desc-text" id="challengeDesc"></div>
+        <div class="challenge-objective" id="challengeObjective"></div>
+    </div>
+
+    <!-- CODE + TRACE panels side by side -->
+    <div class="dojo-grid">
+
+        <!-- Source Code Panel -->
+        <div class="panel code-panel" id="codePanel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-title-dot purple"></span>
+                    Source Code
+                </div>
+                <span class="panel-title" id="codeLangLabel" style="color: var(--blue-bright);">PHP</span>
+            </div>
+            <div class="panel-body">
+                <table class="code-table" id="codeTable">
+                    <!-- Populated by JS -->
+                </table>
+            </div>
+        </div>
+
+        <!-- Execution Trace Panel -->
+        <div class="panel trace-panel" id="tracePanel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-title-dot green"></span>
+                    Execution Trace
+                </div>
+                <span class="panel-title" id="traceStatus" style="color: var(--text-faint);">Awaiting input</span>
+            </div>
+            <div class="panel-body" id="traceBody">
+                <div class="trace-idle" id="traceIdle">
+                    <img src="/assets/images/icons/icon-terminal.webp" alt="" class="trace-idle-icon"
+                         onerror="this.style.display='none'">
+                    <span class="trace-idle-text">Execute a payload to trace</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Payload input row -->
+    <div class="payload-row" id="payloadRow">
+        <span class="payload-label">Payload</span>
+        <input
+            type="text"
+            class="payload-input"
+            id="payloadInput"
+            placeholder="Enter your attack payload..."
+            autocomplete="off"
+            spellcheck="false"
+        >
+        <button class="execute-btn" id="executeBtn">Execute</button>
+    </div>
+
+    <!-- FILTER + OUTPUT panels side by side -->
+    <div class="bottom-grid">
+
+        <!-- Filter / WAF Panel -->
+        <div class="panel filter-panel" id="filterPanel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-title-dot yellow"></span>
+                    Filters / WAF
+                </div>
+                <span class="panel-title" id="filterCount" style="color: var(--text-faint);">0 rules</span>
+            </div>
+            <div class="panel-body" id="filterBody">
+                <div class="filter-none-msg" id="filterNoneMsg">No filters applied &mdash; raw input reaches the sink</div>
+            </div>
+        </div>
+
+        <!-- Output Preview Panel -->
+        <div class="panel output-panel" id="outputPanel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-title-dot red"></span>
+                    Output Preview
+                </div>
+                <span class="panel-title" id="outputStatusLabel" style="color: var(--text-faint);">No output</span>
+            </div>
+            <div class="panel-body" id="outputBody">
+                <div class="output-idle" id="outputIdle">
+                    <img src="/assets/images/icons/icon-eye.webp" alt="" class="output-idle-icon"
+                         onerror="this.style.display='none'">
+                    <span class="output-idle-text">Server response appears here</span>
+                </div>
+                <div class="output-frame" id="outputFrame">
+                    <div class="output-frame-bar">
+                        <div class="output-frame-dot"></div>
+                        <div class="output-frame-dot"></div>
+                        <div class="output-frame-dot"></div>
+                        <span class="output-frame-url" id="outputFrameUrl">https://target.local/search?q=</span>
+                    </div>
+                    <div class="output-frame-body" id="outputFrameBody"></div>
+                </div>
+                <div class="output-verdict" id="outputVerdict">
+                    <span class="verdict-icon" id="verdictIcon"></span>
+                    <div>
+                        <div class="verdict-text-main" id="verdictMain"></div>
+                        <div class="verdict-text-sub" id="verdictSub"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar">
+        <button class="action-btn" id="hintBtn">Show Hint</button>
+        <button class="action-btn" id="resetBtn">Reset</button>
+        <div class="hint-panel" id="hintPanel">
+            <div class="hint-label">Hint</div>
+            <span id="hintText"></span>
+        </div>
+        <button class="action-btn next" id="nextBtn">Next Challenge &rarr;</button>
+    </div>
+
+</div>
+
+<script>
+/* ============================================================
+   THE DOJO — Challenge Engine
+   ============================================================ */
+
+'use strict';
+
+/* ============================================================
+   CHALLENGE DEFINITIONS
+   ============================================================ */
+const CHALLENGES = [
+
+    /* ----------------------------------------------------------
+       1. Reflected XSS — No Filter
+       ---------------------------------------------------------- */
+    {
+        id: 'xss-basic',
+        title: 'Reflected XSS — No Filter',
+        difficulty: 'Beginner',
+        language: 'PHP',
+        description: 'A search page reflects user input directly into the HTML response without any sanitization or escaping.',
+        objective: 'Inject a script tag or event handler that would execute JavaScript in a real browser.',
+        hint: 'The input goes straight into the HTML output. What happens if you include HTML tags like \x3cscript\x3ealert(1)\x3c\/script\x3e or an event handler like \x3cimg src=x onerror=alert(1)\x3e?',
+
+        /* Source code lines — each has a type for syntax coloring */
+        code: [
+            { line: 1,  text: '<?php',                                                 role: 'keyword' },
+            { line: 2,  text: '  // Fetch user input from the GET parameter',          role: 'comment' },
+            { line: 3,  text: '  $search = $_GET["q"];',                               role: 'input'   },
+            { line: 4,  text: '  // No sanitization!',                                 role: 'vuln'    },
+            { line: 5,  text: '  echo "<h1>Results for: " . $search . "</h1>";',        role: 'sink'    },
+            { line: 6,  text: '?>',                                                     role: 'keyword' }
+        ],
+
+        /* Filters applied in order — empty means no WAF */
+        filters: [],
+
+        /* Check function: receives the final (post-filter) value, returns bool */
+        check: function(payload) {
+            return /<script[\s>]/i.test(payload) ||
+                   /on\w+\s*=/i.test(payload) ||
+                   /javascript:/i.test(payload);
+        },
+
+        /* Rendered output — shown in the frame */
+        render: function(payload) {
+            return '&lt;h1&gt;Results for: ' + escHtml(payload) + '&lt;/h1&gt;';
+        },
+
+        /* Execution trace — array of steps */
+        trace: function(input) {
+            return [
+                { type: 'assign',  line: 3, action: 'Input Received',  detail: '$search = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',    line: 4, action: 'No Sanitization',  detail: 'Input passes directly — no filtering applied' },
+                { type: 'sink',    line: 5, action: 'Sink Reached',     detail: 'echo "<h1>Results for: <span class="hi-val">' + escHtml(input) + '</span></h1>"' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/search?q='
+    },
+
+    /* ----------------------------------------------------------
+       2. Reflected XSS — Basic Filter
+       ---------------------------------------------------------- */
+    {
+        id: 'xss-filter',
+        title: 'Reflected XSS — Basic Filter',
+        difficulty: 'Beginner',
+        language: 'PHP',
+        description: 'The developer added a simple str_replace to strip &lt;script&gt; tags. But is that enough?',
+        objective: 'Bypass the script-tag filter and inject executable JavaScript.',
+        hint: 'str_replace is case-sensitive. Try <SCRIPT> or use an HTML element with an event handler like <img src=x onerror=alert(1)>. Script tags are not the only XSS vector.',
+
+        code: [
+            { line: 1,  text: '<?php',                                                                         role: 'keyword' },
+            { line: 2,  text: '  $search = $_GET["q"];',                                                       role: 'input'   },
+            { line: 3,  text: '  // "Security": strip script tags',                                            role: 'comment' },
+            { line: 4,  text: '  $search = str_replace("<script>", "", $search);',                              role: 'filter'  },
+            { line: 5,  text: '  // BUG: case-sensitive, misses event handlers',                               role: 'vuln'    },
+            { line: 6,  text: '  echo "<h1>Results for: " . $search . "</h1>";',                               role: 'sink'    },
+            { line: 7,  text: '?>',                                                                             role: 'keyword' }
+        ],
+
+        filters: [
+            {
+                name: 'Script Tag Strip',
+                rule: 'str_replace("\x3cscript\x3e", "", $input)  // case-sensitive',
+                apply: function(v) { return v.split('\x3cscript\x3e').join(''); }
+            }
+        ],
+
+        check: function(payload) {
+            /* The filter already ran — check the filtered value */
+            return /<script[\s>]/i.test(payload) ||
+                   /on\w+\s*=/i.test(payload) ||
+                   /javascript:/i.test(payload);
+        },
+
+        render: function(payload) {
+            return '&lt;h1&gt;Results for: ' + escHtml(payload) + '&lt;/h1&gt;';
+        },
+
+        trace: function(input, filtered) {
+            const steps = [
+                { type: 'assign',  line: 2, action: 'Input Received',    detail: '$search = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'filter',  line: 4, action: 'Filter Applied',    detail: '<span class="hi-filtered">' + escHtml(input) + '</span> &rarr; <span class="hi-result">' + escHtml(filtered) + '</span>' }
+            ];
+            if (input !== filtered) {
+                steps.push({ type: 'skip', line: 5, action: 'Partial Match', detail: '&lt;script&gt; (lowercase) was removed but other vectors survive' });
+            } else {
+                steps.push({ type: 'skip', line: 5, action: 'Filter Miss', detail: 'No lowercase &lt;script&gt; found — input unchanged' });
+            }
+            steps.push({ type: 'sink', line: 6, action: 'Sink Reached', detail: 'echo outputs filtered value: <span class="hi-val">' + escHtml(filtered) + '</span>' });
+            return steps;
+        },
+
+        frameUrl: 'https://target.local/search?q='
+    },
+
+    /* ----------------------------------------------------------
+       3. SQL Injection — Login Bypass
+       ---------------------------------------------------------- */
+    {
+        id: 'sqli-basic',
+        title: 'SQL Injection — Login Bypass',
+        difficulty: 'Beginner',
+        language: 'PHP / MySQL',
+        description: 'A login form builds its SQL query by concatenating unsanitized user input directly into the query string.',
+        objective: 'Bypass authentication and log in without a valid password using SQL injection.',
+        hint: "The username field is embedded directly in the SQL. Try: ' OR 1=1 -- (the -- comments out the password check). The space after -- is important in MySQL.",
+
+        code: [
+            { line: 1,  text: '<?php',                                                                                         role: 'keyword' },
+            { line: 2,  text: '  $user = $_POST["username"];',                                                                  role: 'input'   },
+            { line: 3,  text: '  $pass = $_POST["password"];',                                                                  role: 'input'   },
+            { line: 4,  text: '  // VULNERABLE: string concatenation',                                                          role: 'vuln'    },
+            { line: 5,  text: "  $query = \"SELECT * FROM users\"",                                                              role: 'sink'    },
+            { line: 6,  text: "           . \" WHERE user='$user'\"",                                                            role: 'sink'    },
+            { line: 7,  text: "           . \" AND pass='$pass'\";",                                                             role: 'sink'    },
+            { line: 8,  text: '  $result = $db->query($query);',                                                                role: 'sink'    },
+            { line: 9,  text: "  if ($result->num_rows > 0) { /* logged in */ }",                                               role: 'keyword' },
+            { line: 10, text: '?>',                                                                                              role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            /* Simulate: does the injected query always return rows? */
+            const q = "SELECT * FROM users WHERE user='" + payload + "' AND pass='anything'";
+            /* Naive simulation — look for SQL tautology patterns */
+            return /'\s*(or|OR|\|\|)\s*('1'='1'|1=1|'a'='a'|true)/i.test(payload) ||
+                   /'\s*(or|OR)\s+\d+\s*=\s*\d+/i.test(payload) ||
+                   /'\s*--/i.test(payload) ||
+                   /'\s*#/i.test(payload) ||
+                   /'\s*\/\*/i.test(payload);
+        },
+
+        render: function(payload) {
+            const q = "SELECT * FROM users WHERE user='" + payload + "' AND pass='[hidden]'";
+            return '<span style="color:#c084fc">SELECT</span> * <span style="color:#c084fc">FROM</span> users <span style="color:#c084fc">WHERE</span> user=<span style="color:#86efac">\'</span><span style="color:#fde68a">' + escHtml(payload) + '</span><span style="color:#86efac">\'</span> <span style="color:#c084fc">AND</span> pass=<span style="color:#86efac">\'[hidden]\'</span>';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 2,  action: 'Username Received',  detail: '$user = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 5,  action: 'Query Built',        detail: 'SELECT * FROM users WHERE user=\'<span class="hi-val">' + escHtml(input) + '</span>\' AND pass=\'...\''},
+                { type: 'sink',   line: 8,  action: 'Query Executed',     detail: 'db->query() sends the constructed string to MySQL' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/login'
+    },
+
+    /* ----------------------------------------------------------
+       4. SQL Injection — WAF Bypass
+       ---------------------------------------------------------- */
+    {
+        id: 'sqli-waf',
+        title: 'SQL Injection — WAF Bypass',
+        difficulty: 'Intermediate',
+        language: 'PHP / MySQL',
+        description: 'A WAF intercepts requests and blocks keywords like OR, AND, and comment sequences. The underlying query is still vulnerable.',
+        objective: 'Bypass the WAF and inject a tautology that always evaluates to true.',
+        hint: "Try MySQL alternatives: || instead of OR, /**/ for spaces, %00 as a null byte, or double-URL-encode keywords. Example: ' || 1=1 -- or use UNION-based probes.",
+
+        code: [
+            { line: 1,  text: '# WAF Rules (ModSecurity-style):',                      role: 'comment' },
+            { line: 2,  text: '#   Block: /\\b(OR|AND)\\b/i',                          role: 'comment' },
+            { line: 3,  text: "#   Block: /--|\\/\\*/",                                role: 'comment' },
+            { line: 4,  text: '#   Block: /UNION|SELECT/i',                            role: 'comment' },
+            { line: 5,  text: '',                                                        role: 'normal'  },
+            { line: 6,  text: '<?php',                                                  role: 'keyword' },
+            { line: 7,  text: '  $user = waf_filter($_POST["username"]);',             role: 'filter'  },
+            { line: 8,  text: "  $query = \"SELECT * FROM users\"",                    role: 'sink'    },
+            { line: 9,  text: "           . \" WHERE user='$user'\";",                 role: 'sink'    },
+            { line: 10, text: '  $db->query($query);',                                  role: 'sink'    },
+            { line: 11, text: '?>',                                                      role: 'keyword' }
+        ],
+
+        filters: [
+            {
+                name: 'WAF Keyword Block',
+                rule: 'Block: OR, AND, --, /*, UNION, SELECT (case-insensitive)',
+                apply: function(v) {
+                    /* Simulate WAF: if blocked keywords present, return BLOCKED sentinel */
+                    if (/\b(OR|AND|UNION|SELECT)\b/i.test(v) || /--|\/\*/.test(v)) {
+                        return '__BLOCKED__';
+                    }
+                    return v;
+                }
+            }
+        ],
+
+        check: function(payload) {
+            /* WAF already ran — if not blocked, check for tautology bypass */
+            if (payload === '__BLOCKED__') return false;
+            /* MySQL || operator or other tautologies that bypass the WAF keywords */
+            return /'\s*\|\|\s*['"']?[01]/i.test(payload) ||
+                   /'\s*\|\|\s*\d+\s*=/i.test(payload) ||
+                   /'[\s\t\r\n]+\|\|/i.test(payload) ||
+                   /* URL-encoded bypass */
+                   /%6f%72/i.test(payload) ||
+                   /%4f%52/i.test(payload);
+        },
+
+        render: function(payload) {
+            if (payload === '__BLOCKED__') {
+                return '<span style="color:#ef4444">403 Forbidden — WAF Blocked Request</span>';
+            }
+            return '<span style="color:#c084fc">SELECT</span> * <span style="color:#c084fc">FROM</span> users <span style="color:#c084fc">WHERE</span> user=<span style="color:#86efac">\'</span><span style="color:#fde68a">' + escHtml(payload) + '</span><span style="color:#86efac">\'</span>';
+        },
+
+        trace: function(input, filtered) {
+            const steps = [
+                { type: 'assign', line: 7, action: 'Input to WAF',    detail: 'Checking payload: <span class="hi-val">' + escHtml(input) + '</span>' }
+            ];
+            if (filtered === '__BLOCKED__') {
+                steps.push({ type: 'blocked', line: 7, action: 'WAF Triggered', detail: 'Blocked keyword detected — request rejected with 403' });
+            } else {
+                steps.push({ type: 'skip',   line: 7, action: 'WAF Bypassed',  detail: 'No blocked keywords matched — payload passed through' });
+                steps.push({ type: 'sink',   line: 8, action: 'Query Built',   detail: "SELECT * FROM users WHERE user='<span class='hi-val'>" + escHtml(filtered) + "</span>'" });
+                steps.push({ type: 'sink',   line: 10, action: 'Executed',     detail: 'Injected query sent to MySQL engine' });
+            }
+            return steps;
+        },
+
+        frameUrl: 'https://target.local/login'
+    },
+
+    /* ----------------------------------------------------------
+       5. Command Injection — Ping
+       ---------------------------------------------------------- */
+    {
+        id: 'cmdi-basic',
+        title: 'Command Injection — Ping',
+        difficulty: 'Intermediate',
+        language: 'Python',
+        description: 'A network diagnostic tool passes user-supplied hostnames directly to os.system(). The shell interprets the full string, including any injected commands.',
+        objective: 'Inject an OS command that reads /etc/passwd or reveals the running user.',
+        hint: "Shell metacharacters chain commands. Try: ; cat /etc/passwd or | id or && whoami. The application runs ping then your injected command executes in the same shell.",
+
+        code: [
+            { line: 1,  text: 'import os',                                              role: 'keyword' },
+            { line: 2,  text: 'from flask import Flask, request',                       role: 'keyword' },
+            { line: 3,  text: '',                                                        role: 'normal'  },
+            { line: 4,  text: 'app = Flask(__name__)',                                  role: 'normal'  },
+            { line: 5,  text: '',                                                        role: 'normal'  },
+            { line: 6,  text: '@app.route("/ping")',                                    role: 'function'},
+            { line: 7,  text: 'def ping():',                                            role: 'function'},
+            { line: 8,  text: '    host = request.args.get("host")',                    role: 'input'   },
+            { line: 9,  text: '    # No input validation!',                             role: 'vuln'    },
+            { line: 10, text: '    cmd = "ping -c 1 " + host',                          role: 'sink'    },
+            { line: 11, text: '    output = os.system(cmd)',                            role: 'sink'    },
+            { line: 12, text: '    return str(output)',                                 role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /[;&|`$]/.test(payload) ||
+                   /\$\(/.test(payload) ||
+                   /%0a/i.test(payload) ||
+                   /\n/.test(payload);
+        },
+
+        render: function(payload) {
+            return 'os.system(<span style="color:#86efac">"ping -c 1 </span><span style="color:#fde68a">' + escHtml(payload) + '</span><span style="color:#86efac">"</span>)';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 8,  action: 'Input Received',   detail: 'host = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 9,  action: 'No Validation',    detail: 'Input passed directly — shell metacharacters not stripped' },
+                { type: 'sink',   line: 10, action: 'Command Built',    detail: 'cmd = "ping -c 1 <span class="hi-val">' + escHtml(input) + '</span>"' },
+                { type: 'sink',   line: 11, action: 'Shell Executed',   detail: 'os.system() passes string to /bin/sh — injected commands run as app user' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/ping?host='
+    },
+
+    /* ----------------------------------------------------------
+       6. Command Injection — Filtered
+       ---------------------------------------------------------- */
+    {
+        id: 'cmdi-filter',
+        title: 'Command Injection — Filtered',
+        difficulty: 'Intermediate',
+        language: 'Python',
+        description: 'The developer added a denylist that strips semicolons, pipes, and ampersands — but the filter is incomplete.',
+        objective: 'Bypass the metacharacter filter and inject a command that executes.',
+        hint: "The filter blocks ; | & but misses $() (command substitution), backticks `, and URL-encoded newline %0a. Try: $(id) or a newline-separated command.",
+
+        code: [
+            { line: 1,  text: 'import os, re',                                          role: 'keyword' },
+            { line: 2,  text: '',                                                        role: 'normal'  },
+            { line: 3,  text: 'def safe_ping(host):',                                   role: 'function'},
+            { line: 4,  text: '    # Denylist — blocks ; | &',                          role: 'comment' },
+            { line: 5,  text: '    host = re.sub(r"[;|&]", "", host)',                  role: 'filter'  },
+            { line: 6,  text: '    # BUG: misses $(), backticks, newlines',             role: 'vuln'    },
+            { line: 7,  text: '    cmd = f"ping -c 1 {host}"',                          role: 'sink'    },
+            { line: 8,  text: '    return os.system(cmd)',                              role: 'sink'    }
+        ],
+
+        filters: [
+            {
+                name: 'Metacharacter Strip',
+                rule: "re.sub(r'[;|&]', '', host)  // only blocks ; | &",
+                apply: function(v) {
+                    return v.replace(/[;|&]/g, '');
+                }
+            }
+        ],
+
+        check: function(payload) {
+            /* After filter — $(), backticks, newlines survive */
+            return /\$\(/.test(payload) ||
+                   /`/.test(payload) ||
+                   /(%0a|\n)/i.test(payload) ||
+                   /\$\{/.test(payload);
+        },
+
+        render: function(payload) {
+            return 'os.system(<span style="color:#86efac">f"ping -c 1 </span><span style="color:#fde68a">' + escHtml(payload) + '</span><span style="color:#86efac">"</span>)';
+        },
+
+        trace: function(input, filtered) {
+            return [
+                { type: 'assign',  line: 4, action: 'Input Received',  detail: 'host = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'filter',  line: 5, action: 'Denylist Applied', detail: '<span class="hi-filtered">' + escHtml(input) + '</span> &rarr; <span class="hi-result">' + escHtml(filtered) + '</span>' },
+                { type: 'sink',    line: 7, action: 'Command Built',    detail: 'f"ping -c 1 <span class="hi-val">' + escHtml(filtered) + '</span>"' },
+                { type: 'sink',    line: 8, action: 'Shell Executed',   detail: '$() and backticks evaluated by shell — command substitution runs' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/ping?host='
+    },
+
+    /* ----------------------------------------------------------
+       7. SSTI — Jinja2
+       ---------------------------------------------------------- */
+    {
+        id: 'ssti-jinja2',
+        title: 'SSTI — Jinja2 Template Engine',
+        difficulty: 'Advanced',
+        language: 'Python / Flask',
+        description: 'User input is passed directly to render_template_string(), allowing injection of Jinja2 template expressions that execute on the server.',
+        objective: 'Inject a Jinja2 expression that performs server-side computation, then escalate to RCE.',
+        hint: "Jinja2 evaluates {{...}} as expressions. Start with {{7*7}} to confirm SSTI (you'll see 49). Escalate with {{''.__class__.__mro__[1].__subclasses__()}} to enumerate Python internals.",
+
+        code: [
+            { line: 1,  text: 'from flask import Flask, request',                                   role: 'keyword' },
+            { line: 2,  text: 'from flask import render_template_string',                           role: 'keyword' },
+            { line: 3,  text: '',                                                                    role: 'normal'  },
+            { line: 4,  text: "@app.route('/greet')",                                               role: 'function'},
+            { line: 5,  text: 'def greet():',                                                       role: 'function'},
+            { line: 6,  text: '    name = request.args.get("name", "World")',                       role: 'input'   },
+            { line: 7,  text: '    # CRITICAL: user input in template string!',                     role: 'vuln'    },
+            { line: 8,  text: "    template = 'Hello ' + name",                                     role: 'sink'    },
+            { line: 9,  text: '    return render_template_string(template)',                        role: 'sink'    }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            /* Detect Jinja2 expression delimiters */
+            return /\{\{.*\}\}/.test(payload) ||
+                   /\{%.*%\}/.test(payload) ||
+                   /\{#.*#\}/.test(payload);
+        },
+
+        render: function(payload) {
+            /* Simulate Jinja2 evaluation of {{7*7}} → 49 */
+            let rendered = escHtml(payload);
+            rendered = rendered.replace(/\{\{7\s*\*\s*7\}\}/g,
+                '<span style="color:#22c55e;font-weight:bold">49</span>');
+            rendered = rendered.replace(/\{\{['"].*?['"].*?\}\}/g,
+                '<span style="color:#22c55e">[python object]</span>');
+            return '<span style="color:#b090c0">Hello </span>' + rendered;
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 6, action: 'Input Received',     detail: 'name = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 8, action: 'Template Built',     detail: "template = 'Hello ' + <span class='hi-val'>" + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 9, action: 'Template Rendered',  detail: 'render_template_string() parses Jinja2 {{...}} as live expressions — server evaluates them' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/greet?name='
+    },
+
+    /* ----------------------------------------------------------
+       8. Path Traversal — File Read
+       ---------------------------------------------------------- */
+    {
+        id: 'path-traversal',
+        title: 'Path Traversal — File Read',
+        difficulty: 'Advanced',
+        language: 'Node.js',
+        description: 'A file download endpoint concatenates user input to a base path without normalization, allowing traversal outside the uploads directory.',
+        objective: 'Read /etc/passwd by traversing out of the uploads directory.',
+        hint: "The code prepends 'uploads/' to your input. Use ../ to go up a directory level. Try: ../../../etc/passwd. You may need to try different depths depending on the server's directory structure.",
+
+        code: [
+            { line: 1,  text: "const fs   = require('fs');",                           role: 'keyword' },
+            { line: 2,  text: "const path = require('path');",                         role: 'keyword' },
+            { line: 3,  text: '',                                                        role: 'normal'  },
+            { line: 4,  text: "app.get('/download', (req, res) => {",                  role: 'function'},
+            { line: 5,  text: '    const file = req.query.file;',                      role: 'input'   },
+            { line: 6,  text: '    // VULNERABLE: no path normalization',              role: 'vuln'    },
+            { line: 7,  text: "    const filePath = 'uploads/' + file;",               role: 'sink'    },
+            { line: 8,  text: '    // No check that filePath stays in uploads/',       role: 'vuln'    },
+            { line: 9,  text: '    fs.readFile(filePath, (err, data) => {',            role: 'sink'    },
+            { line: 10, text: '        res.send(data);',                               role: 'sink'    },
+            { line: 11, text: '    });',                                                role: 'keyword' },
+            { line: 12, text: '});',                                                    role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /\.\.\//.test(payload) ||
+                   /\.\.\\/.test(payload) ||
+                   /%2e%2e/i.test(payload) ||
+                   /\.\.[\/\\]/.test(payload) ||
+                   /etc\/passwd/i.test(payload);
+        },
+
+        render: function(payload) {
+            const full = 'uploads/' + payload;
+            return "fs.readFile(<span style='color:#fde68a'>'" + escHtml(full) + "'</span>, callback)";
+        },
+
+        trace: function(input) {
+            const constructed = 'uploads/' + input;
+            return [
+                { type: 'assign', line: 5,  action: 'Input Received',    detail: 'file = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 6,  action: 'No Normalization',  detail: 'path.resolve() or path.normalize() NOT called — traversal sequences survive' },
+                { type: 'sink',   line: 7,  action: 'Path Built',        detail: "filePath = 'uploads/' + file = <span class='hi-val'>" + escHtml(constructed) + '</span>' },
+                { type: 'sink',   line: 9,  action: 'File Read',         detail: 'fs.readFile opens <span class="hi-val">' + escHtml(constructed) + '</span> — traversal escapes uploads/ directory' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/download?file='
+    }
+];
+
+/* ============================================================
+   UTILITY FUNCTIONS
+   ============================================================ */
+
+/** HTML-escape a string for safe display in innerHTML contexts */
+function escHtml(str) {
+    if (typeof str !== 'string') str = String(str);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/** Truncate a string for display if too long */
+function truncate(str, max) {
+    max = max || 80;
+    if (str.length <= max) return str;
+    return str.slice(0, max) + '...';
+}
+
+/** Apply all filters in sequence and return {final, steps[]} */
+function applyFilters(filters, raw) {
+    const steps = [];
+    let current = raw;
+    for (let i = 0; i < filters.length; i++) {
+        const before = current;
+        current = filters[i].apply(before);
+        steps.push({ filter: filters[i], before: before, after: current });
+    }
+    return { final: current, steps: steps };
+}
+
+/* ============================================================
+   PROGRESS TRACKING
+   ============================================================ */
+const STORAGE_KEY = 'hexworth_dojo_progress';
+
+function loadProgress() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    } catch (e) {
+        return {};
+    }
+}
+
+function saveProgress(progress) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    } catch (e) {}
+}
+
+function markSolved(challengeId) {
+    const p = loadProgress();
+    p[challengeId] = true;
+    saveProgress(p);
+}
+
+function isSolved(challengeId) {
+    return !!loadProgress()[challengeId];
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let currentChallengeIndex = 0;
+let isAnimating = false;
+let hintVisible = false;
+
+/* ============================================================
+   DOM REFERENCES — cached at init
+   ============================================================ */
+const dom = {};
+
+function cacheDom() {
+    dom.select         = document.getElementById('challengeSelect');
+    dom.diffBadge      = document.getElementById('difficultyBadge');
+    dom.langBadge      = document.getElementById('langBadge');
+    dom.desc           = document.getElementById('challengeDesc');
+    dom.objective      = document.getElementById('challengeObjective');
+    dom.codeLangLabel  = document.getElementById('codeLangLabel');
+    dom.codeTable      = document.getElementById('codeTable');
+    dom.traceBody      = document.getElementById('traceBody');
+    dom.traceIdle      = document.getElementById('traceIdle');
+    dom.traceStatus    = document.getElementById('traceStatus');
+    dom.payloadInput   = document.getElementById('payloadInput');
+    dom.executeBtn     = document.getElementById('executeBtn');
+    dom.filterBody     = document.getElementById('filterBody');
+    dom.filterNoneMsg  = document.getElementById('filterNoneMsg');
+    dom.filterCount    = document.getElementById('filterCount');
+    dom.outputIdle     = document.getElementById('outputIdle');
+    dom.outputFrame    = document.getElementById('outputFrame');
+    dom.outputFrameUrl = document.getElementById('outputFrameUrl');
+    dom.outputFrameBody= document.getElementById('outputFrameBody');
+    dom.outputVerdict  = document.getElementById('outputVerdict');
+    dom.verdictIcon    = document.getElementById('verdictIcon');
+    dom.verdictMain    = document.getElementById('verdictMain');
+    dom.verdictSub     = document.getElementById('verdictSub');
+    dom.outputStatus   = document.getElementById('outputStatusLabel');
+    dom.hintBtn        = document.getElementById('hintBtn');
+    dom.hintPanel      = document.getElementById('hintPanel');
+    dom.hintText       = document.getElementById('hintText');
+    dom.resetBtn       = document.getElementById('resetBtn');
+    dom.nextBtn        = document.getElementById('nextBtn');
+    dom.progressPips   = document.getElementById('progressPips');
+    dom.progressCount  = document.getElementById('progressCount');
+    dom.dojoWrapper    = document.getElementById('dojoWrapper');
+    dom.canvas         = document.getElementById('particleCanvas');
+}
+
+/* ============================================================
+   BUILD CHALLENGE SELECTOR
+   ============================================================ */
+function buildSelector() {
+    const progress = loadProgress();
+    dom.select.innerHTML = '';
+    CHALLENGES.forEach(function(ch, idx) {
+        const opt = document.createElement('option');
+        const solved = progress[ch.id] ? ' [Solved]' : '';
+        opt.value = idx;
+        opt.textContent = (idx + 1) + '. ' + ch.title + solved;
+        dom.select.appendChild(opt);
+    });
+    dom.select.value = currentChallengeIndex;
+}
+
+/* ============================================================
+   RENDER PROGRESS PIPS
+   ============================================================ */
+function renderProgress() {
+    const progress = loadProgress();
+    dom.progressPips.innerHTML = '';
+    let solvedCount = 0;
+    CHALLENGES.forEach(function(ch, idx) {
+        const pip = document.createElement('div');
+        pip.className = 'pip';
+        if (progress[ch.id]) {
+            pip.classList.add('solved');
+            solvedCount++;
+        } else if (idx === currentChallengeIndex) {
+            pip.classList.add('active');
+        }
+        dom.progressPips.appendChild(pip);
+    });
+    dom.progressCount.textContent = solvedCount + ' / ' + CHALLENGES.length;
+}
+
+/* ============================================================
+   LOAD A CHALLENGE — populate all panels
+   ============================================================ */
+function loadChallenge(idx) {
+    currentChallengeIndex = idx;
+    const ch = CHALLENGES[idx];
+
+    /* Update selector */
+    dom.select.value = idx;
+
+    /* Badges */
+    dom.diffBadge.textContent = ch.difficulty;
+    dom.diffBadge.className = 'difficulty-badge ' + ch.difficulty.toLowerCase().split(' ')[0];
+    dom.langBadge.textContent = ch.language;
+    dom.codeLangLabel.textContent = ch.language;
+
+    /* Description */
+    dom.desc.textContent = ch.description;
+    dom.objective.textContent = 'Objective: ' + ch.objective;
+
+    /* Source code */
+    renderCode(ch);
+
+    /* Filters */
+    renderFilterPanel(ch);
+
+    /* Reset output / trace panels */
+    resetOutputPanels();
+
+    /* Hint */
+    hintVisible = false;
+    dom.hintPanel.classList.remove('visible');
+    dom.hintBtn.textContent = 'Show Hint';
+    dom.hintText.textContent = ch.hint;
+
+    /* Progress */
+    renderProgress();
+    buildSelector();
+
+    /* Clear input */
+    dom.payloadInput.value = '';
+    dom.payloadInput.focus();
+
+    /* Frame URL */
+    dom.outputFrameUrl.textContent = ch.frameUrl || 'https://target.local/';
+}
+
+/* ============================================================
+   RENDER SOURCE CODE TABLE
+   ============================================================ */
+function renderCode(ch) {
+    dom.codeTable.innerHTML = '';
+    ch.code.forEach(function(lineObj) {
+        const tr = document.createElement('tr');
+        tr.id = 'code-line-' + lineObj.line;
+        tr.dataset.line = lineObj.line;
+
+        /* Line number cell */
+        const tdNum = document.createElement('td');
+        tdNum.className = 'line-num';
+        tdNum.textContent = lineObj.line;
+
+        /* Gutter marker cell */
+        const tdGutter = document.createElement('td');
+        tdGutter.className = 'line-gutter';
+        const marker = document.createElement('span');
+        marker.className = 'line-marker';
+        marker.id = 'marker-' + lineObj.line;
+        tdGutter.appendChild(marker);
+
+        /* Code content cell */
+        const tdCode = document.createElement('td');
+        tdCode.className = 'line-code';
+        tdCode.innerHTML = syntaxHighlight(lineObj.text, lineObj.role);
+
+        /* Append value preview span (hidden by default) */
+        const valSpan = document.createElement('span');
+        valSpan.className = 'val-preview';
+        valSpan.id = 'val-' + lineObj.line;
+        tdCode.appendChild(valSpan);
+
+        tr.appendChild(tdNum);
+        tr.appendChild(tdGutter);
+        tr.appendChild(tdCode);
+        dom.codeTable.appendChild(tr);
+    });
+}
+
+/* ============================================================
+   SYNTAX HIGHLIGHTING
+   Applies CSS token classes based on line role + content
+   ============================================================ */
+function syntaxHighlight(text, role) {
+    if (!text) return '&nbsp;';
+    let escaped = escHtml(text);
+
+    /* Color based on semantic role first */
+    if (role === 'comment') {
+        return '<span class="tok-comment">' + escaped + '</span>';
+    }
+
+    /* Apply per-token patterns */
+    const rules = [
+        /* PHP keywords */
+        { re: /\b(echo|if|else|return|function|class|new|null|true|false|require|include)\b/g,
+          cls: 'tok-keyword' },
+        /* Python/JS keywords */
+        { re: /\b(import|from|def|return|async|await|const|let|var|require|module\.exports|app\.get|app\.route)\b/g,
+          cls: 'tok-keyword' },
+        /* SQL keywords */
+        { re: /\b(SELECT|FROM|WHERE|AND|OR|INSERT|UPDATE|DELETE|JOIN|ON|AS)\b/g,
+          cls: 'tok-keyword' },
+        /* PHP/Python built-in dangerous functions */
+        { re: /\b(os\.system|exec|eval|render_template_string|system|passthru|popen)\b/g,
+          cls: 'tok-sink' },
+        /* PHP builtins */
+        { re: /\b(str_replace|htmlspecialchars|mysqli_real_escape_string|filter_input|re\.sub|fs\.readFile)\b/g,
+          cls: 'tok-function' },
+        /* Variables: $var or python vars */
+        { re: /(\$\w+)/g, cls: 'tok-variable' },
+        /* Strings */
+        { re: /(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;)/g, cls: 'tok-string' }
+    ];
+
+    /* Sink role overrides */
+    if (role === 'sink') {
+        return '<span class="tok-sink">' + escaped + '</span>';
+    }
+    if (role === 'input') {
+        return '<span class="tok-input">' + escaped + '</span>';
+    }
+    if (role === 'filter') {
+        return '<span class="tok-function">' + escaped + '</span>';
+    }
+    if (role === 'vuln') {
+        return '<span class="tok-comment">' + escaped + '</span>';
+    }
+
+    /* Generic highlighting for other lines */
+    rules.forEach(function(rule) {
+        escaped = escaped.replace(rule.re, function(m) {
+            return '<span class="' + rule.cls + '">' + m + '</span>';
+        });
+    });
+
+    return escaped || '<span class="tok-normal">' + escHtml(text) + '</span>';
+}
+
+/* ============================================================
+   RENDER FILTER PANEL (static rules display)
+   ============================================================ */
+function renderFilterPanel(ch) {
+    dom.filterBody.innerHTML = '';
+    if (!ch.filters || ch.filters.length === 0) {
+        dom.filterBody.appendChild(dom.filterNoneMsg);
+        dom.filterNoneMsg.style.display = 'block';
+        dom.filterCount.textContent = '0 rules';
+        return;
+    }
+
+    dom.filterCount.textContent = ch.filters.length + ' rule' + (ch.filters.length > 1 ? 's' : '');
+
+    ch.filters.forEach(function(f, idx) {
+        const stepEl = document.createElement('div');
+        stepEl.className = 'filter-step';
+        stepEl.id = 'filter-step-' + idx;
+
+        stepEl.innerHTML =
+            '<div class="filter-step-header">' +
+                '<span class="filter-step-num">' + (idx + 1) + '</span>' +
+                '<span class="filter-step-name">' + escHtml(f.name) + '</span>' +
+            '</div>' +
+            '<div class="filter-step-rule">' + escHtml(f.rule) + '</div>' +
+            '<div class="filter-transform" id="filter-transform-' + idx + '">' +
+                '<div class="filter-before" id="filter-before-' + idx + '">—</div>' +
+                '<span class="filter-arrow">&rarr;</span>' +
+                '<div class="filter-after" id="filter-after-' + idx + '">—</div>' +
+            '</div>';
+
+        if (idx < ch.filters.length - 1) {
+            const divider = document.createElement('div');
+            divider.className = 'filter-divider';
+            stepEl.appendChild(divider);
+        }
+
+        dom.filterBody.appendChild(stepEl);
+    });
+
+    /* Final value display */
+    const finalEl = document.createElement('div');
+    finalEl.className = 'filter-final';
+    finalEl.id = 'filter-final';
+    finalEl.innerHTML =
+        '<div class="filter-final-label">Value Reaching Sink</div>' +
+        '<div class="filter-final-value" id="filter-final-value">—</div>';
+    dom.filterBody.appendChild(finalEl);
+}
+
+/* ============================================================
+   RESET OUTPUT PANELS
+   ============================================================ */
+function resetOutputPanels() {
+    /* Trace */
+    dom.traceBody.innerHTML = '';
+    dom.traceBody.appendChild(dom.traceIdle);
+    dom.traceIdle.style.display = 'flex';
+    dom.traceStatus.textContent = 'Awaiting input';
+    dom.traceStatus.style.color = 'var(--text-faint)';
+
+    /* Output */
+    dom.outputIdle.style.display = 'flex';
+    dom.outputFrame.classList.remove('visible');
+    dom.outputFrameBody.textContent = '';
+    dom.outputVerdict.className = 'output-verdict';
+    dom.outputVerdict.style.display = 'none';
+    dom.outputStatus.textContent = 'No output';
+    dom.outputStatus.style.color = 'var(--text-faint)';
+
+    /* Reset filter before/after displays */
+    const ch = CHALLENGES[currentChallengeIndex];
+    if (ch.filters) {
+        ch.filters.forEach(function(_, idx) {
+            const before = document.getElementById('filter-before-' + idx);
+            const after  = document.getElementById('filter-after-' + idx);
+            if (before) { before.textContent = '—'; before.classList.remove('visible'); }
+            if (after)  { after.textContent = '—';  after.classList.remove('visible');  }
+        });
+    }
+    const finalEl = document.getElementById('filter-final');
+    if (finalEl) finalEl.classList.remove('visible');
+
+    /* Reset code line highlights */
+    const rows = dom.codeTable.querySelectorAll('tr');
+    rows.forEach(function(tr) {
+        tr.className = '';
+        const marker = tr.querySelector('.line-marker');
+        if (marker) { marker.className = 'line-marker'; }
+        const val = tr.querySelector('.val-preview');
+        if (val) { val.textContent = ''; val.classList.remove('visible'); }
+    });
+}
+
+/* ============================================================
+   HIGHLIGHT A CODE LINE (during animation)
+   role: 'input' | 'filter' | 'sink' | 'output' | 'pulse'
+   ============================================================ */
+function highlightLine(lineNum, role, value) {
+    const tr = document.getElementById('code-line-' + lineNum);
+    if (!tr) return;
+
+    /* Remove existing highlight classes */
+    tr.classList.remove('hl-input', 'hl-filter', 'hl-sink', 'hl-output', 'hl-pulse');
+    tr.classList.add('hl-' + role);
+
+    /* Marker dot */
+    const marker = document.getElementById('marker-' + lineNum);
+    if (marker) {
+        marker.className = 'line-marker m-' + role + ' active';
+    }
+
+    /* Value preview */
+    if (value !== undefined && value !== null) {
+        const valEl = document.getElementById('val-' + lineNum);
+        if (valEl) {
+            valEl.textContent = truncate(value, 40);
+            valEl.classList.add('visible');
+        }
+    }
+}
+
+/* ============================================================
+   APPEND A TRACE STEP (with animation delay handled externally)
+   ============================================================ */
+function appendTraceStep(stepData, stepNum) {
+    /* Remove idle placeholder */
+    dom.traceIdle.style.display = 'none';
+
+    const typeMap = {
+        assign:  { cls: 'ts-assign',  icon: '&rarr;' },
+        filter:  { cls: 'ts-filter',  icon: '~' },
+        blocked: { cls: 'ts-blocked', icon: '&times;' },
+        sink:    { cls: 'ts-sink',    icon: '!' },
+        output:  { cls: 'ts-output',  icon: '&#10003;' },
+        skip:    { cls: 'ts-skip',    icon: '-' }
+    };
+
+    const t = typeMap[stepData.type] || typeMap.skip;
+
+    const el = document.createElement('div');
+    el.className = 'trace-step ' + t.cls;
+
+    el.innerHTML =
+        '<span class="trace-step-num">' + stepNum + '</span>' +
+        '<span class="trace-step-icon">' + t.icon + '</span>' +
+        '<div class="trace-step-content">' +
+            '<div class="trace-step-action">' + escHtml(stepData.action) + '<span class="line-ref">L' + stepData.line + '</span></div>' +
+            '<div class="trace-step-detail">' + stepData.detail + '</div>' +
+        '</div>';
+
+    dom.traceBody.appendChild(el);
+
+    /* Trigger animation on next frame */
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            el.classList.add('visible');
+        });
+    });
+
+    return el;
+}
+
+/* ============================================================
+   EXECUTE ANIMATION — main orchestrator
+   ============================================================ */
+function executePayload() {
+    if (isAnimating) return;
+
+    const raw = dom.payloadInput.value;
+    if (!raw.trim()) {
+        dom.payloadInput.focus();
+        /* Brief shake */
+        dom.payloadInput.style.borderColor = 'rgba(239,68,68,0.6)';
+        setTimeout(function() { dom.payloadInput.style.borderColor = ''; }, 600);
+        return;
+    }
+
+    const ch = CHALLENGES[currentChallengeIndex];
+    isAnimating = true;
+    dom.executeBtn.disabled = true;
+    dom.executeBtn.classList.add('running');
+    dom.executeBtn.textContent = 'Running...';
+    dom.traceStatus.textContent = 'Executing...';
+    dom.traceStatus.style.color = 'var(--yellow-bright)';
+
+    /* Reset panels first */
+    resetOutputPanels();
+
+    /* Apply filters */
+    const filterResult = applyFilters(ch.filters || [], raw);
+    const finalPayload = filterResult.final;
+
+    /* Get trace steps from challenge */
+    const traceSteps = ch.trace(raw, finalPayload);
+
+    /* Get success verdict */
+    const exploited = ch.check(finalPayload);
+
+    /* --- Animation sequence --- */
+    const STEP_MS = 320;
+    const BASE_DELAY = 150;
+
+    let timeOffset = BASE_DELAY;
+
+    /* Animate each trace step + corresponding code line highlight */
+    traceSteps.forEach(function(step, idx) {
+        setTimeout(function() {
+            /* Code line highlight */
+            const hlRole = step.type === 'assign'  ? 'input'  :
+                           step.type === 'filter'  ? 'filter' :
+                           step.type === 'blocked' ? 'sink'   :
+                           step.type === 'sink'    ? 'sink'   :
+                           step.type === 'output'  ? 'output' : 'pulse';
+            highlightLine(step.line, hlRole, null);
+
+            /* Trace step */
+            appendTraceStep(step, idx + 1);
+        }, timeOffset + idx * STEP_MS);
+    });
+
+    timeOffset += traceSteps.length * STEP_MS;
+
+    /* Animate filter panel before/after */
+    filterResult.steps.forEach(function(fstep, idx) {
+        setTimeout(function() {
+            const beforeEl = document.getElementById('filter-before-' + idx);
+            const afterEl  = document.getElementById('filter-after-' + idx);
+            if (beforeEl) {
+                beforeEl.textContent = truncate(fstep.before, 50) || '(empty)';
+                beforeEl.classList.add('visible');
+            }
+            if (afterEl) {
+                afterEl.textContent = fstep.after === '__BLOCKED__' ? '[BLOCKED]' : (truncate(fstep.after, 50) || '(empty)');
+                afterEl.classList.add('visible');
+            }
+        }, BASE_DELAY + idx * STEP_MS);
+    });
+
+    /* Show filter final value */
+    if (ch.filters && ch.filters.length > 0) {
+        setTimeout(function() {
+            const finalEl = document.getElementById('filter-final');
+            const finalValEl = document.getElementById('filter-final-value');
+            if (finalEl && finalValEl) {
+                finalValEl.textContent = finalPayload === '__BLOCKED__' ? '[BLOCKED — request rejected]' : truncate(finalPayload, 60);
+                finalEl.classList.add('visible');
+            }
+        }, BASE_DELAY + filterResult.steps.length * STEP_MS);
+    }
+
+    /* Render output frame */
+    setTimeout(function() {
+        dom.outputIdle.style.display = 'none';
+        dom.outputFrameUrl.textContent = (ch.frameUrl || 'https://target.local/') + encodeURIComponent(raw).slice(0, 60);
+        dom.outputFrameBody.innerHTML = ch.render(finalPayload);
+        dom.outputFrame.classList.add('visible');
+    }, timeOffset + 50);
+
+    /* Show verdict */
+    setTimeout(function() {
+        showVerdict(exploited, finalPayload);
+        isAnimating = false;
+        dom.executeBtn.disabled = false;
+        dom.executeBtn.classList.remove('running');
+        dom.executeBtn.textContent = 'Execute';
+        dom.traceStatus.textContent = exploited ? 'Exploited' : 'Blocked / No Effect';
+        dom.traceStatus.style.color = exploited ? 'var(--green-bright)' : 'var(--red-bright)';
+
+        if (exploited) {
+            markSolved(ch.id);
+            renderProgress();
+            buildSelector();
+            triggerExploitEffect();
+        }
+    }, timeOffset + 400);
+}
+
+/* ============================================================
+   SHOW VERDICT PANEL
+   ============================================================ */
+function showVerdict(exploited, payload) {
+    const v = dom.outputVerdict;
+    v.style.display = 'flex';
+
+    if (payload === '__BLOCKED__') {
+        v.className = 'output-verdict blocked visible';
+        dom.verdictIcon.innerHTML = '<img src="/assets/images/icons/icon-shield.webp" alt="" style="width:20px;height:20px;object-fit:contain" onerror="this.replaceWith(document.createTextNode(\'[X]\'))">';
+        dom.verdictMain.textContent = 'WAF Blocked';
+        dom.verdictSub.textContent = 'The WAF rejected your payload before it reached the application.';
+        dom.outputStatus.textContent = 'Blocked';
+        dom.outputStatus.style.color = 'var(--red-bright)';
+    } else if (exploited) {
+        v.className = 'output-verdict exploited visible';
+        dom.verdictIcon.innerHTML = '<img src="/assets/images/icons/icon-check.webp" alt="" style="width:20px;height:20px;object-fit:contain" onerror="this.replaceWith(document.createTextNode(\'[!]\'))">';
+        dom.verdictMain.textContent = 'Vulnerability Exploited';
+        dom.verdictSub.textContent = 'Your payload triggered the vulnerability. In a real system, this would represent a confirmed security issue.';
+        dom.outputStatus.textContent = 'Exploited';
+        dom.outputStatus.style.color = 'var(--green-bright)';
+    } else {
+        v.className = 'output-verdict no-effect visible';
+        dom.verdictIcon.innerHTML = '<img src="/assets/images/icons/icon-target.webp" alt="" style="width:20px;height:20px;object-fit:contain" onerror="this.replaceWith(document.createTextNode(\'[-]\'))">';
+        dom.verdictMain.textContent = 'No Vulnerability Triggered';
+        dom.verdictSub.textContent = 'The payload did not meet the exploitation criteria. Try a different approach.';
+        dom.outputStatus.textContent = 'No Effect';
+        dom.outputStatus.style.color = 'var(--text-dim)';
+    }
+}
+
+/* ============================================================
+   SUCCESS EFFECT — particle burst + glow
+   ============================================================ */
+function triggerExploitEffect() {
+    /* Glow on wrapper grid panels */
+    dom.dojoWrapper.classList.add('exploit-glow');
+    setTimeout(function() { dom.dojoWrapper.classList.remove('exploit-glow'); }, 1400);
+
+    /* Particle burst */
+    spawnParticles();
+}
+
+/* ============================================================
+   PARTICLE SYSTEM
+   ============================================================ */
+const particleCanvas = document.getElementById('particleCanvas');
+const ctx = particleCanvas.getContext('2d');
+let particles = [];
+let animFrameId = null;
+
+function resizeCanvas() {
+    particleCanvas.width  = window.innerWidth;
+    particleCanvas.height = window.innerHeight;
+}
+
+function spawnParticles() {
+    resizeCanvas();
+    particleCanvas.classList.add('active');
+
+    const cx = window.innerWidth  * 0.5;
+    const cy = window.innerHeight * 0.4;
+
+    /* Create burst of particles */
+    particles = [];
+    const COLORS = ['#22c55e', '#a855f7', '#fde68a', '#86efac', '#c084fc', '#6ee7b7'];
+    for (let i = 0; i < 80; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 3 + Math.random() * 7;
+        particles.push({
+            x:     cx,
+            y:     cy,
+            vx:    Math.cos(angle) * speed,
+            vy:    Math.sin(angle) * speed - 2,
+            size:  2 + Math.random() * 4,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+            life:  1.0,
+            decay: 0.012 + Math.random() * 0.018,
+            gravity: 0.15
+        });
+    }
+
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    animateParticles();
+}
+
+function animateParticles() {
+    ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+
+    let alive = false;
+    particles.forEach(function(p) {
+        p.life -= p.decay;
+        if (p.life <= 0) return;
+        alive = true;
+
+        p.vy += p.gravity;
+        p.x  += p.vx;
+        p.y  += p.vy;
+
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle   = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur  = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
+
+    if (alive) {
+        animFrameId = requestAnimationFrame(animateParticles);
+    } else {
+        particleCanvas.classList.remove('active');
+        ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+        animFrameId = null;
+    }
+}
+
+/* ============================================================
+   EVENT LISTENERS
+   ============================================================ */
+function bindEvents() {
+    /* Challenge selector */
+    dom.select.addEventListener('change', function() {
+        loadChallenge(parseInt(this.value, 10));
+    });
+
+    /* Execute button */
+    dom.executeBtn.addEventListener('click', executePayload);
+
+    /* Enter key on input */
+    dom.payloadInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') executePayload();
+    });
+
+    /* Hint toggle */
+    dom.hintBtn.addEventListener('click', function() {
+        hintVisible = !hintVisible;
+        dom.hintPanel.classList.toggle('visible', hintVisible);
+        dom.hintBtn.textContent = hintVisible ? 'Hide Hint' : 'Show Hint';
+    });
+
+    /* Reset */
+    dom.resetBtn.addEventListener('click', function() {
+        if (isAnimating) return;
+        dom.payloadInput.value = '';
+        resetOutputPanels();
+        dom.payloadInput.focus();
+    });
+
+    /* Next challenge */
+    dom.nextBtn.addEventListener('click', function() {
+        const next = (currentChallengeIndex + 1) % CHALLENGES.length;
+        loadChallenge(next);
+    });
+
+    /* Canvas resize */
+    window.addEventListener('resize', resizeCanvas);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function init() {
+    cacheDom();
+    bindEvents();
+    buildSelector();
+    loadChallenge(0);
+    resizeCanvas();
+}
+
+/* Run after DOM is ready */
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
