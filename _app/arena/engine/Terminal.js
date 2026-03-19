@@ -182,8 +182,8 @@ class TerminalInstance {
         }
 
         if (isCustom) {
-            // Intercept --help/-h for all custom commands
-            if (args.includes('--help') || args.includes('-h') || (args.length === 1 && args[0] === 'help')) {
+            // Intercept --help for custom commands (but NOT -h — many tools use -h for host/hostname)
+            if (args.includes('--help') || (args.length === 1 && args[0] === 'help')) {
                 this._appendOutput(`Usage: ${cmd} [options] [arguments]\nType 'help' for a list of available commands.`);
                 this._scrollToBottom();
                 return;
