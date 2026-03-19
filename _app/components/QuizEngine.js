@@ -558,14 +558,21 @@ class QuizEngine {
      * @returns {Promise<{score, total, percentage, passed, results: [{correct: bool}]}>}
      */
     async _gradeViaServer(quizId, answers) {
-        // Requires Firebase Functions SDK to be loaded
-        if (typeof firebase === 'undefined' || !firebase.functions) {
-            throw new Error('Firebase Functions SDK not available.');
+        // Try FirebaseAuth.callFunction first (modular SDK — loaded on most pages)
+        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.callFunction) {
+            await FirebaseAuth.waitForAuth();
+            const response = await FirebaseAuth.callFunction('gradeQuiz', { quizId, answers });
+            return response.data;
         }
 
-        const gradeQuiz = firebase.functions().httpsCallable('gradeQuiz');
-        const response = await gradeQuiz({ quizId, answers });
-        return response.data;
+        // Fallback: Firebase compat SDK (legacy pages)
+        if (typeof firebase !== 'undefined' && firebase.functions) {
+            const gradeQuiz = firebase.functions().httpsCallable('gradeQuiz');
+            const response = await gradeQuiz({ quizId, answers });
+            return response.data;
+        }
+
+        throw new Error('No Firebase SDK available for server grading. Ensure FirebaseAuth.js is loaded.');
     }
 
     /**
