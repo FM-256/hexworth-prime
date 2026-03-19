@@ -1124,7 +1124,7 @@
     <div class="header-progress">
         <span class="progress-label">Progress</span>
         <div class="progress-pips" id="progressPips"></div>
-        <span class="progress-label" id="progressCount">0 / 8</span>
+        <span class="progress-label" id="progressCount">0 / 24</span>
     </div>
 </header>
 
@@ -1938,6 +1938,829 @@ const CHALLENGES = [
         },
 
         frameUrl: 'https://target.local/download?file='
+    },
+
+    /* ----------------------------------------------------------
+       9. XSS — DOM-based
+       ---------------------------------------------------------- */
+    {
+        id: 'xss-dom',
+        title: 'XSS — DOM-based',
+        difficulty: 'Intermediate',
+        language: 'JavaScript',
+        description: 'A single-page application reads the URL hash fragment and writes it directly into the page using innerHTML. The payload never touches the server.',
+        objective: 'Craft a URL hash fragment that executes JavaScript via the DOM sink.',
+        hint: 'The hash is written to innerHTML via location.hash.substring(1). Try \x3cimg src=x onerror=alert(1)\x3e or \x3csvg onload=alert(1)\x3e as the hash value.',
+
+        code: [
+            { line: 1,  text: '// app.js — client-side routing',                             role: 'comment' },
+            { line: 2,  text: 'window.addEventListener("hashchange", function() {',          role: 'function'},
+            { line: 3,  text: '    var userInput = location.hash.substring(1);',             role: 'input'   },
+            { line: 4,  text: '    // VULNERABLE: DOM XSS sink',                             role: 'vuln'    },
+            { line: 5,  text: "    document.getElementById('output').innerHTML = userInput;", role: 'sink'    },
+            { line: 6,  text: '});',                                                          role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /<script[\s>]/i.test(payload) ||
+                   /on\w+\s*=/i.test(payload) ||
+                   /javascript:/i.test(payload);
+        },
+
+        render: function(payload) {
+            return 'document.getElementById(\'output\').innerHTML = <span style="color:#fde68a">"' + escHtml(payload) + '"</span>';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 3, action: 'Hash Read',       detail: 'userInput = location.hash.substring(1) = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 4, action: 'No Sanitization', detail: 'Input written to DOM without encoding or sanitization' },
+                { type: 'sink',   line: 5, action: 'innerHTML Sink',  detail: 'innerHTML parses <span class="hi-val">' + escHtml(input) + '</span> as live HTML — event handlers execute' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/app#'
+    },
+
+    /* ----------------------------------------------------------
+       10. XSS — Stored Comment
+       ---------------------------------------------------------- */
+    {
+        id: 'xss-stored',
+        title: 'XSS — Stored Comment',
+        difficulty: 'Advanced',
+        language: 'PHP',
+        description: 'A comment system stores user input in the database and displays it to all visitors. A case-sensitive filter strips \x3cscript\x3e tags, but other vectors survive.',
+        objective: 'Bypass the script-tag filter and inject a persistent XSS payload that fires for every visitor.',
+        hint: 'The filter only removes lowercase \x3cscript\x3e. Try \x3cSCRIPT\x3e, \x3cimg src=x onerror=alert(1)\x3e, or \x3csvg onload=alert(1)\x3e to bypass it.',
+
+        code: [
+            { line: 1,  text: '<?php',                                                       role: 'keyword' },
+            { line: 2,  text: '  $comment = $_POST["comment"];',                             role: 'input'   },
+            { line: 3,  text: '  // "Security": strip script tags (case-sensitive)',          role: 'comment' },
+            { line: 4,  text: '  $comment = str_replace("<script>", "", $comment);',         role: 'filter'  },
+            { line: 5,  text: '  $comment = str_replace("</script>", "", $comment);',        role: 'filter'  },
+            { line: 6,  text: '  $db->insert("comments", $comment);',                       role: 'sink'    },
+            { line: 7,  text: '  // Later, on page load:',                                   role: 'comment' },
+            { line: 8,  text: '  echo $row["comment"];  // Stored XSS!',                    role: 'sink'    },
+            { line: 9,  text: '?>',                                                           role: 'keyword' }
+        ],
+
+        filters: [
+            {
+                name: 'Script Tag Strip (case-sensitive)',
+                rule: 'str_replace("\x3cscript\x3e" and "\x3c/script\x3e", "", $input)',
+                apply: function(v) {
+                    return v.split('\x3cscript\x3e').join('').split('\x3c/script\x3e').join('');
+                }
+            }
+        ],
+
+        check: function(payload) {
+            return /<script[\s>]/i.test(payload) ||
+                   /on\w+\s*=/i.test(payload) ||
+                   /javascript:/i.test(payload);
+        },
+
+        render: function(payload) {
+            return '<span style="color:#b090c0">Comment: </span><span style="color:#fde68a">' + escHtml(payload) + '</span>';
+        },
+
+        trace: function(input, filtered) {
+            const steps = [
+                { type: 'assign',  line: 2, action: 'Comment Received', detail: '$comment = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'filter',  line: 4, action: 'Filter Applied',   detail: '<span class="hi-filtered">' + escHtml(input) + '</span> &rarr; <span class="hi-result">' + escHtml(filtered) + '</span>' }
+            ];
+            if (input !== filtered) {
+                steps.push({ type: 'skip', line: 5, action: 'Partial Strip', detail: 'Lowercase \x3cscript\x3e removed but other vectors survive' });
+            } else {
+                steps.push({ type: 'skip', line: 5, action: 'Filter Miss', detail: 'No lowercase \x3cscript\x3e found — input unchanged' });
+            }
+            steps.push({ type: 'sink', line: 6, action: 'Stored in DB',   detail: 'Payload persisted — will render for every visitor' });
+            steps.push({ type: 'sink', line: 8, action: 'Echoed to Page', detail: 'echo outputs: <span class="hi-val">' + escHtml(filtered) + '</span>' });
+            return steps;
+        },
+
+        frameUrl: 'https://target.local/comments'
+    },
+
+    /* ----------------------------------------------------------
+       11. SQLi — UNION Data Extraction
+       ---------------------------------------------------------- */
+    {
+        id: 'sqli-union',
+        title: 'SQLi — UNION Data Extraction',
+        difficulty: 'Intermediate',
+        language: 'PHP / MySQL',
+        description: 'A product lookup page builds a SQL query with unsanitized input. The query selects two columns, allowing UNION-based extraction of data from other tables.',
+        objective: 'Use a UNION SELECT to extract data from another table (e.g., users).',
+        hint: 'The query selects 2 columns (name, price). Try: 1 UNION SELECT username, password FROM users -- to append rows from the users table.',
+
+        code: [
+            { line: 1,  text: '<?php',                                                       role: 'keyword' },
+            { line: 2,  text: '  $id = $_GET["id"];',                                       role: 'input'   },
+            { line: 3,  text: '  // No parameterized query!',                                role: 'vuln'    },
+            { line: 4,  text: '  $sql = "SELECT name, price FROM products WHERE id=$id";',  role: 'sink'    },
+            { line: 5,  text: '  $result = $db->query($sql);',                              role: 'sink'    },
+            { line: 6,  text: '  while ($row = $result->fetch_assoc()) {',                  role: 'keyword' },
+            { line: 7,  text: '      echo $row["name"] . " - $" . $row["price"];',          role: 'sink'    },
+            { line: 8,  text: '  }',                                                         role: 'keyword' },
+            { line: 9,  text: '?>',                                                          role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /union\s+select/i.test(payload);
+        },
+
+        render: function(payload) {
+            return '<span style="color:#c084fc">SELECT</span> name, price <span style="color:#c084fc">FROM</span> products <span style="color:#c084fc">WHERE</span> id=<span style="color:#fde68a">' + escHtml(payload) + '</span>';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 2, action: 'Input Received',  detail: '$id = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 3, action: 'No Parameterization', detail: 'Input concatenated directly into SQL query' },
+                { type: 'sink',   line: 4, action: 'Query Built',     detail: 'SELECT name, price FROM products WHERE id=<span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 5, action: 'Query Executed',  detail: 'UNION appends attacker-controlled rows to the result set' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/product?id='
+    },
+
+    /* ----------------------------------------------------------
+       12. SQLi — Blind Boolean
+       ---------------------------------------------------------- */
+    {
+        id: 'sqli-blind',
+        title: 'SQLi — Blind Boolean',
+        difficulty: 'Advanced',
+        language: 'PHP / MySQL',
+        description: 'A user lookup returns only "User found" or "Not found" — no data is displayed. The query is vulnerable but you must extract data one bit at a time using boolean conditions.',
+        objective: 'Craft a boolean-based blind injection that extracts data character by character.',
+        hint: 'The response is binary: found or not found. Use AND with substring() or ascii() to ask yes/no questions. Example: 1 AND ascii(substring((SELECT password FROM users LIMIT 1),1,1))>64',
+
+        code: [
+            { line: 1,  text: '<?php',                                                       role: 'keyword' },
+            { line: 2,  text: '  $id = $_GET["id"];',                                       role: 'input'   },
+            { line: 3,  text: '  $sql = "SELECT * FROM users WHERE id=$id";',               role: 'sink'    },
+            { line: 4,  text: '  $result = $db->query($sql);',                              role: 'sink'    },
+            { line: 5,  text: '  if ($result->num_rows > 0) {',                             role: 'keyword' },
+            { line: 6,  text: '      echo "User found";',                                   role: 'keyword' },
+            { line: 7,  text: '  } else {',                                                  role: 'keyword' },
+            { line: 8,  text: '      echo "Not found";',                                    role: 'keyword' },
+            { line: 9,  text: '  }',                                                         role: 'keyword' },
+            { line: 10, text: '?>',                                                          role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /\b(and|or)\b/i.test(payload) &&
+                   (/(substring|ascii|mid|ord|char_length)\s*\(/i.test(payload) ||
+                    />\s*\d+/i.test(payload) ||
+                    /=\s*\d+/i.test(payload));
+        },
+
+        render: function(payload) {
+            var hasBoolean = /\b(and|or)\b/i.test(payload) && /(substring|ascii|mid|ord)\s*\(/i.test(payload);
+            if (hasBoolean) {
+                return '<span style="color:#22c55e">User found</span> <span style="color:#6a4a7a">(boolean condition evaluated to TRUE)</span>';
+            }
+            return '<span style="color:#c084fc">SELECT</span> * <span style="color:#c084fc">FROM</span> users <span style="color:#c084fc">WHERE</span> id=<span style="color:#fde68a">' + escHtml(payload) + '</span>';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 2, action: 'Input Received',     detail: '$id = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 3, action: 'Query Built',        detail: 'SELECT * FROM users WHERE id=<span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 4, action: 'Query Executed',     detail: 'Boolean condition appended — response leaks one bit of information' },
+                { type: 'sink',   line: 5, action: 'Binary Response',    detail: 'Attacker infers data by observing "found" vs "not found" across many requests' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/user?id='
+    },
+
+    /* ----------------------------------------------------------
+       13. SSRF — Internal Service Access
+       ---------------------------------------------------------- */
+    {
+        id: 'ssrf-basic',
+        title: 'SSRF — Internal Service Access',
+        difficulty: 'Intermediate',
+        language: 'Python',
+        description: 'A URL fetcher lets users provide a URL to preview. The server makes the request with its own credentials, allowing access to internal services not reachable from the internet.',
+        objective: 'Access an internal service by providing a URL that targets localhost or an internal IP.',
+        hint: 'The server fetches whatever URL you give it. Try http://127.0.0.1:8080/admin or http://localhost/internal to reach services behind the firewall.',
+
+        code: [
+            { line: 1,  text: 'import requests',                                            role: 'keyword' },
+            { line: 2,  text: 'from flask import Flask, request',                           role: 'keyword' },
+            { line: 3,  text: '',                                                            role: 'normal'  },
+            { line: 4,  text: "@app.route('/preview')",                                     role: 'function'},
+            { line: 5,  text: 'def preview():',                                             role: 'function'},
+            { line: 6,  text: '    url = request.args.get("url")',                          role: 'input'   },
+            { line: 7,  text: '    # No URL validation!',                                   role: 'vuln'    },
+            { line: 8,  text: '    resp = requests.get(url)',                               role: 'sink'    },
+            { line: 9,  text: '    return resp.text',                                       role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /127\.0\.0\.1/i.test(payload) ||
+                   /localhost/i.test(payload) ||
+                   /0\.0\.0\.0/i.test(payload) ||
+                   /\[::1\]/i.test(payload) ||
+                   /10\.\d+\.\d+\.\d+/i.test(payload) ||
+                   /192\.168\.\d+\.\d+/i.test(payload);
+        },
+
+        render: function(payload) {
+            return 'requests.get(<span style="color:#fde68a">"' + escHtml(payload) + '"</span>)';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 6, action: 'URL Received',      detail: 'url = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 7, action: 'No Validation',     detail: 'No allowlist, no hostname check, no IP restriction' },
+                { type: 'sink',   line: 8, action: 'Server-Side Fetch', detail: 'Server fetches <span class="hi-val">' + escHtml(input) + '</span> with internal network access' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/preview?url='
+    },
+
+    /* ----------------------------------------------------------
+       14. SSRF — Cloud Metadata
+       ---------------------------------------------------------- */
+    {
+        id: 'ssrf-cloud',
+        title: 'SSRF — Cloud Metadata',
+        difficulty: 'Advanced',
+        language: 'Python',
+        description: 'An image preview service fetches URLs server-side. On AWS EC2, the instance metadata service at 169.254.169.254 exposes IAM credentials, instance identity, and secrets.',
+        objective: 'Exploit the SSRF to reach the AWS metadata endpoint and extract IAM credentials.',
+        hint: 'AWS metadata lives at http://169.254.169.254/latest/meta-data/. The IAM credentials are at /latest/meta-data/iam/security-credentials/. This is a link-local address only reachable from the instance itself.',
+
+        code: [
+            { line: 1,  text: 'from urllib.request import urlopen',                          role: 'keyword' },
+            { line: 2,  text: 'from flask import Flask, request',                            role: 'keyword' },
+            { line: 3,  text: '',                                                             role: 'normal'  },
+            { line: 4,  text: "@app.route('/image-preview')",                                role: 'function'},
+            { line: 5,  text: 'def image_preview():',                                       role: 'function'},
+            { line: 6,  text: '    url = request.args.get("url")',                           role: 'input'   },
+            { line: 7,  text: '    # Intended for external image URLs only',                 role: 'comment' },
+            { line: 8,  text: '    # BUG: No check for internal/metadata IPs',              role: 'vuln'    },
+            { line: 9,  text: '    resp = urlopen(url)',                                     role: 'sink'    },
+            { line: 10, text: '    return resp.read()',                                      role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /169\.254\.169\.254/i.test(payload);
+        },
+
+        render: function(payload) {
+            if (/169\.254\.169\.254/.test(payload)) {
+                return 'urlopen(<span style="color:#fde68a">"' + escHtml(payload) + '"</span>)<br><span style="color:#22c55e">{ "AccessKeyId": "AKIA...", "SecretAccessKey": "wJalr..." }</span>';
+            }
+            return 'urlopen(<span style="color:#fde68a">"' + escHtml(payload) + '"</span>)';
+        },
+
+        trace: function(input) {
+            var steps = [
+                { type: 'assign', line: 6, action: 'URL Received',       detail: 'url = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 8, action: 'No IP Validation',   detail: 'No check against internal/link-local addresses' },
+                { type: 'sink',   line: 9, action: 'Server-Side Fetch',  detail: 'urlopen() fetches <span class="hi-val">' + escHtml(input) + '</span>' }
+            ];
+            if (/169\.254\.169\.254/.test(input)) {
+                steps.push({ type: 'sink', line: 10, action: 'Metadata Exposed', detail: 'AWS instance metadata returned — IAM credentials, tokens, and instance identity leaked' });
+            }
+            return steps;
+        },
+
+        frameUrl: 'https://target.local/image-preview?url='
+    },
+
+    /* ----------------------------------------------------------
+       15. IDOR — Direct Object Reference
+       ---------------------------------------------------------- */
+    {
+        id: 'idor-basic',
+        title: 'IDOR — Direct Object Reference',
+        difficulty: 'Beginner',
+        language: 'Node.js',
+        description: 'A profile API endpoint returns user data based on the ID in the URL path. There is no authorization check — any authenticated user can view any other user\'s profile.',
+        objective: 'Access another user\'s profile by changing the ID parameter. You are logged in as user 1001.',
+        hint: 'What happens if you change the ID to another user? Try any ID that is not 1001 — like 1002, 1, or 9999.',
+
+        code: [
+            { line: 1,  text: "const express = require('express');",                         role: 'keyword' },
+            { line: 2,  text: '',                                                             role: 'normal'  },
+            { line: 3,  text: "app.get('/api/profile/:id', (req, res) => {",                role: 'function'},
+            { line: 4,  text: '    const id = req.params.id;',                              role: 'input'   },
+            { line: 5,  text: '    // BUG: No authorization check!',                        role: 'vuln'    },
+            { line: 6,  text: '    // Should verify req.user.id === id',                    role: 'comment' },
+            { line: 7,  text: '    const profile = db.getProfile(id);',                     role: 'sink'    },
+            { line: 8,  text: '    res.json(profile);',                                     role: 'sink'    },
+            { line: 9,  text: '});',                                                         role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            var cleaned = payload.toString().trim();
+            return cleaned.length > 0 && cleaned !== '1001';
+        },
+
+        render: function(payload) {
+            var cleaned = payload.toString().trim();
+            if (cleaned !== '1001' && cleaned.length > 0) {
+                return 'GET /api/profile/<span style="color:#fde68a">' + escHtml(cleaned) + '</span><br><span style="color:#22c55e">{ "id": ' + escHtml(cleaned) + ', "name": "Other User", "email": "other@example.com", "ssn": "***-**-1234" }</span>';
+            }
+            return 'GET /api/profile/<span style="color:#fde68a">' + escHtml(cleaned) + '</span><br><span style="color:#b090c0">{ "id": 1001, "name": "Your Profile" }</span>';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 4, action: 'ID Extracted',        detail: 'id = req.params.id = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 5, action: 'No Auth Check',       detail: 'No verification that requesting user owns this profile' },
+                { type: 'sink',   line: 7, action: 'Profile Retrieved',   detail: 'db.getProfile(<span class="hi-val">' + escHtml(input) + '</span>) returns data for any user' },
+                { type: 'sink',   line: 8, action: 'Data Returned',       detail: 'Sensitive PII sent to unauthorized requester' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/api/profile/'
+    },
+
+    /* ----------------------------------------------------------
+       16. IDOR — Parameter Tampering
+       ---------------------------------------------------------- */
+    {
+        id: 'idor-param',
+        title: 'IDOR — Parameter Tampering',
+        difficulty: 'Intermediate',
+        language: 'PHP',
+        description: 'An order detail page retrieves orders by ID from a GET parameter. The server validates that the ID is numeric but never checks if the order belongs to the logged-in user.',
+        objective: 'Access another user\'s order by providing a different numeric order ID. Your order is 5001.',
+        hint: 'The filter only checks if the ID is a number. Try any number that is not 5001 — like 5002, 1, or 9999. The server has no ownership check.',
+
+        code: [
+            { line: 1,  text: '<?php',                                                       role: 'keyword' },
+            { line: 2,  text: '  $order_id = $_GET["order_id"];',                            role: 'input'   },
+            { line: 3,  text: '  // Validate: must be numeric',                              role: 'comment' },
+            { line: 4,  text: '  if (!is_numeric($order_id)) die("Invalid ID");',           role: 'filter'  },
+            { line: 5,  text: '  // BUG: No ownership check!',                              role: 'vuln'    },
+            { line: 6,  text: '  $order = getOrder($order_id);',                            role: 'sink'    },
+            { line: 7,  text: '  echo json_encode($order);',                                role: 'sink'    },
+            { line: 8,  text: '?>',                                                          role: 'keyword' }
+        ],
+
+        filters: [
+            {
+                name: 'Numeric Validation',
+                rule: 'is_numeric($order_id) — rejects non-numeric input',
+                apply: function(v) {
+                    return /^\s*\d+(\.\d+)?\s*$/.test(v) ? v : '__BLOCKED__';
+                }
+            }
+        ],
+
+        check: function(payload) {
+            if (payload === '__BLOCKED__') return false;
+            var cleaned = payload.toString().trim();
+            return /^\d+$/.test(cleaned) && cleaned !== '5001';
+        },
+
+        render: function(payload) {
+            if (payload === '__BLOCKED__') {
+                return '<span style="color:#ef4444">Invalid ID — non-numeric input rejected</span>';
+            }
+            var cleaned = payload.toString().trim();
+            if (cleaned !== '5001') {
+                return 'GET /order?order_id=<span style="color:#fde68a">' + escHtml(cleaned) + '</span><br><span style="color:#22c55e">{ "order_id": ' + escHtml(cleaned) + ', "user": "other_user", "total": "$299.99", "items": [...] }</span>';
+            }
+            return 'GET /order?order_id=<span style="color:#fde68a">' + escHtml(cleaned) + '</span><br><span style="color:#b090c0">{ "order_id": 5001, "user": "you" }</span>';
+        },
+
+        trace: function(input, filtered) {
+            if (filtered === '__BLOCKED__') {
+                return [
+                    { type: 'assign',  line: 2, action: 'Input Received', detail: '$order_id = <span class="hi-val">' + escHtml(input) + '</span>' },
+                    { type: 'blocked', line: 4, action: 'Validation Failed', detail: 'is_numeric() returned false — request rejected' }
+                ];
+            }
+            return [
+                { type: 'assign', line: 2, action: 'Input Received',     detail: '$order_id = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'filter', line: 4, action: 'Numeric Check OK',   detail: 'is_numeric() passed — but no ownership verification' },
+                { type: 'skip',   line: 5, action: 'No Ownership Check', detail: 'Should verify $_SESSION["user_id"] owns this order' },
+                { type: 'sink',   line: 6, action: 'Order Retrieved',    detail: 'getOrder(<span class="hi-val">' + escHtml(filtered) + '</span>) returns any user\'s order' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/order?order_id='
+    },
+
+    /* ----------------------------------------------------------
+       17. Open Redirect
+       ---------------------------------------------------------- */
+    {
+        id: 'open-redirect',
+        title: 'Open Redirect',
+        difficulty: 'Beginner',
+        language: 'PHP',
+        description: 'A login page redirects users to a URL specified in the "url" GET parameter after authentication. There is no validation that the URL points to a trusted domain.',
+        objective: 'Craft a redirect URL that sends the user to an attacker-controlled domain.',
+        hint: 'The server blindly redirects to whatever URL you provide. Use any external URL like https://evil.com to demonstrate the redirect. The key is that it leaves the legitimate domain.',
+
+        code: [
+            { line: 1,  text: '<?php',                                                       role: 'keyword' },
+            { line: 2,  text: '  // After successful login...',                              role: 'comment' },
+            { line: 3,  text: '  $redirect = $_GET["url"];',                                 role: 'input'   },
+            { line: 4,  text: '  // VULNERABLE: no URL validation',                         role: 'vuln'    },
+            { line: 5,  text: '  header("Location: " . $redirect);',                        role: 'sink'    },
+            { line: 6,  text: '  exit;',                                                     role: 'keyword' },
+            { line: 7,  text: '?>',                                                          role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /^https?:\/\//i.test(payload) && !/target\.local/i.test(payload);
+        },
+
+        render: function(payload) {
+            return 'HTTP/1.1 302 Found<br>Location: <span style="color:#fde68a">' + escHtml(payload) + '</span>';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 3, action: 'URL Received',    detail: '$redirect = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 4, action: 'No Validation',   detail: 'No allowlist check, no domain verification' },
+                { type: 'sink',   line: 5, action: 'Redirect Issued', detail: 'header("Location: <span class="hi-val">' + escHtml(input) + '</span>") — user sent to attacker domain' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/login?url='
+    },
+
+    /* ----------------------------------------------------------
+       18. XXE — XML External Entity
+       ---------------------------------------------------------- */
+    {
+        id: 'xxe-basic',
+        title: 'XXE — XML External Entity',
+        difficulty: 'Advanced',
+        language: 'PHP',
+        description: 'An API endpoint accepts XML input and parses it with simplexml_load_string() without disabling external entities. This allows the attacker to define entities that read local files or make network requests.',
+        objective: 'Craft an XML payload with an external entity that reads /etc/passwd from the server.',
+        hint: 'Define a DOCTYPE with an ENTITY pointing to file:///etc/passwd. Example: \x3c!DOCTYPE foo [\x3c!ENTITY xxe SYSTEM "file:///etc/passwd"\x3e]\x3e\x3cfoo\x3e&xxe;\x3c/foo\x3e',
+
+        code: [
+            { line: 1,  text: '<?php',                                                       role: 'keyword' },
+            { line: 2,  text: '  $xml_input = file_get_contents("php://input");',            role: 'input'   },
+            { line: 3,  text: '  // VULNERABLE: external entities enabled by default',       role: 'vuln'    },
+            { line: 4,  text: '  $xml = simplexml_load_string($xml_input);',                role: 'sink'    },
+            { line: 5,  text: '  echo "Name: " . $xml->name;',                              role: 'sink'    },
+            { line: 6,  text: '?>',                                                          role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /<!ENTITY/i.test(payload) || /SYSTEM\s+["']file:\/\//i.test(payload);
+        },
+
+        render: function(payload) {
+            if (/<!ENTITY/i.test(payload) && /file:\/\//i.test(payload)) {
+                return 'Name: <span style="color:#22c55e">root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:...</span>';
+            }
+            return 'Name: <span style="color:#fde68a">' + escHtml(payload.substring(0, 60)) + '</span>';
+        },
+
+        trace: function(input) {
+            var steps = [
+                { type: 'assign', line: 2, action: 'XML Received',     detail: 'Raw XML body read from php://input' },
+                { type: 'skip',   line: 3, action: 'Entities Enabled',  detail: 'libxml_disable_entity_loader() NOT called — external entities allowed' },
+                { type: 'sink',   line: 4, action: 'XML Parsed',        detail: 'simplexml_load_string() resolves \x3c!ENTITY\x3e declarations, including SYSTEM file:// URIs' }
+            ];
+            if (/file:\/\//i.test(input)) {
+                steps.push({ type: 'sink', line: 5, action: 'File Contents Leaked', detail: 'Entity reference replaced with file contents — /etc/passwd exposed in output' });
+            }
+            return steps;
+        },
+
+        frameUrl: 'https://target.local/api/parse-xml'
+    },
+
+    /* ----------------------------------------------------------
+       19. Insecure Deserialization
+       ---------------------------------------------------------- */
+    {
+        id: 'deserial-php',
+        title: 'Insecure Deserialization',
+        difficulty: 'Advanced',
+        language: 'PHP',
+        description: 'The application reads a session cookie and passes it directly to unserialize(). An attacker can craft a serialized PHP object that triggers dangerous magic methods (__destruct, __wakeup) on instantiation.',
+        objective: 'Craft a serialized PHP object string that would trigger code execution via a magic method.',
+        hint: 'PHP serialized objects look like O:8:"ClassName":1:{s:4:"prop";s:5:"value";}. If a class has __destruct() or __wakeup(), those methods run automatically during deserialization.',
+
+        code: [
+            { line: 1,  text: '<?php',                                                       role: 'keyword' },
+            { line: 2,  text: '  // Read session from cookie',                               role: 'comment' },
+            { line: 3,  text: '  $data = $_COOKIE["session"];',                              role: 'input'   },
+            { line: 4,  text: '  // CRITICAL: unserialize() with untrusted data!',          role: 'vuln'    },
+            { line: 5,  text: '  $obj = unserialize($data);',                               role: 'sink'    },
+            { line: 6,  text: '  // If $obj class has __wakeup() or __destruct()...',       role: 'comment' },
+            { line: 7,  text: '  echo "Welcome back, " . $obj->username;',                  role: 'sink'    },
+            { line: 8,  text: '?>',                                                          role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /O:\d+:"[^"]+"/i.test(payload);
+        },
+
+        render: function(payload) {
+            if (/O:\d+:/i.test(payload)) {
+                return 'unserialize(<span style="color:#fde68a">' + escHtml(payload) + '</span>)<br><span style="color:#ef4444">__wakeup() / __destruct() triggered — arbitrary code execution</span>';
+            }
+            return 'unserialize(<span style="color:#fde68a">' + escHtml(payload) + '</span>)';
+        },
+
+        trace: function(input) {
+            var steps = [
+                { type: 'assign', line: 3, action: 'Cookie Read',          detail: '$data = $_COOKIE["session"] = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 4, action: 'No Validation',        detail: 'No HMAC signature check, no allowedClasses restriction' },
+                { type: 'sink',   line: 5, action: 'Deserialization',      detail: 'unserialize() instantiates the attacker-controlled class' }
+            ];
+            if (/O:\d+:/i.test(input)) {
+                steps.push({ type: 'sink', line: 6, action: 'Magic Method Fires', detail: '__wakeup() or __destruct() executes attacker-chosen code path' });
+            }
+            return steps;
+        },
+
+        frameUrl: 'https://target.local/'
+    },
+
+    /* ----------------------------------------------------------
+       20. CORS Misconfiguration
+       ---------------------------------------------------------- */
+    {
+        id: 'cors-misconfig',
+        title: 'CORS Misconfiguration',
+        difficulty: 'Intermediate',
+        language: 'Node.js',
+        description: 'The API reflects the Origin header directly into Access-Control-Allow-Origin, trusting any domain. An attacker\'s site can make authenticated cross-origin requests and read responses.',
+        objective: 'Send a request with an attacker-controlled Origin header to prove the server trusts it.',
+        hint: 'The server reflects whatever Origin you send. Try https://evil.com — the response will include Access-Control-Allow-Origin: https://evil.com, allowing the attacker\'s JavaScript to read the response.',
+
+        code: [
+            { line: 1,  text: "const express = require('express');",                         role: 'keyword' },
+            { line: 2,  text: '',                                                             role: 'normal'  },
+            { line: 3,  text: 'app.use((req, res, next) => {',                              role: 'function'},
+            { line: 4,  text: '    // VULNERABLE: reflects any origin',                     role: 'vuln'    },
+            { line: 5,  text: "    res.setHeader('Access-Control-Allow-Origin',",           role: 'sink'    },
+            { line: 6,  text: '                  req.headers.origin);',                      role: 'sink'    },
+            { line: 7,  text: "    res.setHeader('Access-Control-Allow-Credentials',",      role: 'sink'    },
+            { line: 8,  text: "                  'true');",                                   role: 'sink'    },
+            { line: 9,  text: '    next();',                                                 role: 'keyword' },
+            { line: 10, text: '});',                                                         role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /^https?:\/\//i.test(payload) && !/target\.local/i.test(payload);
+        },
+
+        render: function(payload) {
+            return 'HTTP/1.1 200 OK<br>Access-Control-Allow-Origin: <span style="color:#fde68a">' + escHtml(payload) + '</span><br>Access-Control-Allow-Credentials: true<br><br><span style="color:#22c55e">{ "user": "admin", "email": "admin@target.local" }</span>';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 4, action: 'Origin Received',     detail: 'req.headers.origin = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 5, action: 'Origin Reflected',    detail: 'Access-Control-Allow-Origin set to <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 7, action: 'Credentials Allowed', detail: 'Allow-Credentials: true — attacker JS can read authenticated responses cross-origin' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/api/me'
+    },
+
+    /* ----------------------------------------------------------
+       21. JWT — None Algorithm
+       ---------------------------------------------------------- */
+    {
+        id: 'jwt-none',
+        title: 'JWT — None Algorithm',
+        difficulty: 'Intermediate',
+        language: 'Node.js',
+        description: 'The JWT verification library accepts the "none" algorithm, allowing an attacker to forge tokens by removing the signature and setting alg to "none" in the header.',
+        objective: 'Craft a JWT header with alg set to "none" to bypass signature verification.',
+        hint: 'A JWT has three parts: header.payload.signature. If you set the header to {"alg":"none","typ":"JWT"}, no signature is needed. The library will accept the token without verification.',
+
+        code: [
+            { line: 1,  text: "const jwt = require('jsonwebtoken');",                        role: 'keyword' },
+            { line: 2,  text: '',                                                             role: 'normal'  },
+            { line: 3,  text: "app.get('/api/admin', (req, res) => {",                      role: 'function'},
+            { line: 4,  text: "    const token = req.headers['authorization'];",            role: 'input'   },
+            { line: 5,  text: '    // BUG: does not restrict allowed algorithms!',          role: 'vuln'    },
+            { line: 6,  text: '    const decoded = jwt.verify(token, SECRET);',             role: 'sink'    },
+            { line: 7,  text: '    // Should use: jwt.verify(token, SECRET,',               role: 'comment' },
+            { line: 8,  text: '    //   { algorithms: ["HS256"] })',                        role: 'comment' },
+            { line: 9,  text: '    res.json({ admin: decoded });',                          role: 'sink'    },
+            { line: 10, text: '});',                                                         role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /["']?alg["']?\s*:\s*["']?none["']?/i.test(payload);
+        },
+
+        render: function(payload) {
+            if (/none/i.test(payload)) {
+                return 'jwt.verify() with alg:none<br>Header: <span style="color:#fde68a">' + escHtml(payload) + '</span><br><span style="color:#22c55e">Token accepted — signature verification skipped!</span>';
+            }
+            return 'jwt.verify(<span style="color:#fde68a">' + escHtml(payload) + '</span>, SECRET)';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 4, action: 'Token Received',    detail: 'Authorization header = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 5, action: 'No Alg Restriction', detail: 'algorithms option not specified — library accepts any alg including "none"' },
+                { type: 'sink',   line: 6, action: 'Verify Bypassed',    detail: 'jwt.verify() sees alg:"none" and skips signature validation entirely' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/api/admin'
+    },
+
+    /* ----------------------------------------------------------
+       22. HTTP Header Injection
+       ---------------------------------------------------------- */
+    {
+        id: 'header-injection',
+        title: 'HTTP Header Injection',
+        difficulty: 'Intermediate',
+        language: 'PHP',
+        description: 'A custom HTTP header is set using unsanitized user input. CRLF characters (\\r\\n) in the input allow injection of additional headers or even an entire HTTP response body.',
+        objective: 'Inject CRLF characters to add an arbitrary HTTP header to the response.',
+        hint: 'HTTP headers are separated by \\r\\n (CRLF). If you include %0d%0a in the input, you can inject a new header. Try: test%0d%0aSet-Cookie:%20admin=true to inject a cookie.',
+
+        code: [
+            { line: 1,  text: '<?php',                                                       role: 'keyword' },
+            { line: 2,  text: '  $value = $_GET["value"];',                                  role: 'input'   },
+            { line: 3,  text: '  // No CRLF sanitization!',                                 role: 'vuln'    },
+            { line: 4,  text: '  header("X-Custom: " . $value);',                           role: 'sink'    },
+            { line: 5,  text: '  echo "Header set.";',                                      role: 'keyword' },
+            { line: 6,  text: '?>',                                                          role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /\r\n|\n|%0d%0a|%0D%0A|%0a|%0d/i.test(payload);
+        },
+
+        render: function(payload) {
+            var decoded = payload.replace(/%0d%0a/gi, '\r\n').replace(/%0a/gi, '\n').replace(/%0d/gi, '\r');
+            var parts = decoded.split(/\r?\n/);
+            var result = 'X-Custom: <span style="color:#fde68a">' + escHtml(parts[0]) + '</span>';
+            for (var i = 1; i < parts.length; i++) {
+                result += '<br><span style="color:#ef4444">' + escHtml(parts[i]) + '</span> <span style="color:#6a4a7a">(injected header)</span>';
+            }
+            return result;
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 2, action: 'Input Received',    detail: '$value = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 3, action: 'No CRLF Check',     detail: 'CRLF characters (\\r\\n) not stripped or rejected' },
+                { type: 'sink',   line: 4, action: 'Header Set',        detail: 'header("X-Custom: " . input) — CRLF injects new headers into response' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/set-header?value='
+    },
+
+    /* ----------------------------------------------------------
+       23. NoSQL Injection — MongoDB
+       ---------------------------------------------------------- */
+    {
+        id: 'nosql-injection',
+        title: 'NoSQL Injection — MongoDB',
+        difficulty: 'Intermediate',
+        language: 'Node.js',
+        description: 'A login form passes user input directly into a MongoDB query object. If the input is parsed as JSON, an attacker can inject MongoDB operators like $gt or $ne to bypass authentication.',
+        objective: 'Bypass authentication using a MongoDB query operator instead of a password.',
+        hint: 'MongoDB operators like {"$ne":""} match any non-empty value. If the password field accepts an object, try {"$gt":""} or {"$ne":"x"} to match any password in the database.',
+
+        code: [
+            { line: 1,  text: "const express = require('express');",                         role: 'keyword' },
+            { line: 2,  text: '',                                                             role: 'normal'  },
+            { line: 3,  text: "app.post('/login', (req, res) => {",                         role: 'function'},
+            { line: 4,  text: '    const user = req.body.user;',                            role: 'input'   },
+            { line: 5,  text: '    const pass = req.body.pass;',                            role: 'input'   },
+            { line: 6,  text: '    // VULNERABLE: input used as query operand',             role: 'vuln'    },
+            { line: 7,  text: '    db.users.find({ user: user, pass: pass });',             role: 'sink'    },
+            { line: 8,  text: '});',                                                         role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /\$gt|\$ne|\$regex|\$eq|\$in/i.test(payload) ||
+                   /\{\s*["']\$\w+/i.test(payload);
+        },
+
+        render: function(payload) {
+            if (/\$gt|\$ne|\$regex/i.test(payload)) {
+                return 'db.users.find({ user: "admin", pass: <span style="color:#fde68a">' + escHtml(payload) + '</span> })<br><span style="color:#22c55e">Login successful — operator matched all passwords!</span>';
+            }
+            return 'db.users.find({ user: <span style="color:#fde68a">' + escHtml(payload) + '</span>, pass: ... })';
+        },
+
+        trace: function(input) {
+            return [
+                { type: 'assign', line: 4, action: 'Input Received',      detail: 'user/pass = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'skip',   line: 6, action: 'No Type Check',       detail: 'Input used directly as MongoDB operand — objects not rejected' },
+                { type: 'sink',   line: 7, action: 'Query Executed',      detail: 'MongoDB evaluates operator: <span class="hi-val">' + escHtml(input) + '</span> matches any document' }
+            ];
+        },
+
+        frameUrl: 'https://target.local/login'
+    },
+
+    /* ----------------------------------------------------------
+       24. Prototype Pollution
+       ---------------------------------------------------------- */
+    {
+        id: 'proto-pollution',
+        title: 'Prototype Pollution',
+        difficulty: 'Advanced',
+        language: 'Node.js',
+        description: 'A configuration merge function recursively copies properties from user input into an application config object. Without a check for __proto__, an attacker can pollute Object.prototype and affect all objects in the application.',
+        objective: 'Craft JSON input that pollutes Object.prototype via __proto__ or constructor.prototype.',
+        hint: 'The merge function copies all keys recursively. If your JSON contains {"__proto__":{"isAdmin":true}}, the merge writes isAdmin to Object.prototype — making every object in the app see isAdmin as true.',
+
+        code: [
+            { line: 1,  text: "const express = require('express');",                         role: 'keyword' },
+            { line: 2,  text: '',                                                             role: 'normal'  },
+            { line: 3,  text: 'function merge(target, source) {',                           role: 'function'},
+            { line: 4,  text: '    for (let key in source) {',                              role: 'keyword' },
+            { line: 5,  text: '        if (typeof source[key] === "object") {',             role: 'keyword' },
+            { line: 6,  text: '            if (!target[key]) target[key] = {};',            role: 'keyword' },
+            { line: 7,  text: '            merge(target[key], source[key]);',               role: 'sink'    },
+            { line: 8,  text: '        } else {',                                           role: 'keyword' },
+            { line: 9,  text: '            // BUG: no __proto__ check!',                    role: 'vuln'    },
+            { line: 10, text: '            target[key] = source[key];',                     role: 'sink'    },
+            { line: 11, text: '        }',                                                   role: 'keyword' },
+            { line: 12, text: '    }',                                                       role: 'keyword' },
+            { line: 13, text: '}',                                                           role: 'keyword' },
+            { line: 14, text: '',                                                             role: 'normal'  },
+            { line: 15, text: "app.post('/config', (req, res) => {",                        role: 'function'},
+            { line: 16, text: '    merge(config, JSON.parse(req.body.data));',              role: 'sink'    },
+            { line: 17, text: '});',                                                         role: 'keyword' }
+        ],
+
+        filters: [],
+
+        check: function(payload) {
+            return /__proto__/i.test(payload) || /constructor\s*\.\s*prototype/i.test(payload);
+        },
+
+        render: function(payload) {
+            if (/__proto__/i.test(payload)) {
+                return 'merge(config, <span style="color:#fde68a">' + escHtml(payload) + '</span>)<br><span style="color:#ef4444">Object.prototype polluted — all objects now inherit attacker properties!</span>';
+            }
+            return 'merge(config, <span style="color:#fde68a">' + escHtml(payload) + '</span>)';
+        },
+
+        trace: function(input) {
+            var steps = [
+                { type: 'assign', line: 16, action: 'Input Parsed',       detail: 'JSON.parse(req.body.data) = <span class="hi-val">' + escHtml(input) + '</span>' },
+                { type: 'sink',   line: 7,  action: 'Recursive Merge',    detail: 'merge() walks all keys including __proto__ without checking' }
+            ];
+            if (/__proto__/i.test(input)) {
+                steps.push({ type: 'sink', line: 10, action: 'Prototype Polluted', detail: 'target["__proto__"]["isAdmin"] = true writes to Object.prototype — global pollution' });
+            } else if (/constructor/.test(input)) {
+                steps.push({ type: 'sink', line: 10, action: 'Prototype Polluted', detail: 'constructor.prototype accessed — Object.prototype modified via alternate path' });
+            }
+            return steps;
+        },
+
+        frameUrl: 'https://target.local/config'
     }
 ];
 
