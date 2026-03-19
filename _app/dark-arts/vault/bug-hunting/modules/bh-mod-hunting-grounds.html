@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Hunting Grounds: Bug Bounty Platforms - Bug Hunting</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '\25B8'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Standards table */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-open { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-invite { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-managed { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-hybrid { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-niche { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+        .badge-aggregator { background: rgba(100, 60, 130, 0.2); color: #a78bfa; border: 1px solid rgba(100, 60, 130, 0.3); }
+
+        /* Platform cards */
+        .platform-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 10px; padding: 28px 30px; margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .platform-card:hover {
+            border-color: rgba(147, 51, 234, 0.3);
+            box-shadow: 0 6px 28px rgba(0, 0, 0, 0.3);
+        }
+
+        .platform-card-header {
+            display: flex; align-items: flex-start;
+            justify-content: space-between; gap: 20px;
+            margin-bottom: 20px; flex-wrap: wrap;
+        }
+
+        .platform-card-title-block { display: flex; align-items: center; gap: 14px; }
+
+        .platform-card-icon {
+            width: 44px; height: 44px;
+            background: rgba(40, 20, 60, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .platform-card-icon img {
+            width: 24px; height: 24px; object-fit: contain;
+        }
+
+        .platform-card-name {
+            font-size: 1.2rem; color: #c4a0d8; font-weight: 400; margin-bottom: 3px;
+        }
+
+        .platform-card-meta {
+            font-size: 0.72rem; color: #6a4a7a; letter-spacing: 0.15em; text-transform: uppercase;
+        }
+
+        .platform-card-badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; padding-top: 4px; }
+
+        .platform-meta-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px; margin-bottom: 20px;
+        }
+
+        .platform-meta-item {
+            background: rgba(10, 5, 15, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.1);
+            border-radius: 6px; padding: 10px 14px;
+        }
+
+        .platform-meta-label {
+            font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 4px;
+        }
+
+        .platform-meta-value {
+            font-size: 0.88rem; color: #c4a0d8; font-family: 'Courier New', monospace;
+        }
+
+        .platform-body-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;
+        }
+
+        .pro-con-block {
+            background: rgba(10, 5, 15, 0.4);
+            border-radius: 6px; padding: 16px 18px;
+        }
+
+        .pro-con-block.pros { border-left: 3px solid #16a34a; }
+        .pro-con-block.cons { border-left: 3px solid #dc2626; }
+
+        .pro-con-label {
+            font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .pro-con-block.pros .pro-con-label { color: #4ade80; }
+        .pro-con-block.cons .pro-con-label { color: #f87171; }
+
+        .pro-con-list { list-style: none; padding: 0; }
+
+        .pro-con-list li {
+            font-size: 0.84rem; color: #9a7aaa; padding: 5px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.06);
+            display: flex; gap: 8px; align-items: flex-start;
+            position: relative; padding-left: 0; margin-bottom: 0;
+        }
+
+        .pro-con-list li::before { display: none; }
+
+        .pro-con-list li:last-child { border-bottom: none; }
+
+        .pro-marker { color: #4ade80; flex-shrink: 0; font-size: 0.8rem; padding-top: 2px; }
+        .con-marker { color: #f87171; flex-shrink: 0; font-size: 0.8rem; padding-top: 2px; }
+
+        .platform-specialty {
+            background: rgba(40, 20, 60, 0.3);
+            border: 1px solid rgba(100, 60, 130, 0.12);
+            border-radius: 6px; padding: 12px 16px;
+            font-size: 0.88rem; color: #9a7aaa; line-height: 1.6;
+        }
+
+        .platform-specialty strong { color: #c4a0d8; }
+
+        /* Tier labels */
+        .tier-section { margin-bottom: 36px; }
+
+        .tier-heading {
+            font-size: 0.7rem; color: #9333ea; letter-spacing: 0.3em;
+            text-transform: uppercase; margin-bottom: 16px;
+            padding-bottom: 8px; border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        /* Skill level guide */
+        .skill-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px; margin: 24px 0;
+        }
+
+        .skill-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 24px; transition: all 0.3s ease;
+        }
+
+        .skill-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .skill-card-level {
+            font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .skill-beginner .skill-card-level { color: #4ade80; }
+        .skill-intermediate .skill-card-level { color: #facc15; }
+        .skill-advanced .skill-card-level { color: #f87171; }
+
+        .skill-card-title {
+            font-size: 1.05rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400;
+        }
+
+        .skill-platforms {
+            display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+        }
+
+        .skill-platform-tag {
+            padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.7rem; color: #c084fc; letter-spacing: 0.05em;
+            font-family: 'Courier New', monospace;
+        }
+
+        .skill-desc {
+            font-size: 0.84rem; color: #8a6a9a; line-height: 1.65;
+        }
+
+        .skill-tip {
+            margin-top: 12px; padding: 10px 12px;
+            background: rgba(10, 5, 15, 0.5);
+            border-left: 2px solid rgba(147, 51, 234, 0.4);
+            border-radius: 0 4px 4px 0;
+            font-size: 0.8rem; color: #7a5a8a; line-height: 1.5;
+        }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .numbered-list {
+            list-style: none; padding: 0; margin: 20px 0; counter-reset: step-counter;
+        }
+
+        .numbered-list li {
+            counter-increment: step-counter;
+            padding: 12px 18px 12px 50px; margin-bottom: 8px;
+            background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            position: relative; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6;
+        }
+
+        .numbered-list li::before {
+            content: counter(step-counter, decimal-leading-zero);
+            position: absolute; left: 16px; top: 12px;
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            color: #9333ea; font-weight: bold;
+        }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        /* Module navigation */
+        .module-nav {
+            display: flex; justify-content: space-between; gap: 20px;
+            margin: 20px 0 60px; flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            flex: 1; min-width: 200px;
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 8px; padding: 16px 20px;
+            text-decoration: none; transition: all 0.3s ease;
+            display: flex; align-items: center; gap: 14px;
+        }
+
+        .nav-btn:hover {
+            border-color: rgba(147, 51, 234, 0.4);
+            background: rgba(40, 20, 60, 0.4);
+        }
+
+        .nav-btn.prev { justify-content: flex-start; }
+        .nav-btn.next { justify-content: flex-end; text-align: right; }
+
+        .nav-arrow { color: #9333ea; font-size: 1.2rem; flex-shrink: 0; }
+
+        .nav-label {
+            font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 3px;
+        }
+
+        .nav-title { font-size: 0.88rem; color: #c4a0d8; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .platform-body-grid { grid-template-columns: 1fr; }
+            .platform-meta-row { grid-template-columns: 1fr 1fr; }
+            .skill-grid { grid-template-columns: 1fr; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .intro-title { font-size: 1.8rem; }
+            .section-title { font-size: 1.4rem; }
+            .module-nav { flex-direction: column; }
+            .standards-table { font-size: 0.78rem; }
+            .standards-table th, .standards-table td { padding: 9px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">BH // Bug Hunting &middot; The Hunting Grounds</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">
+            <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+        </div>
+        <h1 class="intro-title">The Hunting Grounds</h1>
+        <div class="intro-meta">Bug Hunting &bull; Platform Reference &bull; 13 Platforms Covered</div>
+        <p class="intro-subtitle">
+            Every platform has different rules, audiences, payout ceilings, and program inventories.
+            Picking the wrong one wastes weeks of effort. This reference maps the full landscape of bug
+            bounty platforms &mdash; from the industry giants to niche specialists &mdash; with accurate
+            assessments of who each one serves best and what realistic expectations should look like
+            before you ever submit a single report.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">13 Platforms</div>
+            <div class="stat-pill">Pros &amp; Cons</div>
+            <div class="stat-pill">Payout Ranges</div>
+            <div class="stat-pill">Skill-Level Guidance</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Why Platform Choice Matters -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">
+                <img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+            </span>
+            Why Platform Choice Matters
+        </h2>
+        <div class="section-body">
+            <p>
+                Most researchers treat platform selection as an afterthought. They create an account on HackerOne
+                because everyone else does and spend months fighting noise and duplicate reports before wondering
+                why progress feels impossible. Platform choice is a strategic decision, not an administrative one.
+                The platform you pick determines which programs you can access, how fast your reports get
+                triaged, what skills are rewarded, and what payout ceilings look like.
+            </p>
+            <p>
+                Consider what is actually different between platforms: program inventory, triage quality,
+                researcher community size (which determines competition), payment rails, reputation systems,
+                access tiers, and geographic focus. A researcher who specializes in blockchain vulnerabilities
+                has no business spending most of their time on HackerOne &mdash; HackenProof and SlowMist
+                exist precisely for that domain. A beginner who starts on Synack will be rejected. A senior
+                researcher who spends years on Open Bug Bounty is leaving serious money on the table.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Platform vs. Self-Hosted Programs</div>
+                    <div class="callout-text">
+                        Several major organizations &mdash; Google, Apple, Microsoft, Meta, and Shopify &mdash;
+                        run their own vulnerability reward programs outside any third-party platform. These
+                        self-hosted VRPs often pay the highest bounties in the industry (Google's maximum is
+                        $151,515 for certain Android vulnerabilities). This module covers third-party platforms
+                        only. Self-hosted programs are addressed separately in the Bounty Economics module.
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>
+                        <span class="li-marker">
+                            <img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        </span>
+                        What Platforms Provide
+                    </h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Standardized report submission and tracking</li>
+                        <li><span class="li-marker">&#8226;</span> Triage teams that validate reports before client review</li>
+                        <li><span class="li-marker">&#8226;</span> Payment processing and tax documentation</li>
+                        <li><span class="li-marker">&#8226;</span> Legal safe harbor framework between researcher and company</li>
+                        <li><span class="li-marker">&#8226;</span> Reputation and reputation-based access tiers</li>
+                        <li><span class="li-marker">&#8226;</span> Leaderboards, community, and learning resources</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>
+                        <span class="li-marker">
+                            <img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                        </span>
+                        How to Evaluate a Platform
+                    </h3>
+                    <ul>
+                        <li><span class="li-marker">&#8226;</span> Number of active programs (especially in your specialty)</li>
+                        <li><span class="li-marker">&#8226;</span> Average triage turnaround time on public programs</li>
+                        <li><span class="li-marker">&#8226;</span> Payout structure: fixed table vs. negotiated vs. discretionary</li>
+                        <li><span class="li-marker">&#8226;</span> Researcher community size = competition density</li>
+                        <li><span class="li-marker">&#8226;</span> Access model: open, invite-only, or tiered</li>
+                        <li><span class="li-marker">&#8226;</span> Geographic focus and payment method compatibility</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Major Platforms -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">
+                <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+            </span>
+            Major Platforms
+        </h2>
+        <div class="section-body">
+            <p>
+                These are the platforms with the largest program catalogs and the most active researcher
+                communities. They form the core of the bug bounty ecosystem and represent the default
+                starting point for most researchers.
+            </p>
+
+            <!-- HackerOne -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-shield.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">HackerOne</div>
+                            <div class="platform-card-meta">Founded 2012 &bull; San Francisco, CA, USA</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-open">Public</span>
+                        <span class="badge badge-invite">Invite-Only Tiers</span>
+                        <span class="badge badge-managed">Managed Triage</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">Enterprise Programs</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range (Critical)</div>
+                        <div class="platform-meta-value">$3,000 &ndash; $25,000+</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">1 &ndash; 7 days</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">All levels; reputation building</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Largest program catalog in the industry: 2,000+ active programs including US DoD, Google, Microsoft, Shopify, Twitter</li>
+                            <li><span class="pro-marker">+</span> Hacktivity feed shows disclosed reports, giving newcomers real-world examples to study</li>
+                            <li><span class="pro-marker">+</span> Reputation system (Signal, Impact, Reputation scores) unlocks increasingly valuable private programs</li>
+                            <li><span class="pro-marker">+</span> Managed triage on many programs filters noise before client review</li>
+                            <li><span class="pro-marker">+</span> Gateway to federal programs: Hack the Pentagon, Air Force, Army, DHS all run here</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Heavily crowded on popular public programs; high duplicate rate for common vulnerabilities</li>
+                            <li><span class="con-marker">-</span> Triage quality is inconsistent across self-managed programs where companies handle their own reports</li>
+                            <li><span class="con-marker">-</span> High competition means low-severity findings are rarely rewarded on top-tier programs</li>
+                            <li><span class="con-marker">-</span> Reputation system creates a catch-22: need reputation to access good programs, but best programs require reputation</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Start here if you are new. The Hacktivity feed alone is worth the account registration &mdash;
+                    disclosed reports show real vulnerabilities, real payouts, and real report structures. Build reputation on
+                    smaller public programs before competing on high-traffic targets. The private program system rewards
+                    consistency more than raw technical skill.
+                </div>
+            </div>
+
+            <!-- Bugcrowd -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-target.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">Bugcrowd</div>
+                            <div class="platform-card-meta">Founded 2012 &bull; San Francisco, CA, USA</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-open">Public</span>
+                        <span class="badge badge-managed">Managed Triage</span>
+                        <span class="badge badge-hybrid">Skill Matching</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">Managed Bug Bounty + VRT</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range (Critical)</div>
+                        <div class="platform-meta-value">$2,500 &ndash; $20,000</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">2 &ndash; 5 days</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Beginners; structured severity</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Vulnerability Rating Taxonomy (VRT) standardizes severity classification across all programs, reducing disputes</li>
+                            <li><span class="pro-marker">+</span> Researcher skill-matching routes researchers to programs suited to their demonstrated expertise</li>
+                            <li><span class="pro-marker">+</span> Bugcrowd University offers free training modules for beginners before entering live programs</li>
+                            <li><span class="pro-marker">+</span> Strong presence in healthcare, financial services, and retail verticals</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Average payouts tend to run lower than HackerOne for equivalent severity findings</li>
+                            <li><span class="con-marker">-</span> A significant portion of programs are invite-only from the start, limiting access for new researchers</li>
+                            <li><span class="con-marker">-</span> Smaller public program pool than HackerOne means fewer starting points</li>
+                            <li><span class="con-marker">-</span> Platform interface is less polished than competitors; report workflow can feel dated</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Bugcrowd's VRT is a genuine asset for beginners who are still calibrating severity.
+                    Use it as a learning tool even if you hunt elsewhere. The University program gives you structured practice on
+                    intentionally vulnerable targets before you compete in live programs where mistakes cost Signal score.
+                </div>
+            </div>
+
+            <!-- Synack -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-padlock.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">Synack</div>
+                            <div class="platform-card-meta">Founded 2013 &bull; Redwood City, CA, USA</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-invite">Vetted / Invite-Only</span>
+                        <span class="badge badge-managed">Red Team Model</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">Vetted Private Red Team</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range (Critical)</div>
+                        <div class="platform-meta-value">$5,000 &ndash; $50,000+</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">&lt; 24 hours</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Advanced; vetted professionals</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Highest consistent payouts in the third-party platform market; critical findings routinely exceed $20,000</li>
+                            <li><span class="pro-marker">+</span> Guaranteed response times &mdash; triage SLA is contractually enforced with program clients</li>
+                            <li><span class="pro-marker">+</span> Pre-vetted researcher pool means minimal duplicate reports and less noise competition</li>
+                            <li><span class="pro-marker">+</span> Synack platform includes built-in recon tools and traffic logging for structured testing</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Application requires passing a rigorous technical assessment; failure typically closes the door for 12 months</li>
+                            <li><span class="con-marker">-</span> NDA required before accessing any program details; limits what you can discuss publicly</li>
+                            <li><span class="con-marker">-</span> Not open to the public &mdash; requires a successful application to the Synack Red Team (SRT)</li>
+                            <li><span class="con-marker">-</span> Platform environment is more structured than traditional bounty, which some researchers find constraining</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Synack is the destination, not the starting point. Researchers typically spend
+                    2&ndash;3 years building a track record on HackerOne or Bugcrowd before applying. The SRT application assesses
+                    practical skills across web, network, and mobile attack surfaces. If you pass, the environment rewards serious
+                    researchers significantly better than any open platform.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Section 3: European Platforms -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">
+                <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+            </span>
+            European Platforms
+        </h2>
+        <div class="section-body">
+            <p>
+                GDPR has made European organizations unusually serious about security disclosure. A class of EU-headquartered
+                platforms has emerged to serve this market, offering faster triage, stronger compliance postures, and direct
+                access to European enterprise programs that do not list on US-centric platforms.
+            </p>
+
+            <!-- Intigriti -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-globe.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">Intigriti</div>
+                            <div class="platform-card-meta">Founded 2016 &bull; Antwerp, Belgium</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-open">Public</span>
+                        <span class="badge badge-managed">Managed Triage</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">European Enterprise Programs</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range (Critical)</div>
+                        <div class="platform-meta-value">&euro;2,000 &ndash; &euro;20,000</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">24 &ndash; 48 hours</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">EU-focused researchers; intermediate+</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Strongest EU program presence: major Belgian, Dutch, and UK banks and telecoms list exclusively here</li>
+                            <li><span class="pro-marker">+</span> 48-hour triage SLA is a platform commitment, not just a guideline</li>
+                            <li><span class="pro-marker">+</span> BugBytes newsletter and community events (including live hacking events) build active researcher engagement</li>
+                            <li><span class="pro-marker">+</span> GDPR-compliant program structures give European researchers clearer legal standing</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Smaller overall program catalog than HackerOne or Bugcrowd; fewer US-based targets</li>
+                            <li><span class="con-marker">-</span> EUR-denominated payouts create currency risk for non-EU researchers in volatile exchange periods</li>
+                            <li><span class="con-marker">-</span> Community is growing but still smaller, limiting peer knowledge exchange compared to HackerOne</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Intigriti is the right choice if you hunt EU targets. The triage quality is
+                    genuinely better than average &mdash; reports that would sit unacknowledged for two weeks on HackerOne are
+                    often fully triaged within 48 hours here. The BugBytes newsletter is one of the better free resources for
+                    staying current on disclosed reports.
+                </div>
+            </div>
+
+            <!-- YesWeHack -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-globe.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">YesWeHack</div>
+                            <div class="platform-card-meta">Founded 2013 (as Bounty Factory) &bull; Paris, France</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-open">Public</span>
+                        <span class="badge badge-hybrid">DOJO Training</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">EU Enterprise + Training Platform</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range (Critical)</div>
+                        <div class="platform-meta-value">&euro;1,500 &ndash; &euro;15,000</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">2 &ndash; 5 days</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">EU/Asia researchers; beginners via DOJO</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> DOJO training platform provides a legal practice environment on intentionally vulnerable applications before live hunting</li>
+                            <li><span class="pro-marker">+</span> Strong EU market focus with active partnerships with French and European government agencies</li>
+                            <li><span class="pro-marker">+</span> Expanding into Asia-Pacific with growing program listings in that region</li>
+                            <li><span class="pro-marker">+</span> Fully GDPR-compliant infrastructure and program templates</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Rebranded from Bounty Factory in 2017; some documentation still reflects the old identity</li>
+                            <li><span class="con-marker">-</span> Program catalog remains smaller than US-based competitors</li>
+                            <li><span class="con-marker">-</span> Researcher community is active but smaller, which limits peer support resources</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> The DOJO training environment is one of the most underrated free resources in
+                    bug bounty education. Complete it before you touch a live program &mdash; it builds habits around safe testing,
+                    evidence collection, and report structure that carry over directly to real engagements. The platform itself is
+                    the right choice for researchers targeting French, German, or public-sector EU programs.
+                </div>
+            </div>
+
+            <!-- Zerocopter -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-shield.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">Zerocopter</div>
+                            <div class="platform-card-meta">Founded 2015 &bull; Amsterdam, Netherlands</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-invite">Invite-Heavy</span>
+                        <span class="badge badge-managed">Managed Programs</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">EU Enterprise Managed Testing</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range (Critical)</div>
+                        <div class="platform-meta-value">&euro;2,000 &ndash; &euro;25,000</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">2 &ndash; 4 days</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Advanced EU researchers; pentest background</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Netherlands-based with strong relationships with Dutch financial institutions and infrastructure operators</li>
+                            <li><span class="pro-marker">+</span> Combines pentest-style structured methodology with ongoing bounty coverage</li>
+                            <li><span class="pro-marker">+</span> High-quality programs with well-defined scope and clear reward tables</li>
+                            <li><span class="pro-marker">+</span> Smaller researcher pool means noticeably less competition per program</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Access is primarily by invitation; organic discoverability for new researchers is low</li>
+                            <li><span class="con-marker">-</span> Very small researcher community limits peer knowledge exchange</li>
+                            <li><span class="con-marker">-</span> Limited public information about current program catalog</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Zerocopter is most accessible to researchers who already have a pentest background
+                    and professional references in the EU security community. Cold applications rarely succeed. The best path in
+                    is through community connections at events like BruCON or local OWASP chapter involvement.
+                </div>
+            </div>
+
+            <!-- HackTrophy -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-target.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">HackTrophy</div>
+                            <div class="platform-card-meta">Founded 2016 &bull; Bratislava, Slovakia</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-niche">Regional / Niche</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">Central European Programs</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range (Critical)</div>
+                        <div class="platform-meta-value">&euro;500 &ndash; &euro;5,000</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">Variable</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Regional CEE market only</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Serves Central and Eastern European market that larger platforms underserve</li>
+                            <li><span class="pro-marker">+</span> Local language support for Czech, Slovak, and Hungarian programs</li>
+                            <li><span class="pro-marker">+</span> Very low competition given the small researcher pool</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Very small program catalog; limited to CEE market clients</li>
+                            <li><span class="con-marker">-</span> Lower payout ceilings than major platforms</li>
+                            <li><span class="con-marker">-</span> Platform activity is minimal; some programs show long periods without updates</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> HackTrophy is a regional tool, not a primary hunting ground. It is worth knowing
+                    about if you are physically located in Central Europe and want to find programs from local companies, but it
+                    should not be a significant part of any researcher's primary workflow.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Section 4: Specialty Platforms -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">
+                <img src="/assets/images/icons/icon-spider.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+            </span>
+            Specialty and Niche Platforms
+        </h2>
+        <div class="section-body">
+            <p>
+                A growing subset of platforms targets specific verticals rather than the general web application market.
+                Blockchain security, responsible disclosure without a formal program, and pentest-as-a-service each have
+                dedicated platforms that outperform the generalists for their specific use cases.
+            </p>
+
+            <!-- Open Bug Bounty -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-unlock.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">Open Bug Bounty</div>
+                            <div class="platform-card-meta">Founded 2014 &bull; Non-commercial, Community-run</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-open">Open to All</span>
+                        <span class="badge badge-niche">Disclosure Focus</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">Responsible Disclosure (No Program Needed)</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range</div>
+                        <div class="platform-meta-value">$0 (optional rewards by site owner)</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">Variable / no guarantee</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Beginners; reputation building</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Allows responsible disclosure for any website even if the organization has no formal bug bounty program</li>
+                            <li><span class="pro-marker">+</span> Free to use; no vetting or reputation requirements for submission</li>
+                            <li><span class="pro-marker">+</span> Good for building a submission track record early in a research career</li>
+                            <li><span class="pro-marker">+</span> Coordinated disclosure process gives you a framework for notifying sites that ignore direct contact</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> XSS-focused primarily; not designed for complex vulnerability classes like RCE or SSRF</li>
+                            <li><span class="con-marker">-</span> No guaranteed payment; site owners choose whether and how much to pay</li>
+                            <li><span class="con-marker">-</span> Site owners may never respond; no enforcement mechanism for acknowledgment or remediation</li>
+                            <li><span class="con-marker">-</span> Credibility of submission history here is lower than formal platform history with triaged reports</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Use Open Bug Bounty to practice the mechanics of responsible disclosure and to report
+                    XSS findings you encounter on sites without formal programs. Do not count on payment. Do count on the
+                    structured practice of writing clear, reproducible reports and coordinating with unresponsive organizations &mdash;
+                    those skills transfer directly to paid platforms.
+                </div>
+            </div>
+
+            <!-- Cobalt -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-terminal.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">Cobalt</div>
+                            <div class="platform-card-meta">Founded 2013 &bull; San Francisco, CA, USA</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-invite">Vetted Core Team</span>
+                        <span class="badge badge-managed">PtaaS Model</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">Pentest as a Service (PtaaS)</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range</div>
+                        <div class="platform-meta-value">Hourly + finding bonuses</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">Structured (engagement-based)</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Advanced; pentest methodology experience</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Combines the structure of a formal pentest with the flexibility of bounty work</li>
+                            <li><span class="pro-marker">+</span> Consistent, predictable work for vetted pentesters on a SaaS platform</li>
+                            <li><span class="pro-marker">+</span> Clients receive a pentest report deliverable, not just individual findings</li>
+                            <li><span class="pro-marker">+</span> Built-in collaboration tools for multi-tester engagements</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Core testing team is invite-only; Cobalt vets all pentesters before access</li>
+                            <li><span class="con-marker">-</span> More structured than traditional bounty; less autonomy on target selection and methodology</li>
+                            <li><span class="con-marker">-</span> Not suited for opportunistic or creative hunting outside defined engagement scope</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Cobalt blurs the line between bug bounty and consulting. If you have a pentesting
+                    background and prefer structured engagements with defined deliverables over the open-ended nature of traditional
+                    bounty work, Cobalt is the most natural fit. It is also a more consistent income source than pure bounty,
+                    which is inherently unpredictable.
+                </div>
+            </div>
+
+            <!-- HackenProof -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-shield.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">HackenProof</div>
+                            <div class="platform-card-meta">Founded 2017 &bull; Kyiv, Ukraine (global)</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-open">Public</span>
+                        <span class="badge badge-niche">Blockchain / Web3</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">Blockchain and Crypto Security</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range (Critical)</div>
+                        <div class="platform-meta-value">$5,000 &ndash; $100,000+</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">3 &ndash; 7 days</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Smart contract auditors; Web3 researchers</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Concentrated in crypto and Web3 programs where traditional platforms have weak coverage</li>
+                            <li><span class="pro-marker">+</span> Critical smart contract findings can pay $100,000 or more on high-TVL DeFi protocols</li>
+                            <li><span class="pro-marker">+</span> Crypto-native payment options align with the ecosystem</li>
+                            <li><span class="pro-marker">+</span> Part of the Hacken security firm, providing additional credibility with blockchain clients</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Niche market: requires Solidity, Rust, or other smart contract language knowledge to be effective</li>
+                            <li><span class="con-marker">-</span> Fewer traditional web application programs compared to HackerOne or Bugcrowd</li>
+                            <li><span class="con-marker">-</span> Crypto payout values fluctuate with market conditions if taken in native tokens</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> HackenProof is the right home for researchers who have invested in smart contract
+                    security skills. The payout ceiling is dramatically higher than traditional web bounties for researchers who
+                    can find logic flaws in DeFi protocols. The prerequisite is genuine fluency in Solidity and EVM internals &mdash;
+                    this is not a platform to learn on.
+                </div>
+            </div>
+
+            <!-- SlowMist -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-globe.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">SlowMist</div>
+                            <div class="platform-card-meta">Founded 2018 &bull; Xiamen, China</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-niche">Blockchain / DeFi</span>
+                        <span class="badge badge-invite">Primarily CN Market</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Specialty</div>
+                        <div class="platform-meta-value">Blockchain Security Auditing</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Range</div>
+                        <div class="platform-meta-value">Program-defined (varies widely)</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Avg Triage Time</div>
+                        <div class="platform-meta-value">Variable</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Blockchain auditors; Mandarin-speaking researchers</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> One of the leading blockchain and DeFi security firms globally with a strong threat intelligence network</li>
+                            <li><span class="pro-marker">+</span> Deep research published via the SlowMist Hacked timeline and security reports</li>
+                            <li><span class="pro-marker">+</span> Access to Chinese market DeFi and Web3 projects not listed on Western platforms</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Primarily serves the Chinese blockchain market; language barrier is significant for Western researchers</li>
+                            <li><span class="con-marker">-</span> Platform communications and program details are often in Mandarin only</li>
+                            <li><span class="con-marker">-</span> Limited transparency around payout structures and disclosure timelines</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> SlowMist's value for Western researchers is primarily as a threat intelligence source
+                    rather than a hunting platform. Their public incident database (SlowMist Hacked) documents real blockchain
+                    exploits with technical post-mortems. Western Mandarin-speaking researchers with blockchain expertise are
+                    the primary beneficiaries of their actual bounty programs.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Section 5: Aggregators -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">
+                <img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+            </span>
+            Aggregators and Emerging Platforms
+        </h2>
+        <div class="section-body">
+            <p>
+                A third category of tools aggregates program listings from multiple platforms into a single searchable index.
+                These are not platforms in the traditional sense &mdash; they do not handle report submission or payment &mdash; but
+                they are operationally useful for discovering programs that match your specific technical skills.
+            </p>
+
+            <!-- BountyGraph -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-chain.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">BountyGraph</div>
+                            <div class="platform-card-meta">Multi-platform Aggregator</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-aggregator">Aggregator</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Type</div>
+                        <div class="platform-meta-value">Search Aggregator (not a platform)</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Data Sources</div>
+                        <div class="platform-meta-value">HackerOne, Bugcrowd, Intigriti, YesWeHack</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Payout Info</div>
+                        <div class="platform-meta-value">Displayed from source platforms</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Program discovery across platforms</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Single search interface across multiple platforms; filters by technology stack, payout range, and scope</li>
+                            <li><span class="pro-marker">+</span> Useful for finding niche programs (e.g., all programs accepting GraphQL in scope) without manually checking each platform</li>
+                            <li><span class="pro-marker">+</span> Useful at the target selection phase of a hunting session</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Not a platform itself; reports still submitted through original platform</li>
+                            <li><span class="con-marker">-</span> Data may lag behind live platform updates, especially for scope changes</li>
+                            <li><span class="con-marker">-</span> Does not include all platforms; coverage is incomplete</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Use BountyGraph (and similar aggregators like chaos.projectdiscovery.io) at the
+                    start of a hunting session to identify programs that match your current skill focus. Verify current scope
+                    directly on the source platform before testing &mdash; aggregated data can be days or weeks stale and
+                    an out-of-scope finding is a wasted report.
+                </div>
+            </div>
+
+            <!-- PlugBounty -->
+            <div class="platform-card">
+                <div class="platform-card-header">
+                    <div class="platform-card-title-block">
+                        <div class="platform-card-icon">
+                            <img src="/assets/images/icons/icon-document.webp" alt="">
+                        </div>
+                        <div>
+                            <div class="platform-card-name">PlugBounty</div>
+                            <div class="platform-card-meta">Smaller Bounty Aggregator</div>
+                        </div>
+                    </div>
+                    <div class="platform-card-badges">
+                        <span class="badge badge-aggregator">Aggregator</span>
+                        <span class="badge badge-niche">Limited Activity</span>
+                    </div>
+                </div>
+                <div class="platform-meta-row">
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Type</div>
+                        <div class="platform-meta-value">Program Listing Aggregator</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Activity Level</div>
+                        <div class="platform-meta-value">Low / Possibly Unmaintained</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Unique Value</div>
+                        <div class="platform-meta-value">Lesser-known program listings</div>
+                    </div>
+                    <div class="platform-meta-item">
+                        <div class="platform-meta-label">Best For</div>
+                        <div class="platform-meta-value">Supplemental discovery only</div>
+                    </div>
+                </div>
+                <div class="platform-body-grid">
+                    <div class="pro-con-block pros">
+                        <div class="pro-con-label">Strengths</div>
+                        <ul class="pro-con-list">
+                            <li><span class="pro-marker">+</span> Indexes some smaller and lesser-known programs not listed on major aggregators</li>
+                            <li><span class="pro-marker">+</span> Can surface programs that fall through the cracks of the main platforms</li>
+                        </ul>
+                    </div>
+                    <div class="pro-con-block cons">
+                        <div class="pro-con-label">Weaknesses</div>
+                        <ul class="pro-con-list">
+                            <li><span class="con-marker">-</span> Minimal activity; platform appears to be minimally maintained as of 2025</li>
+                            <li><span class="con-marker">-</span> Data freshness is uncertain; listed programs may have ended or changed scope</li>
+                            <li><span class="con-marker">-</span> No unique feature that differentiates it meaningfully from better-maintained alternatives</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="platform-specialty">
+                    <strong>Field note:</strong> Check PlugBounty only if other discovery methods have not surfaced programs in
+                    your target technology. Always verify any program listing directly at its original source. Do not rely on this
+                    aggregator as a primary discovery tool.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Section 6: Comparison Matrix -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">
+                <img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+            </span>
+            Full Comparison Matrix
+        </h2>
+        <div class="section-body">
+            <p>
+                The table below summarizes all 13 platforms across the dimensions that matter most for target selection.
+                Payout ranges reflect critical findings; actual earnings depend on severity, program generosity, and uniqueness.
+            </p>
+
+            <div style="overflow-x: auto;">
+                <table class="standards-table">
+                    <thead>
+                        <tr>
+                            <th>Platform</th>
+                            <th>HQ</th>
+                            <th>Access Model</th>
+                            <th>Specialty</th>
+                            <th>Critical Payout</th>
+                            <th>Triage Speed</th>
+                            <th>Competition</th>
+                            <th>Best Skill Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="std-name">HackerOne</td>
+                            <td>San Francisco, USA</td>
+                            <td><span class="badge badge-open">Open + Tiered</span></td>
+                            <td>Enterprise; US Gov</td>
+                            <td>$3k &ndash; $25k+</td>
+                            <td>1 &ndash; 7 days</td>
+                            <td>Very High</td>
+                            <td>All levels</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">Bugcrowd</td>
+                            <td>San Francisco, USA</td>
+                            <td><span class="badge badge-hybrid">Open + Skill Match</span></td>
+                            <td>Managed; VRT taxonomy</td>
+                            <td>$2.5k &ndash; $20k</td>
+                            <td>2 &ndash; 5 days</td>
+                            <td>High</td>
+                            <td>Beginner +</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">Synack</td>
+                            <td>Redwood City, USA</td>
+                            <td><span class="badge badge-invite">Vetted Only</span></td>
+                            <td>High-value; Gov/Defense</td>
+                            <td>$5k &ndash; $50k+</td>
+                            <td>&lt; 24 hours</td>
+                            <td>Low</td>
+                            <td>Advanced</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">Intigriti</td>
+                            <td>Antwerp, Belgium</td>
+                            <td><span class="badge badge-open">Open + Private</span></td>
+                            <td>European enterprise</td>
+                            <td>&euro;2k &ndash; &euro;20k</td>
+                            <td>24 &ndash; 48 hrs</td>
+                            <td>Medium</td>
+                            <td>Intermediate +</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">YesWeHack</td>
+                            <td>Paris, France</td>
+                            <td><span class="badge badge-open">Open + Private</span></td>
+                            <td>EU/Asia; DOJO training</td>
+                            <td>&euro;1.5k &ndash; &euro;15k</td>
+                            <td>2 &ndash; 5 days</td>
+                            <td>Medium</td>
+                            <td>Beginner +</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">Open Bug Bounty</td>
+                            <td>Non-commercial</td>
+                            <td><span class="badge badge-open">Fully Open</span></td>
+                            <td>Responsible disclosure; XSS</td>
+                            <td>$0 (discretionary)</td>
+                            <td>Variable</td>
+                            <td>Low</td>
+                            <td>Beginner</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">Cobalt</td>
+                            <td>San Francisco, USA</td>
+                            <td><span class="badge badge-invite">Vetted Core Team</span></td>
+                            <td>PtaaS; structured engagements</td>
+                            <td>Hourly + bonus</td>
+                            <td>Engagement SLA</td>
+                            <td>Low</td>
+                            <td>Advanced</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">HackenProof</td>
+                            <td>Kyiv, Ukraine</td>
+                            <td><span class="badge badge-open">Open</span></td>
+                            <td>Blockchain / Web3 / DeFi</td>
+                            <td>$5k &ndash; $100k+</td>
+                            <td>3 &ndash; 7 days</td>
+                            <td>Medium</td>
+                            <td>Advanced (Web3)</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">Zerocopter</td>
+                            <td>Amsterdam, Netherlands</td>
+                            <td><span class="badge badge-invite">Invite-Heavy</span></td>
+                            <td>EU enterprise pentest+bounty</td>
+                            <td>&euro;2k &ndash; &euro;25k</td>
+                            <td>2 &ndash; 4 days</td>
+                            <td>Very Low</td>
+                            <td>Advanced (EU)</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">SlowMist</td>
+                            <td>Xiamen, China</td>
+                            <td><span class="badge badge-niche">CN Market</span></td>
+                            <td>Blockchain / DeFi audit</td>
+                            <td>Program-defined</td>
+                            <td>Variable</td>
+                            <td>Low (language)</td>
+                            <td>Advanced (CN)</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">HackTrophy</td>
+                            <td>Bratislava, Slovakia</td>
+                            <td><span class="badge badge-niche">Regional</span></td>
+                            <td>Central European programs</td>
+                            <td>&euro;500 &ndash; &euro;5k</td>
+                            <td>Variable</td>
+                            <td>Very Low</td>
+                            <td>All levels (CEE)</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">BountyGraph</td>
+                            <td>Online (aggregator)</td>
+                            <td><span class="badge badge-aggregator">Discovery Only</span></td>
+                            <td>Multi-platform program search</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>All levels</td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">PlugBounty</td>
+                            <td>Online (aggregator)</td>
+                            <td><span class="badge badge-aggregator">Discovery Only</span></td>
+                            <td>Lesser-known program listing</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>Supplemental</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Payout Data Accuracy</div>
+                    <div class="callout-text">
+                        Payout ranges shown are informed estimates based on publicly disclosed findings and platform documentation.
+                        Individual program tables vary significantly &mdash; a HackerOne program might pay $500 for critical and
+                        another might pay $100,000. Always read the specific program's reward table before investing significant
+                        research time. Programs also adjust tables without notice.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: How to Choose -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">
+                <img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+            </span>
+            How to Choose Your Platform
+        </h2>
+        <div class="section-body">
+            <p>
+                Platform selection is not permanent. Most active researchers maintain accounts on two or three platforms
+                simultaneously, but with a clear primary platform where they focus the majority of effort. The following
+                framework maps current skill level and specialization to a recommended starting point and a realistic
+                progression path.
+            </p>
+
+            <div class="skill-grid">
+                <div class="skill-card skill-beginner">
+                    <div class="skill-card-level">Beginner Researcher</div>
+                    <div class="skill-card-title">0 &ndash; 6 Months of Active Hunting</div>
+                    <div class="skill-platforms">
+                        <span class="skill-platform-tag">HackerOne (primary)</span>
+                        <span class="skill-platform-tag">Open Bug Bounty</span>
+                        <span class="skill-platform-tag">YesWeHack DOJO</span>
+                        <span class="skill-platform-tag">Bugcrowd University</span>
+                    </div>
+                    <div class="skill-desc">
+                        Focus on public programs with wide scope and active triage. HackerOne's Hacktivity feed
+                        is your primary learning resource &mdash; read disclosed reports daily. Use Open Bug Bounty
+                        to practice the mechanics of responsible disclosure. Complete YesWeHack DOJO and Bugcrowd
+                        University training modules before submitting live reports.
+                    </div>
+                    <div class="skill-tip">
+                        Do not chase payouts yet. Chase accepted reports. Every accepted report, regardless of
+                        amount, builds the Signal score that unlocks private programs. A $150 information disclosure
+                        finding on a well-trafficked program matters more at this stage than a failed hunt on
+                        a high-payout target.
+                    </div>
+                </div>
+
+                <div class="skill-card skill-intermediate">
+                    <div class="skill-card-level">Intermediate Researcher</div>
+                    <div class="skill-card-title">6 Months &ndash; 2 Years; First Private Invites</div>
+                    <div class="skill-platforms">
+                        <span class="skill-platform-tag">HackerOne (private programs)</span>
+                        <span class="skill-platform-tag">Bugcrowd</span>
+                        <span class="skill-platform-tag">Intigriti</span>
+                        <span class="skill-platform-tag">YesWeHack</span>
+                    </div>
+                    <div class="skill-desc">
+                        At this stage you should have a positive Signal score and be receiving private program invites.
+                        Prioritize private programs over public ones. The quality-to-competition ratio is dramatically
+                        better. Add Intigriti if you have any EU-based targets or prefer faster triage. Begin tracking
+                        which vulnerability classes you find most often and specialize accordingly.
+                    </div>
+                    <div class="skill-tip">
+                        Geographic specialization is underutilized at this level. EU-based organizations often have
+                        more permissive scopes and less crowded programs than comparable US targets. Intigriti and
+                        YesWeHack access programs that US-focused researchers ignore.
+                    </div>
+                </div>
+
+                <div class="skill-card skill-advanced">
+                    <div class="skill-card-level">Advanced Researcher</div>
+                    <div class="skill-card-title">2+ Years; Consistent Critical Findings</div>
+                    <div class="skill-platforms">
+                        <span class="skill-platform-tag">Synack SRT</span>
+                        <span class="skill-platform-tag">Cobalt</span>
+                        <span class="skill-platform-tag">HackenProof (if Web3)</span>
+                        <span class="skill-platform-tag">Zerocopter (if EU)</span>
+                    </div>
+                    <div class="skill-desc">
+                        Apply to Synack. The application is the primary gate. Build a portfolio demonstrating
+                        breadth across web, network, and mobile attack surfaces before applying. If your specialty
+                        is blockchain or smart contracts, HackenProof and Immunefi offer payout ceilings that
+                        no traditional web platform can match. Cobalt is the right fit if structured engagements
+                        with deliverables suit your working style better than open-ended hunting.
+                    </div>
+                    <div class="skill-tip">
+                        At this level, platform selection should follow program quality, not platform reputation.
+                        A single high-value private program on Zerocopter may be worth more hours than an
+                        entire quarter on HackerOne public programs. Evaluate every program on its specific
+                        scope, payout table, and competition density &mdash; not on the platform hosting it.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:32px 0 14px; font-weight:400;">Decision Framework by Specialization</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">
+                        <img src="/assets/images/icons/icon-terminal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div class="concept-card-title">Web Application Generalist</div>
+                    <div class="concept-card-body">
+                        HackerOne as your primary platform, Bugcrowd as your secondary. Use BountyGraph to
+                        discover programs that match your current skill focus. Intigriti if you target European
+                        organizations.
+                    </div>
+                    <span class="concept-tag">HackerOne + Bugcrowd</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">
+                        <img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div class="concept-card-title">Smart Contract / Web3</div>
+                    <div class="concept-card-body">
+                        HackenProof for managed programs. Immunefi (not covered here but worth knowing) for
+                        the largest DeFi bounties. SlowMist if you read Mandarin and target the Asian market.
+                    </div>
+                    <span class="concept-tag">HackenProof + Immunefi</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">
+                        <img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div class="concept-card-title">Government / Critical Infrastructure</div>
+                    <div class="concept-card-body">
+                        HackerOne is the exclusive gateway to US federal programs (DoD, Army, DHS). Synack
+                        SRT handles the high-clearance government work once you are vetted.
+                    </div>
+                    <span class="concept-tag">HackerOne + Synack</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">
+                        <img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div class="concept-card-title">EU Enterprise Focus</div>
+                    <div class="concept-card-body">
+                        Intigriti as your primary platform. YesWeHack as your secondary. Zerocopter if you have
+                        EU community connections that can provide an introduction. HackTrophy if you are based
+                        in Central or Eastern Europe.
+                    </div>
+                    <span class="concept-tag">Intigriti + YesWeHack</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">
+                        <img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div class="concept-card-title">Structured Pentest Preference</div>
+                    <div class="concept-card-body">
+                        Cobalt if you prefer scoped engagements with formal deliverables over open-ended hunting.
+                        Synack SRT offers a middle ground: structured environment but bounty-style compensation.
+                    </div>
+                    <span class="concept-tag">Cobalt + Synack</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">
+                        <img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                    </div>
+                    <div class="concept-card-title">Building First Track Record</div>
+                    <div class="concept-card-body">
+                        Open Bug Bounty for responsible disclosure practice. YesWeHack DOJO and Bugcrowd
+                        University for skill-building. HackerOne public programs for your first paid submissions.
+                    </div>
+                    <span class="concept-tag">Open Bug Bounty + HackerOne</span>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">The One-Platform Rule</div>
+                    <div class="callout-text">
+                        Do not scatter effort across every platform. Pick one primary platform and stay
+                        there long enough to build meaningful reputation. Most platform reputation systems
+                        are non-transferable. A researcher with strong Signal on HackerOne and a mixed
+                        presence across five platforms is worse positioned than a researcher who focused
+                        exclusively on one for 12 months. Specialize early, diversify once the track
+                        record is established.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; margin:32px 0 14px; font-weight:400;">Platform Progression Path</h3>
+
+            <ol class="numbered-list">
+                <li><strong style="color:#c4a0d8;">Practice (Month 1&ndash;2):</strong> Complete YesWeHack DOJO and Bugcrowd University. Set up Burp Suite, a VPN, and a dedicated browser profile for bounty work. Read 50 disclosed HackerOne reports from your target vulnerability class.</li>
+                <li><strong style="color:#c4a0d8;">First Submissions (Month 2&ndash;4):</strong> Target HackerOne public programs with wide scope and fewer than 50 active researchers. Open Bug Bounty for XSS practice on non-paid targets. Focus on one vulnerability class until you have 3&ndash;5 accepted reports.</li>
+                <li><strong style="color:#c4a0d8;">Reputation Building (Month 4&ndash;12):</strong> Maintain positive Signal score on HackerOne. Begin receiving private invites. Evaluate whether to add Bugcrowd or Intigriti based on the programs available in your specialization.</li>
+                <li><strong style="color:#c4a0d8;">Private Access (Year 1&ndash;2):</strong> Work primarily on private programs. Triage quality and payout consistency improve significantly. Develop a specialization: one vertical (fintech, healthcare, government) and one vulnerability class (authentication, IDOR, injection).</li>
+                <li><strong style="color:#c4a0d8;">Advanced Platforms (Year 2+):</strong> Apply to Synack SRT. Evaluate Cobalt if structured engagements suit your working style. Add HackenProof if blockchain skills have been developed. Consider Zerocopter through community connections.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    Synack and Cobalt both use vetted researcher models but operate differently: Synack provides bounty-style pay on high-value programs while Cobalt uses structured pentest engagements with deliverables. What are the trade-offs a researcher accepts by choosing the vetted model over an open platform? Consider income consistency, autonomy, legal exposure, and career signaling.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    European platforms like Intigriti and YesWeHack have grown significantly despite US-centric platforms dominating the market. What structural factors have driven EU platform growth? Consider GDPR enforcement, data residency requirements, language and cultural familiarity, and the regulatory environment for vulnerability disclosure. Will this trend continue?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Open Bug Bounty allows reporting vulnerabilities on any website, including those with no formal program and no obligation to respond or remediate. Evaluate the ethical calculus: you find an XSS on a small e-commerce site, report it via Open Bug Bounty, the site owner ignores the report for 90 days, and you disclose it publicly. Did you act responsibly? What obligations do you have to the site's users? What obligations does the site owner have to you?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    Blockchain and DeFi programs offer dramatically higher critical payouts than traditional web programs, with some exceeding $1,000,000 for protocol-level vulnerabilities. What are the specific skill prerequisites for effective smart contract auditing? How does the research methodology differ from web application testing? Is the higher payout ceiling accessible to a generalist who pivots to blockchain, or does it require years of domain specialization?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">
+                <img src="/assets/images/icons/icon-target.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block;object-fit:contain;filter:drop-shadow(0 0 12px rgba(147,51,234,0.5))">
+            </div>
+            <h2 class="completion-title">Hunting Grounds Mapped</h2>
+            <p class="completion-text">
+                You now have an accurate map of the bug bounty platform landscape: where the programs are,
+                what each platform does well and poorly, what the realistic payout ceilings look like, and
+                how to match your current skill level to the right starting point. Platform choice is a
+                strategic decision, not a default. Make it deliberately.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Mark as Complete
+            </button>
+        </div>
+    </div>
+
+    <!-- Module Navigation -->
+    <nav class="module-nav">
+        <a href="bh-mod-fundamentals.html" class="nav-btn prev">
+            <span class="nav-arrow">&#8592;</span>
+            <div>
+                <div class="nav-label">Previous Module</div>
+                <div class="nav-title">Bug Bounty Fundamentals</div>
+            </div>
+        </a>
+        <a href="bh-mod-recon.html" class="nav-btn next">
+            <div>
+                <div class="nav-label">Next Module</div>
+                <div class="nav-title">Recon Methodology</div>
+            </div>
+            <span class="nav-arrow">&#8594;</span>
+        </a>
+    </nav>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates on every scroll event
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in on scroll via IntersectionObserver
+    function initSectionAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.05 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Module completion — delegates to ModuleProgress component
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'bh-mod-hunting-grounds', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initSectionAnimations();
+    });
+</script>
+
+</body>
+</html>
