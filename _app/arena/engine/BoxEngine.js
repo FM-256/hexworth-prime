@@ -1274,8 +1274,28 @@ const BoxEngine = {
      */
     resolveFlagTokens(text) {
         if (!text || typeof text !== 'string') return text;
-        return text.replace(/\{\{FLAG:(\w+)\}\}/g, (match, id) => {
-            return this.getDeliveredFlag(id) || '[FLAG PENDING - Complete the challenge]';
+        var self = this;
+        return text.replace(/\{\{FLAG:(\w+)\}\}/g, function(match, id) {
+            var cached = self.getDeliveredFlag(id);
+            if (cached) return cached;
+            // Trigger async fetch — once delivered, replace all placeholders in terminal output
+            if (!self._flagFetchPending) self._flagFetchPending = {};
+            if (!self._flagFetchPending[id]) {
+                self._flagFetchPending[id] = true;
+                self.requestFlagText(id).then(function(flagText) {
+                    delete self._flagFetchPending[id];
+                    if (flagText) {
+                        // Replace all [FLAG LOADING...] placeholders in terminal output with the real flag
+                        var termOutput = document.querySelector('.term-output, #terminal-output');
+                        if (termOutput) {
+                            termOutput.innerHTML = termOutput.innerHTML
+                                .replace(/\[FLAG LOADING\.\.\.\]/g, '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>')
+                                .replace(/\[FLAG PENDING - Complete the challenge\]/g, '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>');
+                        }
+                    }
+                }).catch(function() { delete self._flagFetchPending[id]; });
+            }
+            return '[FLAG LOADING...]';
         });
     },
 
