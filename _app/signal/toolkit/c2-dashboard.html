@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — requires house sorting before access -->
+    <script src="../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- House Navigation / Global Search -->
+    <script src="../../components/FluxCapacitor.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C2 Dashboard — Command &amp; Control Training Simulator — Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="../../assets/images/icons/icon-antenna.webp">
+    <style>
+        /* -----------------------------------------------------------------------
+         * CSS Custom Properties — C2 threat aesthetic
+         * All colors and spacing are tokenised here for easy re-theming.
+         * ----------------------------------------------------------------------- */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            /* Backgrounds */
+            --bg:           #0a0a0f;
+            --panel:        #0e0e16;
+            --card:         #12121a;
+            --card-hover:   #181824;
+            --sidebar:      #0c0c14;
+
+            /* Borders */
+            --border:       rgba(255, 255, 255, 0.07);
+            --border-red:   rgba(220, 38, 38, 0.40);
+
+            /* Accent — red threat palette */
+            --accent:       #dc2626;
+            --accent-dim:   rgba(220, 38, 38, 0.12);
+            --accent-glow:  rgba(220, 38, 38, 0.25);
+            --accent-bright:#ef4444;
+
+            /* Status colours */
+            --online:       #22c55e;
+            --online-dim:   rgba(34, 197, 94, 0.15);
+            --offline:      #dc2626;
+            --offline-dim:  rgba(220, 38, 38, 0.15);
+            --idle:         #f59e0b;
+
+            /* Text */
+            --text:         #e2e8f0;
+            --text-muted:   #8b949e;
+            --text-dim:     #4b5563;
+
+            /* Terminal */
+            --term-bg:      #050508;
+            --term-green:   #22c55e;
+            --term-yellow:  #f59e0b;
+            --term-cyan:    #06b6d4;
+            --term-red:     #ef4444;
+            --term-white:   #e2e8f0;
+
+            /* Layout */
+            --topbar-h:     56px;
+            --ethical-h:    36px;
+            --sidebar-w:    300px;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* -----------------------------------------------------------------------
+         * Ethical Use Banner — always visible at top
+         * ----------------------------------------------------------------------- */
+        .ethical-banner {
+            height: var(--ethical-h);
+            background: linear-gradient(90deg, #1a0000, #1f0505, #1a0000);
+            border-bottom: 1px solid var(--border-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: #fca5a5;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .ethical-banner .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse-red 1.4s ease-in-out infinite;
+        }
+
+        /* -----------------------------------------------------------------------
+         * Top Bar
+         * ----------------------------------------------------------------------- */
+        .topbar {
+            height: var(--topbar-h);
+            background: var(--panel);
+            border-bottom: 1px solid var(--border-red);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .c2-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 900;
+            color: white;
+            font-family: monospace;
+            flex-shrink: 0;
+        }
+
+        .topbar-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        .topbar-title span {
+            color: var(--accent);
+        }
+
+        .topbar-title sub {
+            font-size: 9px;
+            font-weight: 400;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+            text-transform: none;
+            display: block;
+            margin-top: -2px;
+        }
+
+        .topbar-spacer { flex: 1; }
+
+        /* Agent count status pill */
+        .conn-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--online-dim);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 20px;
+            padding: 5px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--online);
+        }
+
+        .conn-dot {
+            width: 7px;
+            height: 7px;
+            background: var(--online);
+            border-radius: 50%;
+            animation: pulse-green 1.6s ease-in-out infinite;
+        }
+
+        /* Live clock */
+        .topbar-clock {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--term-cyan);
+            letter-spacing: 0.06em;
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            padding: 5px 12px;
+            border-radius: 6px;
+        }
+
+        /* -----------------------------------------------------------------------
+         * Main layout: sidebar + content area
+         * ----------------------------------------------------------------------- */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* -----------------------------------------------------------------------
+         * Agent Sidebar
+         * ----------------------------------------------------------------------- */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px 8px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .agent-count-badge {
+            font-size: 10px;
+            font-weight: 700;
+            background: var(--accent-dim);
+            color: var(--accent-bright);
+            border: 1px solid var(--border-red);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* Agent list */
+        .agent-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .agent-list::-webkit-scrollbar { width: 4px; }
+        .agent-list::-webkit-scrollbar-track { background: transparent; }
+        .agent-list::-webkit-scrollbar-thumb { background: var(--border-red); border-radius: 2px; }
+
+        .agent-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+            position: relative;
+        }
+
+        .agent-card:hover {
+            background: var(--card-hover);
+            border-color: var(--border-red);
+        }
+
+        .agent-card.selected {
+            background: var(--card-hover);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent-dim), inset 0 0 20px var(--accent-dim);
+        }
+
+        .agent-card-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        /* Blinking status indicator */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-dot.online {
+            background: var(--online);
+            box-shadow: 0 0 6px var(--online);
+            animation: blink-green 2s ease-in-out infinite;
+        }
+
+        .status-dot.offline {
+            background: var(--offline);
+        }
+
+        .status-dot.idle {
+            background: var(--idle);
+            animation: blink-yellow 2.4s ease-in-out infinite;
+        }
+
+        .agent-name {
+            font-size: 12px;
+            font-weight: 700;
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--text);
+            letter-spacing: 0.05em;
+        }
+
+        .agent-type-badge {
+            margin-left: auto;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--accent-dim);
+            color: var(--accent-bright);
+            border: 1px solid var(--border-red);
+        }
+
+        .agent-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px 4px;
+        }
+
+        .agent-meta-row { display: contents; }
+
+        .agent-meta span:first-child {
+            color: var(--text-dim);
+            font-size: 10px;
+        }
+
+        .agent-meta span:last-child {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .agent-checkin {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .agent-checkin .checkin-time {
+            color: var(--term-cyan);
+            font-family: monospace;
+        }
+
+        /* -----------------------------------------------------------------------
+         * Content Area (right side)
+         * ----------------------------------------------------------------------- */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Tab bar */
+        .tab-bar {
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .tab-btn {
+            padding: 10px 18px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+            position: relative;
+            top: 1px; /* overlap the border-bottom of tab-bar */
+        }
+
+        .tab-btn:hover { color: var(--text); }
+
+        .tab-btn.active {
+            color: var(--accent-bright);
+            border-bottom-color: var(--accent);
+        }
+
+        /* Tab panels */
+        .tab-panel {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-panel.active {
+            display: flex;
+        }
+
+        /* -----------------------------------------------------------------------
+         * AGENT PANEL — two-column layout
+         * ----------------------------------------------------------------------- */
+        #tab-agent {
+            flex-direction: row;
+            gap: 0;
+        }
+
+        /* Left column: details + live feed */
+        .agent-left {
+            width: 340px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Agent details card */
+        .agent-details {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .detail-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .detail-agent-id {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--accent-bright);
+            letter-spacing: 0.08em;
+        }
+
+        .detail-status-pill {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 10px;
+        }
+
+        .detail-status-pill.online {
+            background: var(--online-dim);
+            color: var(--online);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+        }
+
+        .detail-status-pill.offline {
+            background: var(--offline-dim);
+            color: var(--offline);
+            border: 1px solid rgba(220, 38, 38, 0.35);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 4px 8px;
+            font-size: 12px;
+        }
+
+        .detail-grid .label {
+            color: var(--text-dim);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+        }
+
+        .detail-grid .value {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
+        .detail-grid .value.highlight { color: var(--term-cyan); }
+
+        /* Live feed */
+        .live-feed {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .live-feed-header {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .feed-live-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--online);
+            border-radius: 50%;
+            animation: blink-green 1.2s ease-in-out infinite;
+        }
+
+        .feed-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 16px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            background: var(--term-bg);
+        }
+
+        .feed-scroll::-webkit-scrollbar { width: 3px; }
+        .feed-scroll::-webkit-scrollbar-thumb { background: var(--border-red); }
+
+        .feed-entry {
+            margin-bottom: 3px;
+            line-height: 1.6;
+            opacity: 0;
+            animation: fadeIn 0.3s forwards;
+        }
+
+        .feed-entry .feed-time { color: var(--text-dim); }
+        .feed-entry .feed-type-conn { color: var(--term-cyan); }
+        .feed-entry .feed-type-data { color: var(--term-green); }
+        .feed-entry .feed-type-warn { color: var(--term-yellow); }
+        .feed-entry .feed-type-exec { color: var(--accent-bright); }
+        .feed-entry .feed-msg { color: var(--text-muted); }
+
+        /* Right column: command interface */
+        .agent-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Command response terminal */
+        .command-output {
+            flex: 1;
+            background: var(--term-bg);
+            overflow-y: auto;
+            padding: 16px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .command-output::-webkit-scrollbar { width: 4px; }
+        .command-output::-webkit-scrollbar-thumb { background: rgba(220, 38, 38, 0.4); }
+
+        /* Welcome banner in terminal */
+        .term-banner {
+            color: var(--accent);
+            margin-bottom: 12px;
+            opacity: 0.7;
+        }
+
+        /* Individual command blocks */
+        .cmd-block {
+            margin-bottom: 12px;
+            animation: fadeIn 0.2s forwards;
+        }
+
+        .cmd-prompt {
+            color: var(--accent-bright);
+        }
+
+        .cmd-text {
+            color: var(--term-white);
+        }
+
+        .cmd-response {
+            color: var(--term-green);
+            padding-left: 2px;
+            white-space: pre-wrap;
+        }
+
+        .cmd-response.error { color: var(--term-red); }
+        .cmd-response.info  { color: var(--term-cyan); }
+        .cmd-response.warn  { color: var(--term-yellow); }
+
+        /* MITRE tag */
+        .mitre-tag {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            background: rgba(220, 38, 38, 0.15);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: var(--accent-bright);
+            padding: 1px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        /* Blue team callout */
+        .blueTeam-tip {
+            display: block;
+            margin-top: 6px;
+            padding: 6px 10px;
+            background: rgba(6, 182, 212, 0.06);
+            border-left: 3px solid rgba(6, 182, 212, 0.5);
+            border-radius: 0 4px 4px 0;
+            font-size: 10px;
+            color: var(--term-cyan);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-style: italic;
+            line-height: 1.5;
+        }
+
+        .blueTeam-tip strong {
+            font-style: normal;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+
+        /* Command input row */
+        .cmd-input-row {
+            border-top: 1px solid var(--border-red);
+            background: var(--panel);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .cmd-prefix {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .cmd-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            color: var(--term-white);
+            caret-color: var(--accent);
+        }
+
+        .cmd-input::placeholder { color: var(--text-dim); }
+
+        .cmd-send-btn {
+            background: var(--accent);
+            border: none;
+            border-radius: 6px;
+            padding: 7px 18px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: white;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+        }
+
+        .cmd-send-btn:hover { background: var(--accent-bright); }
+        .cmd-send-btn:active { transform: scale(0.97); }
+
+        /* Help bar below input */
+        .cmd-help-bar {
+            background: var(--bg);
+            padding: 6px 16px;
+            font-size: 10px;
+            color: var(--text-dim);
+            font-family: monospace;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .cmd-help-bar span { color: var(--term-yellow); margin-right: 12px; }
+
+        /* No agent selected state */
+        .no-agent {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            gap: 12px;
+            font-family: monospace;
+        }
+
+        .no-agent .no-agent-icon {
+            font-size: 48px;
+            opacity: 0.3;
+        }
+
+        .no-agent h3 {
+            font-size: 14px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        /* -----------------------------------------------------------------------
+         * MAP TAB
+         * ----------------------------------------------------------------------- */
+        #tab-map {
+            overflow: hidden;
+            background: var(--bg);
+            padding: 24px;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .map-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        .map-svg-wrap {
+            flex: 1;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .map-svg-wrap svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* -----------------------------------------------------------------------
+         * LOOT TAB
+         * ----------------------------------------------------------------------- */
+        #tab-loot {
+            flex-direction: column;
+            padding: 0;
+            overflow-y: auto;
+        }
+
+        .loot-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .loot-header h2 {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        .loot-count {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .loot-grid {
+            padding: 16px 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 12px;
+        }
+
+        .loot-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .loot-card-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--panel);
+        }
+
+        .loot-type-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .loot-type-icon.keys { background: rgba(220, 38, 38, 0.2); color: var(--accent-bright); }
+        .loot-type-icon.shot { background: rgba(34, 197, 94, 0.2); color: var(--online); }
+        .loot-type-icon.file { background: rgba(6, 182, 212, 0.2); color: var(--term-cyan); }
+        .loot-type-icon.net  { background: rgba(245, 158, 11, 0.2); color: var(--idle); }
+
+        .loot-card-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text);
+            font-family: monospace;
+        }
+
+        .loot-card-agent {
+            margin-left: auto;
+            font-size: 10px;
+            color: var(--text-dim);
+            font-family: monospace;
+        }
+
+        .loot-card-body {
+            padding: 12px 14px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--term-bg);
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 120px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .loot-card-footer {
+            padding: 6px 14px;
+            font-size: 10px;
+            color: var(--text-dim);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* -----------------------------------------------------------------------
+         * ACTIVITY LOG TAB
+         * ----------------------------------------------------------------------- */
+        #tab-log {
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .log-header {
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .log-header h2 {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        .log-filter-btns {
+            display: flex;
+            gap: 4px;
+            margin-left: auto;
+        }
+
+        .log-filter-btn {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            padding: 3px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .log-filter-btn.active {
+            background: var(--accent-dim);
+            border-color: var(--border-red);
+            color: var(--accent-bright);
+        }
+
+        .log-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .log-scroll::-webkit-scrollbar { width: 4px; }
+        .log-scroll::-webkit-scrollbar-thumb { background: rgba(220, 38, 38, 0.3); }
+
+        .log-entry {
+            display: grid;
+            grid-template-columns: 90px 80px 100px 1fr 80px;
+            align-items: center;
+            padding: 8px 24px;
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            gap: 12px;
+            transition: background 0.1s;
+        }
+
+        .log-entry:hover { background: var(--card); }
+
+        .log-entry .log-time {
+            font-family: monospace;
+            color: var(--text-dim);
+        }
+
+        .log-entry .log-agent {
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 10px;
+        }
+
+        .log-entry .log-action {
+            font-family: monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .log-entry .log-detail {
+            color: var(--text-muted);
+            font-family: monospace;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .log-entry .log-result {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-align: right;
+        }
+
+        .log-result.ok  { color: var(--online); }
+        .log-result.err { color: var(--accent-bright); }
+        .log-result.pnd { color: var(--idle); }
+
+        .log-action.conn  { color: var(--term-cyan); }
+        .log-action.exec  { color: var(--accent-bright); }
+        .log-action.data  { color: var(--term-green); }
+        .log-action.evade { color: var(--term-yellow); }
+
+        .log-agent-01 { color: #a78bfa; }
+        .log-agent-02 { color: #34d399; }
+        .log-agent-03 { color: #60a5fa; }
+        .log-agent-04 { color: #f472b6; }
+        .log-agent-05 { color: #fb923c; }
+
+        .log-table-head {
+            display: grid;
+            grid-template-columns: 90px 80px 100px 1fr 80px;
+            padding: 8px 24px;
+            border-bottom: 1px solid var(--border-red);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            gap: 12px;
+            background: var(--panel);
+            flex-shrink: 0;
+        }
+
+        /* -----------------------------------------------------------------------
+         * Keyframes
+         * ----------------------------------------------------------------------- */
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+            50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(220, 38, 38, 0); }
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+            50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+        }
+
+        @keyframes blink-green {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+
+        @keyframes blink-yellow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes scanline {
+            0% { top: -10%; }
+            100% { top: 110%; }
+        }
+
+        /* Subtle scanline overlay on terminal areas */
+        .scanline-host {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scanline-host::after {
+            content: '';
+            position: absolute;
+            top: -10%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(220, 38, 38, 0.04);
+            pointer-events: none;
+            animation: scanline 6s linear infinite;
+        }
+
+        /* -----------------------------------------------------------------------
+         * Responsive note for very small screens
+         * ----------------------------------------------------------------------- */
+        @media (max-width: 900px) {
+            :root { --sidebar-w: 240px; }
+            .agent-left { width: 280px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ethical Use Banner -->
+    <div class="ethical-banner">
+        <div class="dot"></div>
+        TRAINING TOOL ONLY &mdash; Simulated Environment &mdash; No Real Devices Connected &mdash; Authorized Educational Use
+        <div class="dot"></div>
+    </div>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="topbar-brand">
+            <div class="c2-logo">C2</div>
+            <div class="topbar-title">
+                <span>HEXWORTH C2</span> &mdash; Command and Control Training Simulator
+                <sub>Signal House &bull; Red Team Hardware &bull; Simulated Environment</sub>
+            </div>
+        </div>
+
+        <div class="topbar-spacer"></div>
+
+        <!-- Simulated connection status — updates dynamically -->
+        <div class="conn-status" id="connStatus">
+            <div class="conn-dot"></div>
+            <span id="connStatusText">3 agents online</span>
+        </div>
+
+        <!-- Live clock -->
+        <div class="topbar-clock" id="liveClock">00:00:00</div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+
+        <!-- ================================================================
+             LEFT SIDEBAR — Agent List
+             ================================================================ -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-label">Deployed Agents</span>
+                <span class="agent-count-badge" id="agentCountBadge">5 agents</span>
+            </div>
+            <div class="agent-list" id="agentList">
+                <!-- Agent cards injected by JS -->
+            </div>
+        </aside>
+
+        <!-- ================================================================
+             RIGHT CONTENT AREA
+             ================================================================ -->
+        <div class="content-area">
+
+            <!-- Tab bar -->
+            <nav class="tab-bar">
+                <button class="tab-btn active" data-tab="agent">Agent Console</button>
+                <button class="tab-btn" data-tab="map">Network Map</button>
+                <button class="tab-btn" data-tab="loot">Loot Vault</button>
+                <button class="tab-btn" data-tab="log">Activity Log</button>
+            </nav>
+
+            <!-- ==============================================================
+                 TAB: AGENT CONSOLE
+                 ============================================================== -->
+            <div class="tab-panel active" id="tab-agent">
+
+                <!-- Left column: details + live feed -->
+                <div class="agent-left">
+                    <div class="agent-details" id="agentDetails">
+                        <!-- Populated by JS on agent select -->
+                        <div class="no-agent" style="padding: 40px 0; align-items: flex-start; display: flex; flex-direction: column; gap: 6px;">
+                            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-dim);">No Agent Selected</div>
+                            <div style="font-size: 12px; color: var(--text-dim);">Select an agent from the sidebar to begin.</div>
+                        </div>
+                    </div>
+
+                    <!-- Live Activity Feed -->
+                    <div class="live-feed">
+                        <div class="live-feed-header">
+                            <div class="feed-live-dot"></div>
+                            Live Feed
+                        </div>
+                        <div class="feed-scroll scanline-host" id="liveFeed">
+                            <!-- Dynamic feed entries injected by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right column: terminal command interface -->
+                <div class="agent-right">
+                    <div class="command-output scanline-host" id="commandOutput">
+                        <div class="term-banner">
+<pre>
+  ██████╗██████╗     ███████╗██╗███╗   ███╗
+ ██╔════╝╚════██╗    ██╔════╝██║████╗ ████║
+ ██║      █████╔╝    ███████╗██║██╔████╔██║
+ ██║     ██╔═══╝     ╚════██║██║██║╚██╔╝██║
+ ╚██████╗███████╗    ███████║██║██║ ╚═╝ ██║
+  ╚═════╝╚══════╝    ╚══════╝╚═╝╚═╝     ╚═╝</pre>
+                        </div>
+                        <div style="color: var(--text-dim); font-size: 11px; margin-bottom: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                            Hexworth C2 Training Simulator v1.0 &bull; SIMULATED ENVIRONMENT<br>
+                            Select an agent from the sidebar, then type a command below.<br>
+                            Type <span style="color:var(--term-yellow)">help</span> for a full command reference.
+                        </div>
+                        <!-- Command blocks injected here -->
+                    </div>
+
+                    <!-- Command Input -->
+                    <div class="cmd-input-row">
+                        <span class="cmd-prefix" id="cmdPrefix">C2&gt;</span>
+                        <input
+                            type="text"
+                            class="cmd-input"
+                            id="cmdInput"
+                            placeholder="select an agent first..."
+                            autocomplete="off"
+                            spellcheck="false"
+                        />
+                        <button class="cmd-send-btn" id="cmdSendBtn">Send</button>
+                    </div>
+                    <div class="cmd-help-bar">
+                        <span>sysinfo</span><span>whoami</span><span>ls / dir</span><span>screenshot</span>
+                        <span>keylog start|stop</span><span>exfil &lt;file&gt;</span><span>shell &lt;cmd&gt;</span>
+                        <span>persist</span><span>cleanup</span><span>disconnect</span><span>help</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==============================================================
+                 TAB: NETWORK MAP
+                 ============================================================== -->
+            <div class="tab-panel" id="tab-map">
+                <div class="map-container">
+                    <div class="map-title">Network Topology &mdash; C2 Implant Map &mdash; Simulated</div>
+                    <div class="map-svg-wrap" id="mapSvgWrap">
+                        <!-- SVG injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==============================================================
+                 TAB: LOOT VAULT
+                 ============================================================== -->
+            <div class="tab-panel" id="tab-loot">
+                <div class="loot-header">
+                    <h2>Loot Vault &mdash; Captured Data</h2>
+                    <span class="loot-count" id="lootCount">Loading...</span>
+                </div>
+                <div class="loot-grid" id="lootGrid">
+                    <!-- Loot cards injected by JS -->
+                </div>
+            </div>
+
+            <!-- ==============================================================
+                 TAB: ACTIVITY LOG
+                 ============================================================== -->
+            <div class="tab-panel" id="tab-log">
+                <div class="log-header">
+                    <h2>Activity Log</h2>
+                    <div class="log-filter-btns" id="logFilterBtns">
+                        <button class="log-filter-btn active" data-filter="all">All</button>
+                        <button class="log-filter-btn" data-filter="conn">CONN</button>
+                        <button class="log-filter-btn" data-filter="exec">EXEC</button>
+                        <button class="log-filter-btn" data-filter="data">DATA</button>
+                        <button class="log-filter-btn" data-filter="evade">EVADE</button>
+                    </div>
+                </div>
+                <div class="log-table-head">
+                    <span>Timestamp</span>
+                    <span>Agent</span>
+                    <span>Action Type</span>
+                    <span>Detail</span>
+                    <span style="text-align:right">Result</span>
+                </div>
+                <div class="log-scroll" id="logScroll">
+                    <!-- Log entries injected by JS -->
+                </div>
+            </div>
+
+        </div><!-- /.content-area -->
+    </div><!-- /.workspace -->
+
+    <script>
+    /* =========================================================================
+     * C2 Dashboard — Training Simulator
+     * All data is static/simulated. No network calls are made.
+     * =========================================================================
+     */
+    'use strict';
+
+    /* -------------------------------------------------------------------------
+     * DATA: Agent definitions
+     * Each agent represents a real-world hardware implant type.
+     * -------------------------------------------------------------------------*/
+    const AGENTS = [
+        {
+            id: 'agent-01',
+            label: 'Agent-01',
+            codename: 'PICO-DUCKY',
+            type: 'USB Implant',
+            hostname: 'CORP-WS-0042',
+            ip: '192.168.10.42',
+            mac: '00:11:22:AA:BB:CC',
+            os: 'Windows 10 Pro 22H2',
+            arch: 'x64',
+            uptime: '14h 32m',
+            deployed: '2026-03-14',
+            location: 'Target Workstation — Finance Dept.',
+            status: 'online',
+            cssColor: '#a78bfa',
+            agentClass: 'log-agent-01',
+            mapX: 420, mapY: 160,
+        },
+        {
+            id: 'agent-02',
+            label: 'Agent-02',
+            codename: 'WIFI-RECON',
+            type: 'ESP32 WiFi Scanner',
+            hostname: 'esp32-cafe-node',
+            ip: '10.0.0.107',
+            mac: 'A4:CF:12:78:3D:E1',
+            os: 'ESP-IDF / FreeRTOS',
+            arch: 'Xtensa LX6',
+            uptime: '3d 07h 44m',
+            deployed: '2026-03-11',
+            location: 'Coffee Shop — 3rd Ave',
+            status: 'online',
+            cssColor: '#34d399',
+            agentClass: 'log-agent-02',
+            mapX: 700, mapY: 260,
+        },
+        {
+            id: 'agent-03',
+            label: 'Agent-03',
+            codename: 'LAN-TURTLE',
+            type: 'Network Implant',
+            hostname: 'SWITCH-CLOSET-B3',
+            ip: '10.10.0.5',
+            mac: 'DC:A6:32:11:FE:90',
+            os: 'OpenWrt 22.03',
+            arch: 'MIPS 24K',
+            uptime: '6d 18h 01m',
+            deployed: '2026-03-08',
+            location: 'Office Switch — Bldg B, Floor 3',
+            status: 'online',
+            cssColor: '#60a5fa',
+            agentClass: 'log-agent-03',
+            mapX: 280, mapY: 300,
+        },
+        {
+            id: 'agent-04',
+            label: 'Agent-04',
+            codename: 'KEYCROC',
+            type: 'USB Keylogger',
+            hostname: 'RECEPT-PC-001',
+            ip: '192.168.1.88',
+            mac: '00:50:56:C0:00:08',
+            os: 'Windows 10 Home 21H2',
+            arch: 'x64',
+            uptime: '2d 11h 15m',
+            deployed: '2026-03-13',
+            location: 'Reception Desk — Main Lobby',
+            status: 'offline',
+            cssColor: '#f472b6',
+            agentClass: 'log-agent-04',
+            mapX: 560, mapY: 380,
+        },
+        {
+            id: 'agent-05',
+            label: 'Agent-05',
+            codename: 'PACKET-SPY',
+            type: 'Packet Sniffer',
+            hostname: 'dmz-sensor-pi',
+            ip: '172.16.0.9',
+            mac: 'B8:27:EB:45:CD:F2',
+            os: 'Kali Linux (RPi)',
+            arch: 'ARMv8',
+            uptime: '1d 03h 55m',
+            deployed: '2026-03-16',
+            location: 'DMZ Segment — Rack 7',
+            status: 'online',
+            cssColor: '#fb923c',
+            agentClass: 'log-agent-05',
+            mapX: 160, mapY: 180,
+        },
+    ];
+
+    /* -------------------------------------------------------------------------
+     * DATA: MITRE ATT&CK mapping per command
+     * -------------------------------------------------------------------------*/
+    const MITRE_MAP = {
+        sysinfo:    { tid: 'T1082', name: 'System Information Discovery' },
+        whoami:     { tid: 'T1033', name: 'System Owner/User Discovery' },
+        ls:         { tid: 'T1083', name: 'File and Directory Discovery' },
+        dir:        { tid: 'T1083', name: 'File and Directory Discovery' },
+        screenshot: { tid: 'T1113', name: 'Screen Capture' },
+        keylog:     { tid: 'T1056.001', name: 'Input Capture: Keylogging' },
+        exfil:      { tid: 'T1041', name: 'Exfiltration Over C2 Channel' },
+        shell:      { tid: 'T1059', name: 'Command and Scripting Interpreter' },
+        persist:    { tid: 'T1547.001', name: 'Boot/Logon Autostart: Registry Run Keys' },
+        cleanup:    { tid: 'T1070', name: 'Indicator Removal' },
+        disconnect: { tid: 'T1070.004', name: 'Indicator Removal: File Deletion' },
+    };
+
+    /* -------------------------------------------------------------------------
+     * DATA: Blue Team detection tips per command
+     * -------------------------------------------------------------------------*/
+    const BLUE_TIPS = {
+        sysinfo:    'Blue Team: WMI/systeminfo calls generate Windows Event ID 4688 (process create). EDR solutions flag rapid host enumeration patterns.',
+        whoami:     'Blue Team: "whoami" invocations appear in process trees under suspicious parent processes. Sysmon Event ID 1 captures this with command-line arguments.',
+        ls:         'Blue Team: Mass directory enumeration in short time windows is flagged by DLP and SIEM correlation rules. Look for cmd.exe/powershell spawning from unusual parents.',
+        dir:        'Blue Team: Mass directory enumeration in short time windows is flagged by DLP and SIEM correlation rules. Look for cmd.exe/powershell spawning from unusual parents.',
+        screenshot:'Blue Team: Screen capture APIs (BitBlt, GDI+) are monitored by EDR hooks. Unusual access to the desktop window handle triggers behavioral alerts.',
+        keylog:     'Blue Team: Keyloggers hook SetWindowsHookEx or use kernel-level drivers. Sysmon Event ID 10 (ProcessAccess) and Event ID 7 (ImageLoad) reveal injection. USB HID analysis catches hardware keyloggers.',
+        exfil:      'Blue Team: Unexpected outbound connections to unknown IPs on non-standard ports are flagged by NGFW and IDS/IPS. DLP tools monitor file access + network egress correlation.',
+        shell:      'Blue Team: PowerShell/cmd.exe spawned from non-standard parents (e.g., USB device processes) is a high-fidelity indicator. Enable Script Block Logging (Event ID 4104) and AMSI.',
+        persist:    'Blue Team: Registry Run key modifications trigger Autoruns detection and Sysmon Event ID 13. Boot persistence shows in ProcMon and Autoruns baseline diffs.',
+        cleanup:    'Blue Team: Sudden log clearing (Event ID 1102/104) is itself a red flag. EDR stores tamper-resistant telemetry that survives local cleanup attempts.',
+        disconnect: 'Blue Team: Abrupt C2 silence after active communication is suspicious. Network flow analysis (NetFlow/IPFIX) retains session metadata even after disconnection.',
+    };
+
+    /* -------------------------------------------------------------------------
+     * DATA: Simulated command responses keyed by [agentId][command]
+     * -------------------------------------------------------------------------*/
+    function getSimResponse(agent, cmd, args) {
+        const isWin = agent.os.toLowerCase().includes('windows');
+        const isLinux = agent.os.toLowerCase().includes('linux') || agent.os.toLowerCase().includes('openwrt') || agent.os.toLowerCase().includes('kali');
+
+        if (cmd === 'sysinfo') {
+            return `Host Name:        ${agent.hostname}\nOS:               ${agent.os}\nArchitecture:     ${agent.arch}\nIP Address:       ${agent.ip}\nMAC Address:      ${agent.mac}\nDeploy Date:      ${agent.deployed}\nUptime:           ${agent.uptime}\nImplant:          ${agent.codename}\nLocation:         ${agent.location}`;
+        }
+        if (cmd === 'whoami') {
+            if (isWin)    return `${agent.hostname.toLowerCase()}\\admin\n[!] Running as: SYSTEM`;
+            if (isLinux)  return `root\n[!] UID=0 (root) GID=0 (root)`;
+            return `operator`;
+        }
+        if (cmd === 'ls' || cmd === 'dir') {
+            if (isWin) return `Volume in drive C is OS\nVolume Serial Number is 4A2F-9C1D\n\n Directory of C:\\Users\\Admin\\Documents\n\n03/18/2026  09:14 AM    <DIR>          .\n03/18/2026  09:14 AM    <DIR>          ..\n03/14/2026  02:33 PM            12,288 budget_q1_2026.xlsx\n03/16/2026  11:07 AM             4,096 vpn_credentials.txt\n03/17/2026  08:55 AM            65,536 payroll_export.csv\n03/18/2026  09:14 AM             2,048 .bash_history\n               4 File(s)        83,968 bytes\n               2 Dir(s)   47,832,064,000 bytes free`;
+            return `total 48\ndrwxr-x--- 2 root root  4096 Mar 18 09:14 .\ndrwxr-x--- 8 root root  4096 Mar 16 11:07 ..\n-rw------- 1 root root   512 Mar 14 14:33 .bash_history\n-rw-r--r-- 1 root root  1024 Mar 17 08:55 creds.txt\n-rw-r--r-- 1 root root 32768 Mar 18 09:00 capture.pcap\n-rwxr-xr-x 1 root root  4096 Mar 11 06:22 agent.elf`;
+        }
+        if (cmd === 'screenshot') {
+            return `[*] Capturing desktop screenshot...\n[*] Resolution: 1920x1080\n[+] Screenshot captured (simulated)\n[+] Saved: /tmp/sc_${Date.now()}.png\n[*] File size: 284 KB\n[*] Ready for exfil: exfil /tmp/sc_${Date.now()}.png`;
+        }
+        if (cmd === 'keylog') {
+            const sub = (args || '').trim().toLowerCase();
+            if (sub === 'start') {
+                return `[*] Initialising keylogger hook...\n[+] SetWindowsHookEx(WH_KEYBOARD_LL) registered\n[+] Keylogger ACTIVE — capturing to: C:\\Windows\\Temp\\.sys_log\n[!] Recording credentials, chat, browser input...`;
+            }
+            if (sub === 'stop') {
+                return `[*] Detaching keylogger hook...\n[+] UnhookWindowsHookEx: OK\n[+] Keylogger STOPPED\n[+] Log file: C:\\Windows\\Temp\\.sys_log (14.2 KB captured)`;
+            }
+            return `[!] Usage: keylog start | keylog stop`;
+        }
+        if (cmd === 'exfil') {
+            const file = args || '<file>';
+            return `[*] Staging file: ${file}\n[*] Compressing with AES-256-CBC...\n[*] Chunking into 512-byte DNS TXT records...\n[+] Exfil COMPLETE — 3 packets sent to C2\n[+] File received: ${file.split('/').pop() || file}\n[!] Method: DNS tunnelling (port 53) — low visibility`;
+        }
+        if (cmd === 'shell') {
+            const subcmd = args || 'id';
+            if (!args) return `[!] Usage: shell <command>\n[!] Example: shell ipconfig`;
+            const shellOut = {
+                'ipconfig': `Windows IP Configuration\n\nEthernet adapter Ethernet0:\n   IPv4 Address:  ${agent.ip}\n   Subnet Mask:   255.255.255.0\n   Default GW:    192.168.10.1`,
+                'ipconfig /all': `Host Name:        ${agent.hostname}\n[...full adapter dump...]`,
+                'id': `uid=0(root) gid=0(root) groups=0(root)`,
+                'ifconfig': `eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n        inet ${agent.ip}  netmask 255.255.255.0  broadcast 192.168.10.255`,
+                'ps aux': `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nroot         1  0.0  0.1  37700  5880 ?        Ss   Mar18   0:08 /sbin/init\nroot       312  0.1  0.2  14228  9456 ?        Ss   Mar18   1:22 ./agent.elf`,
+                'cat /etc/passwd': `root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nadmin:x:1000:1000:,,,:/home/admin:/bin/bash`,
+            };
+            return shellOut[subcmd] || `[+] $ ${subcmd}\n${subcmd}: command executed\n[+] Exit code: 0\n[i] (Simulated — actual output varies by target OS)`;
+        }
+        if (cmd === 'persist') {
+            if (isWin) return `[*] Installing persistence mechanism...\n[+] Registry key created:\n    HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\n    "WindowsUpdateHelper" = "C:\\Windows\\Temp\\wuhelper.exe"\n[+] Scheduled task created: "Microsoft\\Windows\\UpdateOrchestrator\\USO_UxBroker"\n[+] Persistence ACTIVE — survives reboot`;
+            return `[*] Installing cron persistence...\n[+] Crontab entry added: @reboot /tmp/.agent/agent.elf &\n[+] rc.local entry written\n[+] Systemd unit dropped: /etc/systemd/system/netd.service\n[+] Persistence ACTIVE — survives reboot`;
+        }
+        if (cmd === 'cleanup') {
+            return `[*] Removing artefacts...\n[+] Event log cleared: Security (1,204 entries)\n[+] Event log cleared: System (892 entries)\n[+] Prefetch files deleted: C:\\Windows\\Prefetch\\*\n[+] PowerShell history wiped: ConsoleHost_history.txt\n[+] USN journal cleared\n[*] Cleanup complete — artefact count: 0\n[!] NOTE: EDR telemetry is transmitted in real-time. Cleanup is not enough.`;
+        }
+        if (cmd === 'disconnect') {
+            return `[*] Initiating graceful disconnect...\n[+] C2 beacon stopped\n[+] Memory-resident payload cleared\n[+] Network socket closed\n[*] Agent-${agent.label} status: OFFLINE\n[!] Agent will not beacon again until re-deployed.`;
+        }
+        if (cmd === 'help') {
+            return `HEXWORTH C2 — Command Reference
+─────────────────────────────────────────
+  sysinfo           System information dump
+  whoami            Current user and privileges
+  ls / dir          List files in current directory
+  screenshot        Capture desktop screenshot
+  keylog start      Start keystroke logging
+  keylog stop       Stop keystroke logging
+  exfil <file>      Exfiltrate file over C2 channel
+  shell <cmd>       Execute shell command on target
+  persist           Install persistence mechanism
+  cleanup           Remove operational traces
+  disconnect        Take agent offline
+  help              Show this reference
+─────────────────────────────────────────
+Tip: All commands are simulated for training purposes.`;
+        }
+        return `[!] Unknown command: "${cmd}"\n[i] Type "help" for a list of available commands.`;
+    }
+
+    /* -------------------------------------------------------------------------
+     * DATA: Loot items — simulated captured data
+     * -------------------------------------------------------------------------*/
+    const LOOT_ITEMS = [
+        {
+            type: 'keys',
+            iconLabel: 'KL',
+            title: 'Keystrokes — 03/18 09:14-09:52',
+            agent: 'Agent-01',
+            content: 'admin@corp.com\n[TAB]\nP@ssw0rd2026!\n[ENTER]\n\nVPN PIN: 8847\n\n"hey can you check the budget file"\n"sure sec"',
+            ts: '2026-03-18 09:52:04',
+            size: '14.2 KB',
+        },
+        {
+            type: 'shot',
+            iconLabel: 'SS',
+            title: 'Screenshot — Finance Desktop',
+            agent: 'Agent-01',
+            content: '[Simulated PNG — 1920x1080]\nVisible: QuickBooks Pro, budget_q1_2026.xlsx\nOpen browser tab: corp-vpn.company.com\nTask bar: Slack, Teams, Outlook',
+            ts: '2026-03-18 10:03:17',
+            size: '284 KB',
+        },
+        {
+            type: 'file',
+            iconLabel: 'EX',
+            title: 'vpn_credentials.txt',
+            agent: 'Agent-01',
+            content: '# VPN Credentials — DO NOT SHARE\nUsername: jsmith@corp.com\nPassword: Summer2026!\nServer:   vpn.corp.com:1194\nMFA seed: JBSWY3DPEHPK3PXP',
+            ts: '2026-03-17 15:41:22',
+            size: '512 B',
+        },
+        {
+            type: 'net',
+            iconLabel: 'PC',
+            title: 'capture.pcap — DMZ Segment',
+            agent: 'Agent-05',
+            content: '172.16.0.1  -> 172.16.0.99  [HTTP]  GET /admin/config.php\n172.16.0.88 -> 8.8.8.8      [DNS]   A db.corp.internal\n10.0.0.1    -> 172.16.0.9   [TCP]   3-way handshake (port 22)\n[+] 1,204 packets captured — 38 unique hosts',
+            ts: '2026-03-18 08:00:00',
+            size: '32 KB',
+        },
+        {
+            type: 'keys',
+            iconLabel: 'KL',
+            title: 'Keystrokes — Reception Desk 03/17',
+            agent: 'Agent-04',
+            content: 'receptionist login: front.desk\npassword: Welcome1\n\n"good morning how can I help"\n"please sign in here"\n\nVisitor badge code typed: 4821',
+            ts: '2026-03-17 08:33:11',
+            size: '8.6 KB',
+        },
+        {
+            type: 'net',
+            iconLabel: 'WF',
+            title: 'WiFi Networks — Coffee Shop Survey',
+            agent: 'Agent-02',
+            content: 'SSID: CoffeeShop_Guest   BSSID: AA:BB:CC:11:22:33  CH:6  -62dBm  WPA2\nSSID: CorpMobileHotspot BSSID: DE:AD:BE:EF:00:01  CH:11 -71dBm  WPA3\nSSID: [hidden]          BSSID: 11:22:33:44:55:66  CH:1  -80dBm  WPA2-TKIP\nClients: 23 unique MACs observed in 4h window',
+            ts: '2026-03-18 07:15:00',
+            size: '2.1 KB',
+        },
+    ];
+
+    /* -------------------------------------------------------------------------
+     * DATA: Activity log entries — chronological C2 telemetry
+     * -------------------------------------------------------------------------*/
+    const LOG_ENTRIES_BASE = [
+        { ts:'2026-03-18 10:14:02', agentId:'agent-01', agentLabel:'Agent-01', type:'exec', action:'EXEC', detail:'shell ipconfig', result:'ok' },
+        { ts:'2026-03-18 10:03:17', agentId:'agent-01', agentLabel:'Agent-01', type:'data', action:'DATA', detail:'screenshot captured — 284 KB', result:'ok' },
+        { ts:'2026-03-18 09:52:04', agentId:'agent-01', agentLabel:'Agent-01', type:'data', action:'DATA', detail:'keylog flushed — 14.2 KB', result:'ok' },
+        { ts:'2026-03-18 09:22:11', agentId:'agent-03', agentLabel:'Agent-03', type:'conn', action:'CONN', detail:'beacon check-in — RTT 42ms', result:'ok' },
+        { ts:'2026-03-18 08:00:00', agentId:'agent-05', agentLabel:'Agent-05', type:'data', action:'DATA', detail:'pcap export — 32 KB / 1204 pkts', result:'ok' },
+        { ts:'2026-03-18 07:55:44', agentId:'agent-04', agentLabel:'Agent-04', type:'conn', action:'CONN', detail:'beacon timeout — no response', result:'err' },
+        { ts:'2026-03-18 07:15:00', agentId:'agent-02', agentLabel:'Agent-02', type:'data', action:'DATA', detail:'wifi survey export — 23 clients', result:'ok' },
+        { ts:'2026-03-17 15:41:22', agentId:'agent-01', agentLabel:'Agent-01', type:'exec', action:'EXEC', detail:'exfil vpn_credentials.txt', result:'ok' },
+        { ts:'2026-03-17 08:33:11', agentId:'agent-04', agentLabel:'Agent-04', type:'data', action:'DATA', detail:'keylog flushed — 8.6 KB', result:'ok' },
+        { ts:'2026-03-16 23:01:05', agentId:'agent-03', agentLabel:'Agent-03', type:'evade', action:'EVADE', detail:'cleanup executed — 2096 artefacts removed', result:'ok' },
+        { ts:'2026-03-16 22:50:18', agentId:'agent-05', agentLabel:'Agent-05', type:'exec', action:'EXEC', detail:'persist — cron + systemd unit', result:'ok' },
+        { ts:'2026-03-16 11:07:33', agentId:'agent-02', agentLabel:'Agent-02', type:'conn', action:'CONN', detail:'initial beacon — agent online', result:'ok' },
+        { ts:'2026-03-14 14:33:00', agentId:'agent-01', agentLabel:'Agent-01', type:'conn', action:'CONN', detail:'USB implant deployed — first beacon', result:'ok' },
+        { ts:'2026-03-11 06:22:00', agentId:'agent-02', agentLabel:'Agent-02', type:'conn', action:'CONN', detail:'ESP32 deployed — wifi survey started', result:'ok' },
+        { ts:'2026-03-08 09:15:00', agentId:'agent-03', agentLabel:'Agent-03', type:'conn', action:'CONN', detail:'LAN Turtle implanted on switch', result:'ok' },
+    ];
+
+    /* =========================================================================
+     * STATE
+     * =========================================================================*/
+    let selectedAgentId = null;
+    let activeTab       = 'agent';
+    let cmdHistory      = [];
+    let historyIdx      = -1;
+    let keylogActive    = {};  // tracks per-agent keylog state
+
+    /* =========================================================================
+     * CLOCK — updates every second
+     * =========================================================================*/
+    function startClock() {
+        const el = document.getElementById('liveClock');
+        function tick() {
+            const now = new Date();
+            el.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        tick();
+        setInterval(tick, 1000);
+    }
+
+    /* =========================================================================
+     * AGENT LIST — render all agent cards into the sidebar
+     * =========================================================================*/
+    function renderAgentList() {
+        const container = document.getElementById('agentList');
+        const onlineCount = AGENTS.filter(a => a.status === 'online').length;
+
+        document.getElementById('connStatusText').textContent = `${onlineCount} agents online`;
+        document.getElementById('agentCountBadge').textContent = `${AGENTS.length} agents`;
+
+        container.innerHTML = AGENTS.map(agent => {
+            const dotClass = agent.status === 'online' ? 'online' : 'offline';
+            const lastSeen = agent.status === 'online' ? 'just now' : '47m ago';
+            return `
+            <div class="agent-card ${selectedAgentId === agent.id ? 'selected' : ''}"
+                 data-id="${agent.id}"
+                 onclick="selectAgent('${agent.id}')">
+                <div class="agent-card-top">
+                    <div class="status-dot ${dotClass}"></div>
+                    <div class="agent-name">${agent.label}</div>
+                    <div class="agent-type-badge">${agent.type.split(' ')[0]}</div>
+                </div>
+                <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;padding-left:16px;">${agent.codename}</div>
+                <div class="agent-meta">
+                    <span>Host</span><span>${agent.hostname}</span>
+                    <span>IP</span><span>${agent.ip}</span>
+                    <span>OS</span><span>${agent.os.split(' ').slice(0,2).join(' ')}</span>
+                </div>
+                <div class="agent-checkin">
+                    <span>Last check-in</span>
+                    <span class="checkin-time">${lastSeen}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    /* =========================================================================
+     * AGENT DETAILS — populate the left column when an agent is selected
+     * =========================================================================*/
+    function renderAgentDetails(agent) {
+        const el = document.getElementById('agentDetails');
+        const statusClass = agent.status === 'online' ? 'online' : 'offline';
+        el.innerHTML = `
+        <div class="detail-header">
+            <div class="detail-agent-id">${agent.label} / ${agent.codename}</div>
+            <div class="detail-status-pill ${statusClass}">${agent.status.toUpperCase()}</div>
+        </div>
+        <div class="detail-grid">
+            <div class="label">Hostname</div>  <div class="value highlight">${agent.hostname}</div>
+            <div class="label">IP Address</div> <div class="value">${agent.ip}</div>
+            <div class="label">MAC</div>        <div class="value">${agent.mac}</div>
+            <div class="label">OS</div>         <div class="value">${agent.os}</div>
+            <div class="label">Arch</div>       <div class="value">${agent.arch}</div>
+            <div class="label">Uptime</div>     <div class="value">${agent.uptime}</div>
+            <div class="label">Deployed</div>   <div class="value">${agent.deployed}</div>
+            <div class="label">Location</div>   <div class="value">${agent.location}</div>
+            <div class="label">Implant</div>    <div class="value highlight">${agent.type}</div>
+        </div>`;
+    }
+
+    /* =========================================================================
+     * LIVE FEED — simulated streaming telemetry per agent
+     * =========================================================================*/
+    const FEED_TEMPLATES = [
+        (a) => ({ type:'conn', msg: `Beacon received from ${a.hostname} — RTT 38ms` }),
+        (a) => ({ type:'data', msg: `Keystroke buffer: 2.1 KB queued for exfil` }),
+        (a) => ({ type:'conn', msg: `Heartbeat OK — agent alive` }),
+        (a) => ({ type:'exec', msg: `Process spawned: svchost.exe (PID 4812)` }),
+        (a) => ({ type:'data', msg: `File access: ${a.hostname === 'CORP-WS-0042' ? 'budget_q1_2026.xlsx' : 'capture.pcap'}` }),
+        (a) => ({ type:'warn', msg: `AV scan detected — evading with sleep(30s)` }),
+        (a) => ({ type:'conn', msg: `DNS beacon: c2.hexworth.sim responded` }),
+        (a) => ({ type:'exec', msg: `Registry query: HKLM\\System\\CurrentControlSet` }),
+        (a) => ({ type:'data', msg: `Network adapter enumerated: ${a.ip}` }),
+        (a) => ({ type:'conn', msg: `C2 channel refreshed — encryption renegotiated` }),
+    ];
+
+    let feedInterval = null;
+
+    function startLiveFeed(agent) {
+        const feed = document.getElementById('liveFeed');
+        feed.innerHTML = '';
+
+        // Stop any previous interval
+        if (feedInterval) clearInterval(feedInterval);
+
+        // Show the last 6 events immediately
+        let shown = 0;
+        for (let i = FEED_TEMPLATES.length - 1; i >= 0 && shown < 6; i--) {
+            const entry = FEED_TEMPLATES[i](agent);
+            prependFeedEntry(feed, entry, agent);
+            shown++;
+        }
+
+        if (agent.status === 'online') {
+            feedInterval = setInterval(() => {
+                const template = FEED_TEMPLATES[Math.floor(Math.random() * FEED_TEMPLATES.length)];
+                const entry = template(agent);
+                prependFeedEntry(feed, entry, agent);
+                // Keep feed short
+                while (feed.children.length > 20) {
+                    feed.removeChild(feed.lastChild);
+                }
+            }, 3500 + Math.random() * 2000);
+        }
+    }
+
+    function prependFeedEntry(feed, entry, agent) {
+        const now = new Date();
+        const ts = now.toLocaleTimeString('en-US', { hour12: false });
+        const typeClass = `feed-type-${entry.type}`;
+        const typeLabel = entry.type.toUpperCase().padEnd(4);
+        const div = document.createElement('div');
+        div.className = 'feed-entry';
+        div.innerHTML =
+            `<span class="feed-time">[${ts}]</span> ` +
+            `<span class="${typeClass}">[${typeLabel}]</span> ` +
+            `<span class="feed-msg">${escapeHtml(entry.msg)}</span>`;
+        feed.insertBefore(div, feed.firstChild);
+    }
+
+    /* =========================================================================
+     * SELECT AGENT
+     * =========================================================================*/
+    function selectAgent(agentId) {
+        selectedAgentId = agentId;
+        const agent = AGENTS.find(a => a.id === agentId);
+        if (!agent) return;
+
+        // Update sidebar selection state
+        renderAgentList();
+
+        // Populate details panel
+        renderAgentDetails(agent);
+
+        // Start live feed
+        startLiveFeed(agent);
+
+        // Update command prefix
+        const prefix = document.getElementById('cmdPrefix');
+        prefix.textContent = `${agent.label}@C2>`;
+
+        // Update input placeholder
+        const input = document.getElementById('cmdInput');
+        if (agent.status === 'offline') {
+            input.placeholder = 'agent offline — commands disabled';
+            input.disabled = true;
+            document.getElementById('cmdSendBtn').disabled = true;
+        } else {
+            input.placeholder = 'enter command...';
+            input.disabled = false;
+            document.getElementById('cmdSendBtn').disabled = false;
+        }
+
+        // Welcome line in terminal
+        appendTerminal(`\n[*] Connected to ${agent.label} (${agent.codename}) — ${agent.hostname} [${agent.ip}]\n[*] OS: ${agent.os}  |  Arch: ${agent.arch}\n[*] Status: ${agent.status.toUpperCase()}\n`, 'info');
+    }
+
+    /* =========================================================================
+     * TERMINAL OUTPUT — append command blocks
+     * =========================================================================*/
+    function appendTerminal(text, cls = '') {
+        const output = document.getElementById('commandOutput');
+        const div = document.createElement('div');
+        div.className = 'cmd-block';
+        const pre = document.createElement('div');
+        pre.className = `cmd-response ${cls}`;
+        pre.textContent = text;
+        div.appendChild(pre);
+        output.appendChild(div);
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function appendCommandBlock(prompt, cmdText, responseText, responseCls, mitre, blueTip) {
+        const output = document.getElementById('commandOutput');
+        const block = document.createElement('div');
+        block.className = 'cmd-block';
+
+        // Command line
+        const cmdLine = document.createElement('div');
+        cmdLine.innerHTML = `<span class="cmd-prompt">${escapeHtml(prompt)}</span> <span class="cmd-text">${escapeHtml(cmdText)}</span>`;
+        block.appendChild(cmdLine);
+
+        // Response
+        const resp = document.createElement('div');
+        resp.className = `cmd-response ${responseCls}`;
+        resp.textContent = responseText;
+        block.appendChild(resp);
+
+        // MITRE tag
+        if (mitre) {
+            const tag = document.createElement('div');
+            tag.className = 'mitre-tag';
+            tag.textContent = `MITRE ATT&CK: ${mitre.tid} — ${mitre.name}`;
+            block.appendChild(tag);
+        }
+
+        // Blue Team tip
+        if (blueTip) {
+            const tip = document.createElement('div');
+            tip.className = 'blueTeam-tip';
+            tip.innerHTML = `<strong>BLUE TEAM:</strong> ${escapeHtml(blueTip)}`;
+            block.appendChild(tip);
+        }
+
+        output.appendChild(block);
+        output.scrollTop = output.scrollHeight;
+    }
+
+    /* =========================================================================
+     * COMMAND PROCESSING
+     * =========================================================================*/
+    function processCommand(rawInput) {
+        const agent = AGENTS.find(a => a.id === selectedAgentId);
+        if (!agent) {
+            appendTerminal('[!] No agent selected. Click an agent in the sidebar first.', 'error');
+            return;
+        }
+        if (agent.status === 'offline') {
+            appendTerminal('[!] Agent is offline. Cannot send commands.', 'error');
+            return;
+        }
+
+        const trimmed = rawInput.trim();
+        if (!trimmed) return;
+
+        // Push to history
+        cmdHistory.unshift(trimmed);
+        if (cmdHistory.length > 50) cmdHistory.pop();
+        historyIdx = -1;
+
+        // Parse command and args
+        const parts = trimmed.split(/\s+/);
+        const cmd = parts[0].toLowerCase();
+        const args = parts.slice(1).join(' ');
+
+        // Look up MITRE tag and blue tip — keylog uses base cmd
+        const mitreKey = (cmd === 'keylog') ? 'keylog' : cmd;
+        const mitre    = MITRE_MAP[mitreKey] || null;
+        const blueTip  = BLUE_TIPS[mitreKey] || null;
+
+        // Handle 'disconnect' — take agent offline
+        if (cmd === 'disconnect') {
+            const response = getSimResponse(agent, cmd, args);
+            appendCommandBlock(
+                `${agent.label}@C2>`, trimmed,
+                response, 'warn',
+                mitre, blueTip
+            );
+            // Mark agent offline
+            agent.status = 'offline';
+            renderAgentList();
+            document.getElementById('cmdInput').disabled = true;
+            document.getElementById('cmdSendBtn').disabled = true;
+            document.getElementById('cmdInput').placeholder = 'agent offline — commands disabled';
+            if (feedInterval) { clearInterval(feedInterval); feedInterval = null; }
+            // Update details panel
+            renderAgentDetails(agent);
+            return;
+        }
+
+        // All other commands
+        const response = getSimResponse(agent, cmd, args);
+        const responseCls = response.startsWith('[!]') ? 'error' : '';
+        appendCommandBlock(
+            `${agent.label}@C2>`, trimmed,
+            response, responseCls,
+            mitre, blueTip
+        );
+
+        // Add to activity log dynamically
+        addLiveLogEntry(agent, cmd, trimmed);
+    }
+
+    function addLiveLogEntry(agent, cmd, detail) {
+        const now = new Date();
+        const ts = now.toLocaleString('en-GB').replace(',', '');
+        const typeMap = {
+            sysinfo:'exec', whoami:'exec', ls:'exec', dir:'exec',
+            screenshot:'data', keylog:'data', exfil:'data',
+            shell:'exec', persist:'exec', cleanup:'evade', disconnect:'evade',
+        };
+        const type = typeMap[cmd] || 'exec';
+        const entry = {
+            ts, agentId: agent.id, agentLabel: agent.label,
+            type, action: type.toUpperCase(), detail, result: 'ok',
+        };
+        LOG_ENTRIES_BASE.unshift(entry);
+        renderActivityLog();
+    }
+
+    /* =========================================================================
+     * TAB SYSTEM
+     * =========================================================================*/
+    function initTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                switchTab(tabName);
+            });
+        });
+    }
+
+    function switchTab(name) {
+        activeTab = name;
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === name);
+        });
+        document.querySelectorAll('.tab-panel').forEach(p => {
+            p.classList.toggle('active', p.id === `tab-${name}`);
+        });
+    }
+
+    /* =========================================================================
+     * NETWORK MAP — SVG diagram
+     * =========================================================================*/
+    function renderNetworkMap() {
+        const wrap = document.getElementById('mapSvgWrap');
+        // C2 server node position (centre)
+        const c2X = 440, c2Y = 240;
+        const W = 880, H = 480;
+
+        const onlineAgents  = AGENTS.filter(a => a.status === 'online');
+        const offlineAgents = AGENTS.filter(a => a.status !== 'online');
+
+        // Build SVG connections
+        const lines = AGENTS.map(agent => {
+            const stroke = agent.status === 'online' ? '#22c55e' : '#dc2626';
+            const opacity = agent.status === 'online' ? 0.7 : 0.25;
+            const dash = agent.status === 'online' ? '' : 'stroke-dasharray="6 4"';
+            return `<line
+                x1="${c2X}" y1="${c2Y}"
+                x2="${agent.mapX}" y2="${agent.mapY}"
+                stroke="${stroke}" stroke-width="1.5"
+                stroke-opacity="${opacity}" ${dash}/>`;
+        }).join('\n');
+
+        // Animated data packets on online connections
+        const packets = onlineAgents.map((agent, i) => {
+            const dur = 2.5 + i * 0.4;
+            return `<circle r="3" fill="#22c55e" fill-opacity="0.8">
+                <animateMotion dur="${dur}s" repeatCount="indefinite"
+                    path="M${c2X},${c2Y} L${agent.mapX},${agent.mapY}"/>
+            </circle>`;
+        }).join('\n');
+
+        // Agent nodes
+        const agentNodes = AGENTS.map(agent => {
+            const fill = agent.status === 'online' ? '#22c55e' : '#dc2626';
+            const glow = agent.status === 'online' ? 'rgba(34,197,94,0.3)' : 'rgba(220,38,38,0.2)';
+            return `
+            <g transform="translate(${agent.mapX},${agent.mapY})" style="cursor:pointer" onclick="selectAgent('${agent.id}');switchTab('agent');">
+                <circle r="22" fill="${glow}" />
+                <circle r="14" fill="${fill}" fill-opacity="0.15" stroke="${fill}" stroke-width="1.5"/>
+                <text y="1" text-anchor="middle" dominant-baseline="middle" fill="${fill}" font-size="7" font-weight="700" font-family="monospace">${agent.id.toUpperCase()}</text>
+                <text y="32" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">${agent.codename}</text>
+                <text y="44" text-anchor="middle" fill="#4b5563" font-size="8" font-family="monospace">${agent.ip}</text>
+            </g>`;
+        }).join('\n');
+
+        // C2 server node
+        const c2Node = `
+        <g transform="translate(${c2X},${c2Y})">
+            <circle r="32" fill="rgba(220,38,38,0.08)" stroke="#dc2626" stroke-width="1.5"/>
+            <circle r="20" fill="rgba(220,38,38,0.15)" stroke="#dc2626" stroke-width="2"/>
+            <text y="1" text-anchor="middle" dominant-baseline="middle" fill="#dc2626" font-size="10" font-weight="900" font-family="monospace">C2</text>
+            <text y="46" text-anchor="middle" fill="#8b949e" font-size="9" font-family="monospace">C2 SERVER</text>
+            <text y="58" text-anchor="middle" fill="#4b5563" font-size="8" font-family="monospace">c2.hexworth.sim</text>
+        </g>`;
+
+        // Legend
+        const legend = `
+        <g transform="translate(20,20)">
+            <circle cx="6" cy="6" r="5" fill="#22c55e" fill-opacity="0.2" stroke="#22c55e" stroke-width="1"/>
+            <text x="16" y="10" fill="#8b949e" font-size="9" font-family="monospace">Online Agent</text>
+            <circle cx="6" cy="22" r="5" fill="#dc2626" fill-opacity="0.2" stroke="#dc2626" stroke-width="1"/>
+            <text x="16" y="26" fill="#8b949e" font-size="9" font-family="monospace">Offline Agent</text>
+            <line x1="0" y1="34" x2="12" y2="34" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="16" y="38" fill="#8b949e" font-size="9" font-family="monospace">Active C2 Channel</text>
+            <line x1="0" y1="48" x2="12" y2="48" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="16" y="52" fill="#8b949e" font-size="9" font-family="monospace">Severed Channel</text>
+        </g>`;
+
+        wrap.innerHTML = `
+        <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
+             style="background:#050508;border-radius:12px;border:1px solid rgba(255,255,255,0.06);">
+            <!-- Background grid -->
+            <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
+                </pattern>
+            </defs>
+            <rect width="${W}" height="${H}" fill="url(#grid)"/>
+            <!-- Connection lines -->
+            ${lines}
+            <!-- Animated data packets -->
+            ${packets}
+            <!-- Agent nodes -->
+            ${agentNodes}
+            <!-- C2 server -->
+            ${c2Node}
+            <!-- Legend -->
+            ${legend}
+        </svg>`;
+    }
+
+    /* =========================================================================
+     * LOOT VAULT
+     * =========================================================================*/
+    function renderLootVault() {
+        const grid = document.getElementById('lootGrid');
+        const countEl = document.getElementById('lootCount');
+        countEl.textContent = `${LOOT_ITEMS.length} items captured`;
+
+        grid.innerHTML = LOOT_ITEMS.map(item => `
+        <div class="loot-card">
+            <div class="loot-card-header">
+                <div class="loot-type-icon ${item.type}">${item.iconLabel}</div>
+                <div class="loot-card-title">${escapeHtml(item.title)}</div>
+                <div class="loot-card-agent">${item.agent}</div>
+            </div>
+            <div class="loot-card-body">${escapeHtml(item.content)}</div>
+            <div class="loot-card-footer">
+                <span>${item.ts}</span>
+                <span>${item.size}</span>
+            </div>
+        </div>`).join('');
+    }
+
+    /* =========================================================================
+     * ACTIVITY LOG
+     * =========================================================================*/
+    let logFilter = 'all';
+
+    function renderActivityLog() {
+        const scroll = document.getElementById('logScroll');
+        const entries = logFilter === 'all'
+            ? LOG_ENTRIES_BASE
+            : LOG_ENTRIES_BASE.filter(e => e.type === logFilter);
+
+        scroll.innerHTML = entries.map(e => {
+            const agentNum = e.agentId.replace('agent-', '');
+            return `
+            <div class="log-entry" data-type="${e.type}">
+                <span class="log-time">${e.ts}</span>
+                <span class="log-agent log-agent-${agentNum.padStart(2,'0')}">${e.agentLabel}</span>
+                <span class="log-action ${e.type}">${e.action}</span>
+                <span class="log-detail" title="${escapeHtml(e.detail)}">${escapeHtml(e.detail)}</span>
+                <span class="log-result ${e.result}">${e.result.toUpperCase()}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function initLogFilters() {
+        document.getElementById('logFilterBtns').addEventListener('click', (ev) => {
+            const btn = ev.target.closest('.log-filter-btn');
+            if (!btn) return;
+            logFilter = btn.dataset.filter;
+            document.querySelectorAll('.log-filter-btn').forEach(b =>
+                b.classList.toggle('active', b === btn)
+            );
+            renderActivityLog();
+        });
+    }
+
+    /* =========================================================================
+     * COMMAND INPUT — keyboard handling
+     * =========================================================================*/
+    function initCommandInput() {
+        const input  = document.getElementById('cmdInput');
+        const sendBtn = document.getElementById('cmdSendBtn');
+
+        // Send on Enter
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const val = input.value;
+                input.value = '';
+                processCommand(val);
+            }
+            // History navigation
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIdx < cmdHistory.length - 1) {
+                    historyIdx++;
+                    input.value = cmdHistory[historyIdx] || '';
+                }
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIdx > 0) {
+                    historyIdx--;
+                    input.value = cmdHistory[historyIdx] || '';
+                } else {
+                    historyIdx = -1;
+                    input.value = '';
+                }
+            }
+        });
+
+        // Send on button click
+        sendBtn.addEventListener('click', () => {
+            const val = input.value;
+            input.value = '';
+            processCommand(val);
+        });
+    }
+
+    /* =========================================================================
+     * UTILITY: HTML escape — never inject raw user input into DOM
+     * =========================================================================*/
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;');
+    }
+
+    /* =========================================================================
+     * BOOT SEQUENCE — simulated startup telemetry in the terminal
+     * =========================================================================*/
+    function bootSequence() {
+        const lines = [
+            { text: '[*] Initialising C2 server...', cls: 'info', delay: 0 },
+            { text: '[+] Encryption layer: AES-256-GCM — OK', cls: '', delay: 200 },
+            { text: '[+] DNS beacon resolver: ACTIVE', cls: '', delay: 400 },
+            { text: '[+] Agent polling interval: 30s', cls: '', delay: 600 },
+            { text: `[+] Agents loaded: ${AGENTS.length} total, ${AGENTS.filter(a=>a.status==='online').length} online`, cls: '', delay: 800 },
+            { text: '[*] Ready. Select an agent from the sidebar to begin.', cls: 'info', delay: 1100 },
+        ];
+        lines.forEach(({ text, cls, delay }) => {
+            setTimeout(() => appendTerminal(text, cls), delay);
+        });
+    }
+
+    /* =========================================================================
+     * INIT — called on DOMContentLoaded
+     * =========================================================================*/
+    function init() {
+        startClock();
+        renderAgentList();
+        renderNetworkMap();
+        renderLootVault();
+        renderActivityLog();
+        initTabs();
+        initCommandInput();
+        initLogFilters();
+        bootSequence();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

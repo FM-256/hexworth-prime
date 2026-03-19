@@ -220,6 +220,16 @@ const SignalData = {
             color: '#94a3b8',
             colorDim: 'rgba(148, 163, 184, 0.15)',
             sections: ['field-prep']
+        },
+        {
+            id: 'red-team-hw',
+            name: 'Red Team Hardware',
+            tagline: 'Build your arsenal.',
+            description: 'DIY offensive security hardware — USB attack tools, keystroke injectors, network implants, WiFi auditing, and cable detectors. Build Hak5-class tools from $4 microcontrollers.',
+            icon: '../../assets/images/icons/icon-skull.webp',
+            color: '#dc2626',
+            colorDim: 'rgba(220, 38, 38, 0.15)',
+            sections: ['red-team-hw']
         }
     ],
 
@@ -1132,6 +1142,279 @@ const SignalData = {
                         'Flash TinyUSB firmware for USB Mass Storage Class',
                         'Build a working USB storage device that any OS recognizes',
                         'Explain USB enumeration, device descriptors, and block storage protocol'
+                    ]
+                }
+            ]
+        },
+
+        // =================================================================
+        // RED TEAM HARDWARE — DIY offensive security tools
+        // Build Hak5-class hardware from cheap microcontrollers
+        // =================================================================
+        {
+            id: 'red-team-hw',
+            name: 'Red Team Hardware',
+            track: 'red-team-hw',
+            icon: '../../assets/images/icons/icon-skull.webp',
+            description: 'Build offensive security hardware from $4 microcontrollers. USB attack tools, keystroke injectors, network implants, WiFi auditing devices, and malicious cable detectors.',
+            color: '#dc2626',
+            projects: [
+                {
+                    id: 'sg-33',
+                    title: 'USB Rubber Ducky Clone',
+                    type: 'build',
+                    difficulty: 'recruit',
+                    platform: 'rp2040-pico',
+                    buildTime: '1h',
+                    cost: '$4',
+                    status: 'ready',
+                    href: 'sg-33-rubber-ducky.html',
+                    skills: ['usb-protocol', 'hid-injection', 'payload-dev'],
+                    prerequisites: [],
+                    parts: [
+                        { component: 'Raspberry Pi Pico', qty: 1, inKit: false },
+                        { component: 'USB Micro-B Cable', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Understand USB HID (Human Interface Device) protocol',
+                        'Flash CircuitPython with HID library onto Pi Pico',
+                        'Write DuckyScript-style keystroke injection payloads',
+                        'Build a working keystroke injector that types at 1000+ WPM',
+                        'Create payloads for recon, reverse shells, and data exfil'
+                    ]
+                },
+                {
+                    id: 'sg-34',
+                    title: 'Bad USB Multi-Payload Tool',
+                    type: 'build',
+                    difficulty: 'operative',
+                    platform: 'rp2040-pico',
+                    buildTime: '2h',
+                    cost: '$4',
+                    status: 'ready',
+                    href: 'sg-34-bad-usb.html',
+                    skills: ['usb-protocol', 'hid-injection', 'payload-dev', 'firmware-dev'],
+                    prerequisites: ['sg-33'],
+                    parts: [
+                        { component: 'Raspberry Pi Pico', qty: 1, inKit: false },
+                        { component: 'USB Micro-B Cable', qty: 1, inKit: false },
+                        { component: 'Tactile Button (optional)', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Store multiple payloads with a selector mechanism',
+                        'Detect target OS (Windows/Mac/Linux) and auto-select payload',
+                        'Add storage mode for data exfiltration to onboard flash',
+                        'Implement arming mode with LED status indicators',
+                        'Understand Bash Bunny attack philosophy'
+                    ]
+                },
+                {
+                    id: 'sg-35',
+                    title: 'WiFi Deauther & Scanner',
+                    type: 'build',
+                    difficulty: 'operative',
+                    platform: 'esp32',
+                    buildTime: '2-3h',
+                    cost: '$8',
+                    status: 'ready',
+                    href: 'sg-35-wifi-deauther.html',
+                    skills: ['wifi-security', 'rf-fundamentals', 'firmware-dev'],
+                    prerequisites: [],
+                    parts: [
+                        { component: 'ESP32 DevKit or ESP8266 NodeMCU', qty: 1, inKit: false },
+                        { component: 'USB Cable', qty: 1, inKit: false },
+                        { component: 'OLED Display 0.96" I2C (optional)', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Understand 802.11 management frames and deauthentication',
+                        'Flash Marauder or Deauther firmware onto ESP32',
+                        'Scan for nearby access points and clients',
+                        'Perform authorized deauthentication testing',
+                        'Add OLED display for portable field use'
+                    ]
+                },
+                {
+                    id: 'sg-36',
+                    title: 'Inline USB Keylogger',
+                    type: 'build',
+                    difficulty: 'operative',
+                    platform: 'rp2040-pico',
+                    buildTime: '2h',
+                    cost: '$8',
+                    status: 'ready',
+                    href: 'sg-36-usb-keylogger.html',
+                    skills: ['usb-protocol', 'hid-injection', 'forensics'],
+                    prerequisites: ['sg-33'],
+                    parts: [
+                        { component: 'Raspberry Pi Pico', qty: 1, inKit: false },
+                        { component: 'USB Host Adapter/OTG Cable', qty: 1, inKit: false },
+                        { component: 'MicroSD Breakout (optional)', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Understand USB host vs device modes',
+                        'Intercept USB HID traffic inline between keyboard and computer',
+                        'Log keystrokes to onboard flash or MicroSD',
+                        'Understand Key Croc functionality and detection methods',
+                        'Implement timestamped logging with trigger words'
+                    ]
+                },
+                {
+                    id: 'sg-37',
+                    title: 'Network Packet Sniffer',
+                    type: 'build',
+                    difficulty: 'operative',
+                    platform: 'rp2040-pico',
+                    buildTime: '2-3h',
+                    cost: '$12',
+                    status: 'ready',
+                    href: 'sg-37-packet-sniffer.html',
+                    skills: ['networking', 'packet-analysis', 'firmware-dev'],
+                    prerequisites: [],
+                    parts: [
+                        { component: 'Raspberry Pi Pico W', qty: 1, inKit: false },
+                        { component: 'W5500 Ethernet Module', qty: 1, inKit: false },
+                        { component: 'Ethernet Cable', qty: 1, inKit: false },
+                        { component: 'Jumper Wires', qty: 6, inKit: false }
+                    ],
+                    outcomes: [
+                        'Understand Ethernet frame structure and packet capture',
+                        'Wire an Ethernet module to Pi Pico over SPI',
+                        'Capture and log network packets to flash storage',
+                        'Understand Packet Squirrel functionality',
+                        'Implement selective capture filters (DNS, HTTP, credentials)'
+                    ]
+                },
+                {
+                    id: 'sg-38',
+                    title: 'Portable WiFi Audit Station',
+                    type: 'build',
+                    difficulty: 'specialist',
+                    platform: 'esp32',
+                    buildTime: '3-4h',
+                    cost: '$20',
+                    status: 'ready',
+                    href: 'sg-38-wifi-audit.html',
+                    skills: ['wifi-security', 'rf-fundamentals', 'penetration-testing'],
+                    prerequisites: ['sg-35'],
+                    parts: [
+                        { component: 'ESP32-S3 DevKit', qty: 1, inKit: false },
+                        { component: 'TFT Display 1.8" SPI', qty: 1, inKit: false },
+                        { component: 'MicroSD Card Module', qty: 1, inKit: false },
+                        { component: 'LiPo Battery + Charger Board', qty: 1, inKit: false },
+                        { component: '3D Printed Case (optional)', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Build a portable WiFi Pineapple-style audit device',
+                        'Implement evil twin / rogue AP functionality',
+                        'Capture WPA handshakes for offline cracking',
+                        'Build a captive portal for credential harvesting (authorized testing)',
+                        'Add battery power for field deployment'
+                    ]
+                },
+                {
+                    id: 'sg-39',
+                    title: 'Malicious Cable Detector',
+                    type: 'build',
+                    difficulty: 'recruit',
+                    platform: 'rp2040-pico',
+                    buildTime: '1h',
+                    cost: '$4',
+                    status: 'ready',
+                    href: 'sg-39-cable-detector.html',
+                    skills: ['usb-protocol', 'physical-security', 'forensics'],
+                    prerequisites: [],
+                    parts: [
+                        { component: 'Raspberry Pi Pico', qty: 1, inKit: false },
+                        { component: 'USB Micro-B Cable', qty: 1, inKit: false },
+                        { component: 'LED + Resistor (optional)', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Understand O.MG cable attack vectors',
+                        'Detect anomalous USB device descriptors',
+                        'Identify cables with hidden wireless implants',
+                        'Build a simple USB cable analysis tool',
+                        'Test cables for unexpected HID or mass storage endpoints'
+                    ]
+                },
+                {
+                    id: 'sg-40',
+                    title: 'LAN Implant Device',
+                    type: 'build',
+                    difficulty: 'specialist',
+                    platform: 'rp2040-pico',
+                    buildTime: '3h',
+                    cost: '$15',
+                    status: 'ready',
+                    href: 'sg-40-lan-implant.html',
+                    skills: ['networking', 'penetration-testing', 'firmware-dev'],
+                    prerequisites: ['sg-37'],
+                    parts: [
+                        { component: 'Raspberry Pi Pico W', qty: 1, inKit: false },
+                        { component: 'W5500 Ethernet Module', qty: 1, inKit: false },
+                        { component: 'Ethernet Coupler', qty: 1, inKit: false },
+                        { component: 'Small Enclosure', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Build an inline network implant (LAN Turtle concept)',
+                        'Implement man-in-the-middle packet inspection',
+                        'Add reverse shell callback over WiFi',
+                        'DNS spoofing and traffic redirection',
+                        'Understand network implant detection and defense'
+                    ]
+                },
+                {
+                    id: 'sg-41',
+                    title: 'RFID/NFC Cloner',
+                    type: 'build',
+                    difficulty: 'operative',
+                    platform: 'esp32',
+                    buildTime: '2h',
+                    cost: '$15',
+                    status: 'ready',
+                    href: 'sg-41-rfid-cloner.html',
+                    skills: ['rf-fundamentals', 'physical-security', 'access-control'],
+                    prerequisites: [],
+                    parts: [
+                        { component: 'ESP32 DevKit', qty: 1, inKit: false },
+                        { component: 'RC522 RFID Module (13.56MHz)', qty: 1, inKit: false },
+                        { component: 'RFID Cards/Tags (writable)', qty: 5, inKit: false },
+                        { component: 'OLED Display (optional)', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Understand RFID/NFC protocols (MIFARE, ISO 14443)',
+                        'Read and clone access badges',
+                        'Identify default keys and vulnerable card sectors',
+                        'Build a portable badge cloner for physical pentest engagements',
+                        'Understand Proxmark3 capabilities and limitations'
+                    ]
+                },
+                {
+                    id: 'sg-42',
+                    title: 'Flipper Zero DIY Alternative',
+                    type: 'build',
+                    difficulty: 'specialist',
+                    platform: 'esp32',
+                    buildTime: '4-6h',
+                    cost: '$25',
+                    status: 'ready',
+                    href: 'sg-42-flipper-diy.html',
+                    skills: ['rf-fundamentals', 'usb-protocol', 'firmware-dev', 'physical-security'],
+                    prerequisites: ['sg-33', 'sg-35', 'sg-41'],
+                    parts: [
+                        { component: 'ESP32-S3 DevKit', qty: 1, inKit: false },
+                        { component: 'CC1101 Sub-GHz RF Module', qty: 1, inKit: false },
+                        { component: 'RC522 RFID Module', qty: 1, inKit: false },
+                        { component: 'IR LED + Receiver', qty: 1, inKit: false },
+                        { component: 'TFT Display 1.8"', qty: 1, inKit: false },
+                        { component: 'LiPo Battery + Charger', qty: 1, inKit: false },
+                        { component: 'Navigation Buttons (5-way)', qty: 1, inKit: false }
+                    ],
+                    outcomes: [
+                        'Build a multi-tool combining Sub-GHz, RFID, IR, and WiFi',
+                        'Clone garage door openers and simple RF remotes',
+                        'Emulate NFC badges and read RFID cards',
+                        'Capture and replay IR commands (TV, AC, etc.)',
+                        'Understand the Flipper Zero ecosystem and its capabilities'
                     ]
                 }
             ]
