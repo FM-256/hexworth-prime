@@ -123,6 +123,10 @@ class QuizEngine {
             options: [...q.options]
         }));
 
+        // Tag each question with its original index BEFORE any shuffling
+        // so we can map answers back to original order for server grading
+        pool.forEach((q, i) => { q._originalIndex = i; });
+
         // QC-8: ENFORCED — Always randomize question order (Fisher-Yates)
         pool = this.shuffleArray(pool);
 
@@ -133,8 +137,10 @@ class QuizEngine {
 
         // QC-8: ENFORCED — Fisher-Yates answer rotation on every question
         // Correct answer index is remapped after shuffle so scoring still works
+        // _originalOptions preserves the pre-shuffle order for server answer mapping
         pool.forEach(q => {
             if (q.options) {
+                q._originalOptions = [...q.options];    // save original order
                 const correctAnswer = q.options[q.correct];
                 q.options = this.shuffleArray([...q.options]);
                 q.correct = q.options.indexOf(correctAnswer);
@@ -457,10 +463,20 @@ class QuizEngine {
             </div>
         `;
 
-        // Build answer map: { "0": selectedIndex, "1": selectedIndex, ... }
+        // Build answer map in ORIGINAL question/option order for server grading.
+        // Questions and options are shuffled on the client, but the server's answer
+        // key uses original indices. We map back using _originalIndex and _originalOptions.
         const answerMap = {};
         this.state.answers.forEach((a, idx) => {
-            answerMap[String(idx)] = a.selected;
+            const q = this.config.questions[idx];
+            // Map shuffled question index → original question index
+            const origQuestionIdx = q._originalIndex !== undefined ? q._originalIndex : idx;
+            // Map shuffled option index → original option index
+            const selectedText = q.options[a.selected];
+            const origOptionIdx = q._originalOptions
+                ? q._originalOptions.indexOf(selectedText)
+                : a.selected;
+            answerMap[String(origQuestionIdx)] = origOptionIdx;
         });
 
         this._gradeViaServer(this.config.moduleId, answerMap)
