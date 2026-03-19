@@ -976,25 +976,28 @@ rtt min/avg/max/mdev = 0.380/0.416/0.450/0.029 ms`;
         },
 
         'psql': function(args, term, engine) {
-            const fullCmd = args.join(' ');
+            var fullCmd = args.join(' ');
 
             // Must have port forward or be on SSH context
             if (!C1Config._portForwardActive && C1Config._context !== 'ssh-web') {
                 return 'psql: could not connect to server: Connection refused\n\tIs the server running on host "127.0.0.1" and accepting TCP/IP connections on port 5432?\n\n[!] You need to set up a port forward first. Try: ssh -L 5432:10.10.1.10:5432 nexusadmin@192.168.1.100';
             }
 
-            if (fullCmd.includes('clientuser') && fullCmd.includes('nexus_clients')) {
+            // Accept various ways to connect:
+            // psql -h 127.0.0.1 -U clientuser -d nexus_clients
+            // psql -h 10.10.1.10 -U clientuser -d nexus_clients
+            // psql -U clientuser -d nexus_clients
+            // psql -U clientuser nexus_clients
+            // psql nexus_clients
+            // Just psql (when port forward is active)
+            var hasUser = fullCmd.includes('clientuser') || fullCmd.includes('-U');
+            var hasDb = fullCmd.includes('nexus_clients') || fullCmd.includes('nexus');
+            var justPsql = args.length === 0;
+
+            if (hasUser || hasDb || justPsql) {
                 C1Config._dbConnected = true;
                 C1Config._switchContext('db', term);
-                return `Password for user clientuser: ********
-psql (14.10)
-SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384)
-Type "help" for help.
-
-nexus_clients=>
-
-[+] Connected to nexus_clients database on DB-CLIENTS-01.
-[+] Context switched to database mode. Use SQL commands or \\dt, \\q, etc.`;
+                return 'Password for user clientuser: ********\npsql (14.10)\nSSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384)\nType "help" for help.\n\nnexus_clients=>\n\n[+] Connected to nexus_clients database on DB-CLIENTS-01.\n[+] Context switched to database mode. Use SQL commands or \\dt, \\q, etc.';
             }
 
             return 'Usage: psql -h <host> -U <user> -d <database>\nExample: psql -h 127.0.0.1 -U clientuser -d nexus_clients';
