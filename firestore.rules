@@ -301,5 +301,41 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Only Cloud Functions (admin SDK) can write — increment counters
     }
+
+    // ─── WL: White Label Tenant System ─────────────────────────────────
+
+    // Tenant config — public read (loader page needs branding), admin write
+    // The tenant config contains branding, licensing, and domain info.
+    // Anyone can read (the branded loader page fetches this before auth).
+    // Only Cloud Functions (admin SDK) can create/update/delete.
+    match /tenants/{tenantId} {
+      allow read: if true;  // Public — loader page needs this pre-auth
+      // Write only via Cloud Functions (tenant-admin.js uses admin SDK)
+    }
+
+    // Tenant classes — scoped to tenant admins and enrolled students
+    match /tenants/{tenantId}/classes/{classId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids;
+      allow update, delete: if request.auth != null
+        && request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids;
+
+      // Assignments within a tenant class
+      match /assignments/{assignmentId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids;
+      }
+
+      // Student progress within a tenant class
+      match /progress/{studentUid} {
+        allow read: if request.auth != null && (
+          request.auth.uid == studentUid ||
+          request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids
+        );
+        allow write: if request.auth != null && request.auth.uid == studentUid;
+      }
+    }
   }
 }

@@ -2469,3 +2469,97 @@ exports.hideConversation = onCall(cfOptions, async (request) => {
 
     return { success: true };
 });
+
+// ─── WL: White Label Tenant API ─────────────────────────────────
+
+/**
+ * getTenantConfig — Public HTTP endpoint for the branded loader page.
+ * Returns tenant branding and licensing config. No auth required
+ * because the loader needs this BEFORE the user signs in.
+ *
+ * GET /getTenantConfig?slug=university-x
+ */
+exports.getTenantConfig = onRequest({ region: 'us-central1', cors: true }, async (req, res) => {
+    const slug = req.query.slug || req.query.tenantId;
+
+    if (!slug) {
+        res.status(400).json({ error: 'Missing slug parameter' });
+        return;
+    }
+
+    try {
+        const doc = await db.doc(`tenants/${slug}`).get();
+
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Tenant not found' });
+            return;
+        }
+
+        const tenant = doc.data();
+
+        // Don't expose internal fields to the public endpoint
+        const publicConfig = {
+            tenantId: tenant.tenantId,
+            name: tenant.name,
+            slug: tenant.slug,
+            status: tenant.status,
+            branding: tenant.branding,
+            domain: tenant.domain,
+            licensing: {
+                tier: tenant.licensing.tier,
+                contentAccess: tenant.licensing.contentAccess,
+                // Don't expose maxSeats or expiresAt to client
+            },
+            auth: {
+                method: tenant.auth.method,
+                allowAnonymous: tenant.auth.allowAnonymous,
+                allowGoogleSSO: tenant.auth.allowGoogleSSO
+                // Don't expose SAML/OIDC configs
+            }
+        };
+
+        // Cache for 5 minutes (branding doesn't change often)
+        res.set('Cache-Control', 'public, max-age=300');
+        res.json(publicConfig);
+
+    } catch (error) {
+        console.error('[WL] getTenantConfig error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * getTenantCatalog — Returns licensed content catalog for a tenant.
+ * Requires auth — the student must be signed in to see their content.
+ */
+exports.getTenantCatalog = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { tenantId } = request.data || {};
+    if (!tenantId) {
+        throw new HttpsError('invalid-argument', 'Missing tenantId.');
+    }
+
+    const doc = await db.doc(`tenants/${tenantId}`).get();
+    if (!doc.exists) {
+        throw new HttpsError('not-found', 'Tenant not found.');
+    }
+
+    const tenant = doc.data();
+    if (tenant.status !== 'active') {
+        throw new HttpsError('permission-denied', 'Tenant is not active.');
+    }
+
+    // Check license expiration
+    if (tenant.licensing.expiresAt && new Date(tenant.licensing.expiresAt) < new Date()) {
+        throw new HttpsError('permission-denied', 'License has expired.');
+    }
+
+    return {
+        tier: tenant.licensing.tier,
+        contentAccess: tenant.licensing.contentAccess,
+        features: tenant.licensing.contentAccess.features
+    };
+});
