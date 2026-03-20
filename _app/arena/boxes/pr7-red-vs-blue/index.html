@@ -301,15 +301,20 @@
         try {
             await CoOpSync.init();
 
-            // Show the CoOp lobby overlay (create/join room)
-            CoOpLobby.show({
-                boxId: 'pr7-red-vs-blue',
-                mode: 'vs',
-                maxPlayers: 8,
-                teamNames: { alpha: 'Red Team', bravo: 'Blue Team' },
-                onReady: function(sessionData, teamId) {
-                    // Lobby is done — player has a team assignment
-                    // Animate overlay out
+            // Show the CoOp lobby — config as first arg, callback as second
+            CoOpLobby.show(
+                {
+                    boxId: 'pr7-red-vs-blue',
+                    mode: 'vs',
+                    maxPlayers: 8,
+                    teamNames: { alpha: 'Red Team', bravo: 'Blue Team' },
+                    scoring: PR7Config.modes.red.scoring
+                },
+                function onLobbyReady(result) {
+                    // Lobby is done — get team assignment from CoOpSync
+                    const teamId = CoOpSync.teamId;
+
+                    // Animate mode selector out
                     _overlay.classList.add('ms-exiting');
                     _overlay.addEventListener('animationend', () => {
                         _overlay.remove();
@@ -320,7 +325,10 @@
                     const cfg = PR7Config.modes[mode];
 
                     // Initialize the event bridge
-                    VsBridge.init(teamId, CoOpSync.getSessionRef());
+                    const sessionRef = CoOpSync.getSessionRef();
+                    if (sessionRef) {
+                        VsBridge.init(teamId, sessionRef);
+                    }
 
                     // Wire up the bridge to BoxEngine
                     if (teamId === 'alpha') {
@@ -334,7 +342,7 @@
                         // Listen for containment — show warnings
                         VsBridge.onContainmentChange(function(state) {
                             if (state.sessionKilled) {
-                                BoxEngine.notify('SESSION TERMINATED — Blue team killed your session.', 'error');
+                                BoxEngine.notify('SESSION TERMINATED — Blue team killed your session.', 'danger');
                             } else if (state.hostIsolated) {
                                 BoxEngine.notify('HOST ISOLATED — Blue team cut network access.', 'warning');
                             } else if (state.firewallBlocked) {
@@ -347,12 +355,15 @@
                         // Blue team: receive live SIEM alerts from Red actions
                         VsBridge.onSiemAlert(function(alert) {
                             // Push to the Blue team's monitoring dashboard
-                            if (typeof BlueTeamMonitor !== 'undefined' && BlueTeamMonitor.pushAlert) {
-                                BlueTeamMonitor.pushAlert(alert);
+                            if (typeof ArenaMonitoring !== 'undefined') {
+                                var inst = BoxEngine._blueTeam && BoxEngine._blueTeam['monitoring'];
+                                if (inst && inst.triggerAlert) {
+                                    inst.triggerAlert(alert);
+                                }
                             }
                             // Also show a notification
-                            const severity = alert.severity === 'CRITICAL' ? 'error' :
-                                           alert.severity === 'HIGH' ? 'warning' : 'info';
+                            var severity = alert.severity === 'CRITICAL' ? 'danger' :
+                                          alert.severity === 'HIGH' ? 'warning' : 'info';
                             BoxEngine.notify(
                                 '[' + alert.source + '] ' + alert.title,
                                 severity
@@ -370,11 +381,11 @@
 
                     // Subscribe to winner event
                     CoOpSync.onVsWinner(function(winnerId, teams) {
-                        const winnerName = winnerId === 'alpha' ? 'RED TEAM' : 'BLUE TEAM';
+                        var winnerName = winnerId === 'alpha' ? 'RED TEAM' : 'BLUE TEAM';
                         BoxEngine.notify(winnerName + ' WINS!', 'success');
                     });
                 }
-            });
+            );
         } catch (e) {
             console.error('[VS] Failed to initialize:', e);
             alert('VS Mode requires sign-in. Please log in and try again.');
