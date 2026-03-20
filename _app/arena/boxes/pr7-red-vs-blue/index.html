@@ -307,46 +307,20 @@
     }
 
     async function _launchVsMode() {
-        // Check if user is signed in first
-        var user = null;
+        var cta = _btnVs.querySelector('.ms-card-cta');
         try {
-            if (typeof firebase !== 'undefined' && firebase.auth) {
-                user = firebase.auth().currentUser;
-            } else if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser) {
-                user = FirebaseAuth.getUser();
-            }
-        } catch(e) {}
+            if (cta) cta.textContent = 'Initializing...';
 
-        if (!user) {
-            // Not signed in — show a clear message instead of silently failing
-            var cta = _btnVs.querySelector('.ms-card-cta');
-            if (cta) {
-                cta.textContent = 'Sign in required for VS Mode';
-                cta.style.background = 'rgba(239,68,68,0.15)';
-                cta.style.color = '#ef4444';
-                cta.style.borderColor = 'rgba(239,68,68,0.3)';
-            }
-            // Try to trigger sign-in
-            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.signIn) {
-                FirebaseAuth.signIn();
-            }
-            return;
-        }
-
-        // Wait for ArenaFirebase to be ready (it handles SDK loading)
-        try {
-            // Wait for ArenaFirebase, with a 5-second timeout
-            if (typeof ArenaFirebase !== 'undefined' && ArenaFirebase.isReady) {
-                var readyTimeout = new Promise(function(_, reject) {
-                    setTimeout(function() { reject(new Error('Firebase init timed out')); }, 5000);
-                });
-                await Promise.race([ArenaFirebase.isReady(), readyTimeout]);
+            // Step 1: Ensure Firebase is ready
+            if (typeof ArenaFirebase !== 'undefined') {
+                if (cta) cta.textContent = 'Loading Firebase...';
+                // ArenaFirebase.init() is idempotent — safe to call again
+                if (ArenaFirebase.init) await ArenaFirebase.init();
             }
 
-            var initTimeout = new Promise(function(_, reject) {
-                setTimeout(function() { reject(new Error('CoOpSync init timed out')); }, 5000);
-            });
-            await Promise.race([CoOpSync.init(), initTimeout]);
+            // Step 2: Initialize CoOpSync
+            if (cta) cta.textContent = 'Starting sync...';
+            await CoOpSync.init();
 
             // Show the CoOp lobby — config as first arg, callback as second
             CoOpLobby.show(
@@ -449,10 +423,16 @@
     if (_btnBlue) _btnBlue.addEventListener('click', () => _launchMode('blue'));
     if (_btnVs) {
         _btnVs.addEventListener('click', function() {
-            // Immediate visual feedback — change the CTA text
             var cta = _btnVs.querySelector('.ms-card-cta');
             if (cta) cta.textContent = 'Connecting...';
-            _launchVsMode();
+            _launchVsMode().catch(function(err) {
+                // Catch unhandled async errors and show them
+                if (cta) {
+                    cta.textContent = 'Error: ' + (err.message || String(err));
+                    cta.style.background = 'rgba(239,68,68,0.15)';
+                    cta.style.color = '#ef4444';
+                }
+            });
         });
     }
 </script>
