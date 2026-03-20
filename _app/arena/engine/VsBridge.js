@@ -100,6 +100,21 @@ const VsBridge = (function() {
             }
         },
         {
+            pattern: /curl.*lookup.*url=.*10\.|curl.*lookup.*url=.*192\.168|curl.*lookup.*url=.*http:\/\/[0-9]/i,
+            generate: function(cmd) {
+                return {
+                    type: 'SSRF_PROBE',
+                    severity: 'HIGH',
+                    source: 'WAF',
+                    title: 'Server-Side Request Forgery detected',
+                    detail: 'The /lookup endpoint is being used to probe internal network addresses. SSRF in progress.',
+                    src_ip: '10.10.99.7',
+                    dst_ip: '10.10.14.20',
+                    mitre: 'T1190'
+                };
+            }
+        },
+        {
             pattern: /curl.*\/etc\/(passwd|shadow|hosts)|curl.*config/i,
             generate: function(cmd) {
                 return {
@@ -111,6 +126,24 @@ const VsBridge = (function() {
                     src_ip: '10.10.99.7',
                     dst_ip: '10.10.14.20',
                     mitre: 'T1005'
+                };
+            }
+        },
+        {
+            // LATERAL must come before SSH_LOGIN — more specific pattern matches first
+            // Lateral: SSH to internal dev server (10.10.14.21) or DC (10.10.1.5)
+            // NOT 10.10.14.20 — that's initial access (SSH_LOGIN handles it)
+            pattern: /ssh.*14\.21\b|ssh.*\b10\.10\.1\.5\b|ssh.*nexus-dev|ssh.*dev01|ssh.*pivot/i,
+            generate: function(cmd) {
+                return {
+                    type: 'LATERAL_MOVEMENT',
+                    severity: 'CRITICAL',
+                    source: 'NETWORK',
+                    title: 'Lateral movement to internal server',
+                    detail: 'SSH connection from nexus-web01 to nexus-dev01. Possible pivot using compromised credentials.',
+                    src_ip: '10.10.14.20',
+                    dst_ip: '10.10.14.21',
+                    mitre: 'T1021.004'
                 };
             }
         },
@@ -145,22 +178,7 @@ const VsBridge = (function() {
             }
         },
         {
-            pattern: /ssh.*10\.10\.1|ssh.*dev|ssh.*pivot/i,
-            generate: function(cmd) {
-                return {
-                    type: 'LATERAL_MOVEMENT',
-                    severity: 'CRITICAL',
-                    source: 'NETWORK',
-                    title: 'Lateral movement to internal server',
-                    detail: 'SSH connection from nexus-web01 to nexus-dev01. Possible pivot using compromised credentials.',
-                    src_ip: '10.10.14.20',
-                    dst_ip: '10.10.14.21',
-                    mitre: 'T1021.004'
-                };
-            }
-        },
-        {
-            pattern: /cat.*rd_|cat.*secret|cat.*confidential|exfil|scp.*185/i,
+            pattern: /cat.*rd_|cat.*secret|cat.*confidential|cat.*config|cat.*cred|cat.*password|cat.*\.php|cat.*\.env|exfil|scp.*185|scp.*exfil/i,
             generate: function(cmd) {
                 return {
                     type: 'DATA_EXFILTRATION',

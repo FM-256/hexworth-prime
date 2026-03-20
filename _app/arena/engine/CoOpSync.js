@@ -1005,6 +1005,7 @@ const CoOpSync = (function() {
         get isHost() { return _isHost; },
         get isActive() { return sessionRef !== null; },
         get mode() { return _mode; },
-        get teamId() { return _teamId; }
+        get teamId() { return _teamId; },
+        getSessionRef: function() { return sessionRef; }
     };
 })();
