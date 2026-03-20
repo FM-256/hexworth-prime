@@ -1113,6 +1113,114 @@ Modify: 2026-03-19 22:17:44.000000000 +0000`;
 + Timing alert indicator visible in /status JSON (jitter: HIGH)
 + No Content-Security-Policy header found
 + 6 items checked: 4 findings`;
+        },
+
+        'pip': function(args) {
+            const sub = args[0] || '';
+            const pkg = args[1] || '';
+            if (sub === 'install') {
+                const validPkgs = ['numpy', 'pandas', 'scipy', 'matplotlib', 'gmpy2', 'pycryptodome', 'pycryptodomex'];
+                if (validPkgs.some(p => pkg.includes(p))) {
+                    return `Collecting ${pkg}
+  Downloading ${pkg}-latest.tar.gz
+Successfully installed ${pkg}`;
+                }
+                return `Collecting ${pkg}
+  Downloading ${pkg}...
+Successfully installed ${pkg}`;
+            }
+            if (sub === 'list') {
+                return `Package            Version
+------------------ -------
+numpy              1.26.4
+pandas             2.2.1
+scipy              1.12.0
+matplotlib         3.8.3
+gmpy2              2.1.5
+pycryptodome       3.20.0
+cryptography       42.0.5`;
+            }
+            return 'Usage: pip install <package> | pip list';
+        },
+
+        'pip3': function(args, term, engine) {
+            return D19Config.commands.pip(args, term, engine);
+        },
+
+        'uname': function(args) {
+            if (D19Config._context === 'ssh-qs01') {
+                return args.includes('-a')
+                    ? 'Linux QUANTUM-SAFEGUARD-01 6.5.0-26-generic #26-Ubuntu SMP PREEMPT_DYNAMIC x86_64 GNU/Linux'
+                    : 'Linux';
+            }
+            return args.includes('-a')
+                ? 'Linux kali 6.1.0-kali9-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.27-1kali1 x86_64 GNU/Linux'
+                : 'Linux';
+        },
+
+        'env': function(args) {
+            if (D19Config._context === 'ssh-qs01') {
+                return `HOME=/home/qsadmin
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PQC_UNIT_ADDR=10.0.0.77
+PQC_UNIT_PORT=8443
+LOGNAME=qsadmin
+USER=qsadmin`;
+            }
+            return `HOME=/home/kali
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/games:/usr/games
+LOGNAME=kali
+USER=kali`;
+        },
+
+        'ps': function(args) {
+            if (D19Config._context === 'ssh-qs01') {
+                return `    PID TTY          TIME CMD
+      1 ?        00:00:03 systemd
+    412 ?        00:00:00 sshd
+    891 ?        00:18:44 pqc-enc-unit
+    892 ?        00:00:12 pqc-monitor
+   1044 ?        00:00:04 nginx
+   1201 pts/0    00:00:00 bash
+   1388 pts/0    00:00:00 ps`;
+            }
+            return `    PID TTY          TIME CMD
+      1 ?        00:00:01 systemd
+    892 pts/0    00:00:00 bash
+   1401 pts/0    00:00:00 ps`;
+        },
+
+        'systemctl': function(args) {
+            const sub = args[0] || '';
+            const svc = args[1] || '';
+            if ((sub === 'status') && svc.includes('pqc')) {
+                return `* pqc-enc-unit.service — PQC Encryption Unit Daemon
+     Loaded: loaded (/lib/systemd/system/pqc-enc-unit.service; enabled)
+     Active: active (running) since 2026-03-18 00:00:01 UTC; 2 days ago
+    Process: 891 ExecStart=/usr/sbin/pqc-enc-unit --config /etc/pqc/config.toml
+   Main PID: 891 (pqc-enc-unit)
+     Status: "Processing KEM operations: 14,227 decap ops since start"
+
+Mar 20 14:10:02 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: INFO  Decap timing jitter: 41us (threshold: 28us) — ALERT
+Mar 20 14:10:02 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: WARN  poly_mul_decrypt timing variance exceeds baseline
+Mar 20 14:10:03 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: INFO  KEM decap completed: 0.000312s`;
+            }
+            return `Failed to connect to bus: No such file or directory\n[!] systemctl not available in this context.`;
+        },
+
+        'journalctl': function(args) {
+            const fullCmd = args.join(' ');
+            if (fullCmd.includes('pqc')) {
+                return `Mar 20 14:10:01 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: INFO  Starting decapsulation batch
+Mar 20 14:10:02 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: WARN  poly_mul_decrypt timing variance: 41037ns (baseline: 28000ns)
+Mar 20 14:10:02 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: INFO  KEM decap batch complete: 47 ops in 0.014641s
+Mar 20 14:10:03 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: WARN  Timing alert: jitter HIGH for 22 consecutive batches
+Mar 20 14:10:03 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: INFO  Alert suppressed — threshold override active until 2026-03-25
+Mar 20 14:10:04 QUANTUM-SAFEGUARD-01 pqc-enc-unit[891]: INFO  Uptime: 2 days 14 hours 10 minutes`;
+            }
+            return `-- Logs begin at Mon 2026-03-18 00:00:00 UTC --\n(No matching entries for specified filter)`;
         }
 
     },

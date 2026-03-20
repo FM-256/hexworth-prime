@@ -976,6 +976,72 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
         },
         'netstat': function(args) { return D5Config.commands.ss(args); },
 
+        // curl — QKD-HUB-01 management API access
+        'curl': function(args, term, engine) {
+            const fullCmd = args.join(' ');
+            const url = args.find(a => !a.startsWith('-')) || '';
+            if (!url) return 'curl: try \'curl --help\' for more information';
+
+            // QKD management interface
+            if (url.includes('10.20.0.5') || url.includes('qkd-hub-01')) {
+                if (url.includes('/api/status')) {
+                    return `{
+  "node_id": "QKD-HUB-01",
+  "protocol": "BB84",
+  "version": "2.0",
+  "uptime": "47d 6h 23m",
+  "qber_current": 0.083,
+  "qber_threshold": 0.25,
+  "prng_module": "stdlib_random",
+  "entropy_source": "software",
+  "patch_v2_1_deployed": false,
+  "alert": "PRNG seed rotation pending — see maintenance ticket CHR-2024-891"
+}`;
+                }
+                if (url.includes('/api/channels')) {
+                    return `[
+  {"channel_id":"CH-9","peer":"OUTPOST-SIGMA-7","status":"ACTIVE","sifted_bits":38},
+  {"channel_id":"CH-11","peer":"OUTPOST-DELTA-2","status":"STANDBY","sifted_bits":0},
+  {"channel_id":"CH-14","peer":"TEMPORAL-NEXUS-ANCHOR","status":"ENCRYPTED","sifted_bits":76}
+]`;
+                }
+                if (url.includes('/api/prng-config')) {
+                    return 'HTTP/1.1 401 Unauthorized\n{"error":"Authentication required","hint":"See qkd_protocol_spec.txt Section 3"}';
+                }
+                if (url.includes('/api/session-log')) {
+                    if (engine) engine.advancePhase && engine.advancePhase('flaw_id');
+                    return `[
+  {"ts":"2026-03-20T00:00:02Z","event":"PRNG_INIT","detail":"module=stdlib_random seed=CONFIGURED"},
+  {"ts":"2026-03-20T00:00:05Z","event":"SIFTING_COMPLETE","detail":"38/64 bases matched (59.4%)"},
+  {"ts":"2026-03-20T00:00:07Z","event":"KEY_DERIVED","detail":"AES-256 key derived from sifted bitstring"},
+  {"ts":"2026-03-20T00:00:08Z","event":"COMM_ENCRYPTED","detail":"intercepted_comm.aes dispatched"},
+  {"ts":"2026-03-20T00:00:09Z","event":"ANOMALY","detail":"External observer on NX-17-FOXTROT — QBER below abort threshold"}
+]`;
+                }
+                // Root of management interface
+                return `QKD-HUB-01 — Chronos Syndicate Quantum Management Interface v2.0
+Protocol: BB84 | Status: OPERATIONAL
+
+Available endpoints:
+  /api/status       — system health
+  /api/channels     — active quantum channels
+  /api/prng-config  — PRNG configuration (auth required)
+  /api/session-log  — recent QKD session logs`;
+            }
+
+            return `curl: (7) Failed to connect to ${url.replace(/https?:\/\//, '').split('/')[0] || 'host'}: Connection refused`;
+        },
+
+        // wget — alternative HTTP client
+        'wget': function(args, term, engine) {
+            const url = args.find(a => !a.startsWith('-')) || '';
+            if (!url) return 'wget: missing URL';
+            if (url.includes('10.20.0.5') || url.includes('qkd-hub-01')) {
+                return D5Config.commands.curl([url], term, engine);
+            }
+            return `--2026-03-20 00:00:00--  ${url}\nConnecting to ${url.split('/')[2] || 'host'}... failed: Connection refused.`;
+        },
+
         // echo
         'echo': function(args) { return args.join(' '); },
 
@@ -987,6 +1053,174 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
     4  python3 -c "import random; random.seed(42); print([random.randint(0,3) for _ in range(8)])"
     5  python3 decrypt_comm.py a3f7c2e891b64d056f2d9a4b78c1e3f02b5d8e7c9a6f1d3042b8e5c70d4f9261`;
         }
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // QKD-HUB-01 MANAGEMENT INTERFACE (port 4242)
+    // Simulated web interface — accessible via curl/browser
+    // ═══════════════════════════════════════════════════════
+
+    webApp: {
+        startUrl: 'http://10.20.0.5:4242/',
+
+        pages: {
+            '/': {
+                title: 'QKD-HUB-01 — Chronos Syndicate Quantum Management',
+                html: `
+                    <div style="text-align:center; margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid #4c1d95;">
+                        <h1 style="color:#7c3aed; font-size:1.5rem; font-family:monospace; margin-bottom:4px;">QKD-HUB-01</h1>
+                        <div style="color:#a78bfa; font-size:0.85rem; font-weight:700; letter-spacing:0.15em;">CHRONOS SYNDICATE — QUANTUM KEY DISTRIBUTION MANAGEMENT</div>
+                        <div style="color:#888; font-size:0.75rem; margin-top:6px;">Quantum Channel v2.0 | Protocol: BB84 | Status: OPERATIONAL</div>
+                    </div>
+
+                    <div style="max-width:640px; margin:0 auto 20px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                        <div style="background:#1e1b4b; border:1px solid #4c1d95; border-radius:6px; padding:14px; text-align:center;">
+                            <div style="font-size:1.3rem; font-weight:700; color:#a78bfa;">64</div>
+                            <div style="color:#888; font-size:0.7rem;">Photons Transmitted</div>
+                        </div>
+                        <div style="background:#1e1b4b; border:1px solid #4c1d95; border-radius:6px; padding:14px; text-align:center;">
+                            <div style="font-size:1.3rem; font-weight:700; color:#a78bfa;">38</div>
+                            <div style="color:#888; font-size:0.7rem;">Sifted Key Bits</div>
+                        </div>
+                        <div style="background:#1e1b4b; border:1px solid #4c1d95; border-radius:6px; padding:14px; text-align:center;">
+                            <div style="font-size:1.3rem; font-weight:700; color:#f87171;">8.3%</div>
+                            <div style="color:#888; font-size:0.7rem;">QBER (channel noise)</div>
+                        </div>
+                    </div>
+
+                    <div style="max-width:640px; margin:0 auto; padding:12px; background:rgba(124,58,237,0.08); border:1px solid rgba(124,58,237,0.25); border-radius:4px; font-size:0.78rem; color:#a78bfa; font-family:monospace;">
+                        <strong>MANAGEMENT API ENDPOINTS:</strong><br>
+                        GET /api/status — system health<br>
+                        GET /api/channels — active quantum channels<br>
+                        GET /api/prng-config — PRNG configuration (auth required)<br>
+                        GET /api/session-log — recent QKD session logs
+                    </div>
+                `,
+                formHandler: null
+            },
+            '/api/status': {
+                title: 'QKD-HUB-01 — System Status',
+                html: `<div style="font-family:monospace; font-size:0.85rem; padding:20px;">
+                    <div style="color:#7c3aed; font-size:1rem; margin-bottom:16px; font-weight:700;">{ "system": "QKD-HUB-01", "status": "OPERATIONAL" }</div>
+                    <pre style="background:#1e1b4b; color:#a78bfa; padding:16px; border-radius:6px; overflow:auto;">{
+  "node_id": "QKD-HUB-01",
+  "protocol": "BB84",
+  "version": "2.0",
+  "uptime": "47d 6h 23m",
+  "channels_active": 3,
+  "last_key_exchange": "2026-03-20T00:14:07Z",
+  "qber_current": 0.083,
+  "qber_threshold": 0.25,
+  "prng_module": "stdlib_random",
+  "entropy_source": "software",
+  "patch_v2_1_deployed": false,
+  "alert": "PRNG seed rotation pending — see maintenance ticket CHR-2024-891"
+}</pre>
+                    <div style="color:#f87171; font-size:0.75rem; margin-top:12px;">NOTICE: Patch v2.1 (hardware entropy source) not yet deployed. Current PRNG uses software seed.</div>
+                </div>`,
+                formHandler: null
+            },
+            '/api/channels': {
+                title: 'QKD-HUB-01 — Active Channels',
+                html: `<div style="font-family:monospace; font-size:0.82rem; padding:20px;">
+                    <div style="color:#7c3aed; font-size:0.95rem; margin-bottom:12px; font-weight:700;">Active Quantum Channels</div>
+                    <pre style="background:#1e1b4b; color:#a78bfa; padding:14px; border-radius:6px; overflow:auto;">[
+  {
+    "channel_id": "CH-9",
+    "peer": "OUTPOST-SIGMA-7",
+    "peer_ip": "10.20.1.42",
+    "status": "ACTIVE",
+    "photons_sent": 64,
+    "sifted_bits": 38,
+    "key_confirmed": true,
+    "session_start": "2026-03-20T00:00:00Z"
+  },
+  {
+    "channel_id": "CH-11",
+    "peer": "OUTPOST-DELTA-2",
+    "peer_ip": "10.20.1.71",
+    "status": "STANDBY",
+    "photons_sent": 0,
+    "sifted_bits": 0,
+    "key_confirmed": false,
+    "session_start": null
+  },
+  {
+    "channel_id": "CH-14",
+    "peer": "TEMPORAL-NEXUS-ANCHOR",
+    "peer_ip": "10.20.2.1",
+    "status": "ENCRYPTED",
+    "photons_sent": 128,
+    "sifted_bits": 76,
+    "key_confirmed": true,
+    "session_start": "2026-03-19T18:30:00Z"
+  }
+]</pre>
+                    <div style="color:#888; font-size:0.72rem; margin-top:10px;">Channel 9 (OUTPOST-SIGMA-7) is the target of the intercepted communication.</div>
+                </div>`,
+                formHandler: null
+            },
+            '/api/prng-config': {
+                title: '401 Unauthorized',
+                html: `<div style="text-align:center; padding:40px; font-family:monospace;">
+                    <h1 style="color:#7c3aed; font-size:2rem;">401 Unauthorized</h1>
+                    <p style="color:#a78bfa;">Authentication required for PRNG configuration endpoint.</p>
+                    <div style="background:#1e1b4b; color:#f87171; padding:12px 20px; border-radius:4px; font-size:0.78rem; display:inline-block; margin-top:12px;">
+                        Hint: The protocol specification (qkd_protocol_spec.txt Section 3) documents the current PRNG configuration in cleartext.
+                    </div>
+                </div>`,
+                formHandler: null
+            },
+            '/api/session-log': {
+                title: 'QKD-HUB-01 — Session Log',
+                html: `<div style="font-family:monospace; font-size:0.82rem; padding:20px;">
+                    <div style="color:#7c3aed; font-size:0.95rem; margin-bottom:12px; font-weight:700;">QKD Session Log — CH-9</div>
+                    <pre style="background:#1e1b4b; color:#a78bfa; padding:14px; border-radius:6px; overflow:auto;">[2026-03-20T00:00:01Z] CH-9 SESSION START | PEER: OUTPOST-SIGMA-7
+[2026-03-20T00:00:02Z] PRNG INIT | module=stdlib_random seed=CONFIGURED
+[2026-03-20T00:00:02Z] Alice basis sequence generated (64 photons)
+[2026-03-20T00:00:03Z] Photon transmission: 64 qubits sent
+[2026-03-20T00:00:04Z] Bob measurement complete
+[2026-03-20T00:00:05Z] Sifting: 38/64 bases matched (59.4%)
+[2026-03-20T00:00:05Z] QBER measurement: 0.083 (below threshold 0.250)
+[2026-03-20T00:00:06Z] Key confirmed — 38 sifted bits available
+[2026-03-20T00:00:07Z] AES-256 key derived from sifted bitstring
+[2026-03-20T00:00:08Z] Classical channel encrypted — intercepted_comm.aes transmitted
+[2026-03-20T00:00:09Z] CH-9 SESSION COMPLETE | Key material in use</pre>
+                    <div style="color:#f87171; font-size:0.72rem; margin-top:10px; padding:8px; background:rgba(248,113,113,0.08); border-radius:4px;">
+                        ANOMALY LOGGED: External observer detected on fiber segment NX-17-FOXTROT (2026-03-20T00:00:04Z). QBER within threshold — no abort triggered.
+                    </div>
+                </div>`,
+                formHandler: null
+            }
+        }
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // QKD CHANNEL DATABASE (simulated hub-side records)
+    // ═══════════════════════════════════════════════════════
+
+    _qkdChannelDb: {
+        channels: [
+            { channel_id: 'CH-9',  peer: 'OUTPOST-SIGMA-7', peer_ip: '10.20.1.42', status: 'ACTIVE',    sifted_bits: 38, session: '2026-03-20T00:00:00Z' },
+            { channel_id: 'CH-11', peer: 'OUTPOST-DELTA-2',  peer_ip: '10.20.1.71', status: 'STANDBY',  sifted_bits: 0,  session: null },
+            { channel_id: 'CH-14', peer: 'TEMPORAL-NEXUS-ANCHOR', peer_ip: '10.20.2.1', status: 'ENCRYPTED', sifted_bits: 76, session: '2026-03-19T18:30:00Z' }
+        ],
+        prng_config: {
+            module: 'stdlib_random',
+            seed: 42,
+            period: 4,
+            basis_map: { 0: 'R', 1: 'R', 2: 'D', 3: 'D' },
+            patch_applied: false,
+            ticket: 'CHR-2024-891'
+        },
+        session_log: [
+            { ts: '2026-03-20T00:00:01Z', event: 'SESSION_START',   channel: 'CH-9', detail: 'PEER: OUTPOST-SIGMA-7' },
+            { ts: '2026-03-20T00:00:02Z', event: 'PRNG_INIT',       channel: 'CH-9', detail: 'module=stdlib_random seed=CONFIGURED' },
+            { ts: '2026-03-20T00:00:05Z', event: 'SIFTING_COMPLETE',channel: 'CH-9', detail: '38/64 bases matched (59.4%)' },
+            { ts: '2026-03-20T00:00:07Z', event: 'KEY_DERIVED',     channel: 'CH-9', detail: '{{FLAG:partial_key}} — AES-256 key in use' },
+            { ts: '2026-03-20T00:00:08Z', event: 'COMM_ENCRYPTED',  channel: 'CH-9', detail: 'intercepted_comm.aes dispatched' },
+            { ts: '2026-03-20T00:00:09Z', event: 'SESSION_COMPLETE',channel: 'CH-9', detail: 'Chronos Directive transmitted' }
+        ]
     },
 
     // ═══════════════════════════════════════════════════════
