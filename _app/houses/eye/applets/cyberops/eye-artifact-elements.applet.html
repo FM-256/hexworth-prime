@@ -123,14 +123,53 @@ md5sum suspicious.exe
 sha256sum suspicious.exe
 
 <span style="color:#4b5563"># Compare against known malware hashes</span>
-- VirusTotal
-- NIST NSRL (known good)
-- Threat intelligence feeds
+- VirusTotal (upload hash, NOT the file — uploading shares it publicly)
+- NIST NSRL (National Software Reference Library — known-good hashes)
+- Threat intelligence feeds (AlienVault OTX, MISP, abuse.ch)
+- MalwareBazaar (malware sample repository)
+            </div>
+
+            <h3>Windows Event IDs Every SOC Analyst Must Know</h3>
+            <table class="co-table">
+                <thead><tr><th>Event ID</th><th>Log</th><th>Meaning</th><th>Investigation Value</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>4624</strong></td><td>Security</td><td>Successful logon</td><td>Check logon type (2=interactive, 3=network, 10=RDP), source IP, account name</td></tr>
+                    <tr><td><strong>4625</strong></td><td>Security</td><td>Failed logon</td><td>Brute force detection — 10+ in 5 min = active attack</td></tr>
+                    <tr><td><strong>4672</strong></td><td>Security</td><td>Special privileges assigned</td><td>Admin logon — who got elevated access and when?</td></tr>
+                    <tr><td><strong>4688</strong></td><td>Security</td><td>New process created</td><td>Process creation with command line — essential for attack chain reconstruction</td></tr>
+                    <tr><td><strong>4720</strong></td><td>Security</td><td>User account created</td><td>Backdoor account creation by attacker</td></tr>
+                    <tr><td><strong>7045</strong></td><td>System</td><td>Service installed</td><td>PsExec, malware persistence, unauthorized services</td></tr>
+                    <tr><td><strong>1 (Sysmon)</strong></td><td>Sysmon</td><td>Process creation</td><td>Full command line, parent process, hash — most valuable artifact for IR</td></tr>
+                    <tr><td><strong>3 (Sysmon)</strong></td><td>Sysmon</td><td>Network connection</td><td>Which process made which connection — catches C2 callbacks</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Practical: Reconstructing an Attack from Artifacts</h3>
+            <div class="co-code">
+<span style="color:#d97706">Step 1: Initial access</span>
+  Event 4624 (Type 10) — RDP logon from 185.234.72.18 at 02:17 AM
+  Prefetch: mstsc.exe executed on victim workstation
+
+<span style="color:#d97706">Step 2: Execution</span>
+  Sysmon Event 1 — powershell.exe -enc [base64] spawned by explorer.exe
+  Amcache: mimikatz.exe hash matches known tool
+
+<span style="color:#d97706">Step 3: Persistence</span>
+  Event 7045 — new service "WindowsUpdateHelper" installed
+  Registry: HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run — new entry
+
+<span style="color:#d97706">Step 4: Lateral movement</span>
+  Event 4624 (Type 3) on DC — network logon with stolen admin creds
+  Sysmon Event 3 — SMB connection from workstation to domain controller
+
+<span style="color:#d97706">Step 5: Exfiltration</span>
+  Sysmon Event 3 — outbound HTTP to 103.245.67.89 (known C2)
+  NetFlow: 2.5 GB transferred over 4 hours
             </div>
 
             <div class="co-alert soc">
                 <div style="font-weight:600;margin-bottom:8px;"><img src="/assets/images/icons/icon-graduation.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> SOC Analyst Tip</div>
-                <p><strong>Anti-Forensics Awareness:</strong> Attackers may timestomp files (alter timestamps), clear logs, or use in-memory-only malware. Always corroborate findings across multiple artifact sources.</p>
+                <p><strong>Anti-Forensics Awareness:</strong> Attackers may timestomp files (alter timestamps), clear event logs (Event ID 1102 = audit log cleared), use in-memory-only malware (fileless), or living-off-the-land binaries (LOLBins like PowerShell, certutil, wmic). Always corroborate findings across multiple artifact sources — if an attacker clears Windows logs, Sysmon logs may still be intact. If they clear local logs, SIEM copies survive.</p>
             </div>
         </div>
 
