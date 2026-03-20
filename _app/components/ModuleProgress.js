@@ -369,14 +369,21 @@ const ModuleProgress = (function() {
             ActivityFeed.moduleComplete(moduleId, prettyTitle);
         }
 
-        // Arctic path override: if user came from Arctic, navigate directly
+        // Arctic path override: if user came FROM Arctic, navigate to next Arctic module
+        // Only applies when the current module is in an Arctic path — prevents stale
+        // hexworth_arctic_next values from hijacking non-Arctic module completions
         if (returnToDashboard || returnUrl) {
             let arcticDest = null;
             try {
                 const arcticNext = localStorage.getItem('hexworth_arctic_next');
                 if (arcticNext) {
                     const parsed = JSON.parse(arcticNext);
-                    if (parsed.href) arcticDest = parsed.href;
+                    // Only honor Arctic nav if current module is actually in an Arctic path
+                    const isArcticModule = houseId === 'arctic' || houseId.startsWith('arctic-');
+                    if (parsed.href && isArcticModule) {
+                        arcticDest = parsed.href;
+                    }
+                    // Always clean up to prevent stale redirects
                     localStorage.removeItem('hexworth_arctic_next');
                 }
             } catch (e) { /* ignore */ }

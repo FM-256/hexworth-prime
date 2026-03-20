@@ -162,10 +162,20 @@ class AssignmentLinkValidator {
                 if (mod.href.startsWith('houses/')) {
                     // Full path — use as-is
                     resolvedHref = mod.href;
+                } else if (!isHouseFolder) {
+                    // Non-house path: check if href starts with a top-level content directory
+                    const firstSeg = mod.href.split('/')[0];
+                    const topLevelDir = path.resolve(this.rootPath, firstSeg);
+                    if (fs.existsSync(topLevelDir) && fs.statSync(topLevelDir).isDirectory()) {
+                        // Top-level content path (e.g., signal/, arctic/) — use as-is
+                        resolvedHref = mod.href;
+                    } else {
+                        // Relative href — prepend house path via PATH_HOUSE_MAP
+                        const house = houseId || assignmentHouse;
+                        resolvedHref = 'houses/' + house + '/' + mod.href;
+                    }
                 } else {
-                    // Relative href — prepend house path
-                    // Dashboard uses: mod.houseId || assignment.house
-                    // mod.houseId = pathId (from getModule), assignment.house = PATH_HOUSE_MAP[pathId] || pathId
+                    // House path — always prepend houses/houseId/
                     const house = houseId || assignmentHouse;
                     resolvedHref = 'houses/' + house + '/' + mod.href;
                 }

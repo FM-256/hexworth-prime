@@ -241,6 +241,41 @@ function parseArgs(args) {
                 i++;
                 break;
 
+            // ── Verification: Human-in-the-loop false positive labeling ──
+            case '--verify':
+                // Usage: --verify <code> <file> [line] --reason "explanation"
+                options.verifyMode = true;
+                options.verifyCode = nextArg;
+                i++;
+                break;
+
+            case '--verify-file':
+                options.verifyFile = nextArg;
+                i++;
+                break;
+
+            case '--verify-line':
+                options.verifyLine = parseInt(nextArg, 10);
+                i++;
+                break;
+
+            case '--reason':
+                options.verifyReason = nextArg;
+                i++;
+                break;
+
+            case '--unverify':
+                // Remove a verification label
+                options.unverifyMode = true;
+                options.verifyCode = nextArg;
+                i++;
+                break;
+
+            case '--show-verified':
+                // List all verified false positives
+                options.showVerified = true;
+                break;
+
             case '-h':
             case '--help':
                 options.help = true;
@@ -297,6 +332,17 @@ Options:
   --impact               Run impact analysis (dependency map + contract validation)
   --impact-file <path>   Analyze impact of a specific file change
   --no-color             Disable colored output
+
+Verification (Human-in-the-Loop False Positive Labeling):
+  --verify <CODE>        Label a finding as verified false positive
+    --verify-file <FILE>   File path (relative to _app/)
+    --verify-line <N>      Line number (optional, enables hash expiration)
+    --reason "text"        Why this is a false positive (required)
+  --unverify <CODE>      Remove a verification label
+    --verify-file <FILE>   File path to un-verify
+    --verify-line <N>      Line number (optional)
+  --show-verified        List all verified false positive labels
+
   -h, --help             Show this help message
   --version              Show version
 
@@ -329,6 +375,11 @@ Examples:
   eduscan --fix                       # Dry-run: show what auto-fixer would change
   eduscan --fix --apply              # Apply auto-fixes to disk
   eduscan -p ./src -o ./audit        # Custom paths
+
+  # Verification workflow (label false positives):
+  eduscan --verify HEUR-009 --verify-file houses/code/quizzes/code-cloudformation.quiz.html --verify-line 108 --reason "CloudFormation !Sub syntax in quiz question"
+  eduscan --show-verified              # Audit all labels
+  eduscan --unverify HEUR-009 --verify-file houses/code/quizzes/code-cloudformation.quiz.html  # Remove label
   eduscan --json | jq '.[]'          # Pipe issues to jq
 
 Severity Levels:
@@ -401,6 +452,111 @@ function main() {
 
     if (options.version) {
         printVersion();
+        process.exit(0);
+    }
+
+    // ── Verification Commands ──────────────────────────────────
+    // Human-in-the-loop labeling for false positives.
+    // These commands manage the verified-findings.json store without
+    // running a full scan. Think of it like labeling training data —
+    // the human reviews a finding, decides it's a false positive,
+    // and labels it so the scanner respects that decision on future runs.
+    if (options.showVerified) {
+        const VerificationEngine = require('./utils/verification');
+        const verifier = new VerificationEngine({ verbose: true });
+        const entries = verifier.getAll();
+        const stats = verifier.getStats();
+
+        console.log('');
+        console.log('\x1b[1mVERIFIED FALSE POSITIVES\x1b[0m');
+        console.log('\x1b[2m' + '─'.repeat(60) + '\x1b[0m');
+
+        if (entries.length === 0) {
+            console.log('  \x1b[2mNo verified findings.\x1b[0m');
+        } else {
+            entries.forEach(e => {
+                console.log(`  \x1b[33m${e.code}\x1b[0m  ${e.file}${e.line ? ':' + e.line : ''}`);
+                console.log(`    \x1b[2mReason: ${e.reason}\x1b[0m`);
+                console.log(`    \x1b[2mVerified by: ${e.verifiedBy} on ${e.date}${e.hash ? ' [hash:' + e.hash + ']' : ''}\x1b[0m`);
+            });
+            console.log('');
+            console.log(`  \x1b[1m${stats.total}\x1b[0m label(s) total`);
+            for (const [code, count] of Object.entries(stats.byCode)) {
+                console.log(`    ${code}: ${count}`);
+            }
+        }
+        console.log('');
+        process.exit(0);
+    }
+
+    if (options.verifyMode) {
+        const VerificationEngine = require('./utils/verification');
+        const verifier = new VerificationEngine({ verbose: true });
+
+        const code = options.verifyCode;
+        const file = options.verifyFile;
+        const line = options.verifyLine || null;
+        const reason = options.verifyReason;
+
+        if (!code || !file || !reason) {
+            console.error('\x1b[31mUsage: eduscan --verify <CODE> --verify-file <FILE> [--verify-line <N>] --reason "explanation"\x1b[0m');
+            console.error('  Example: eduscan --verify HEUR-009 --verify-file houses/code/quizzes/code-cloudformation.quiz.html --verify-line 108 --reason "CloudFormation !Sub syntax in quiz question text"');
+            process.exit(1);
+        }
+
+        // Read the line content for hash fingerprinting
+        let lineContent = '';
+        if (line) {
+            try {
+                const fullPath = path.resolve(process.cwd(), '_app', file);
+                const content = require('fs').readFileSync(fullPath, 'utf8');
+                const lines = content.split('\n');
+                lineContent = lines[line - 1] || '';
+            } catch (e) {
+                console.log(`\x1b[33m[WARN]\x1b[0m Could not read line content for hashing: ${e.message}`);
+            }
+        }
+
+        const entry = verifier.addVerification({
+            code,
+            file,
+            line,
+            reason,
+            verifiedBy: require('os').userInfo().username,
+            lineContent
+        });
+
+        console.log('');
+        console.log('\x1b[32m[VERIFIED]\x1b[0m False positive labeled:');
+        console.log(`  Code:     ${entry.code}`);
+        console.log(`  File:     ${entry.file}`);
+        if (entry.line) console.log(`  Line:     ${entry.line}`);
+        console.log(`  Hash:     ${entry.hash || '(none)'}`);
+        console.log(`  Reason:   ${entry.reason}`);
+        console.log(`  Verified: ${entry.verifiedBy} on ${entry.date}`);
+        console.log('');
+        console.log('\x1b[2mThis finding will be suppressed on future scans.\x1b[0m');
+        console.log('\x1b[2mIf the code changes, the label expires and it will be re-flagged.\x1b[0m');
+        console.log('');
+        process.exit(0);
+    }
+
+    if (options.unverifyMode) {
+        const VerificationEngine = require('./utils/verification');
+        const verifier = new VerificationEngine({ verbose: true });
+
+        const code = options.verifyCode;
+        const file = options.verifyFile;
+        const line = options.verifyLine;
+
+        if (!code || !file) {
+            console.error('\x1b[31mUsage: eduscan --unverify <CODE> --verify-file <FILE> [--verify-line <N>]\x1b[0m');
+            process.exit(1);
+        }
+
+        const removed = verifier.removeVerification(code, file, line);
+        console.log(`\x1b[33m[REMOVED]\x1b[0m ${removed} verification label(s) for ${code} in ${file}`);
+        console.log('');
         process.exit(0);
     }
 

@@ -18,6 +18,7 @@ const CoverageAnalyzer = require('./validators/coverage');
 const JSONReporter = require('./reporters/json');
 const MarkdownReporter = require('./reporters/markdown');
 const ConsoleReporter = require('./reporters/console');
+const VerificationEngine = require('./utils/verification');
 
 class EduScan {
     constructor(options = {}) {
@@ -201,6 +202,39 @@ class EduScan {
 
             if (this.options.verbose) {
                 console.log(`[SYNTAX] Found ${syntax.summary.totalIssues || 0} syntax issues`);
+            }
+        }
+
+        // ── Phase 5b: Verified False Positive Filter ──────────────
+        // Human-in-the-loop suppression: findings that have been manually
+        // reviewed and labeled as false positives are filtered out here.
+        // Labels expire automatically when the flagged code changes (hash
+        // mismatch), so stale suppressions don't hide real problems.
+        // See: utils/verification.js for the full labeling workflow.
+        const verifier = new VerificationEngine({ verbose: this.options.verbose });
+        const verifyStats = verifier.getStats();
+
+        if (verifyStats.total > 0) {
+            // Build a line-content lookup so the verifier can check hashes
+            // This ensures labels expire when code changes
+            const fileContentMap = {};
+            for (const item of content) {
+                if (item.content) {
+                    fileContentMap[item.path] = item.content.split('\n');
+                }
+            }
+            const getLineContent = (file, line) => {
+                const normalized = file.replace(/\\/g, '/').replace(/^\.\//, '');
+                const lines = fileContentMap[normalized] || fileContentMap['./' + normalized];
+                return lines && line > 0 ? (lines[line - 1] || '') : '';
+            };
+
+            const { active, suppressed } = verifier.filterFindings(validation.issues, getLineContent);
+            validation.issues = active;
+            validation.suppressed = suppressed;
+
+            if (this.options.verbose) {
+                console.log(`[VERIFY] ${suppressed.length} finding(s) suppressed by verified labels, ${active.length} active`);
             }
         }
 

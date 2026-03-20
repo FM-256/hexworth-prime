@@ -2502,6 +2502,7 @@
             'aws-ccp': 'cloud',
             'aws-developer': 'cloud',
             'azure-fundamentals': 'cloud',
+            'cloud-api': 'cloud',
             'casp-plus': 'shield',
             'ccna': 'web',
             'comptia-linux': 'script',
@@ -2515,12 +2516,15 @@
             'linux-admin': 'script',
             'linux-mastery': 'script',
             'md-100': 'forge',
+            'md-101': 'forge',
             'openstack': 'cloud',
             'python-engineering': 'script',
             'python-fundamentals': 'script',
+            'python-hub': 'script',
             'security-operations': 'eye',
             'security-plus': 'shield',
             'security-plus-crypto': 'key',
+            'signal-toolkit': 'forge',
             'wsa': 'cloud'
         };
 
