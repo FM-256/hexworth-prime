@@ -85,23 +85,33 @@ const CoOpSync = (function() {
         }
 
         // Auth setup — separate from Firestore init so auth errors don't kill db
+        // Use a timeout to prevent hanging if auth never resolves
         try {
             if (typeof FirebaseAuth !== 'undefined') {
-                await FirebaseAuth.waitForAuth();
-                if (!FirebaseAuth.isSignedIn()) {
+                var authTimeout = new Promise(function(_, reject) {
+                    setTimeout(function() { reject(new Error('Auth timed out')); }, 5000);
+                });
+                try {
+                    await Promise.race([FirebaseAuth.waitForAuth(), authTimeout]);
+                } catch (timeoutErr) {
+                    console.warn('[CO-OP] Auth wait timed out — proceeding without auth state');
+                }
+
+                if (typeof FirebaseAuth.isSignedIn === 'function' && !FirebaseAuth.isSignedIn()) {
                     console.log('%c[CO-OP] No auth session — signing in anonymously', 'color: #e67e22');
-                    await FirebaseAuth.signInAnonymously();
-                    // Wait for auth state to propagate to Firestore
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                    // Re-fetch identity with authenticated user
+                    try {
+                        await FirebaseAuth.signInAnonymously();
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                    } catch (anonErr) {
+                        console.warn('[CO-OP] Anonymous sign-in failed:', anonErr.message);
+                    }
                     _playerId = _getPlayerId();
                     _playerName = _getPlayerName();
-                    console.log('%c[CO-OP] Anonymous auth ready: ' + _playerId, 'color: #2ecc71');
+                    console.log('%c[CO-OP] Auth ready: ' + _playerId, 'color: #2ecc71');
                 }
             }
         } catch (authError) {
             console.error('[CO-OP] Auth setup failed:', authError.message);
-            console.error('[CO-OP] If "auth/operation-not-allowed" — enable Anonymous auth in Firebase Console');
         }
 
         return true;
