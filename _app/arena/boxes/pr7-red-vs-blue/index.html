@@ -230,9 +230,30 @@
         </div>
     </div>
 
+    <div class="ms-divider" style="margin-top:36px;">Or Go Head-to-Head</div>
+
+    <div class="ms-cards" style="margin-top:0;">
+        <div class="ms-card" id="btn-vs" style="width:590px;border-color:#1e293b;text-align:center;">
+            <div class="ms-card-label" style="color:#f59e0b;">Competitive</div>
+            <div class="ms-card-name" style="font-size:1.1rem;">VS Mode &mdash; Live Red vs Blue</div>
+            <div class="ms-card-role">
+                Create or join a room. Red team attacks in real time while Blue team
+                defends. Red actions generate live SIEM alerts. Blue containment actions
+                disable Red capabilities. First team to complete their objectives wins.
+                2-8 players, auto-balanced teams.
+            </div>
+            <div class="ms-card-tools" style="justify-content:center;">
+                <span class="ms-tool-tag" style="background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.2);">Real-Time</span>
+                <span class="ms-tool-tag" style="background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.2);">2-8 Players</span>
+                <span class="ms-tool-tag" style="background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.2);">Competitive</span>
+            </div>
+            <div class="ms-card-cta" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">Create or Join Match</div>
+        </div>
+    </div>
+
     <div class="ms-footer">
-        Red Team: 4 flags &mdash; Initial Access, Privilege Escalation, Lateral Movement, Exfiltration<br>
-        Blue Team: 4 flags &mdash; Detect, Identify, Contain, Document<br>
+        Solo: Red Team (4 flags) or Blue Team (4 flags)<br>
+        VS Mode: Real-time competitive &mdash; Red attacks while Blue defends<br>
         Complete both sides to earn the Shadowgate master badge.
     </div>
 </div>
@@ -249,6 +270,7 @@
 <script src="../../engine/Terminal.js"></script>
 <script src="../../engine/Browser.js"></script>
 <script src="../../engine/BlueTeam.js"></script>
+<script src="../../engine/VsBridge.js"></script>
 <script src="config.js"></script>
 <script>
     /* ─────────────────────────────────────────────────────────
@@ -260,6 +282,7 @@
     const _overlay = document.getElementById('mode-selector');
     const _btnRed  = document.getElementById('btn-red');
     const _btnBlue = document.getElementById('btn-blue');
+    const _btnVs   = document.getElementById('btn-vs');
 
     function _launchMode(mode) {
         // Animate overlay out
@@ -273,8 +296,94 @@
         BoxEngine.init(cfg);
     }
 
+    async function _launchVsMode() {
+        // Initialize CoOp in VS mode
+        try {
+            await CoOpSync.init();
+
+            // Show the CoOp lobby overlay (create/join room)
+            CoOpLobby.show({
+                boxId: 'pr7-red-vs-blue',
+                mode: 'vs',
+                maxPlayers: 8,
+                teamNames: { alpha: 'Red Team', bravo: 'Blue Team' },
+                onReady: function(sessionData, teamId) {
+                    // Lobby is done — player has a team assignment
+                    // Animate overlay out
+                    _overlay.classList.add('ms-exiting');
+                    _overlay.addEventListener('animationend', () => {
+                        _overlay.remove();
+                    }, { once: true });
+
+                    // Load the correct config based on team
+                    const mode = teamId === 'alpha' ? 'red' : 'blue';
+                    const cfg = PR7Config.modes[mode];
+
+                    // Initialize the event bridge
+                    VsBridge.init(teamId, CoOpSync.getSessionRef());
+
+                    // Wire up the bridge to BoxEngine
+                    if (teamId === 'alpha') {
+                        // Red team: hook command execution to generate events
+                        // and check containment before allowing commands
+                        cfg._vsBridge = {
+                            onCommand: function(cmd) { VsBridge.onRedAction(cmd); },
+                            checkContainment: function(cmd) { return VsBridge.checkContainment(cmd); }
+                        };
+
+                        // Listen for containment — show warnings
+                        VsBridge.onContainmentChange(function(state) {
+                            if (state.sessionKilled) {
+                                BoxEngine.showNotification('SESSION TERMINATED — Blue team killed your session.', 'error');
+                            } else if (state.hostIsolated) {
+                                BoxEngine.showNotification('HOST ISOLATED — Blue team cut network access.', 'warning');
+                            } else if (state.firewallBlocked) {
+                                BoxEngine.showNotification('FIREWALL BLOCK — Your IP has been blocked.', 'warning');
+                            } else if (state.credsRevoked) {
+                                BoxEngine.showNotification('CREDS REVOKED — SSH credentials have been rotated.', 'warning');
+                            }
+                        });
+                    } else {
+                        // Blue team: receive live SIEM alerts from Red actions
+                        VsBridge.onSiemAlert(function(alert) {
+                            // Push to the Blue team's monitoring dashboard
+                            if (typeof BlueTeamMonitor !== 'undefined' && BlueTeamMonitor.pushAlert) {
+                                BlueTeamMonitor.pushAlert(alert);
+                            }
+                            // Also show a notification
+                            const severity = alert.severity === 'CRITICAL' ? 'error' :
+                                           alert.severity === 'HIGH' ? 'warning' : 'info';
+                            BoxEngine.showNotification(
+                                '[' + alert.source + '] ' + alert.title,
+                                severity
+                            );
+                        });
+
+                        // Wire containment commands
+                        cfg._vsBridge = {
+                            onContainment: function(action) { VsBridge.onBlueAction(action); }
+                        };
+                    }
+
+                    // Boot BoxEngine with the VS-enhanced config
+                    BoxEngine.init(cfg);
+
+                    // Subscribe to winner event
+                    CoOpSync.onVsWinner(function(winnerId, teams) {
+                        const winnerName = winnerId === 'alpha' ? 'RED TEAM' : 'BLUE TEAM';
+                        BoxEngine.showNotification(winnerName + ' WINS!', 'success');
+                    });
+                }
+            });
+        } catch (e) {
+            console.error('[VS] Failed to initialize:', e);
+            alert('VS Mode requires sign-in. Please log in and try again.');
+        }
+    }
+
     _btnRed.addEventListener('click',  () => _launchMode('red'));
     _btnBlue.addEventListener('click', () => _launchMode('blue'));
+    _btnVs.addEventListener('click',   () => _launchVsMode());
 </script>
 
 </body>
