@@ -178,7 +178,8 @@ const Osint02Config = {
             software: 'Adobe Photoshop CC 2024',
             artist: 'J. Marcus',
             description: 'Exterior shot of a large white building with columns, iron fence in foreground',
-            comment: 'SITE_SURVEY_PHASE2_WHITEHOUSE'
+            comment: 'SITE_SURVEY_PHASE2_WHITEHOUSE',
+            classified: '{{FLAG:root}}'
         },
         'photo_002.jpg': {
             camera: 'iPhone 15 Pro',
@@ -312,7 +313,8 @@ const Osint02Config = {
                             <strong>City:</strong> Washington, DC 20500<br>
                             <strong>Country:</strong> United States<br>
                             <strong>Landmark:</strong> The White House<br>
-                            <strong>Type:</strong> Government Building — Executive Residence
+                            <strong>Type:</strong> Government Building — Executive Residence<br>
+                            <strong>Intel Code:</strong> {{FLAG:user}}
                         </div>`;
                     }
                     if (q.includes('38.8893') && q.includes('77.0502')) {
@@ -434,6 +436,7 @@ Software                        : ${data.software}`;
                     if (data.artist) output += `\nArtist                          : ${data.artist}`;
                     output += `\nImage Description               : ${data.description}`;
                     if (data.comment) output += `\nUser Comment                    : ${data.comment}`;
+                    if (data.classified) output += `\nClassified Tag                  : ${data.classified}`;
                     return output;
                 }
             }
@@ -450,6 +453,7 @@ Software                        : ${data.software}`;
                     let output = `JFIF\nExif\nNikon\nhttp://ns.adobe.com/xap/1.0/\n${data.camera}\n${data.software}\n`;
                     if (data.artist) output += `${data.artist}\n`;
                     if (data.comment) output += `${data.comment}\n`;
+                    if (data.classified) output += `${data.classified}\n`;
                     output += `${data.description}\nGPS\n${data.gps_lat}\n${data.gps_lon}`;
                     return output;
                 }
