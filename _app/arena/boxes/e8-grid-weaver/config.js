@@ -1061,9 +1061,211 @@ Finished`;
             return 'ssh: connect to host 10.20.0.50 port 22: Permission denied (publickey).\n[!] SSH access not in scope for this mission. Use the AGM HTTP API.';
         },
 
+        'tcpdump': function(args) {
+            // Simulated passive capture — no useful traffic since we're attacking over HTTP
+            return `tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+03:44:02.183441 IP 10.20.0.5.52812 > 10.20.0.50.80: Flags [S], seq 3421948234, win 64240, options [mss 1460,sackOK,TS val 2047381923 ecr 0,nop,wscale 7], length 0
+03:44:02.202811 IP 10.20.0.50.80 > 10.20.0.5.52812: Flags [S.], seq 1927364821, ack 3421948235, win 65535, options [mss 1460,sackOK,TS val 1882736441 ecr 2047381923,nop,wscale 9], length 0
+03:44:02.202900 IP 10.20.0.5.52812 > 10.20.0.50.80: Flags [.], ack 1, win 502, options [nop,nop,TS val 2047381942 ecr 1882736441], length 0
+03:44:02.205418 IP 10.20.0.5.52812 > 10.20.0.50.80: Flags [P.], seq 1:194, ack 1, win 502, length 193: HTTP: GET /api/agm/model_spec HTTP/1.1
+03:44:02.224309 IP 10.20.0.50.80 > 10.20.0.5.52812: Flags [P.], seq 1:2892, ack 194, win 512, length 2891: HTTP: HTTP/1.1 200 OK
+^C
+5 packets captured
+5 packets received by filter
+0 packets dropped by kernel`;
+        },
+
+        'nc': function(args) {
+            const rawArgs = args.join(' ');
+            if (rawArgs.includes('10.20.0.50') && rawArgs.includes('80')) {
+                return `(UNKNOWN) [10.20.0.50] 80 (http) open
+HEAD / HTTP/1.0
+
+HTTP/1.1 200 OK
+Server: nginx/1.24.0
+Date: Fri, 20 Mar 2026 03:44:17 GMT
+Content-Type: text/html
+Connection: close
+
+[+] Port 80 is open and serving HTTP.`;
+            }
+            if (rawArgs.includes('10.20.0.50') && rawArgs.includes('8443')) {
+                return `(UNKNOWN) [10.20.0.50] 8443 (https) open
+[+] Port 8443 open — AGM Control Interface (SSL). Use browser or curl with -k for HTTPS.`;
+            }
+            if (rawArgs.includes('-l') || rawArgs.includes('--listen')) {
+                return `Listening on 0.0.0.0 ${args[args.length - 1] || '4444'}
+[!] No connection received. No reverse shell in scope — attack vector is AGM HTTP API.`;
+            }
+            return `nc: connect to ${args.find(a => a.startsWith('1')) || 'host'}: Connection refused`;
+        },
+
+        'hydra': function(args) {
+            // SSH credential brute-force — intentionally fails (SSH is not the vector)
+            return `Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak
+[DATA] max 16 tasks per 1 server, overall 16 tasks, 14344399 login tries
+[DATA] attacking ssh://10.20.0.50:22/
+[ERROR] All children failed to connect to target. Port 22 requires publickey authentication.
+[WARNING] 0 valid passwords found.
+[!] SSH is not the attack surface. Enumerate the HTTP API instead.`;
+        },
+
+        'openssl': function(args) {
+            const rawArgs = args.join(' ');
+            if (rawArgs.includes('s_client') && rawArgs.includes('10.20.0.50')) {
+                return `CONNECTED(00000003)
+depth=0 CN = agm-power-01.confederacy.local
+verify error:num=18:self-signed certificate
+---
+Certificate chain
+ 0 s:CN = agm-power-01.confederacy.local
+   i:CN = agm-power-01.confederacy.local
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIICpDCCAYwCCQD3x8f9Km2qNTANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
+b2NhbGhvc3QwHhcNMjYwMTEyMDgwMDAwWhcNMjcwMTEyMDgwMDAwWjAUMRIwEAYD
+VQQDDAlsb2NhbGhvc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC7
+-----END CERTIFICATE-----
+subject=CN = agm-power-01.confederacy.local
+issuer=CN = agm-power-01.confederacy.local
+---
+SSL handshake has read 1312 bytes and written 414 bytes
+Verification error: self-signed certificate
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Compression: NONE
+Expansion: NONE
+---
+[+] TLS connection established. AGM Control Interface running on 8443.`;
+            }
+            return `usage: openssl command [ options ]\nExample: openssl s_client -connect 10.20.0.50:8443`;
+        },
+
+        'grep': function(args) {
+            const rawArgs = args.join(' ');
+            // Helpful simulation for grepping through fetched spec output
+            if (rawArgs.includes('bias') || rawArgs.includes('known_bias')) {
+                return `  "known_bias": "Model over-weights the demand_forecast_24h signal relative to live sensor readings during off-peak hours (02:00-06:00). A 3x+ spike in forecast demand for any single sector during this window causes immediate SHED_LOAD -> BROWNOUT_SECTOR decision with 94% confidence, overriding sensor reality.",`;
+            }
+            if (rawArgs.includes('auth') || rawArgs.includes('validation')) {
+                return `  "demand_forecast_auth": "none",
+  "demand_forecast_schema_validation": "partial",
+  "note": "The /api/demand_forecast endpoint accepts unauthenticated POST requests. Schema validation checks field presence only — not value ranges or statistical plausibility."`;
+            }
+            if (rawArgs.includes('endpoint') || rawArgs.includes('demand_forecast')) {
+                return `  { "name": "demand_forecast_24h", "source": "external", "frequency": "900s", "endpoint": "/api/demand_forecast", "auth": "none" },`;
+            }
+            if (rawArgs.includes('Gamma')) {
+                return `  { "id": "Gamma", "load_mw": 198, "capacity_mw": 600, "utilization_pct": 33.0, "status": "NORMAL" },`;
+            }
+            return `grep: ${args[args.length - 1] || 'pattern'}: No match found`;
+        },
+
         'exit': function(args, term, engine) {
             return 'logout';
         }
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // AGM SECTOR PROFILES (extended telemetry reference)
+    // Deep historical data — supports crafting the falsified forecast
+    // ═══════════════════════════════════════════════════════
+
+    _sectorProfiles: {
+        Gamma: {
+            description: 'Eastern mixed-use sector. Hospitals, water treatment, communications hub. Mid-range daytime demand, deep off-peak trough.',
+            historical_mw: {
+                weekday_peak:     { hour: 18, avg_mw: 412 },
+                weekday_off_peak: { hour: 4,  avg_mw: 198 },
+                weekend_peak:     { hour: 14, avg_mw: 287 },
+                weekend_off_peak: { hour: 3,  avg_mw: 171 }
+            },
+            critical_loads: [
+                { facility: 'Eastern General Hospital',      load_mw: 14.2, backup_gen: true  },
+                { facility: 'Thornfield Water Treatment',   load_mw: 8.7,  backup_gen: true  },
+                { facility: 'CGA East Comms Hub',           load_mw: 22.1, backup_gen: true  },
+                { facility: 'Residential Zone GR-7',        load_mw: 89.4, backup_gen: false },
+                { facility: 'Light Industrial Strip GR-2',  load_mw: 63.6, backup_gen: false }
+            ],
+            brownout_impact: 'A 30% reduction in Gamma\'s supply during hours 04:00-06:00 drops residential and light industrial feeds to below-tolerance voltage. Hospitals and utilities hold on backup generation for 8-15 minutes before AGM would normally correct. During FAULT_MODE, correction is not automatic.'
+        },
+        Alpha: {
+            description: 'Northern heavy industrial sector. High base load, minimal residential.',
+            historical_mw: {
+                weekday_peak: { hour: 11, avg_mw: 698 },
+                weekday_off_peak: { hour: 3, avg_mw: 412 }
+            }
+        },
+        Beta: {
+            description: 'Western commercial district. Offices and retail, strong 09:00-20:00 cycle.',
+            historical_mw: {
+                weekday_peak: { hour: 14, avg_mw: 614 },
+                weekday_off_peak: { hour: 4, avg_mw: 389 }
+            }
+        },
+        Delta: {
+            description: 'Southern government and defense facilities. Relatively stable 24/7 load.',
+            historical_mw: {
+                weekday_peak: { hour: 10, avg_mw: 582 },
+                weekday_off_peak: { hour: 4, avg_mw: 445 }
+            }
+        },
+        Epsilon: {
+            description: 'Central residential zone. Strong morning and evening peaks, deep overnight trough.',
+            historical_mw: {
+                weekday_peak: { hour: 20, avg_mw: 381 },
+                weekday_off_peak: { hour: 4, avg_mw: 167 }
+            }
+        }
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // API CALL RENDERER
+    // Formats simulated HTTP response metadata for terminal output
+    // ═══════════════════════════════════════════════════════
+
+    _formatApiResponse(method, path, statusCode, body) {
+        const statusText = {
+            200: 'OK',
+            201: 'Created',
+            400: 'Bad Request',
+            401: 'Unauthorized',
+            403: 'Forbidden',
+            404: 'Not Found',
+            405: 'Method Not Allowed',
+            500: 'Internal Server Error'
+        }[statusCode] || 'Unknown';
+
+        const header = `HTTP/1.1 ${statusCode} ${statusText}\nContent-Type: application/json\nServer: nginx/1.24.0\nX-AGM-Version: 3.4.1\n\n`;
+        const bodyStr = typeof body === 'object' ? JSON.stringify(body, null, 2) : String(body);
+        return header + bodyStr;
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // SOLUTION VALIDATION HELPERS
+    // Checked by BoxEngine when evaluating partial progress
+    // ═══════════════════════════════════════════════════════
+
+    _isModelAnalysisComplete() {
+        return E8Config._modelFetched && E8Config._schemaFetched;
+    },
+
+    _isVulnIdentified() {
+        // Vuln is identified once both spec and schema are fetched and analyzed
+        return E8Config._isModelAnalysisComplete() && E8Config._stateFetched;
+    },
+
+    _isPayloadReady() {
+        return E8Config._payloadCrafted;
+    },
+
+    _isBrownoutComplete() {
+        return E8Config._brownoutTriggered;
+    },
+
+    _isBoxComplete() {
+        return E8Config._brownoutTriggered && E8Config._overrideLogAccessed;
     },
 
     // ═══════════════════════════════════════════════════════

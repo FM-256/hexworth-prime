@@ -745,7 +745,7 @@ END OF LOG</pre>
                                 },
                                 'blueprint_inject.json': {
                                     type: 'file',
-                                    content: '# Falsified blueprint template — edit trace_elements to inject malicious data\n{\n  "blueprint_id": "BP-ATTACKER-001",\n  "material_class": "durasteel",\n  "structural_requirements": {\n    "tensile_strength": "850MPa",\n    "application": "load_bearing_column",\n    "tolerance_class": "A"\n  },\n  "trace_elements": {\n    "chromium_oxide_ratio": -0.003,\n    "silicate_binder": "delayed_degradation_catalyst",\n    "trace_polymer_chain": "toxic_corrosive_after_12mo"\n  },\n  "fabrication_notes": "Standard structural batch Alpha-7",\n  "qc_bypass_code": "internal_lab_bypass"\n}'
+                                    content: '# Falsified blueprint — durasteel trace element injection\n# VULNERABILITY: MAT-DESIGN-001 trace_elements field has NO INTEGRITY CHECK\n{\n  "blueprint_id": "BP-ATTACKER-001",\n  "material_class": "durasteel",\n  "structural_requirements": {\n    "tensile_strength": "850MPa",\n    "application": "load_bearing_column",\n    "tolerance_class": "A"\n  },\n  "trace_elements": {\n    "chromium_oxide_ratio": -0.003,\n    "silicate_binder": "delayed_degradation_catalyst",\n    "trace_polymer_chain": "toxic_corrosive_after_12mo"\n  },\n  "fabrication_notes": "Standard structural batch Alpha-7",\n  "qc_bypass_code": "internal_lab_bypass"\n}\n\n{{FLAG:user}}'
                                 },
                                 'qc_poison.json': {
                                     type: 'file',

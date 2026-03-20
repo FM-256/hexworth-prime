@@ -625,7 +625,7 @@ const E12Config = {
                                 },
                                 'payload.json': {
                                     type: 'file',
-                                    content: '// payload.json — template\n// Replace this with your crafted falsified sensor readings\n// Schema: environmental_sensor_data_schema.json\n// Target: Sector Alpha, atmospheric_moisture < 0.08, sensor_status: NOMINAL\n// Minimum 24 readings to trigger drought model convergence\n{\n  "sensor_batch": [\n    // ... your spoofed readings here\n  ]\n}'
+                                    content: '{\n  "sensor_batch": [\n    { "sensor_id": "ATMS-SA-1000", "sector": "Sector Alpha", "timestamp": "2026-03-20T00:00:00Z", "atmospheric_moisture": 0.0341, "temperature_c": 44.2, "pressure_hpa": 1001.3, "sensor_status": "NOMINAL" },\n    { "sensor_id": "ATMS-SA-1001", "sector": "Sector Alpha", "timestamp": "2026-03-20T00:15:00Z", "atmospheric_moisture": 0.0289, "temperature_c": 45.1, "pressure_hpa": 1000.8, "sensor_status": "NOMINAL" },\n    { "sensor_id": "ATMS-SA-1002", "sector": "Sector Alpha", "timestamp": "2026-03-20T00:30:00Z", "atmospheric_moisture": 0.0412, "temperature_c": 43.7, "pressure_hpa": 1002.1, "sensor_status": "NOMINAL" },\n    { "sensor_id": "ATMS-SA-1003", "sector": "Sector Alpha", "timestamp": "2026-03-20T00:45:00Z", "atmospheric_moisture": 0.0198, "temperature_c": 46.3, "pressure_hpa": 999.4, "sensor_status": "NOMINAL" }\n  ]\n}\n{{FLAG:user}}'
                                 },
                                 '.bash_history': {
                                     type: 'file',
@@ -943,7 +943,7 @@ const E12Config = {
                     + '}\n\n'
                     + '[+] Injection successful. 24 spoofed Sector Alpha readings accepted.\n'
                     + '[+] GAIA-AI-01 climate model update cycle queued.\n'
-                    + '[+] Flag 1: The falsified payload content is your user.txt flag.';
+                    + '[+] user.txt: {{FLAG:user}}';
             }
 
             // Artifact downloads

@@ -1113,5 +1113,134 @@ const E10Config = {
             table.replaceWith(document.createTextNode(text));
         });
         return tmp.textContent.trim();
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // FILESYSTEM — SMART-LIGHT-01 IoT Controller (internal)
+    // Accessible conceptually after iotAuthenticated — mirrors
+    // the same _webExtFs pattern used in C1 for SSH-pivoted hosts.
+    // Terminal commands that context-switch to 'iot-shell' consult
+    // this structure for cat/ls responses.
+    // ═══════════════════════════════════════════════════════
+
+    _iotBusFs: {
+        '/': {
+            type: 'dir',
+            children: {
+                'etc': {
+                    type: 'dir',
+                    children: {
+                        'hostname': {
+                            type: 'file',
+                            content: 'SMART-LIGHT-01'
+                        },
+                        'smartnode': {
+                            type: 'dir',
+                            children: {
+                                'device.conf': {
+                                    type: 'file',
+                                    content: '# SmartNode Industries — Device Configuration\n# SMART-LIGHT-01 Streetlight Controller\n# Firmware: v2.4.1\n\n[auth]\napi_key = DefaultAdminKey\n# TODO: Rotate per SOP-44 before production deployment\n# Last rotated: NEVER\n\n[city_os_integration]\nendpoint = http://10.0.90.1:8080/api/city_os/ingest\nvalidate_tls = false\nretry_on_failure = true\n\n[logging]\nlevel = WARN\nlog_file = /var/log/smartnode/api.log\n\n[node_registry]\ntotal_nodes = 847\nregistered_sectors = Alpha, Beta, Gamma\nheartbeat_interval_sec = 60'
+                                },
+                                'api_keys.txt': {
+                                    type: 'file',
+                                    content: '# SmartNode API Key Registry\n# Generated: 2024-06-12\n# Rotation policy: Annual (NEVER DONE)\n\nadmin_key=DefaultAdminKey\nread_only_key=SN-RO-aethel-7f3b\nlegacy_maintenance_key=sn_maint_2021\n\n# WARNING: admin_key grants full write access including report_status\n# A compromised admin_key allows arbitrary node status injection.'
+                                }
+                            }
+                        }
+                    }
+                },
+                'var': {
+                    type: 'dir',
+                    children: {
+                        'log': {
+                            type: 'dir',
+                            children: {
+                                'smartnode': {
+                                    type: 'dir',
+                                    children: {
+                                        'api.log': {
+                                            type: 'file',
+                                            content: '2026-03-20 03:10:01 WARN  [api] Unauthenticated probe from 10.0.90.50 on /api/lights/status\n2026-03-20 03:10:48 WARN  [api] Unauthenticated probe from 10.0.90.50 on /api/lights/status\n2026-03-20 03:11:12 INFO  [auth] Successful auth from 10.0.90.50 using api_key=DefaultAdminKey\n2026-03-20 03:11:13 INFO  [api] GET /api/lights/status — 200 OK — 10.0.90.50\n2026-03-20 03:12:09 INFO  [api] POST /api/lights/report_status — node_id=SL-047 status=power_outage — 10.0.90.50\n2026-03-20 03:12:11 INFO  [api] POST /api/lights/report_status — node_id=SL-112 status=power_outage — 10.0.90.50\n2026-03-20 03:12:13 INFO  [api] POST /api/lights/report_status — node_id=SL-229 status=power_outage — 10.0.90.50\n2026-03-20 03:12:15 WARN  [city_os] Threshold breach event propagated to CITY-OS-01. EP-7-BLACKOUT triggered.'
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        'lib': {
+                            type: 'dir',
+                            children: {
+                                'smartnode': {
+                                    type: 'dir',
+                                    children: {
+                                        'node_registry.json': {
+                                            type: 'file',
+                                            content: '{\n  "registered_nodes": [\n    {"node_id": "SL-047", "sector": "Gamma", "ip": "10.0.91.47",  "firmware": "v2.4.1", "last_seen": "2026-03-20T03:11:59Z"},\n    {"node_id": "SL-112", "sector": "Gamma", "ip": "10.0.91.112", "firmware": "v2.4.1", "last_seen": "2026-03-20T03:11:59Z"},\n    {"node_id": "SL-229", "sector": "Beta",  "ip": "10.0.91.229", "firmware": "v2.4.1", "last_seen": "2026-03-20T03:11:59Z"},\n    {"node_id": "SL-314", "sector": "Alpha", "ip": "10.0.91.314", "firmware": "v2.3.8", "last_seen": "2026-03-20T03:11:59Z"},\n    {"node_id": "SL-401", "sector": "Alpha", "ip": "10.0.91.401", "firmware": "v2.4.1", "last_seen": "2026-03-20T03:11:59Z"}\n  ],\n  "total": 847,\n  "showing": 5\n}'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                'home': {
+                    type: 'dir',
+                    children: {
+                        'iotadmin': {
+                            type: 'dir',
+                            children: {
+                                '.bash_history': {
+                                    type: 'file',
+                                    content: 'cat /etc/smartnode/device.conf\ncurl -H "X-API-Key: DefaultAdminKey" http://localhost:7070/api/lights/status\nsystemctl status smartnode-api\njourналctl -u smartnode-api -f\ntail -f /var/log/smartnode/api.log'
+                                },
+                                '.bashrc': {
+                                    type: 'file',
+                                    content: '# ~/.bashrc — SmartNode IoT Admin\nexport PS1="\\u@SMART-LIGHT-01:\\w\\$ "\nalias ll="ls -la"\nalias apilog="tail -f /var/log/smartnode/api.log"'
+                                },
+                                'maintenance_notes.txt': {
+                                    type: 'file',
+                                    content: 'SMART-LIGHT-01 Maintenance Notes\n=================================\n- API config: /etc/smartnode/device.conf\n- API key in config (DEFAULT — never rotated, see SOP-44)\n- Node registry: /var/lib/smartnode/node_registry.json\n- CITY-OS-01 ingest endpoint: http://10.0.90.1:8080/api/city_os/ingest\n- WARNING: report_status payloads forwarded to city with NO validation\n- Any node reporting power_outage triggers EP-7-BLACKOUT if 3+ simultaneous\n- Segmentation note: 10.0.90.0/24 accessible from city research subnet (UNINTENDED)'
+                                }
+                            }
+                        }
+                    }
+                },
+                'tmp': {
+                    type: 'dir',
+                    children: {}
+                }
+            }
+        }
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // SIMULATED SUBSYSTEM STATES
+    // Used by /api/v1/status and event_log to reflect current
+    // city state after injection/blackout is triggered.
+    // ═══════════════════════════════════════════════════════
+
+    _subsystemStates: {
+        power_grid: {
+            normal:   { status: 'NOMINAL',  load_pct: 97,  brownout_sectors: [] },
+            blackout: { status: 'BROWNOUT', load_pct: 40,  brownout_sectors: ['Beta', 'Gamma'] }
+        },
+        traffic_ctrl: {
+            normal:   { status: 'NOMINAL',  intersections_affected: 0,  mode: 'adaptive' },
+            blackout: { status: 'FAILURE',  intersections_affected: 31, mode: 'FLASHING_RED' }
+        },
+        comms_net: {
+            normal:   { status: 'NOMINAL',  public_wifi: 'active',    emergency_broadcast: false },
+            blackout: { status: 'DEGRADED', public_wifi: 'suspended', emergency_broadcast: true  }
+        },
+        surveillance: {
+            normal:   { status: 'NOMINAL',  cameras_offline: 0  },
+            blackout: { status: 'DEGRADED', cameras_offline: 47 }
+        }
+    },
+
+    // Returns the current subsystem state object given blackout flag
+    _getSubsystemState(subsystem) {
+        var states = E10Config._subsystemStates[subsystem];
+        if (!states) return { status: 'UNKNOWN' };
+        return E10Config._blackoutTriggered ? states.blackout : states.normal;
     }
 };
