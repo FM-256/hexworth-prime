@@ -806,12 +806,12 @@ Submit this as the exfil flag.`;
                     {
                         title: 'Open the Monitoring Dashboard',
                         tip: 'Start by reviewing the live event feed and active alerts in the Monitoring Dashboard window.',
-                        trigger: { event: 'window_open', match: { windowId: 'monitoring' } }
+                        trigger: { event: 'window_open', match: { type: 'monitoring' } }
                     },
                     {
                         title: 'Check the Log Viewer',
                         tip: 'Open the Log Viewer. Search for "10.10.99.7" — that IP is generating unusual traffic.',
-                        trigger: { event: 'window_open', match: { windowId: 'logs' } }
+                        trigger: { event: 'window_open', match: { type: 'logs' } }
                     },
                     {
                         title: 'Find the LFI evidence',
@@ -872,7 +872,7 @@ Submit this as the exfil flag.`;
             desktop: {
                 icons: [
                     { id: 'monitoring', label: 'Monitoring',  icon: '\uD83D\uDCCA', app: 'monitoring' },
-                    { id: 'logs',       label: 'Log Viewer',  icon: '\uD83D\uDCCB', app: 'logs'       },
+                    { id: 'logs',       label: 'Log Viewer',  icon: '\uD83D\uDCCB', app: 'logviewer'  },
                     { id: 'firewall',   label: 'Firewall',    icon: '\uD83D\uDD25', app: 'firewall'   },
                     { id: 'ids',        label: 'IDS Panel',   icon: '\uD83D\uDEA8', app: 'ids'        },
                     { id: 'hints',      label: 'Hints',       icon: '\uD83D\uDCA1', app: 'hints'      },
