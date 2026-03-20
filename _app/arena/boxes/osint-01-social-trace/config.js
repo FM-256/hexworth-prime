@@ -172,7 +172,7 @@ const Osint01Config = {
             username: 'darkphantom99',
             name: 'D. Phantom',
             bio: 'Security researcher | Bug bounty hunter | Python dev',
-            email: 'dphantom99@protonmail.com',
+            email: '{{FLAG:user}}',
             repos: ['recon-toolkit', 'osint-scripts', 'payload-gen'],
             joined: '2021-03-14',
             location: 'Somewhere in the shadows'
@@ -204,7 +204,8 @@ const Osint01Config = {
             title: 'Security Consultant at CyberShield LLC',
             location: 'Portland, OR',
             education: 'Portland State University - B.S. Computer Science',
-            email: 'daniel.thornton@cybershield-llc.com'
+            email: 'daniel.thornton@cybershield-llc.com',
+            badge_id: '{{FLAG:root}}'
         }
     },
 
