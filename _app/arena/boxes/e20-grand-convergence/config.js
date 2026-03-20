@@ -720,7 +720,6 @@ const E20Config = {
                                             type: 'file',
                                             content: '{{FLAG:flag_root}}'
                                         }
-                                    }
                                 },
                                 'logs': {
                                     type: 'dir',
