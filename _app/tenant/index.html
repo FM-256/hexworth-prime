@@ -408,6 +408,37 @@
             // Store tenant context for other pages
             sessionStorage.setItem('hexworth_tenant', JSON.stringify(config));
 
+            // ── Step 2a: Register Tenant Service Worker ──
+            // The SW intercepts all HTML page fetches and injects
+            // TenantRouter.js + TenantShell.js into <head> automatically.
+            // This seals every page in the app inside the tenant shell
+            // without modifying any content files.
+            if ('serviceWorker' in navigator) {
+                try {
+                    var reg = await navigator.serviceWorker.register('/tenant-sw.js', { scope: '/' });
+                    // Wait for the SW to activate before proceeding
+                    var sw = reg.installing || reg.waiting || reg.active;
+                    if (sw) {
+                        if (sw.state === 'activated') {
+                            sw.postMessage({ type: 'TENANT_ACTIVATE' });
+                        } else {
+                            sw.addEventListener('statechange', function() {
+                                if (sw.state === 'activated') {
+                                    sw.postMessage({ type: 'TENANT_ACTIVATE' });
+                                }
+                            });
+                        }
+                    }
+                    // Also message any already-active SW
+                    if (reg.active) {
+                        reg.active.postMessage({ type: 'TENANT_ACTIVATE' });
+                    }
+                } catch (swErr) {
+                    console.warn('[Tenant] Service Worker registration failed:', swErr.message);
+                    // Fallback: tenant shell will still work via auto-loaders in components
+                }
+            }
+
             // ── Step 2b: Check for dashboard variant redirect ──
             // If the tenant config specifies a dashboard variant, redirect to
             // the appropriate dashboard file. This makes index.html a router
