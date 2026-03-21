@@ -716,7 +716,12 @@
 
             // Navigate after animation
             setTimeout(() => {
-                window.location.href = this.basePath + path;
+                // Tenant routing: intercept dashboard navigation
+                if (path === 'dashboard.html' && typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+                    window.location.href = TenantRouter.getUrl('dashboard');
+                } else {
+                    window.location.href = this.basePath + path;
+                }
             }, 150);
         }
 

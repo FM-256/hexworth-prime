@@ -50,6 +50,7 @@ function createDefaultTenant(slug, name, tier) {
             customCSS: '',
             platformName: name,
             tagline: 'Cybersecurity Training Platform',
+            dashboardVariant: null,  // null = default, or: command-center, clean-ops, tactical-hud, enterprise
             terminology: {}
         },
 
@@ -160,6 +161,14 @@ async function cmdUpdate(args) {
     if (args['logo']) updates['branding.logo'] = args['logo'];
     if (args['tagline']) updates['branding.tagline'] = args['tagline'];
     if (args['custom-css']) updates['branding.customCSS'] = args['custom-css'];
+    if (args['dashboard-variant']) {
+        var validVariants = ['command-center', 'clean-ops', 'tactical-hud', 'enterprise'];
+        if (!validVariants.includes(args['dashboard-variant'])) {
+            console.error('Invalid variant. Must be one of:', validVariants.join(', '));
+            process.exit(1);
+        }
+        updates['branding.dashboardVariant'] = args['dashboard-variant'];
+    }
 
     // Licensing updates
     if (args['tier']) updates['licensing.tier'] = args['tier'];

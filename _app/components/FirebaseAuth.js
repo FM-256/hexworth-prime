@@ -659,18 +659,25 @@ document.addEventListener('DOMContentLoaded', function() {
     FirebaseAuth.init();
 });
 
-// ── Tenant Shell Auto-Loader ────────────────────────────────
+// ── Tenant Auto-Loaders ─────────────────────────────────────
 // If tenant context exists in sessionStorage, dynamically load
-// TenantShell.js to inject branded header and override navigation.
-// Covers pages that load FirebaseAuth but not AccessGuard (arena boxes,
-// dispatch boxes, arctic districts). No-op when no tenant context.
+// TenantRouter.js and TenantShell.js. Covers pages that load
+// FirebaseAuth but not AccessGuard (arena boxes, dispatch, arctic).
 (function() {
     try {
-        if (sessionStorage.getItem('hexworth_tenant') && !window.__tenantShellRequested) {
-            window.__tenantShellRequested = true;
-            var s = document.createElement('script');
-            s.src = '/components/TenantShell.js';
-            document.head.appendChild(s);
+        if (sessionStorage.getItem('hexworth_tenant')) {
+            if (typeof TenantRouter === 'undefined' && !window.__tenantRouterRequested) {
+                window.__tenantRouterRequested = true;
+                var r = document.createElement('script');
+                r.src = '/components/TenantRouter.js';
+                document.head.appendChild(r);
+            }
+            if (!window.__tenantShellRequested) {
+                window.__tenantShellRequested = true;
+                var s = document.createElement('script');
+                s.src = '/components/TenantShell.js';
+                document.head.appendChild(s);
+            }
         }
     } catch(e) {}
 })();

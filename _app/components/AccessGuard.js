@@ -539,6 +539,13 @@ const AccessGuard = (function() {
         }
 
         setTimeout(() => {
+            // Tenant users: ALL redirects go to tenant hub.
+            // They should never see sorting, unauthorized, or Hexworth dashboard.
+            if (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+                window.location.href = TenantRouter.getUrl(destination);
+                return;
+            }
+
             let url;
             switch (destination) {
                 case 'sorting':
@@ -982,17 +989,27 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) {}
 })();
 
-// ── Tenant Shell Auto-Loader ────────────────────────────────
+// ── Tenant Auto-Loaders ─────────────────────────────────────
 // If tenant context exists in sessionStorage, dynamically load
-// TenantShell.js to inject branded header and override navigation.
+// TenantRouter.js (navigation routing) and TenantShell.js (branded header).
 // No-op when no tenant context (direct Hexworth Prime users).
 (function() {
     try {
-        if (sessionStorage.getItem('hexworth_tenant') && !window.__tenantShellRequested) {
-            window.__tenantShellRequested = true;
-            var s = document.createElement('script');
-            s.src = '/components/TenantShell.js';
-            document.head.appendChild(s);
+        if (sessionStorage.getItem('hexworth_tenant')) {
+            // Load TenantRouter first (synchronous navigation decisions)
+            if (typeof TenantRouter === 'undefined' && !window.__tenantRouterRequested) {
+                window.__tenantRouterRequested = true;
+                var r = document.createElement('script');
+                r.src = '/components/TenantRouter.js';
+                document.head.appendChild(r);
+            }
+            // Load TenantShell (branded header bar)
+            if (!window.__tenantShellRequested) {
+                window.__tenantShellRequested = true;
+                var s = document.createElement('script');
+                s.src = '/components/TenantShell.js';
+                document.head.appendChild(s);
+            }
         }
     } catch(e) {}
 })();

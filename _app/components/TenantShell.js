@@ -184,28 +184,26 @@
     // and also observes for dynamically added links.
 
     function overrideLinks() {
+        // Use TenantRouter for the hub URL if available, otherwise fall back
+        var targetUrl = (typeof TenantRouter !== 'undefined' && TenantRouter.isActive())
+            ? TenantRouter.getUrl('dashboard')
+            : hubUrl;
+
         var links = document.querySelectorAll('a[href]');
         for (var i = 0; i < links.length; i++) {
             var href = links[i].getAttribute('href');
             if (!href) continue;
 
-            // Dashboard links
-            if (href === '/dashboard.html' ||
-                href === '../dashboard.html' ||
-                href === '../../dashboard.html' ||
-                href === '../../../dashboard.html' ||
-                href === '../../../../dashboard.html' ||
-                href === '../../../../../dashboard.html' ||
-                href === '../../../../../../dashboard.html' ||
-                href.indexOf('dashboard.html') !== -1 && href.indexOf('/dashboard.html') !== -1) {
+            // Skip links already overridden
+            if (links[i].getAttribute('data-tenant-override')) continue;
 
-                links[i].setAttribute('href', hubUrl);
-                links[i].setAttribute('data-tenant-override', 'true');
-            }
+            // Dashboard links (any relative depth or absolute)
+            if (href.indexOf('dashboard.html') !== -1 ||
+                href === '/' || href === '/index.html' ||
+                href.indexOf('sorting.html') !== -1 ||
+                href.indexOf('unauthorized.html') !== -1) {
 
-            // Root index links
-            if (href === '/' || href === '/index.html') {
-                links[i].setAttribute('href', hubUrl);
+                links[i].setAttribute('href', targetUrl);
                 links[i].setAttribute('data-tenant-override', 'true');
             }
         }
@@ -245,14 +243,18 @@
     }
 
     // ── Override ModuleProgress navigation ────────────────
-    // ModuleProgress.complete() can auto-navigate. Override its
-    // dashboard destination to point to the tenant hub.
+    // ModuleProgress navigateToDashboard() now checks TenantRouter
+    // directly (wired in ModuleProgress.js), so this monkey-patch
+    // is only a safety net for the legacy _goToDashboard path.
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof ModuleProgress !== 'undefined' && ModuleProgress._goToDashboard) {
-                var origNav = ModuleProgress._goToDashboard;
                 ModuleProgress._goToDashboard = function() {
-                    window.location.href = hubUrl;
+                    if (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+                        window.location.href = TenantRouter.getUrl('dashboard');
+                    } else {
+                        window.location.href = hubUrl;
+                    }
                 };
             }
         });
