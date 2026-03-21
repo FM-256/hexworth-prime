@@ -843,8 +843,6 @@ var TenantData = (function() {
         _initialized = true;
         _config = tenantConfig;
 
-        console.log('[TenantData] Initializing for tenant:', _config.tenantId || _config.slug);
-
         try {
             await _loadSDK();
             _initFirebaseApp();
