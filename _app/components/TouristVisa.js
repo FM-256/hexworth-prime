@@ -129,8 +129,12 @@ const TouristVisa = (function () {
         window.location.href = basePath + 'components/tourist-sort-redirect.html';
     }
 
-    /** Redirect to sorting quiz directly */
+    /** Redirect to sorting quiz directly (tenant users go to hub instead) */
     function goToSorting() {
+        if (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+            window.location.href = TenantRouter.getUrl('sorting');
+            return;
+        }
         var basePath = _getBasePath();
         window.location.href = basePath + 'sorting.html';
     }

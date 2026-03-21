@@ -246,7 +246,7 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
         document.body.innerHTML = `
 <div class="hdr">
   <div class="hdr-l">
-    <a href="../../dashboard.html" class="back">\u2190 Dashboard</a>
+    <a href="${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('dashboard') : '../../dashboard.html'}" class="back">\u2190 ${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getName() : 'Dashboard'}</a>
     <div class="pbadge">
       <span class="pbadge-icon">${pathData.icon}</span>
       <span class="pbadge-text">${pathData.name}</span>

@@ -1124,9 +1124,9 @@ const HouseRenderer = (function() {
         header.setAttribute('role', 'banner');
         header.innerHTML = `
             <div class="header-left">
-                <a href="../../dashboard.html" class="back-btn">
+                <a href="${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('dashboard') : '../../dashboard.html'}" class="back-btn">
                     <span>&larr;</span>
-                    <span>Dashboard</span>
+                    <span>${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getName() : 'Dashboard'}</span>
                 </a>
                 <div class="house-badge">
                     <span class="house-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle}" onerror="this.onerror=null;this.src='/assets/images/icons/icon-home.webp'">` : config.icon}</span>
