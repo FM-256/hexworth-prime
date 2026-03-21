@@ -2563,3 +2563,468 @@ exports.getTenantCatalog = onCall(cfOptions, async (request) => {
         features: tenant.licensing.contentAccess.features
     };
 });
+
+// ─── WL-5: Assignment API ───────────────────────────────────────
+
+// Valid content types for assignments
+const VALID_CONTENT_TYPES = ['box', 'module', 'quiz', 'lab', 'presentation'];
+const VALID_ASSIGNMENT_STATUSES = ['active', 'draft', 'archived'];
+const VALID_PROGRESS_STATUSES = ['not_started', 'in_progress', 'completed', 'graded'];
+
+/**
+ * verifyTenantAdmin — Helper to check if caller is a tenant admin.
+ * Returns the tenant doc data if authorized, throws if not.
+ */
+async function verifyTenantAdmin(uid, tenantId) {
+    if (!tenantId || typeof tenantId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing tenantId.');
+    }
+
+    const tenantDoc = await db.doc(`tenants/${tenantId}`).get();
+    if (!tenantDoc.exists) {
+        throw new HttpsError('not-found', 'Tenant not found.');
+    }
+
+    const tenant = tenantDoc.data();
+    if (tenant.status !== 'active') {
+        throw new HttpsError('permission-denied', 'Tenant is not active.');
+    }
+
+    const adminUids = tenant.adminUids || [];
+    if (!adminUids.includes(uid)) {
+        throw new HttpsError('permission-denied', 'Not a tenant admin.');
+    }
+
+    return tenant;
+}
+
+/**
+ * createAssignment — Create a new assignment in a tenant class.
+ * Input: { tenantId, classId, title, description, contentType, contentId, dueDate, points }
+ * Only tenant admins can create assignments.
+ */
+exports.createAssignment = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { tenantId, classId, title, description, contentType, contentId, dueDate, points } = request.data || {};
+    const uid = request.auth.uid;
+
+    // Verify caller is tenant admin
+    await verifyTenantAdmin(uid, tenantId);
+
+    // Validate required fields
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing classId.');
+    }
+    if (!title || typeof title !== 'string' || title.length > 200) {
+        throw new HttpsError('invalid-argument', 'Title is required (max 200 chars).');
+    }
+    if (!contentType || !VALID_CONTENT_TYPES.includes(contentType)) {
+        throw new HttpsError('invalid-argument', `Invalid contentType. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}`);
+    }
+    if (!contentId || typeof contentId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing contentId.');
+    }
+
+    // Verify the class exists
+    const classDoc = await db.doc(`tenants/${tenantId}/classes/${classId}`).get();
+    if (!classDoc.exists) {
+        throw new HttpsError('not-found', 'Class not found.');
+    }
+
+    // Build assignment document
+    const numPoints = Number(points) || 100;
+    if (numPoints < 0 || numPoints > 10000) {
+        throw new HttpsError('invalid-argument', 'Points must be 0-10,000.');
+    }
+
+    // Get current assignment count for ordering
+    const existingAssignments = await db.collection(`tenants/${tenantId}/classes/${classId}/assignments`).count().get();
+    const order = (existingAssignments.data().count || 0) + 1;
+
+    const assignment = {
+        title: title.trim(),
+        description: (description || '').trim(),
+        contentType,
+        contentId: contentId.trim(),
+        dueDate: dueDate ? new Date(dueDate) : null,
+        points: numPoints,
+        status: 'active',
+        createdAt: FieldValue.serverTimestamp(),
+        createdBy: uid,
+        order
+    };
+
+    const ref = await db.collection(`tenants/${tenantId}/classes/${classId}/assignments`).add(assignment);
+
+    return {
+        assignmentId: ref.id,
+        ...assignment,
+        createdAt: new Date().toISOString() // Return serializable timestamp
+    };
+});
+
+/**
+ * updateAssignment — Update an existing assignment.
+ * Input: { tenantId, classId, assignmentId, updates }
+ * Only tenant admins can update assignments.
+ */
+exports.updateAssignment = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { tenantId, classId, assignmentId, updates } = request.data || {};
+    const uid = request.auth.uid;
+
+    // Verify caller is tenant admin
+    await verifyTenantAdmin(uid, tenantId);
+
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing classId.');
+    }
+    if (!assignmentId || typeof assignmentId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing assignmentId.');
+    }
+    if (!updates || typeof updates !== 'object') {
+        throw new HttpsError('invalid-argument', 'Missing updates object.');
+    }
+
+    // Verify assignment exists
+    const assignmentRef = db.doc(`tenants/${tenantId}/classes/${classId}/assignments/${assignmentId}`);
+    const assignmentDoc = await assignmentRef.get();
+    if (!assignmentDoc.exists) {
+        throw new HttpsError('not-found', 'Assignment not found.');
+    }
+
+    // Whitelist allowed update fields
+    const allowedFields = ['title', 'description', 'dueDate', 'points', 'status', 'contentType', 'contentId', 'order'];
+    const sanitized = {};
+
+    for (const key of Object.keys(updates)) {
+        if (!allowedFields.includes(key)) continue;
+
+        if (key === 'title') {
+            if (typeof updates.title !== 'string' || updates.title.length > 200) {
+                throw new HttpsError('invalid-argument', 'Title must be a string (max 200 chars).');
+            }
+            sanitized.title = updates.title.trim();
+        } else if (key === 'description') {
+            sanitized.description = (updates.description || '').trim();
+        } else if (key === 'dueDate') {
+            sanitized.dueDate = updates.dueDate ? new Date(updates.dueDate) : null;
+        } else if (key === 'points') {
+            const numPoints = Number(updates.points);
+            if (!Number.isFinite(numPoints) || numPoints < 0 || numPoints > 10000) {
+                throw new HttpsError('invalid-argument', 'Points must be 0-10,000.');
+            }
+            sanitized.points = numPoints;
+        } else if (key === 'status') {
+            if (!VALID_ASSIGNMENT_STATUSES.includes(updates.status)) {
+                throw new HttpsError('invalid-argument', `Invalid status. Must be one of: ${VALID_ASSIGNMENT_STATUSES.join(', ')}`);
+            }
+            sanitized.status = updates.status;
+        } else if (key === 'contentType') {
+            if (!VALID_CONTENT_TYPES.includes(updates.contentType)) {
+                throw new HttpsError('invalid-argument', `Invalid contentType. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}`);
+            }
+            sanitized.contentType = updates.contentType;
+        } else if (key === 'contentId') {
+            if (typeof updates.contentId !== 'string') {
+                throw new HttpsError('invalid-argument', 'contentId must be a string.');
+            }
+            sanitized.contentId = updates.contentId.trim();
+        } else if (key === 'order') {
+            const numOrder = Number(updates.order);
+            if (!Number.isFinite(numOrder) || numOrder < 1) {
+                throw new HttpsError('invalid-argument', 'Order must be a positive integer.');
+            }
+            sanitized.order = numOrder;
+        }
+    }
+
+    if (Object.keys(sanitized).length === 0) {
+        throw new HttpsError('invalid-argument', 'No valid update fields provided.');
+    }
+
+    sanitized.updatedAt = FieldValue.serverTimestamp();
+    sanitized.updatedBy = uid;
+
+    await assignmentRef.update(sanitized);
+
+    return { success: true, assignmentId, updatedFields: Object.keys(sanitized).filter(k => k !== 'updatedAt' && k !== 'updatedBy') };
+});
+
+/**
+ * deleteAssignment — Delete an assignment from a tenant class.
+ * Input: { tenantId, classId, assignmentId }
+ * Only tenant admins can delete assignments.
+ */
+exports.deleteAssignment = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { tenantId, classId, assignmentId } = request.data || {};
+    const uid = request.auth.uid;
+
+    // Verify caller is tenant admin
+    await verifyTenantAdmin(uid, tenantId);
+
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing classId.');
+    }
+    if (!assignmentId || typeof assignmentId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing assignmentId.');
+    }
+
+    // Verify assignment exists
+    const assignmentRef = db.doc(`tenants/${tenantId}/classes/${classId}/assignments/${assignmentId}`);
+    const assignmentDoc = await assignmentRef.get();
+    if (!assignmentDoc.exists) {
+        throw new HttpsError('not-found', 'Assignment not found.');
+    }
+
+    await assignmentRef.delete();
+
+    return { success: true, assignmentId };
+});
+
+/**
+ * getAssignments — List assignments for a tenant class.
+ * Input: { tenantId, classId }
+ * Admins: returns all assignments.
+ * Students: returns assignments with their progress status attached.
+ */
+exports.getAssignments = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { tenantId, classId } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!tenantId || typeof tenantId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing tenantId.');
+    }
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing classId.');
+    }
+
+    // Check tenant exists and is active
+    const tenantDoc = await db.doc(`tenants/${tenantId}`).get();
+    if (!tenantDoc.exists) {
+        throw new HttpsError('not-found', 'Tenant not found.');
+    }
+    const tenant = tenantDoc.data();
+    if (tenant.status !== 'active') {
+        throw new HttpsError('permission-denied', 'Tenant is not active.');
+    }
+
+    const isAdmin = (tenant.adminUids || []).includes(uid);
+
+    // Fetch assignments ordered by display order
+    const assignmentsSnap = await db.collection(`tenants/${tenantId}/classes/${classId}/assignments`)
+        .orderBy('order', 'asc')
+        .get();
+
+    const assignments = [];
+    assignmentsSnap.forEach(doc => {
+        const data = doc.data();
+        assignments.push({
+            assignmentId: doc.id,
+            ...data,
+            createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
+            updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : null,
+            dueDate: data.dueDate ? (data.dueDate.toDate ? data.dueDate.toDate().toISOString() : data.dueDate) : null
+        });
+    });
+
+    // For students, attach their progress
+    if (!isAdmin) {
+        // Only return active assignments for students
+        const activeAssignments = assignments.filter(a => a.status === 'active');
+
+        const progressDoc = await db.doc(`tenants/${tenantId}/classes/${classId}/progress/${uid}`).get();
+        const progressData = progressDoc.exists ? (progressDoc.data().assignments || {}) : {};
+
+        return {
+            assignments: activeAssignments.map(a => ({
+                ...a,
+                progress: progressData[a.assignmentId] || { status: 'not_started' }
+            })),
+            role: 'student'
+        };
+    }
+
+    return { assignments, role: 'admin' };
+});
+
+/**
+ * submitAssignmentProgress — Student submits progress on an assignment.
+ * Input: { tenantId, classId, assignmentId, status, score }
+ * Only the student themselves can submit their own progress.
+ */
+exports.submitAssignmentProgress = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { tenantId, classId, assignmentId, status, score } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!tenantId || typeof tenantId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing tenantId.');
+    }
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing classId.');
+    }
+    if (!assignmentId || typeof assignmentId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing assignmentId.');
+    }
+    if (!status || !VALID_PROGRESS_STATUSES.includes(status)) {
+        throw new HttpsError('invalid-argument', `Invalid status. Must be one of: ${VALID_PROGRESS_STATUSES.join(', ')}`);
+    }
+
+    // Students cannot set 'graded' — only admins can grade
+    if (status === 'graded') {
+        throw new HttpsError('permission-denied', 'Students cannot grade their own work.');
+    }
+
+    // Verify tenant is active
+    const tenantDoc = await db.doc(`tenants/${tenantId}`).get();
+    if (!tenantDoc.exists) {
+        throw new HttpsError('not-found', 'Tenant not found.');
+    }
+    if (tenantDoc.data().status !== 'active') {
+        throw new HttpsError('permission-denied', 'Tenant is not active.');
+    }
+
+    // Verify assignment exists and is active
+    const assignmentDoc = await db.doc(`tenants/${tenantId}/classes/${classId}/assignments/${assignmentId}`).get();
+    if (!assignmentDoc.exists) {
+        throw new HttpsError('not-found', 'Assignment not found.');
+    }
+    if (assignmentDoc.data().status !== 'active') {
+        throw new HttpsError('failed-precondition', 'Assignment is not active.');
+    }
+
+    // Build progress entry
+    const progressEntry = {
+        status,
+        updatedAt: new Date().toISOString()
+    };
+
+    if (status === 'in_progress' || status === 'completed') {
+        progressEntry.startedAt = FieldValue.serverTimestamp();
+    }
+    if (status === 'completed') {
+        progressEntry.completedAt = FieldValue.serverTimestamp();
+    }
+    if (score !== undefined && score !== null) {
+        const numScore = Number(score);
+        if (!Number.isFinite(numScore) || numScore < 0 || numScore > 10000) {
+            throw new HttpsError('invalid-argument', 'Score must be 0-10,000.');
+        }
+        progressEntry.score = numScore;
+    }
+
+    // Merge into the student's progress document
+    const progressRef = db.doc(`tenants/${tenantId}/classes/${classId}/progress/${uid}`);
+    const progressDoc = await progressRef.get();
+
+    if (progressDoc.exists) {
+        // Preserve existing startedAt if already set
+        const existing = (progressDoc.data().assignments || {})[assignmentId];
+        if (existing && existing.startedAt) {
+            delete progressEntry.startedAt; // Don't overwrite original start time
+        }
+
+        await progressRef.update({
+            [`assignments.${assignmentId}`]: progressEntry
+        });
+    } else {
+        await progressRef.set({
+            assignments: {
+                [assignmentId]: progressEntry
+            }
+        });
+    }
+
+    return { success: true, assignmentId, status };
+});
+
+/**
+ * getStudentProgress — Get student progress for a tenant class.
+ * Input: { tenantId, classId, studentUid? }
+ * Admin: can query any student (omit studentUid to get all students).
+ * Student: can only query their own progress.
+ */
+exports.getStudentProgress = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { tenantId, classId, studentUid } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!tenantId || typeof tenantId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing tenantId.');
+    }
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing classId.');
+    }
+
+    // Check tenant exists and is active
+    const tenantDoc = await db.doc(`tenants/${tenantId}`).get();
+    if (!tenantDoc.exists) {
+        throw new HttpsError('not-found', 'Tenant not found.');
+    }
+    const tenant = tenantDoc.data();
+    if (tenant.status !== 'active') {
+        throw new HttpsError('permission-denied', 'Tenant is not active.');
+    }
+
+    const isAdmin = (tenant.adminUids || []).includes(uid);
+
+    // Non-admin trying to view another student's progress
+    if (!isAdmin && studentUid && studentUid !== uid) {
+        throw new HttpsError('permission-denied', 'Cannot view other students\' progress.');
+    }
+
+    // Admin requesting all students
+    if (isAdmin && !studentUid) {
+        const progressSnap = await db.collection(`tenants/${tenantId}/classes/${classId}/progress`).get();
+
+        const students = [];
+        progressSnap.forEach(doc => {
+            const data = doc.data();
+            students.push({
+                studentUid: doc.id,
+                assignments: data.assignments || {}
+            });
+        });
+
+        return { students, role: 'admin' };
+    }
+
+    // Single student query (own progress or admin querying specific student)
+    const targetUid = studentUid || uid;
+    const progressDoc = await db.doc(`tenants/${tenantId}/classes/${classId}/progress/${targetUid}`).get();
+
+    if (!progressDoc.exists) {
+        return {
+            studentUid: targetUid,
+            assignments: {},
+            role: isAdmin ? 'admin' : 'student'
+        };
+    }
+
+    return {
+        studentUid: targetUid,
+        assignments: progressDoc.data().assignments || {},
+        role: isAdmin ? 'admin' : 'student'
+    };
+});

@@ -923,3 +923,20 @@ document.addEventListener('DOMContentLoaded', function autoTrackVisit() {
         ModuleProgress.trackVisit(houseId, file, { section: section });
     } catch (e) { /* silent */ }
 });
+
+// ── Tenant Shell Auto-Loader ────────────────────────────────
+// If tenant context exists in sessionStorage, dynamically load
+// TenantShell.js to inject branded header and override navigation.
+// No-op when no tenant context (direct Hexworth Prime users).
+// Duplicated from AccessGuard.js for pages that load ModuleProgress
+// but not AccessGuard (e.g., forensics modules).
+(function() {
+    try {
+        if (sessionStorage.getItem('hexworth_tenant') && !window.__tenantShellRequested) {
+            window.__tenantShellRequested = true;
+            var s = document.createElement('script');
+            s.src = '/components/TenantShell.js';
+            document.head.appendChild(s);
+        }
+    } catch(e) {}
+})();

@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="/components/TenantShell.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+        /* ── HUD Color Tokens ── */
+        :root {
+            --vc-bg:        #060912;
+            --vc-panel:     #080c18;
+            --vc-primary:   #00e5ff;
+            --vc-secondary: #b347ea;
+            --vc-accent:    #ff6b35;
+            --vc-text:      #cce8f4;
+            --vc-text-dim:  #2a4a6a;
+            --vc-green:     #39ff88;
+            --vc-red:       #ff2255;
+            --vc-amber:     #ffb830;
+            --vc-font:      'Rajdhani', Inter, system-ui, sans-serif;
+
+            /* Tenant override targets — these shadow the HUD tokens
+               when the API config applies brand values */
+            --brand-primary:   #00e5ff;
+            --brand-secondary: #b347ea;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--vc-font);
+            background: var(--vc-bg);
+            color: var(--vc-text);
+            min-height: 100vh;
+        }
+
+        /* ── Loading screen ── */
+        #tenant-loader {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--vc-bg);
+            z-index: 9999;
+            transition: opacity 0.4s;
+        }
+        #tenant-loader.fade-out { opacity: 0; pointer-events: none; }
+
+        /* HUD-styled spinner: rotating angular ring */
+        .hud-spinner {
+            width: 48px;
+            height: 48px;
+            border: 2px solid rgba(0,229,255,0.15);
+            border-top-color: var(--vc-primary);
+            border-right-color: var(--vc-secondary);
+            border-radius: 50%;
+            animation: hud-spin 0.7s linear infinite;
+            margin-bottom: 16px;
+            box-shadow: 0 0 16px rgba(0,229,255,0.2);
+        }
+        @keyframes hud-spin { to { transform: rotate(360deg); } }
+
+        .loader-text {
+            color: var(--vc-text-dim);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+        }
+        .loader-error {
+            color: var(--vc-red);
+            font-size: 0.82rem;
+            margin-top: 14px;
+            display: none;
+            text-align: center;
+            max-width: 360px;
+            line-height: 1.5;
+            letter-spacing: 0.04em;
+            border: 1px solid rgba(255,34,85,0.2);
+            padding: 10px 16px;
+        }
+
+        /* ── Scan-line overlay — fixed over entire viewport ── */
+        #hud-scanlines {
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,229,255,0.012) 2px,
+                rgba(0,229,255,0.012) 4px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ── Corner bracket decorations ── */
+        .vc-corner-tl,
+        .vc-corner-tr,
+        .vc-corner-bl,
+        .vc-corner-br {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .vc-corner-tl { top: 60px; left: 10px; border-top: 2px solid var(--vc-primary); border-left: 2px solid var(--vc-primary); opacity: 0.4; }
+        .vc-corner-tr { top: 60px; right: 10px; border-top: 2px solid var(--vc-primary); border-right: 2px solid var(--vc-primary); opacity: 0.4; }
+        .vc-corner-bl { bottom: 50px; left: 10px; border-bottom: 2px solid var(--vc-primary); border-left: 2px solid var(--vc-primary); opacity: 0.4; }
+        .vc-corner-br { bottom: 50px; right: 10px; border-bottom: 2px solid var(--vc-primary); border-right: 2px solid var(--vc-primary); opacity: 0.4; }
+
+        /* ── HUD Header bar ── */
+        .vc-header {
+            background: linear-gradient(90deg, var(--vc-panel) 0%, rgba(0,229,255,0.05) 50%, var(--vc-panel) 100%);
+            border-bottom: 1px solid rgba(0,229,255,0.2);
+            padding: 0 32px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Dual-line glow accent below header */
+        .vc-header::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg,
+                transparent,
+                var(--vc-primary) 30%,
+                var(--vc-secondary) 70%,
+                transparent
+            );
+            filter: blur(1px);
+        }
+
+        /* Brand lockup — rotated diamond icon + name stack */
+        .vc-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .vc-brand-icon {
+            width: 32px;
+            height: 32px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Diamond outline around logo icon */
+        .vc-brand-icon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 1px solid var(--vc-primary);
+            transform: rotate(45deg);
+            opacity: 0.5;
+        }
+
+        .vc-brand-icon img {
+            width: 16px;
+            height: 16px;
+            filter: invert(1) brightness(0.4) sepia(1) hue-rotate(170deg) saturate(5);
+            position: relative;
+            z-index: 1;
+        }
+
+        .vc-brand-name {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--vc-text);
+        }
+
+        .vc-brand-sub {
+            font-size: 0.58rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--vc-primary);
+            opacity: 0.7;
+        }
+
+        /* Right side of header — operative data + live status */
+        .vc-header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .vc-header-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--vc-text-dim);
+        }
+
+        .vc-header-item .hl { color: var(--vc-text); }
+
+        .vc-header-live {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--vc-green);
+            font-weight: 700;
+        }
+
+        /* Pulsing connection indicator */
+        .vc-live-ring {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1px solid var(--vc-green);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .vc-live-ring::before {
+            content: '';
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--vc-green);
+            animation: vc-blink 1s infinite;
+        }
+
+        @keyframes vc-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+
+        .header-btn {
+            background: rgba(0,229,255,0.05);
+            border: 1px solid rgba(0,229,255,0.2);
+            color: var(--vc-text-dim);
+            padding: 5px 14px;
+            font-size: 0.68rem;
+            font-family: var(--vc-font);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .header-btn:hover {
+            background: rgba(0,229,255,0.1);
+            color: var(--vc-text);
+            border-color: rgba(0,229,255,0.4);
+        }
+
+        /* ── Main body container ── */
+        .vc-body {
+            position: relative;
+            z-index: 5;
+            padding: 24px 28px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* ── Welcome banner — 2.4rem uppercase with cyan glow ── */
+        .vc-welcome {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(0,229,255,0.1);
+            position: relative;
+        }
+
+        /* Short glowing underline accent */
+        .vc-welcome::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 120px;
+            height: 2px;
+            background: var(--vc-primary);
+            filter: blur(1px);
+        }
+
+        .vc-welcome-eyebrow {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: var(--vc-primary);
+            margin-bottom: 6px;
+        }
+
+        /* Primary welcome headline */
+        .vc-welcome-name {
+            font-size: 2.4rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--vc-text);
+            line-height: 1;
+        }
+
+        /* Cyan-glowing tenant name portion */
+        .vc-welcome-name span {
+            color: var(--vc-primary);
+            text-shadow: 0 0 20px rgba(0,229,255,0.4);
+        }
+
+        .vc-welcome-tagline {
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--vc-text-dim);
+            margin-top: 4px;
+        }
+
+        .vc-welcome-right { text-align: right; }
+
+        .vc-threat-level {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--vc-text-dim);
+            margin-bottom: 4px;
+        }
+
+        /* Status badge on welcome header right */
+        .vc-threat-badge {
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--vc-amber);
+            border: 1px solid rgba(255,184,48,0.3);
+            padding: 4px 12px;
+            background: rgba(255,184,48,0.08);
+        }
+
+        /* ── Stats row — HUD panels with clip-path cut corners ── */
+        .vc-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .vc-stat {
+            background: var(--vc-panel);
+            border: 1px solid rgba(0,229,255,0.12);
+            padding: 16px;
+            position: relative;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+        }
+
+        /* Horizontal glowing top edge per stat card */
+        .vc-stat::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, var(--vc-primary), transparent);
+            opacity: 0.6;
+        }
+
+        .vc-stat-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--vc-text-dim);
+            margin-bottom: 8px;
+        }
+
+        .vc-stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: var(--vc-primary);
+            text-shadow: 0 0 16px rgba(0,229,255,0.35);
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .vc-stat-sub {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--vc-text-dim);
+        }
+
+        /* ── Two-column main layout ── */
+        .vc-layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 16px;
+        }
+
+        /* ── Panel (panel + panel-head pattern) ── */
+        .vc-panel {
+            background: var(--vc-panel);
+            border: 1px solid rgba(0,229,255,0.1);
+            margin-bottom: 14px;
+            position: relative;
+        }
+
+        /* Panel header with angular bottom-left cut */
+        .vc-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-bottom: 1px solid rgba(0,229,255,0.08);
+            background: rgba(0,229,255,0.03);
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 20px 100%, 0 calc(100% - 10px));
+        }
+
+        /* Panel title with vertical bar accent */
+        .vc-panel-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--vc-primary);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .vc-panel-title::before {
+            content: '';
+            width: 3px;
+            height: 12px;
+            background: var(--vc-primary);
+            display: block;
+        }
+
+        .vc-panel-meta {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--vc-text-dim);
+        }
+
+        /* ── Objective (mission) rows ── */
+        .vc-mission {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0,229,255,0.04);
+            transition: background 0.15s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .vc-mission:hover { background: rgba(0,229,255,0.04); }
+        .vc-mission:last-child { border-bottom: none; }
+
+        /* Numbered objective indicator */
+        .vc-mission-num {
+            font-size: 0.62rem;
+            color: var(--vc-text-dim);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            width: 24px;
+            flex-shrink: 0;
+        }
+
+        /* Priority color bar — left edge accent */
+        .vc-mission-priority-bar {
+            width: 3px;
+            height: 34px;
+            flex-shrink: 0;
+        }
+        .vc-mission-priority-bar.crit  { background: var(--vc-red);    box-shadow: 0 0 6px var(--vc-red); }
+        .vc-mission-priority-bar.high  { background: var(--vc-amber);  box-shadow: 0 0 6px var(--vc-amber); }
+        .vc-mission-priority-bar.med   { background: var(--vc-primary); box-shadow: 0 0 6px var(--vc-primary); }
+
+        .vc-mission-info { flex: 1; }
+
+        .vc-mission-name {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--vc-text);
+            letter-spacing: 0.02em;
+            margin-bottom: 3px;
+        }
+
+        .vc-mission-meta {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--vc-text-dim);
+        }
+
+        .vc-mission-right { text-align: right; flex-shrink: 0; }
+
+        /* Status badge */
+        .vc-badge {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border: 1px solid;
+            display: inline-block;
+        }
+        .vc-badge.active { color: var(--vc-amber);   border-color: rgba(255,184,48,0.3);   background: rgba(255,184,48,0.08); }
+        .vc-badge.new    { color: var(--vc-primary);  border-color: rgba(0,229,255,0.25);   background: rgba(0,229,255,0.06); }
+        .vc-badge.done   { color: var(--vc-green);    border-color: rgba(57,255,136,0.25);  background: rgba(57,255,136,0.06); }
+
+        .vc-time {
+            font-size: 0.62rem;
+            color: var(--vc-text-dim);
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* Empty state inside mission panel */
+        .vc-empty {
+            padding: 40px 16px;
+            text-align: center;
+            color: var(--vc-text-dim);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        /* ── Arsenal (quick access) — angular clip-path tiles ── */
+        .vc-quick-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 14px;
+        }
+
+        .vc-quick-tile {
+            background: rgba(0,229,255,0.04);
+            border: 1px solid rgba(0,229,255,0.1);
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+        }
+
+        .vc-quick-tile:hover {
+            background: rgba(0,229,255,0.08);
+            border-color: rgba(0,229,255,0.3);
+        }
+
+        .vc-quick-tile-icon {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Tint icons to match the cyan HUD palette */
+        .vc-quick-tile-icon img {
+            width: 20px;
+            height: 20px;
+            filter: invert(1) brightness(0.3) sepia(1) hue-rotate(170deg) saturate(6);
+        }
+
+        .vc-quick-tile-name {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--vc-text);
+            margin-bottom: 2px;
+        }
+
+        .vc-quick-tile-desc {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--vc-text-dim);
+        }
+
+        /* ── Operative Dossier panel ── */
+        .dossier-designation {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--vc-text-dim);
+            margin-bottom: 4px;
+        }
+        .dossier-rank {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--vc-primary);
+            text-shadow: 0 0 12px rgba(0,229,255,0.3);
+            margin-bottom: 12px;
+        }
+        .dossier-xp-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--vc-text-dim);
+            margin-bottom: 6px;
+        }
+        .dossier-xp-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.05);
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        .dossier-xp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--vc-primary), var(--vc-secondary));
+            box-shadow: 0 0 8px rgba(0,229,255,0.4);
+            width: 0%;
+            transition: width 1s ease;
+        }
+        .dossier-xp-numbers {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.62rem;
+            color: var(--vc-text-dim);
+            margin-bottom: 14px;
+        }
+        .dossier-clearance-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--vc-text-dim);
+            margin-bottom: 8px;
+        }
+        .dossier-clearance-val {
+            font-size: 0.75rem;
+            color: var(--vc-text);
+            letter-spacing: 0.06em;
+        }
+        .dossier-cohort {
+            font-size: 0.7rem;
+            color: var(--vc-text-dim);
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ── Fireteam Standings sidebar ── */
+        .vc-squad-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(0,229,255,0.04);
+        }
+        .vc-squad-item:last-child { border-bottom: none; }
+
+        .vc-squad-status {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .vc-squad-status.online  { background: var(--vc-green);    box-shadow: 0 0 5px var(--vc-green); }
+        .vc-squad-status.away    { background: var(--vc-amber); }
+        .vc-squad-status.offline { background: var(--vc-text-dim); }
+
+        .vc-squad-info { flex: 1; }
+
+        .vc-squad-name {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--vc-text);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .vc-squad-role {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--vc-text-dim);
+        }
+
+        .vc-squad-score {
+            font-size: 0.72rem;
+            color: var(--vc-primary);
+            font-weight: 700;
+        }
+
+        /* "You" row highlight */
+        .vc-squad-item.is-you {
+            background: rgba(0,229,255,0.04);
+            border-left: 2px solid rgba(0,229,255,0.4);
+        }
+        .vc-squad-item.is-you .vc-squad-name { color: var(--vc-primary); }
+
+        /* ── System Status panel ── */
+        .sys-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 16px;
+            border-bottom: 1px solid rgba(0,229,255,0.04);
+            font-size: 0.7rem;
+        }
+        .sys-row:last-child { border-bottom: none; }
+        .sys-row-label {
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--vc-text-dim);
+        }
+        .sys-row-status { font-weight: 700; letter-spacing: 0.08em; }
+        .sys-row-status.online { color: var(--vc-green); }
+        .sys-row-status.maint  { color: var(--vc-amber); }
+        .sys-row-status.locked { color: var(--vc-text-dim); }
+
+        /* ── Bottom status bar ── */
+        .vc-statusbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--vc-panel);
+            border-top: 1px solid rgba(0,229,255,0.15);
+            padding: 6px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            z-index: 100;
+        }
+
+        .vc-statusbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            color: var(--vc-text-dim);
+        }
+
+        .vc-statusbar-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .vc-statusbar-item .val { color: var(--vc-text); }
+
+        .vc-statusbar-right {
+            color: var(--vc-primary);
+            font-weight: 700;
+        }
+
+        /* ── Responsive: collapse sidebar on narrow screens ── */
+        @media (max-width: 900px) {
+            .vc-layout { grid-template-columns: 1fr; }
+            .vc-stats { grid-template-columns: repeat(2, 1fr); }
+            .vc-header-item { display: none; }
+            .vc-quick-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Scan-line overlay — always present, pointer-events:none -->
+    <div id="hud-scanlines" aria-hidden="true"></div>
+
+    <!-- Corner bracket decorations — appear after app is shown -->
+    <div class="vc-corner-tl" aria-hidden="true"></div>
+    <div class="vc-corner-tr" aria-hidden="true"></div>
+    <div class="vc-corner-bl" aria-hidden="true"></div>
+    <div class="vc-corner-br" aria-hidden="true"></div>
+
+    <!-- Loading screen — visible until tenant config resolves -->
+    <div id="tenant-loader">
+        <div class="hud-spinner"></div>
+        <div class="loader-text" id="loader-text">Initializing tactical link...</div>
+        <div class="loader-error" id="loader-error"></div>
+    </div>
+
+    <!-- Full HUD dashboard — hidden until tenant loads -->
+    <div id="tenant-app" style="display:none; padding-bottom:48px;">
+
+        <!-- Header bar -->
+        <header class="vc-header">
+            <div class="vc-brand">
+                <div class="vc-brand-icon">
+                    <img src="/assets/images/icons/icon-shield.webp" alt="">
+                </div>
+                <div>
+                    <div class="vc-brand-name" id="header-name">Loading...</div>
+                    <div class="vc-brand-sub">TACTICAL OPS PLATFORM</div>
+                </div>
+            </div>
+            <div class="vc-header-right">
+                <div class="vc-header-item">
+                    <span>OPERATIVE</span>
+                    <span class="hl" id="header-operative">Analyst</span>
+                </div>
+                <div class="vc-header-live">
+                    <div class="vc-live-ring"></div>
+                    CONNECTED
+                </div>
+                <button class="header-btn" onclick="window.location.href='/'">Exit to Hexworth</button>
+            </div>
+        </header>
+
+        <main class="vc-body">
+
+            <!-- Welcome banner -->
+            <div class="vc-welcome">
+                <div>
+                    <div class="vc-welcome-eyebrow">OPERATIVE AUTHENTICATED</div>
+                    <div class="vc-welcome-name" id="welcome-title">WELCOME, <span id="welcome-tenant-span">OPERATIVE</span></div>
+                    <div class="vc-welcome-tagline" id="welcome-tagline"></div>
+                </div>
+                <div class="vc-welcome-right">
+                    <div class="vc-threat-level">ENVIRONMENT STATUS</div>
+                    <div class="vc-threat-badge">OPERATIONAL</div>
+                </div>
+            </div>
+
+            <!-- Stats row -->
+            <div class="vc-stats">
+                <div class="vc-stat">
+                    <div class="vc-stat-label">Active Objectives</div>
+                    <div class="vc-stat-value" id="stat-missions">--</div>
+                    <div class="vc-stat-sub">ASSIGNED THIS CYCLE</div>
+                </div>
+                <div class="vc-stat">
+                    <div class="vc-stat-label">Flags Secured</div>
+                    <div class="vc-stat-value" id="stat-flags">--</div>
+                    <div class="vc-stat-sub">TOTAL CAPTURED</div>
+                </div>
+                <div class="vc-stat">
+                    <div class="vc-stat-label">Combat Score</div>
+                    <div class="vc-stat-value" id="stat-score">--</div>
+                    <div class="vc-stat-sub">CUMULATIVE XP</div>
+                </div>
+                <div class="vc-stat">
+                    <div class="vc-stat-label">Fireteam Rank</div>
+                    <div class="vc-stat-value" id="stat-rank">--</div>
+                    <div class="vc-stat-sub">STANDING</div>
+                </div>
+            </div>
+
+            <!-- Main two-column layout -->
+            <div class="vc-layout">
+
+                <!-- Left column: objectives + arsenal -->
+                <div class="vc-left">
+
+                    <!-- Active Objectives panel (populated by JS with static preview rows) -->
+                    <div class="vc-panel">
+                        <div class="vc-panel-head">
+                            <span class="vc-panel-title">Active Objectives</span>
+                            <span class="vc-panel-meta" id="objective-count">0 ASSIGNED</span>
+                        </div>
+                        <div id="objective-queue">
+                            <!-- Static preview missions displayed after load -->
+                            <div class="vc-mission">
+                                <span class="vc-mission-num">01</span>
+                                <div class="vc-mission-priority-bar crit"></div>
+                                <div class="vc-mission-info">
+                                    <div class="vc-mission-name">Network Intrusion: Lateral Movement Analysis</div>
+                                    <div class="vc-mission-meta">NET-402 // PACKET ANALYSIS // WIRESHARK HUB</div>
+                                </div>
+                                <div class="vc-mission-right">
+                                    <div class="vc-badge active">IN PROGRESS</div>
+                                    <div class="vc-time">EXPIRES 23:59</div>
+                                </div>
+                            </div>
+                            <div class="vc-mission">
+                                <span class="vc-mission-num">02</span>
+                                <div class="vc-mission-priority-bar high"></div>
+                                <div class="vc-mission-info">
+                                    <div class="vc-mission-name">Memory Forensics: Process Injection Detection</div>
+                                    <div class="vc-mission-meta">FOR-310 // DFIR // FORENSICS HUB</div>
+                                </div>
+                                <div class="vc-mission-right">
+                                    <div class="vc-badge active">IN PROGRESS</div>
+                                    <div class="vc-time">MAR 22</div>
+                                </div>
+                            </div>
+                            <div class="vc-mission">
+                                <span class="vc-mission-num">03</span>
+                                <div class="vc-mission-priority-bar high"></div>
+                                <div class="vc-mission-info">
+                                    <div class="vc-mission-name">CVE Research: Log4Shell Exploitation Chain</div>
+                                    <div class="vc-mission-meta">VUL-215 // VULNERABILITY // TRAINING RANGE</div>
+                                </div>
+                                <div class="vc-mission-right">
+                                    <div class="vc-badge new">UNLOCKED</div>
+                                    <div class="vc-time">MAR 24</div>
+                                </div>
+                            </div>
+                            <div class="vc-mission">
+                                <span class="vc-mission-num">04</span>
+                                <div class="vc-mission-priority-bar med"></div>
+                                <div class="vc-mission-info">
+                                    <div class="vc-mission-name">OSINT: Target Profiling Operation</div>
+                                    <div class="vc-mission-meta">INT-118 // INTELLIGENCE // ALL COURSES</div>
+                                </div>
+                                <div class="vc-mission-right">
+                                    <div class="vc-badge new">UNLOCKED</div>
+                                    <div class="vc-time">MAR 26</div>
+                                </div>
+                            </div>
+                            <div class="vc-mission">
+                                <span class="vc-mission-num">05</span>
+                                <div class="vc-mission-priority-bar med"></div>
+                                <div class="vc-mission-info">
+                                    <div class="vc-mission-name">Malware Triage: Static Analysis Protocol</div>
+                                    <div class="vc-mission-meta">MAL-201 // MALWARE // FORENSICS HUB</div>
+                                </div>
+                                <div class="vc-mission-right">
+                                    <div class="vc-badge done">COMPLETE</div>
+                                    <div class="vc-time">+240 XP</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arsenal — unlocked quick access tiles (populated by JS) -->
+                    <div class="vc-panel">
+                        <div class="vc-panel-head">
+                            <span class="vc-panel-title">Arsenal — Unlocked Modules</span>
+                            <span class="vc-panel-meta" id="arsenal-count">0 ACTIVE</span>
+                        </div>
+                        <div class="vc-quick-grid" id="arsenal-grid">
+                            <!-- Populated by renderArsenal() based on licensed features -->
+                        </div>
+                    </div>
+
+                </div><!-- /.vc-left -->
+
+                <!-- Right column: dossier + fireteam + system status -->
+                <div class="vc-right">
+
+                    <!-- Operative Dossier -->
+                    <div class="vc-panel">
+                        <div class="vc-panel-head">
+                            <span class="vc-panel-title">Operative Dossier</span>
+                        </div>
+                        <div style="padding:14px 16px;">
+                            <div class="dossier-designation">Designation</div>
+                            <div class="dossier-rank">TIER II ANALYST</div>
+                            <div class="dossier-xp-label">XP to TIER III</div>
+                            <div class="dossier-xp-bar">
+                                <div class="dossier-xp-fill" id="xp-fill" style="width:68%;"></div>
+                            </div>
+                            <div class="dossier-xp-numbers">
+                                <span>8,240</span>
+                                <span>12,000 XP</span>
+                            </div>
+                            <div class="dossier-clearance-label">Clearance</div>
+                            <div class="dossier-clearance-val" id="dossier-tenant-id">--</div>
+                            <div class="dossier-cohort" id="dossier-cohort">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Fireteam Standings leaderboard -->
+                    <div class="vc-panel">
+                        <div class="vc-panel-head">
+                            <span class="vc-panel-title">Fireteam Standings</span>
+                            <span class="vc-panel-meta">TOP 5</span>
+                        </div>
+                        <div class="vc-squad-item">
+                            <div class="vc-squad-status online"></div>
+                            <div class="vc-squad-info">
+                                <div class="vc-squad-name">T. CHEN</div>
+                                <div class="vc-squad-role">TIER III ANALYST</div>
+                            </div>
+                            <div class="vc-squad-score">11,820</div>
+                        </div>
+                        <div class="vc-squad-item">
+                            <div class="vc-squad-status online"></div>
+                            <div class="vc-squad-info">
+                                <div class="vc-squad-name">M. OKAFOR</div>
+                                <div class="vc-squad-role">TIER III ANALYST</div>
+                            </div>
+                            <div class="vc-squad-score">10,440</div>
+                        </div>
+                        <div class="vc-squad-item">
+                            <div class="vc-squad-status away"></div>
+                            <div class="vc-squad-info">
+                                <div class="vc-squad-name">K. PATEL</div>
+                                <div class="vc-squad-role">TIER II ANALYST</div>
+                            </div>
+                            <div class="vc-squad-score">9,100</div>
+                        </div>
+                        <div class="vc-squad-item is-you">
+                            <div class="vc-squad-status online"></div>
+                            <div class="vc-squad-info">
+                                <div class="vc-squad-name" id="fireteam-you-name">YOU</div>
+                                <div class="vc-squad-role">TIER II ANALYST</div>
+                            </div>
+                            <div class="vc-squad-score">8,240</div>
+                        </div>
+                        <div class="vc-squad-item">
+                            <div class="vc-squad-status offline"></div>
+                            <div class="vc-squad-info">
+                                <div class="vc-squad-name">R. SMITH</div>
+                                <div class="vc-squad-role">TIER I ANALYST</div>
+                            </div>
+                            <div class="vc-squad-score">7,660</div>
+                        </div>
+                    </div>
+
+                    <!-- System Status — reflects which features are licensed -->
+                    <div class="vc-panel">
+                        <div class="vc-panel-head">
+                            <span class="vc-panel-title">System Status</span>
+                        </div>
+                        <div id="sys-status-rows">
+                            <!-- Populated by renderSystemStatus() -->
+                        </div>
+                    </div>
+
+                </div><!-- /.vc-right -->
+            </div><!-- /.vc-layout -->
+
+        </main><!-- /.vc-body -->
+
+        <!-- Bottom status bar -->
+        <div class="vc-statusbar">
+            <div class="vc-statusbar-left">
+                <div class="vc-statusbar-item">
+                    <div class="vc-live-ring"></div>
+                    <span class="val">CONNECTED</span>
+                </div>
+                <div class="vc-statusbar-item">
+                    <span>OPERATIVE:</span>
+                    <span class="val" id="statusbar-operative">--</span>
+                </div>
+                <div class="vc-statusbar-item">
+                    <span>SESSION:</span>
+                    <span class="val" id="statusbar-session">00:00</span>
+                </div>
+                <div class="vc-statusbar-item">
+                    <span>ENV:</span>
+                    <span class="val" id="statusbar-env">--</span>
+                </div>
+            </div>
+            <div class="vc-statusbar-right">HEXWORTH TACTICAL OPS // BUILD v6.0.0</div>
+        </div>
+
+    </div><!-- /#tenant-app -->
+
+    <script>
+    /**
+     * Tenant Loader — Tactical HUD Variant C
+     *
+     * Mirrors index.html loader logic exactly:
+     * 1. Extract tenant slug from URL query param or path
+     * 2. Fetch config from Cloud Function
+     * 3. Apply branding CSS variables
+     * 4. Render arsenal tiles based on licensed features
+     * 5. Store tenant context in sessionStorage
+     * 6. Start session timer
+     *
+     * URL: /tenant/dashboard-tactical-hud.html?slug=hexworth-academy
+     *
+     * @feature WL-2 (Tactical HUD variant)
+     */
+    (async function() {
+        var loaderText  = document.getElementById('loader-text');
+        var loaderError = document.getElementById('loader-error');
+
+        try {
+            // ── Step 1: Extract tenant slug ──
+            var slug = new URLSearchParams(window.location.search).get('slug');
+            if (!slug) {
+                // Fallback: try path pattern /t/{slug}/
+                var pathMatch = window.location.pathname.match(/\/t\/([^\/]+)/);
+                if (pathMatch) { slug = pathMatch[1]; }
+            }
+            if (!slug) {
+                throw new Error('No tenant specified. Add ?slug=your-tenant to the URL.');
+            }
+
+            loaderText.textContent = 'Loading ' + slug + '...';
+
+            // ── Step 2: Fetch tenant config from Cloud Function ──
+            var apiUrl = 'https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug=' + encodeURIComponent(slug);
+            var response = await fetch(apiUrl);
+            if (!response.ok) {
+                var errData = await response.json().catch(function() { return {}; });
+                throw new Error(errData.error || 'Tenant not found (HTTP ' + response.status + ')');
+            }
+            var config = await response.json();
+
+            if (config.status !== 'active') {
+                throw new Error('This training environment is currently inactive.');
+            }
+
+            // Store tenant context for use by other pages in this session
+            sessionStorage.setItem('hexworth_tenant', JSON.stringify(config));
+
+            loaderText.textContent = 'Applying tactical configuration...';
+
+            // ── Step 3: Apply branding CSS variables ──
+            var b    = config.branding;
+            var root = document.documentElement;
+
+            // Override both the :root brand tokens and HUD-specific tokens
+            var primary   = b.primaryColor   || '#00e5ff';
+            var secondary = b.secondaryColor || '#b347ea';
+
+            root.style.setProperty('--brand-primary',   primary);
+            root.style.setProperty('--brand-secondary', secondary);
+            root.style.setProperty('--vc-primary',   primary);
+            root.style.setProperty('--vc-secondary', secondary);
+
+            if (b.backgroundColor) {
+                root.style.setProperty('--vc-bg',    b.backgroundColor);
+                root.style.setProperty('--vc-panel', b.headerColor || b.backgroundColor);
+            } else if (b.headerColor) {
+                root.style.setProperty('--vc-panel', b.headerColor);
+            }
+
+            if (b.fontFamily) {
+                root.style.setProperty('--vc-font', b.fontFamily);
+            }
+
+            // Inject any tenant custom CSS overrides
+            if (b.customCSS) {
+                var customStyle       = document.createElement('style');
+                customStyle.textContent = b.customCSS;
+                document.head.appendChild(customStyle);
+            }
+
+            // ── Step 4: Set page text content ──
+            var platformName = b.platformName || config.name;
+
+            document.title = platformName + ' — Tactical HUD';
+
+            document.getElementById('header-name').textContent        = platformName;
+            document.getElementById('welcome-tenant-span').textContent = platformName.toUpperCase();
+            document.getElementById('welcome-tagline').textContent     = b.tagline || '';
+
+            // Status bar + dossier
+            document.getElementById('statusbar-operative').textContent = 'ANALYST';
+            document.getElementById('statusbar-env').textContent       = slug.toUpperCase();
+            document.getElementById('fireteam-you-name').textContent   = 'YOU';
+            document.getElementById('dossier-tenant-id').textContent   = slug.toUpperCase();
+            document.getElementById('dossier-cohort').textContent      = platformName.toUpperCase();
+
+            // Header operative label
+            document.getElementById('header-operative').textContent = 'ANALYST';
+
+            // ── Step 5: Render Arsenal tiles based on licensed features ──
+            var features  = config.licensing.contentAccess.features;
+            var tiles     = [];
+
+            // Training Range is always present
+            tiles.push({
+                title: 'Training Range',
+                desc:  'CTF // 120+ Boxes',
+                icon:  '/assets/images/icons/icon-target.webp',
+                href:  '/arena/'
+            });
+
+            if (features.vsMode) {
+                tiles.push({
+                    title: 'VS Mode',
+                    desc:  'Red // Blue Live',
+                    icon:  '/assets/images/icons/icon-swords.webp',
+                    href:  '/arena/boxes/pr7-red-vs-blue/'
+                });
+            }
+
+            if (features.wiresharkHub) {
+                tiles.push({
+                    title: 'Wireshark Hub',
+                    desc:  'PCAP // Intercept',
+                    icon:  '/assets/images/icons/icon-magnifier.webp',
+                    href:  '/wireshark/'
+                });
+            }
+
+            if (features.forensicsHub) {
+                tiles.push({
+                    title: 'Forensics Hub',
+                    desc:  'DFIR // Artifacts',
+                    icon:  '/assets/images/icons/icon-microscope.webp',
+                    href:  '/forensics/'
+                });
+            }
+
+            if (features.bugHunting) {
+                tiles.push({
+                    title: 'Bug Dojo',
+                    desc:  'Exploit // Vuln',
+                    icon:  '/assets/images/icons/icon-syringe.webp',
+                    href:  '/dark-arts/vault/dojo/'
+                });
+            }
+
+            // All Courses always present as final tile
+            tiles.push({
+                title: 'All Courses',
+                desc:  'Browse // Explore',
+                icon:  '/assets/images/icons/icon-books.webp',
+                href:  '/dashboard.html'
+            });
+
+            // Build arsenal HTML using textContent-safe approach via DOM
+            var arsenalGrid = document.getElementById('arsenal-grid');
+            arsenalGrid.innerHTML = '';
+            tiles.forEach(function(tile) {
+                var a    = document.createElement('a');
+                a.className   = 'vc-quick-tile';
+                a.href        = tile.href;
+
+                var iconWrap  = document.createElement('div');
+                iconWrap.className = 'vc-quick-tile-icon';
+                var img       = document.createElement('img');
+                img.src       = tile.icon;
+                img.alt       = '';
+                iconWrap.appendChild(img);
+
+                var name      = document.createElement('div');
+                name.className = 'vc-quick-tile-name';
+                name.textContent = tile.title;
+
+                var desc      = document.createElement('div');
+                desc.className = 'vc-quick-tile-desc';
+                desc.textContent = tile.desc;
+
+                a.appendChild(iconWrap);
+                a.appendChild(name);
+                a.appendChild(desc);
+                arsenalGrid.appendChild(a);
+            });
+
+            document.getElementById('arsenal-count').textContent = tiles.length + ' ACTIVE';
+
+            // ── Step 6: Render System Status rows ──
+            var sysRows = [
+                { label: 'CTF RANGE',     status: 'ONLINE',     cls: 'online' },
+                { label: 'FORENSICS LAB', status: features.forensicsHub ? 'ONLINE' : 'LOCKED', cls: features.forensicsHub ? 'online' : 'locked' },
+                { label: 'WIRESHARK HUB', status: features.wiresharkHub ? 'ONLINE' : 'LOCKED', cls: features.wiresharkHub ? 'online' : 'locked' },
+                { label: 'VS MODE',       status: features.vsMode        ? 'ONLINE' : 'LOCKED', cls: features.vsMode        ? 'online' : 'locked' }
+            ];
+
+            var sysContainer = document.getElementById('sys-status-rows');
+            sysRows.forEach(function(row) {
+                var div   = document.createElement('div');
+                div.className = 'sys-row';
+
+                var lbl   = document.createElement('span');
+                lbl.className = 'sys-row-label';
+                lbl.textContent = row.label;
+
+                var val   = document.createElement('span');
+                val.className = 'sys-row-status ' + row.cls;
+                val.textContent = row.status;
+
+                div.appendChild(lbl);
+                div.appendChild(val);
+                sysContainer.appendChild(div);
+            });
+
+            // Update stat placeholders to contextual values
+            document.getElementById('stat-missions').textContent = '05';
+            document.getElementById('stat-flags').textContent    = '34';
+            document.getElementById('stat-score').textContent    = '8,240';
+            document.getElementById('stat-rank').textContent     = '#04';
+            document.getElementById('objective-count').textContent = '5 ASSIGNED // 2 IN PROGRESS';
+
+            // ── Step 7: Reveal dashboard ──
+            var loader = document.getElementById('tenant-loader');
+            loader.classList.add('fade-out');
+            setTimeout(function() { loader.remove(); }, 500);
+            document.getElementById('tenant-app').style.display = 'block';
+
+            // Animate XP bar after reveal
+            setTimeout(function() {
+                var fill = document.getElementById('xp-fill');
+                if (fill) { fill.style.width = '68%'; }
+            }, 600);
+
+            // ── Step 8: Session timer (updates every second for HH:MM display) ──
+            var sessionStart = Date.now();
+            function updateSessionTimer() {
+                var elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+                var h       = Math.floor(elapsed / 3600);
+                var m       = Math.floor((elapsed % 3600) / 60);
+                var s       = elapsed % 60;
+                var hh      = String(h).padStart(2, '0');
+                var mm      = String(m).padStart(2, '0');
+                var ss      = String(s).padStart(2, '0');
+                var el      = document.getElementById('statusbar-session');
+                if (el) { el.textContent = hh + ':' + mm + ':' + ss; }
+            }
+            setInterval(updateSessionTimer, 1000);
+
+        } catch (err) {
+            loaderText.textContent         = 'Tactical link failed';
+            loaderError.textContent        = err.message;
+            loaderError.style.display      = 'block';
+        }
+    })();
+    </script>
+</body>
+</html>

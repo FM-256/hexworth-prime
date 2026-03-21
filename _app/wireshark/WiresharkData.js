@@ -64,7 +64,7 @@ const WiresharkData = {
                     type: 'module',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'sections/fundamentals/ws-02-capture-options.module.html'
+                    href: 'sections/fundamentals/ws-02-capture-filters.module.html'
                 },
                 {
                     id: 'ws-03',
@@ -121,7 +121,7 @@ const WiresharkData = {
                     type: 'module',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'sections/protocol-analysis/ws-07-ethernet.module.html'
+                    href: 'sections/protocol-analysis/ws-pa-01-ethernet.module.html'
                 },
                 {
                     id: 'ws-08',
@@ -130,7 +130,7 @@ const WiresharkData = {
                     type: 'module',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'sections/protocol-analysis/ws-08-arp.module.html'
+                    href: 'sections/protocol-analysis/ws-pa-02-arp.module.html'
                 },
                 {
                     id: 'ws-09',
@@ -139,7 +139,7 @@ const WiresharkData = {
                     type: 'module',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'sections/protocol-analysis/ws-09-icmp.module.html'
+                    href: 'sections/protocol-analysis/ws-pa-03-icmp.module.html'
                 },
                 {
                     id: 'ws-10',
@@ -148,7 +148,7 @@ const WiresharkData = {
                     type: 'module',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'sections/protocol-analysis/ws-10-tcp.module.html'
+                    href: 'sections/protocol-analysis/ws-pa-04-tcp.module.html'
                 },
                 {
                     id: 'ws-11',
@@ -157,7 +157,7 @@ const WiresharkData = {
                     type: 'module',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'sections/protocol-analysis/ws-11-udp-dns.module.html'
+                    href: 'sections/protocol-analysis/ws-pa-05-udp-dns.module.html'
                 },
                 {
                     id: 'ws-12',
@@ -166,7 +166,7 @@ const WiresharkData = {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '50 min',
-                    href: 'sections/protocol-analysis/ws-12-http-https.module.html'
+                    href: 'sections/protocol-analysis/ws-pa-06-http-https.module.html'
                 },
                 {
                     id: 'ws-13',

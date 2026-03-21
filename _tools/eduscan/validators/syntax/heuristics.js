@@ -16,6 +16,8 @@
  * - HEUR-008: position:fixed in dynamically created overlay (breaks when body has filter/transform)
  * - HEUR-009: Empty template literal ${} in inline scripts (SyntaxError kills entire script block)
  * - HEUR-010: querySelector targets heading tag not present in HTML (e.g., h3 in selector but h2 in markup — null crash)
+ * - HEUR-011: Literal </script> inside JS string or comment (HTML parser terminates script block early, killing all JS below it)
+ * - HEUR-012: JS syntax error via new Function() parse check (catches unclosed strings, missing quotes, etc.)
  */
 
 const fs = require('fs');
@@ -83,6 +85,8 @@ class HeuristicsValidator {
         issues.push(...this.checkCodeBlockWhitespace(file));
         issues.push(...this.checkEmptyTemplateLiterals(file));
         issues.push(...this.checkHeadingTagMismatch(file));
+        issues.push(...this.checkScriptCloserInJS(file));
+        issues.push(...this.checkJSSyntaxErrors(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -717,6 +721,131 @@ class HeuristicsValidator {
                     line,
                     fix: `Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML`
                 });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-011: Literal </script> inside JS string or comment
+     *
+     * The HTML parser doesn't understand JavaScript. When it encounters
+     * </script> (case-insensitive) inside a JS string literal, template
+     * literal, or comment, it terminates the <script> block. All JS after
+     * that point is dead — parsed as HTML, never executed.
+     *
+     * The fix is to escape as <\/script> (backslash is a JS no-op but
+     * breaks the HTML parser's pattern match).
+     *
+     * This check extracts inline script blocks using a greedy approach
+     * (not the naive regex that itself falls victim to this bug), then
+     * scans the raw text for </script> patterns that aren't the actual
+     * closing tag.
+     */
+    checkScriptCloserInJS(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Strategy: find each inline <script> opening, then count how many
+        // </script> (case-insensitive) occur before the NEXT <script> opening
+        // or end of file. If count > 1, the first N-1 are inside JS code —
+        // each one terminates the script block prematurely.
+        //
+        // We must NOT use regex to extract script blocks, because the regex
+        // itself falls victim to the same </script> bug we're trying to detect.
+
+        // Collect all <script> openings (with and without src)
+        const allOpens = [];
+        const openPattern = /<script\b[^>]*>/gi;
+        let m;
+        while ((m = openPattern.exec(content)) !== null) {
+            const hasSrc = /\bsrc\s*=/i.test(m[0]);
+            allOpens.push({ index: m.index, end: m.index + m[0].length, hasSrc });
+        }
+
+        // Collect all </script> closings
+        const allCloses = [];
+        const closePattern = /<\/script\s*>/gi;
+        while ((m = closePattern.exec(content)) !== null) {
+            // Skip escaped ones (preceded by backslash, like <\/script>)
+            if (m.index > 0 && content[m.index - 1] === '\\') continue;
+            allCloses.push(m.index);
+        }
+
+        // For each inline script opening, find how many </script> occur
+        // before the next <script> tag (or end of file)
+        for (let i = 0; i < allOpens.length; i++) {
+            if (allOpens[i].hasSrc) continue; // skip external scripts
+
+            const codeStart = allOpens[i].end;
+            const nextOpenStart = (i + 1 < allOpens.length) ? allOpens[i + 1].index : content.length;
+
+            // Count </script> between this code start and the next <script> opening
+            const closesInRange = allCloses.filter(pos => pos >= codeStart && pos < nextOpenStart);
+
+            // First one is legitimate; any extras are bugs
+            if (closesInRange.length > 1) {
+                // Flag all but the last one (the last is the real closing tag)
+                for (let j = 0; j < closesInRange.length - 1; j++) {
+                    const line = this.getLineNumber(content, closesInRange[j]);
+                    issues.push({
+                        code: 'HEUR-011',
+                        severity: 'high',
+                        category: 'heuristic',
+                        message: 'Literal </script> inside JS code — HTML parser will terminate the script block here, killing all JS below this point',
+                        file: file.path,
+                        line,
+                        fix: 'Escape as <\\/script> — the backslash is invisible to JS but prevents HTML parser termination'
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-012: JS syntax error detection via new Function() parse
+     *
+     * Uses the JS engine's own parser to detect syntax errors in inline
+     * script blocks. This catches missing quotes, unclosed strings,
+     * unbalanced brackets, and other errors that would cause blank screens.
+     *
+     * Only checks inline scripts (not external .js files loaded via src).
+     * Skips blocks shorter than 50 characters (trivial one-liners).
+     */
+    checkJSSyntaxErrors(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Extract inline script blocks
+        const scriptPattern = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+        let match;
+
+        while ((match = scriptPattern.exec(content)) !== null) {
+            const code = match[1];
+
+            // Skip trivial scripts
+            if (!code.trim() || code.trim().length < 50) continue;
+
+            try {
+                // new Function() parses the code without executing it
+                new Function(code);
+            } catch (err) {
+                if (err instanceof SyntaxError) {
+                    const line = this.getLineNumber(content, match.index);
+
+                    issues.push({
+                        code: 'HEUR-012',
+                        severity: 'high',
+                        category: 'heuristic',
+                        message: `JS syntax error: ${err.message}`,
+                        file: file.path,
+                        line,
+                        fix: 'Fix the syntax error — this kills the entire script block'
+                    });
+                }
             }
         }
 

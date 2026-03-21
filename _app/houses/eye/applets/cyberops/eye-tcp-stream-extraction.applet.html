@@ -10,7 +10,131 @@
     <link rel="stylesheet" href="cyberops-theme.css">
     <title>4.4 Extract Files from TCP Stream | CyberOps 200-201 | Eye House</title>
     <style>
-        /* Page-specific overrides only — shared styles in cyberops-theme.css */
+        /* Page-specific overrides */
+        .hex-display {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 6px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            overflow-x: auto;
+            line-height: 1.7;
+            margin: 12px 0;
+        }
+        .hex-display .magic { color: #f87171; font-weight: 700; }
+        .hex-display .header { color: #fbbf24; }
+        .hex-display .data { color: #4ade80; }
+        .hex-display .offset { color: #64748b; }
+        .matching-exercise { margin: 16px 0; }
+        .match-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 14px 0;
+        }
+        .match-column h4 {
+            color: #818cf8;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .match-item {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 14px;
+            cursor: pointer;
+            color: #cbd5e1;
+            transition: all 0.2s;
+            margin-bottom: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        .match-item:hover { border-color: #818cf8; }
+        .match-item.selected { border-color: #818cf8; background: rgba(129, 140, 248, 0.12); }
+        .match-item.correct { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+        .match-item.incorrect { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); color: #f87171; }
+        .match-item.file-type {
+            font-family: inherit;
+            font-size: 0.88rem;
+        }
+        .match-result {
+            display: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-top: 12px;
+            font-size: 0.88rem;
+        }
+        .match-result.show { display: block; }
+        .match-result.pass { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+        .match-result.fail { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
+        .match-btn {
+            background: #818cf8;
+            color: #fff;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        .match-btn:hover { background: #6366f1; }
+        .workflow-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 16px 0;
+        }
+        .workflow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px;
+            border-left: 2px solid #334155;
+            position: relative;
+        }
+        .workflow-step::before {
+            content: '';
+            position: absolute;
+            left: -7px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #818cf8;
+            border: 2px solid #1e293b;
+        }
+        .workflow-step:last-child { border-left-color: transparent; }
+        .step-num {
+            background: rgba(129, 140, 248, 0.15);
+            color: #818cf8;
+            font-weight: 700;
+            min-width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .step-body h4 { color: #e2e8f0; margin-bottom: 4px; }
+        .step-body p { color: #94a3b8; font-size: 0.88rem; line-height: 1.5; }
+        .evidence-chain {
+            background: rgba(217, 119, 6, 0.06);
+            border: 1px solid rgba(217, 119, 6, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 14px 0;
+        }
+        .evidence-chain h4 { color: #d97706; margin-bottom: 8px; }
+        .evidence-chain ol {
+            margin: 0 0 0 20px;
+            color: #94a3b8;
+            font-size: 0.88rem;
+            line-height: 1.8;
+        }
     </style>
 </head>
 <body>
@@ -28,90 +152,132 @@
             <div class="co-tab active" data-section="overview">Overview</div>
             <div class="co-tab" data-section="process">Extraction Process</div>
             <div class="co-tab" data-section="tools">Tools & Techniques</div>
+            <div class="co-tab" data-section="interactive">Magic Bytes Lab</div>
             <div class="co-tab" data-section="quiz">Knowledge Check</div>
         </nav>
 
         <div class="co-tab-content active" id="overview">
             <h2><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> TCP Stream File Extraction</h2>
-            <p>During incident response, analysts often need to extract files that were transferred over the network. Malware downloads, exfiltrated data, and lateral movement artifacts can all be recovered from packet captures.</p>
+            <p>During incident response, analysts often need to extract files that were transferred over the network. Malware downloads, exfiltrated data, and lateral movement artifacts can all be recovered from packet captures. Per NIST SP 800-86, network forensics provides critical evidence that may not exist on the endpoint (especially if the attacker wiped the disk).</p>
 
             <h3>Common Extraction Scenarios</h3>
             <div class="co-card-grid">
                 <div class="co-card">
                     <h4><img src="/assets/images/icons/icon-virus.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Malware Downloads</h4>
-                    <p>Extract malicious executables downloaded via HTTP/HTTPS for analysis in sandbox.</p>
+                    <p>Extract malicious executables downloaded via HTTP/HTTPS for analysis in sandbox. Look for PE files (MZ header) in HTTP responses with suspicious content-disposition headers or non-standard content types.</p>
                 </div>
                 <div class="co-card">
-                    <h4><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Data Exfiltration</h4>
-                    <p>Recover files sent to external servers to assess breach scope.</p>
+                    <h4><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data Exfiltration</h4>
+                    <p>Recover files sent to external servers to assess breach scope. Look for large HTTP POST bodies, base64-encoded data, or files uploaded via WebDAV/FTP. Determines exactly what data left the organization.</p>
                 </div>
                 <div class="co-card">
-                    <h4><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Email Attachments</h4>
-                    <p>Extract attachments from SMTP traffic for phishing analysis.</p>
+                    <h4><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Email Attachments</h4>
+                    <p>Extract attachments from SMTP traffic for phishing analysis. MIME-encoded attachments can be decoded and analyzed for malicious content, macros, or embedded exploits. Critical for initial access vector determination.</p>
                 </div>
                 <div class="co-card">
                     <h4><img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Lateral Movement</h4>
-                    <p>Recover files transferred via SMB during internal propagation.</p>
+                    <p>Recover files transferred via SMB during internal propagation. PsExec, WMI, and PowerShell remoting all leave artifacts in network traffic. SMB file transfers between workstations are almost always malicious.</p>
                 </div>
+            </div>
+
+            <div class="co-alert warning">
+                <div class="co-alert-title"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Chain of Custody</div>
+                <p>Extracted files are forensic evidence. Always maintain chain of custody: document who captured the pcap, when, from what interface, using what tool and version. Hash the pcap immediately (SHA-256) before any analysis. Store original pcap on write-protected media.</p>
             </div>
 
             <div class="co-source">
                 <span><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Source: Eye House > Tools > Wireshark Training</span>
-                <a href="../../tools/eye-wireshark.tool.html">Open Wireshark Training →</a>
+                <a href="../../tools/eye-wireshark.tool.html">Open Wireshark Training</a>
             </div>
         </div>
 
         <div class="co-tab-content" id="process">
             <h2><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Extraction Process</h2>
 
-            <div class="steps">
-                <div class="step">
-                    <div class="step-content">
-                        <h3>Identify the TCP Stream</h3>
-                        <p>Filter traffic to find the file transfer. Look for HTTP 200 responses, large transfers, or specific content types.</p>
+            <p>Follow this systematic workflow when extracting files from packet captures. Each step builds on the previous one to maintain forensic integrity.</p>
+
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">
+                        <h4>Identify the TCP Stream</h4>
+                        <p>Filter traffic to find the file transfer. Look for HTTP 200 responses with large content-length, specific MIME types (application/octet-stream, application/x-executable), or destination IPs flagged by threat intelligence. Use display filters like <code>http.response.code == 200 && http.content_length_header > 100000</code>.</p>
                     </div>
                 </div>
-                <div class="step">
-                    <div class="step-content">
+                <div class="workflow-step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">
                         <h4>Follow TCP Stream</h4>
-                        <p>Right-click packet → Follow → TCP Stream. This reassembles the conversation.</p>
+                        <p>Right-click the packet, select Follow, then TCP Stream. This reassembles the entire conversation, showing request and response in order. Check both directions -- the request may reveal what triggered the download (e.g., a malicious URL parameter or POST payload).</p>
                     </div>
                 </div>
-                <div class="step">
-                    <div class="step-content">
+                <div class="workflow-step">
+                    <div class="step-num">3</div>
+                    <div class="step-body">
                         <h4>Identify File Boundaries</h4>
-                        <p>Look for magic bytes (file signatures). HTTP Content-Length header indicates file size.</p>
+                        <p>Look for magic bytes (file signatures) at the start of the response payload. The HTTP Content-Length header indicates expected file size. For non-HTTP protocols, use the magic bytes table below to find where the file data begins and ends within the raw stream.</p>
                     </div>
                 </div>
-                <div class="step">
-                    <div class="step-content">
+                <div class="workflow-step">
+                    <div class="step-num">4</div>
+                    <div class="step-body">
                         <h4>Export/Save Raw Data</h4>
-                        <p>Save as raw bytes. For HTTP: File → Export Objects → HTTP. For raw: Save stream as raw.</p>
+                        <p>For HTTP: File, Export Objects, HTTP -- this auto-extracts all transferred files. For raw streams: change the stream display to "Raw" format, then "Save As" to disk. For SMB: File, Export Objects, SMB. For TFTP (common in firmware exfil): File, Export Objects, TFTP.</p>
                     </div>
                 </div>
-                <div class="step">
-                    <div class="step-content">
-                        <h4>Verify & Analyze</h4>
-                        <p>Check file hash, run through VirusTotal, analyze in sandbox if executable.</p>
+                <div class="workflow-step">
+                    <div class="step-num">5</div>
+                    <div class="step-body">
+                        <h4>Verify and Analyze</h4>
+                        <p>Calculate the hash (SHA-256) of the extracted file. Query the hash against VirusTotal, MalwareBazaar, and internal threat intel. If the file is an executable, analyze in an isolated sandbox (e.g., Joe Sandbox, ANY.RUN, Cuckoo). Never execute on production systems.</p>
                     </div>
                 </div>
             </div>
 
             <h3>Common File Signatures (Magic Bytes)</h3>
-            <div class="co-code">
-<span style="color:#d97706">PDF:</span>     25 50 44 46  (%PDF)
-<span style="color:#d97706">ZIP:</span>     50 4B 03 04  (PK..)
-<span style="color:#d97706">EXE/DLL:</span> 4D 5A        (MZ)
-<span style="color:#d97706">PNG:</span>     89 50 4E 47  (.PNG)
-<span style="color:#d97706">JPEG:</span>    FF D8 FF
-<span style="color:#d97706">GIF:</span>     47 49 46 38  (GIF8)
-<span style="color:#d97706">GZIP:</span>    1F 8B 08
-<span style="color:#d97706">RAR:</span>     52 61 72 21  (Rar!)
+            <p>Magic bytes are the first few bytes of a file that identify its format. Forensic tools and analysts use these to determine file type regardless of extension:</p>
+            <table class="co-table">
+                <thead><tr><th>File Type</th><th>Hex Bytes</th><th>ASCII</th><th>Forensic Significance</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>PDF</strong></td><td>25 50 44 46</td><td>%PDF</td><td>Document exfil, malicious PDFs with JS exploits</td></tr>
+                    <tr><td><strong>ZIP/DOCX/XLSX</strong></td><td>50 4B 03 04</td><td>PK..</td><td>Archives, Office docs (OOXML), password-protected exfil</td></tr>
+                    <tr><td><strong>EXE/DLL (PE)</strong></td><td>4D 5A</td><td>MZ</td><td>Windows executables -- malware, backdoors, RATs</td></tr>
+                    <tr><td><strong>ELF (Linux)</strong></td><td>7F 45 4C 46</td><td>.ELF</td><td>Linux malware, coinminers, reverse shells</td></tr>
+                    <tr><td><strong>PNG</strong></td><td>89 50 4E 47</td><td>.PNG</td><td>Steganography -- data hidden in image pixels</td></tr>
+                    <tr><td><strong>JPEG</strong></td><td>FF D8 FF</td><td>---</td><td>Steganography, screenshot exfil, surveillance</td></tr>
+                    <tr><td><strong>GZIP</strong></td><td>1F 8B 08</td><td>---</td><td>Compressed exfil data, tar.gz archives</td></tr>
+                    <tr><td><strong>RAR</strong></td><td>52 61 72 21</td><td>Rar!</td><td>Password-protected archives (common in ransomware exfil)</td></tr>
+                    <tr><td><strong>7-Zip</strong></td><td>37 7A BC AF</td><td>7z..</td><td>High-compression archives used for staging data</td></tr>
+                    <tr><td><strong>SQLite</strong></td><td>53 51 4C 69</td><td>SQLi</td><td>Browser databases, credential stores</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Hex Dump Example: Identifying a PE File in a TCP Stream</h3>
+            <div class="hex-display">
+<span class="offset">00000000</span>  <span class="header">48 54 54 50 2F 31 2E 31  20 32 30 30 20 4F 4B 0D</span>   HTTP/1.1 200 OK.
+<span class="offset">00000010</span>  <span class="header">0A 43 6F 6E 74 65 6E 74  2D 54 79 70 65 3A 20 61</span>   .Content-Type: a
+<span class="offset">00000020</span>  <span class="header">70 70 6C 69 63 61 74 69  6F 6E 2F 6F 63 74 65 74</span>   pplication/octet
+<span class="offset">00000030</span>  <span class="header">2D 73 74 72 65 61 6D 0D  0A 0D 0A</span> <span class="magic">4D 5A</span> <span class="data">90 00 03</span>   -stream....<span class="magic">MZ</span>...
+<span class="offset">00000040</span>  <span class="data">00 00 00 04 00 00 00 FF  FF 00 00 B8 00 00 00 00</span>   ................
+<span class="offset">00000050</span>  <span class="data">00 00 00 40 00 00 00 00  00 00 00 00 00 00 00 00</span>   ...@............
+            </div>
+            <p style="color:#94a3b8;font-size:0.85rem;">The <span style="color:#f87171;font-weight:600;">MZ</span> bytes (4D 5A) at offset 0x3B mark the beginning of a Windows PE executable embedded in the HTTP response. Everything before it is the HTTP header. A forensic analyst would carve the file starting at the MZ signature.</p>
+
+            <div class="evidence-chain">
+                <h4><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Evidence Documentation Checklist</h4>
+                <ol>
+                    <li>Record the pcap filename, SHA-256 hash, capture start/end time, and interface</li>
+                    <li>Document the stream index, source/dest IPs and ports, protocol</li>
+                    <li>Record the extraction method (Wireshark Export Objects vs manual carving)</li>
+                    <li>Hash the extracted file immediately (MD5 + SHA-256)</li>
+                    <li>Record VirusTotal detection ratio and any AV family names</li>
+                    <li>Note the analyst name, date/time of extraction, and case number</li>
+                </ol>
             </div>
 
-            <div class="co-alert warning">
-                <div class="co-alert-title"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Safety Warning</div>
-                <p>Never execute extracted files on production systems. Use isolated VMs or sandboxes. Even document files can contain malicious macros.</p>
+            <div class="co-alert soc">
+                <div class="co-alert-title"><img src="/assets/images/icons/icon-graduation.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> SOC Analyst Tip</div>
+                <p><strong>VirusTotal Upload Warning:</strong> Hash the file and search VirusTotal by hash first. Uploading the actual file to VirusTotal makes it available to all VT subscribers, including the attacker. If the file is unique to your incident, uploading it tells the adversary you found their malware. Use private sandboxes for sensitive files.</p>
             </div>
         </div>
 
@@ -120,38 +286,112 @@
 
             <div class="co-card-grid">
                 <div class="co-card">
-                    <h3>Wireshark Export Objects</h3>
-                    <p>File → Export Objects → HTTP/SMB/TFTP. Automatic extraction of transferred files.</p>
+                    <h3><img src="/assets/images/icons/icon-microscope.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Wireshark Export Objects</h3>
+                    <p>File, Export Objects, HTTP/SMB/TFTP. Automatic extraction of transferred files. Shows filename, hostname, content-type, and size. Best for quick extraction of HTTP-transferred files. Handles chunked transfer encoding automatically.</p>
                 </div>
                 <div class="co-card">
-                    <h4>NetworkMiner</h4>
-                    <p>Automated file extraction. Reconstructs files from pcap. Shows thumbnails.</p>
+                    <h4><img src="/assets/images/icons/icon-folder.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> NetworkMiner</h4>
+                    <p>Automated file extraction. Reconstructs files from pcap. Shows thumbnails for images. Also extracts credentials, DNS queries, and session data. Open-source version available (limited features).</p>
                 </div>
                 <div class="co-card">
-                    <h4>Foremost / Scalpel</h4>
-                    <p>File carving tools. Extract files from raw data based on headers/footers.</p>
+                    <h4><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Foremost / Scalpel</h4>
+                    <p>File carving tools that extract files based on headers and footers. Work on raw data -- do not require protocol understanding. Useful when the stream is corrupted or non-standard protocol is used. Originally developed for disk forensics, equally useful on raw TCP streams.</p>
                 </div>
                 <div class="co-card">
-                    <h4>tshark</h4>
-                    <p>Command-line Wireshark. Script automated extraction.</p>
+                    <h4><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> tshark (Command-line)</h4>
+                    <p>Scriptable extraction for automation. Process large pcap collections in batch. Integrates with SOAR playbooks for automated malware extraction and sandboxing. Syntax: <code>tshark -r capture.pcap --export-objects http,./extracted/</code></p>
                 </div>
             </div>
 
-            <h3>Wireshark HTTP Export</h3>
+            <h3>Wireshark HTTP Export Workflow</h3>
             <div class="co-code">
-<span style="color:#4b5563"># In Wireshark:</span>
-1. File → Export Objects → HTTP
-2. Browse list of transferred files
-3. Select file(s) to save
-4. Click "Save" or "Save All"
+<span style="color:#4b5563"># In Wireshark GUI:</span>
+1. Open pcap file
+2. File -> Export Objects -> HTTP
+3. Browse the list of transferred files
+4. Check Content-Type for executables: application/octet-stream, application/x-msdownload
+5. Select suspicious file(s) -> Click "Save" or "Save All"
+6. Hash immediately: sha256sum extracted_file.exe
 
-<span style="color:#4b5563"># tshark command-line:</span>
-tshark -r capture.pcap --export-objects http,./extracted/
+<span style="color:#4b5563"># tshark automated extraction (batch processing):</span>
+tshark -r capture.pcap --export-objects http,./extracted_http/
+tshark -r capture.pcap --export-objects smb,./extracted_smb/
+
+<span style="color:#4b5563"># Foremost file carving from raw stream:</span>
+tcpflow -r capture.pcap -o ./streams/
+foremost -i ./streams/* -o ./carved_files/
+
+<span style="color:#4b5563"># Hash all extracted files for VirusTotal bulk lookup:</span>
+sha256sum ./extracted_http/* > hashes.txt
             </div>
+
+            <h3>Protocol-Specific Extraction Notes</h3>
+            <table class="co-table">
+                <thead><tr><th>Protocol</th><th>Extraction Method</th><th>Complications</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>HTTP</strong></td><td>Export Objects, Follow TCP Stream</td><td>Chunked encoding, gzip compression -- Wireshark handles both</td></tr>
+                    <tr><td><strong>HTTPS/TLS</strong></td><td>Requires TLS keys (SSLKEYLOGFILE) or SSL inspection proxy</td><td>Without keys, only metadata is visible -- cannot extract files</td></tr>
+                    <tr><td><strong>SMB</strong></td><td>Export Objects -> SMB</td><td>SMB3 encryption, multi-fragment transfers</td></tr>
+                    <tr><td><strong>FTP</strong></td><td>Follow TCP Stream on data channel (port 20 or passive port)</td><td>Passive mode uses random ports -- filter by IP pair</td></tr>
+                    <tr><td><strong>SMTP</strong></td><td>Follow TCP Stream, decode base64 MIME attachments</td><td>Multi-part MIME, quoted-printable encoding</td></tr>
+                    <tr><td><strong>DNS</strong></td><td>Reassemble TXT record payloads, decode base32/base64</td><td>Data split across many queries -- manual reassembly needed</td></tr>
+                </tbody>
+            </table>
 
             <div class="co-alert soc">
                 <div class="co-alert-title"><img src="/assets/images/icons/icon-graduation.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> SOC Analyst Tip</div>
-                <p><strong>Hash Before Analysis:</strong> Always calculate MD5/SHA256 of extracted files before opening. Submit to VirusTotal. This documents the artifact and checks against known malware.</p>
+                <p><strong>Hash Before Analysis:</strong> Always calculate MD5/SHA256 of extracted files before opening them. Submit the hash (not the file) to VirusTotal first. This documents the artifact, checks against known malware, and avoids tipping off the adversary that you found their tools.</p>
+            </div>
+        </div>
+
+        <!-- Interactive: Magic Bytes Matching Exercise -->
+        <div class="co-tab-content" id="interactive">
+            <h2><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Magic Bytes Identification Lab</h2>
+            <p>In this exercise, you will match file signatures (magic bytes) to their file types. This is a fundamental forensics skill -- when you see hex data in a TCP stream, you need to instantly recognize what file type is being transferred.</p>
+
+            <div class="matching-exercise">
+                <h3>Match the Magic Bytes to the File Type</h3>
+                <p style="color:#94a3b8;font-size:0.88rem;">Click a hex signature on the left, then click the matching file type on the right. Complete all pairs, then check your answers.</p>
+
+                <div class="match-grid">
+                    <div class="match-column" id="hexColumn">
+                        <h4>Hex Signatures</h4>
+                    </div>
+                    <div class="match-column" id="typeColumn">
+                        <h4>File Types</h4>
+                    </div>
+                </div>
+                <button class="match-btn" onclick="checkMatches()">Check Answers</button>
+                <button class="match-btn" onclick="resetMatches()" style="background:#475569;margin-left:8px;">Reset</button>
+                <div class="match-result" id="matchResult"></div>
+            </div>
+
+            <h3>Hex Dump Analysis Challenge</h3>
+            <p>Examine the following hex dump extracted from a TCP stream and answer the questions below:</p>
+            <div class="hex-display">
+<span class="offset">00000000</span>  <span class="magic">50 4B 03 04</span> <span class="header">14 00 00 00  08 00 A1 B2</span>  <span class="magic">PK..</span>..........
+<span class="offset">00000010</span>  <span class="header">C3 D4 E5 F6 A7 B8 C9 DA  00 00 12 40</span> <span class="data">63 6F 6E 66</span>  ...........@conf
+<span class="offset">00000020</span>  <span class="data">69 64 65 6E 74 69 61 6C  2D 63 6C 69 65 6E 74 73</span>  idential-clients
+<span class="offset">00000030</span>  <span class="data">2E 78 6C 73 78</span> <span class="header">00 00 00  00 00 00 00 00 00 00 00</span>  .xlsx...........
+            </div>
+
+            <div class="co-quiz" style="margin-top:16px;">
+                <div class="co-quiz-question" data-correct="1">
+                    <p>What file type is being transferred?</p>
+                    <label class="co-quiz-option"><input type="radio" name="hex1" value="0"> Windows executable (PE/EXE)</label>
+                    <label class="co-quiz-option"><input type="radio" name="hex1" value="1"> ZIP archive (containing an XLSX spreadsheet)</label>
+                    <label class="co-quiz-option"><input type="radio" name="hex1" value="2"> PDF document</label>
+                    <label class="co-quiz-option"><input type="radio" name="hex1" value="3"> RAR archive</label>
+                </div>
+                <div class="co-quiz-question" data-correct="2">
+                    <p>Based on the filename visible in the hex dump, what is the security concern?</p>
+                    <label class="co-quiz-option"><input type="radio" name="hex2" value="0"> It is a system configuration file</label>
+                    <label class="co-quiz-option"><input type="radio" name="hex2" value="1"> It contains encrypted malware</label>
+                    <label class="co-quiz-option"><input type="radio" name="hex2" value="2"> It appears to contain confidential client data (potential data exfiltration)</label>
+                    <label class="co-quiz-option"><input type="radio" name="hex2" value="3"> It is a harmless image file</label>
+                </div>
+                <button class="co-quiz-btn" onclick="checkHexQuiz()">Check Analysis</button>
+                <div class="co-quiz-result" id="hexQuizResult"><h3 id="hexResultTitle"></h3><p id="hexResultText"></p></div>
             </div>
         </div>
 
@@ -167,10 +407,10 @@ tshark -r capture.pcap --export-objects http,./extracted/
                 </div>
                 <div class="co-quiz-question" data-correct="1">
                     <p>2. In Wireshark, how do you export HTTP transferred files?</p>
-                    <label class="co-quiz-option"><input type="radio" name="q2" value="0"> Edit → Preferences → HTTP</label>
-                    <label class="co-quiz-option"><input type="radio" name="q2" value="1"> File → Export Objects → HTTP</label>
-                    <label class="co-quiz-option"><input type="radio" name="q2" value="2"> Analyze → Follow → HTTP Stream</label>
-                    <label class="co-quiz-option"><input type="radio" name="q2" value="3"> Statistics → HTTP → Requests</label>
+                    <label class="co-quiz-option"><input type="radio" name="q2" value="0"> Edit, Preferences, HTTP</label>
+                    <label class="co-quiz-option"><input type="radio" name="q2" value="1"> File, Export Objects, HTTP</label>
+                    <label class="co-quiz-option"><input type="radio" name="q2" value="2"> Analyze, Follow, HTTP Stream</label>
+                    <label class="co-quiz-option"><input type="radio" name="q2" value="3"> Statistics, HTTP, Requests</label>
                 </div>
                 <div class="co-quiz-question" data-correct="0">
                     <p>3. What should you do FIRST after extracting a suspicious file?</p>
@@ -188,20 +428,35 @@ tshark -r capture.pcap --export-objects http,./extracted/
                 </div>
                 <div class="co-quiz-question" data-correct="2">
                     <p>5. Why should extracted executables never run on production systems?</p>
-                    <label class="co-quiz-option"><input type="radio" name="q5" value="0"> They won't work outside the network</label>
+                    <label class="co-quiz-option"><input type="radio" name="q5" value="0"> They will not work outside the network</label>
                     <label class="co-quiz-option"><input type="radio" name="q5" value="1"> It violates compliance policies</label>
                     <label class="co-quiz-option"><input type="radio" name="q5" value="2"> They may be malicious and cause infection</label>
                     <label class="co-quiz-option"><input type="radio" name="q5" value="3"> The files are usually corrupted</label>
+                </div>
+                <div class="co-quiz-question" data-correct="1">
+                    <p>6. Why should you search VirusTotal by hash instead of uploading the file?</p>
+                    <label class="co-quiz-option"><input type="radio" name="q6" value="0"> Hash lookups are faster</label>
+                    <label class="co-quiz-option"><input type="radio" name="q6" value="1"> Uploading the file makes it available to all VT subscribers, including the attacker</label>
+                    <label class="co-quiz-option"><input type="radio" name="q6" value="2"> VirusTotal does not accept file uploads</label>
+                    <label class="co-quiz-option"><input type="radio" name="q6" value="3"> Hash lookups provide more detailed results</label>
+                </div>
+                <div class="co-quiz-question" data-correct="0">
+                    <p>7. What protocol is most difficult to extract files from without decryption keys?</p>
+                    <label class="co-quiz-option"><input type="radio" name="q7" value="0"> HTTPS/TLS</label>
+                    <label class="co-quiz-option"><input type="radio" name="q7" value="1"> HTTP</label>
+                    <label class="co-quiz-option"><input type="radio" name="q7" value="2"> FTP</label>
+                    <label class="co-quiz-option"><input type="radio" name="q7" value="3"> SMB v1</label>
                 </div>
                 <button class="co-quiz-btn" onclick="checkQuiz()">Submit Answers</button>
                 <div class="co-quiz-result" id="quizResult"><h3 id="resultTitle"></h3><p id="resultText"></p></div>
             </div>
         </div>
 
-        <footer class="co-footer"><a href="week4/index.html">← Back to Week 4</a> | <a href="../../modules/cyberops/index.html">Course Home</a></footer>
+        <footer class="co-footer"><a href="week4/index.html">Back to Week 4</a> | <a href="../../modules/cyberops/index.html">Course Home</a></footer>
     </div>
 
     <script>
+        // Tab navigation
         document.querySelectorAll('.co-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.co-tab').forEach(t => t.classList.remove('active'));
@@ -210,8 +465,118 @@ tshark -r capture.pcap --export-objects http,./extracted/
                 document.getElementById(tab.dataset.section).classList.add('active');
             });
         });
+
+        // Magic Bytes Matching Exercise
+        const matchPairs = [
+            { hex: '4D 5A', type: 'Windows Executable (PE/EXE/DLL)' },
+            { hex: '25 50 44 46', type: 'PDF Document' },
+            { hex: '50 4B 03 04', type: 'ZIP Archive / Office OOXML' },
+            { hex: '89 50 4E 47', type: 'PNG Image' },
+            { hex: '52 61 72 21', type: 'RAR Archive' },
+            { hex: '7F 45 4C 46', type: 'Linux ELF Executable' },
+            { hex: '1F 8B 08', type: 'GZIP Compressed Data' },
+            { hex: 'FF D8 FF', type: 'JPEG Image' }
+        ];
+
+        let selectedHex = null;
+        let selectedType = null;
+        let userMatches = {};
+        const shuffledTypes = [...matchPairs].sort(() => Math.random() - 0.5);
+
+        function renderMatching() {
+            const hexCol = document.getElementById('hexColumn');
+            const typeCol = document.getElementById('typeColumn');
+            hexCol.innerHTML = '<h4>Hex Signatures</h4>';
+            typeCol.innerHTML = '<h4>File Types</h4>';
+
+            matchPairs.forEach((pair, i) => {
+                const div = document.createElement('div');
+                div.className = 'match-item';
+                div.textContent = pair.hex;
+                div.dataset.idx = i;
+                div.onclick = function() { selectHex(i); };
+                if (userMatches[i] !== undefined) {
+                    div.classList.add('selected');
+                    div.textContent = pair.hex + ' -> ' + matchPairs[userMatches[i]].type;
+                }
+                hexCol.appendChild(div);
+            });
+
+            shuffledTypes.forEach((pair, i) => {
+                const div = document.createElement('div');
+                div.className = 'match-item file-type';
+                div.textContent = pair.type;
+                div.dataset.origIdx = matchPairs.indexOf(pair);
+                div.onclick = function() { selectType(matchPairs.indexOf(pair)); };
+                typeCol.appendChild(div);
+            });
+        }
+
+        function selectHex(idx) {
+            selectedHex = idx;
+            document.querySelectorAll('#hexColumn .match-item').forEach((el, i) => {
+                el.classList.toggle('selected', i === idx);
+            });
+        }
+
+        function selectType(origIdx) {
+            if (selectedHex === null) return;
+            userMatches[selectedHex] = origIdx;
+            selectedHex = null;
+            renderMatching();
+        }
+
+        function checkMatches() {
+            let correct = 0;
+            const hexItems = document.querySelectorAll('#hexColumn .match-item');
+            hexItems.forEach((el, i) => {
+                if (userMatches[i] === i) {
+                    el.classList.add('correct');
+                    correct++;
+                } else if (userMatches[i] !== undefined) {
+                    el.classList.add('incorrect');
+                }
+            });
+            const result = document.getElementById('matchResult');
+            result.className = 'match-result show ' + (correct === matchPairs.length ? 'pass' : 'fail');
+            result.textContent = correct === matchPairs.length
+                ? 'All ' + matchPairs.length + ' pairs matched correctly. You can identify file types from their magic bytes.'
+                : correct + '/' + matchPairs.length + ' correct. Review the magic bytes table and try again.';
+            if (correct === matchPairs.length) localStorage.setItem('cyberops_lab_magic_bytes', 'passed');
+        }
+
+        function resetMatches() {
+            userMatches = {};
+            selectedHex = null;
+            document.getElementById('matchResult').className = 'match-result';
+            renderMatching();
+        }
+
+        renderMatching();
+
+        // Hex Analysis Quiz
+        function checkHexQuiz() {
+            const questions = document.querySelectorAll('#interactive .co-quiz-question');
+            let correct = 0;
+            questions.forEach(q => {
+                const selected = q.querySelector('input:checked');
+                q.querySelectorAll('.co-quiz-option').forEach(opt => opt.classList.remove('correct', 'incorrect'));
+                if (selected) {
+                    if (selected.value === q.dataset.correct) { correct++; selected.closest('.co-quiz-option').classList.add('correct'); }
+                    else { selected.closest('.co-quiz-option').classList.add('incorrect'); q.querySelectorAll('.co-quiz-option').forEach(opt => { if (opt.querySelector('input').value === q.dataset.correct) opt.classList.add('correct'); }); }
+                }
+            });
+            const result = document.getElementById('hexQuizResult');
+            result.style.display = 'block';
+            const pct = (correct / questions.length) * 100;
+            result.className = pct >= 100 ? 'quiz-result pass' : 'quiz-result fail';
+            document.getElementById('hexResultTitle').textContent = pct >= 100 ? 'Correct analysis.' : 'Review the hex dump again.';
+            document.getElementById('hexResultText').textContent = correct + '/' + questions.length + ' correct. The PK header (50 4B 03 04) indicates a ZIP/OOXML file, and the embedded filename "confidential-clients.xlsx" strongly suggests data exfiltration of sensitive client information.';
+        }
+
+        // Main Quiz
         function checkQuiz() {
-            const questions = document.querySelectorAll('.co-quiz-question');
+            const questions = document.querySelectorAll('#quiz .co-quiz-question');
             let correct = 0;
             questions.forEach(q => {
                 const selected = q.querySelector('input:checked');
@@ -226,7 +591,7 @@ tshark -r capture.pcap --export-objects http,./extracted/
             result.style.display = 'block';
             result.className = pct >= 80 ? 'quiz-result pass' : 'quiz-result fail';
             document.getElementById('resultTitle').innerHTML = pct >= 80 ? '<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Passed!' : '<img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Not Quite';
-            document.getElementById('resultText').textContent = `${correct}/${questions.length} (${pct}%)`;
+            document.getElementById('resultText').textContent = correct + '/' + questions.length + ' (' + Math.round(pct) + '%)';
             if (pct >= 80) localStorage.setItem('cyberops_topic_tcp_stream', 'passed');
         }
         localStorage.setItem('cyberops_topic_tcp_stream', 'visited');

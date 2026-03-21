@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WS-05 Filter Expression Builder — Wireshark Hub — Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-network.webp">
+
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0a0a0f; color: #e2e8f0;
+            min-height: 100vh; line-height: 1.7;
+        }
+        :root {
+            --accent: #06b6d4;
+            --accent-dim: rgba(6,182,212,0.12);
+            --accent-border: rgba(6,182,212,0.3);
+            --green: #4ade80;
+            --green-dim: rgba(74,222,128,0.1);
+            --indigo: #6366f1;
+            --yellow: #fbbf24;
+            --red: #f87171;
+            --orange: #fb923c;
+            --card: #12121a;
+        }
+
+        .ws-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 20px; border-bottom: 1px solid var(--accent-dim);
+            max-width: 940px; margin: 0 auto;
+        }
+        .ws-header img { width: 26px; height: 26px; border-radius: 4px; }
+        .ws-badge {
+            font-size: 0.72rem; padding: 3px 10px; border-radius: 10px;
+            background: var(--accent-dim); color: var(--accent);
+            font-weight: 600; font-family: 'JetBrains Mono', monospace;
+        }
+        .ws-header-title { font-size: 0.92rem; font-weight: 600; color: #f1f5f9; }
+        .ws-back { margin-left: auto; color: #64748b; text-decoration: none; font-size: 0.82rem; }
+        .ws-back:hover { color: var(--accent); }
+
+        .ws-breadcrumb {
+            max-width: 940px; margin: 10px auto 0; padding: 0 20px;
+            font-size: 0.78rem; color: #475569;
+        }
+        .ws-breadcrumb a { color: #64748b; text-decoration: none; }
+        .ws-breadcrumb a:hover { color: var(--accent); }
+
+        .content-panel { max-width: 940px; margin: 24px auto; padding: 0 20px 80px; }
+        .content-panel h1 { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+        .content-panel h2 {
+            font-size: 1.25rem; font-weight: 700; color: var(--accent);
+            margin: 36px 0 12px; padding-bottom: 8px;
+            border-bottom: 1px solid var(--accent-dim);
+        }
+        .content-panel h3 { font-size: 1rem; font-weight: 600; color: #e2e8f0; margin: 20px 0 8px; }
+        .content-panel p { color: #94a3b8; margin-bottom: 12px; }
+        .content-panel ul, .content-panel ol { padding-left: 20px; color: #94a3b8; margin-bottom: 12px; }
+        .content-panel li { margin: 5px 0; }
+        strong { color: #e2e8f0; }
+
+        .objectives {
+            background: var(--accent-dim); border: 1px solid var(--accent-border);
+            border-radius: 10px; padding: 20px; margin: 20px 0;
+        }
+        .objectives h3 { color: var(--accent); margin-top: 0; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { padding: 5px 0 5px 22px; color: #94a3b8; font-size: 0.9rem; position: relative; }
+        .objectives li::before {
+            content: ''; position: absolute; left: 0; top: 13px;
+            width: 8px; height: 8px; background: var(--accent); border-radius: 2px;
+        }
+
+        .code-block {
+            background: #1a1a2e; border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px; padding: 16px; margin: 12px 0; overflow-x: auto;
+        }
+        .code-block code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.84rem; color: #e2e8f0; white-space: pre;
+        }
+        .code-comment { color: #6b7280; }
+        .code-green { color: var(--green); }
+        .code-cyan { color: var(--accent); }
+        .code-yellow { color: var(--yellow); }
+        .code-red { color: var(--red); }
+
+        .info-box {
+            padding: 14px 16px; border-radius: 8px;
+            margin: 16px 0; border-left: 3px solid;
+        }
+        .info-box.note { background: rgba(6,182,212,0.07); border-color: var(--accent); }
+        .info-box.tip { background: rgba(74,222,128,0.07); border-color: var(--green); }
+        .info-box.warning { background: rgba(251,191,36,0.07); border-color: var(--yellow); }
+        .info-box p { margin: 0; font-size: 0.88rem; }
+        .info-box .box-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.06em; display: block; margin-bottom: 5px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .info-box.note .box-label { color: var(--accent); }
+        .info-box.tip .box-label { color: var(--green); }
+        .info-box.warning .box-label { color: var(--yellow); }
+
+        .table-wrap { overflow-x: auto; margin: 16px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+        th {
+            background: rgba(6,182,212,0.1); color: var(--accent);
+            padding: 10px 12px; text-align: left; font-weight: 600;
+            border-bottom: 2px solid var(--accent-dim);
+        }
+        td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #94a3b8; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .col-highlight { color: var(--green); font-weight: 500; }
+
+        /* ── Lab exercise builder ── */
+        .lab-exercise {
+            background: var(--card); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 24px; margin: 24px 0;
+        }
+        .lab-title {
+            font-size: 0.8rem; font-weight: 600; color: var(--accent);
+            text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .lab-desc { font-size: 0.88rem; color: #94a3b8; margin-bottom: 16px; }
+        .lab-scenario {
+            background: #0f0f1a; border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px; padding: 16px; margin-bottom: 16px;
+            font-size: 0.86rem; color: #cbd5e1; line-height: 1.6;
+        }
+        .lab-scenario strong { color: var(--accent); }
+        .lab-input-group { margin-bottom: 14px; }
+        .lab-input-label {
+            font-size: 0.78rem; color: #64748b; font-weight: 600;
+            margin-bottom: 6px; display: block;
+        }
+        .lab-input {
+            width: 100%; background: #0f0f1a; border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px; padding: 10px 14px; color: var(--green);
+            font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; outline: none;
+        }
+        .lab-input:focus { border-color: var(--accent); }
+        .lab-check-btn {
+            background: var(--accent-dim); border: 1px solid var(--accent-border);
+            border-radius: 6px; padding: 10px 24px; color: var(--accent);
+            font-weight: 600; font-size: 0.85rem; cursor: pointer;
+            transition: all 0.15s; font-family: 'Inter', system-ui, sans-serif;
+        }
+        .lab-check-btn:hover { background: rgba(6,182,212,0.2); }
+        .lab-feedback {
+            margin-top: 12px; padding: 12px 16px; border-radius: 8px;
+            font-size: 0.84rem; display: none;
+        }
+        .lab-feedback.show { display: block; }
+        .lab-feedback.ok { background: var(--green-dim); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+        .lab-feedback.no { background: rgba(248,113,113,0.08); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+        .lab-feedback.hint { background: rgba(251,191,36,0.08); color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
+
+        /* ── Autocompletion demo ── */
+        .autocomplete-demo {
+            background: var(--card); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 24px; margin: 24px 0;
+        }
+        .ac-input-wrap { position: relative; }
+        .ac-input {
+            width: 100%; background: #0f0f1a; border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px; padding: 10px 14px; color: var(--green);
+            font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; outline: none;
+        }
+        .ac-input:focus { border-color: var(--accent); }
+        .ac-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: #1a1a2e; border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto;
+            display: none; z-index: 10;
+        }
+        .ac-dropdown.show { display: block; }
+        .ac-item {
+            padding: 8px 14px; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem; cursor: pointer; display: flex;
+            justify-content: space-between; align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .ac-item:hover { background: rgba(6,182,212,0.1); }
+        .ac-item .field { color: var(--accent); }
+        .ac-item .desc { color: #64748b; font-size: 0.72rem; }
+
+        .takeaways {
+            background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.18);
+            border-radius: 10px; padding: 20px; margin: 28px 0;
+        }
+        .takeaways h3 { color: var(--green); margin-top: 0; margin-bottom: 10px; }
+        .takeaways ul { padding-left: 20px; }
+        .takeaways li { color: #94a3b8; margin: 6px 0; font-size: 0.9rem; }
+
+        .nav-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .nav-footer a {
+            color: #64748b; text-decoration: none; font-size: 0.85rem;
+            padding: 8px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.07);
+            transition: all 0.18s;
+        }
+        .nav-footer a:hover { color: var(--accent); border-color: var(--accent-border); }
+
+        .key-kbd {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px; padding: 2px 7px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #e2e8f0;
+        }
+
+        @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+        @media (prefers-contrast: more) { .content-panel p, td, .objectives li, .takeaways li { color: #e2e8f0; } }
+    </style>
+</head>
+<body>
+
+    <header class="ws-header">
+        <img src="/assets/images/icons/icon-network.webp" alt="">
+        <span class="ws-badge">WS-05</span>
+        <span class="ws-header-title">Filter Expression Builder</span>
+        <a href="../../index.html" class="ws-back">Back to Hub</a>
+    </header>
+
+    <nav class="ws-breadcrumb">
+        <a href="../../index.html">Wireshark Hub</a> &rsaquo;
+        <a href="../../index.html">Fundamentals</a> &rsaquo;
+        Filter Expression Builder
+    </nav>
+
+    <main class="content-panel">
+
+        <h1>Filter Expression Builder</h1>
+        <p>Wireshark includes a GUI-driven Filter Expression Builder that constructs display filters without requiring you to memorize field names. This lab module teaches you to use the builder efficiently, leverage autocompletion, manage filter bookmarks, and then challenges you to write filters for real-world investigation scenarios.</p>
+
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Navigate the Filter Expression dialog to browse available protocol fields</li>
+                <li>Use autocompletion in the filter bar to discover field names quickly</li>
+                <li>Save and organize filter bookmarks for rapid reuse</li>
+                <li>Construct multi-clause filters combining protocol, address, and behavioral criteria</li>
+                <li>Build filters for five common investigation scenarios from scratch</li>
+            </ul>
+        </div>
+
+        <!-- ── The Expression Dialog ── -->
+        <h2>The Filter Expression Dialog</h2>
+        <p>Access the dialog via <strong>Analyze &rsaquo; Display Filter Expression</strong> or by clicking the <strong>Expression...</strong> button next to the filter bar (if enabled in your profile). The dialog presents three panels:</p>
+
+        <h3>Left Panel: Field Tree</h3>
+        <p>A hierarchical tree of every protocol Wireshark knows how to dissect. Expand a protocol to see its fields. Each field shows its internal name (e.g., <code>tcp.srcport</code>) and a human-readable description.</p>
+
+        <h3>Middle Panel: Relation</h3>
+        <p>After selecting a field, choose the comparison operator: <code>==</code>, <code>!=</code>, <code>></code>, <code><</code>, <code>>=</code>, <code><=</code>, <code>contains</code>, <code>matches</code>, or the special <code>is present</code> (field existence).</p>
+
+        <h3>Right Panel: Value</h3>
+        <p>Enter the comparison value. For enumerated fields (like TCP flags or DNS record types), the dialog provides a dropdown of valid values with their human-readable names.</p>
+
+        <div class="info-box tip">
+            <span class="box-label">Pro Tip</span>
+            <p>The Expression dialog is useful for learning field names, but experienced analysts rarely use it. Once you know the field name, typing directly into the filter bar with autocompletion is faster. Use the dialog to discover fields you have never used before, then switch to direct typing.</p>
+        </div>
+
+        <!-- ── Autocompletion ── -->
+        <h2>Filter Bar Autocompletion</h2>
+        <p>Wireshark's filter bar provides real-time autocompletion as you type. This is the fastest way to build filters once you know the general field name pattern.</p>
+
+        <h3>How It Works</h3>
+        <ol>
+            <li>Click the filter bar or press <span class="key-kbd">Ctrl+/</span> to focus it</li>
+            <li>Start typing a protocol or field name (e.g., <code>tcp.</code>)</li>
+            <li>A dropdown appears showing all matching fields</li>
+            <li>Use <span class="key-kbd">Up</span>/<span class="key-kbd">Down</span> arrows to navigate the suggestions</li>
+            <li>Press <span class="key-kbd">Tab</span> or <span class="key-kbd">Enter</span> to accept a suggestion</li>
+            <li>Continue typing the operator and value</li>
+        </ol>
+
+        <h3>Naming Conventions</h3>
+        <p>Wireshark field names follow a consistent dot-notation pattern. Learning these patterns lets you guess field names accurately:</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pattern</th>
+                        <th>Examples</th>
+                        <th>Convention</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-highlight">proto.field</td>
+                        <td><code>tcp.srcport</code>, <code>ip.ttl</code>, <code>dns.qry.name</code></td>
+                        <td>Protocol name, then the field in that protocol</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">proto.field.subfield</td>
+                        <td><code>tcp.flags.syn</code>, <code>tls.handshake.type</code></td>
+                        <td>Nested fields within a parent field</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">proto.request.*</td>
+                        <td><code>http.request.method</code>, <code>http.request.uri</code></td>
+                        <td>Request-specific fields</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">proto.response.*</td>
+                        <td><code>http.response.code</code>, <code>dns.resp.type</code></td>
+                        <td>Response-specific fields</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">proto.analysis.*</td>
+                        <td><code>tcp.analysis.retransmission</code>, <code>tcp.analysis.zero_window</code></td>
+                        <td>Wireshark-calculated analysis fields (not in the packet itself)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── Autocompletion Demo ── -->
+        <h3>Try It: Autocompletion Simulator</h3>
+        <p>Type a protocol prefix below to see matching field suggestions.</p>
+
+        <div class="autocomplete-demo">
+            <div class="lab-title">Field Name Autocomplete</div>
+            <div class="ac-input-wrap">
+                <input class="ac-input" id="ac-field" type="text" placeholder="Type a field prefix, e.g., tcp.f or dns.q" oninput="showAutocomplete()" onfocus="showAutocomplete()">
+                <div class="ac-dropdown" id="ac-dropdown"></div>
+            </div>
+        </div>
+
+        <!-- ── Filter Bookmarks ── -->
+        <h2>Managing Filter Bookmarks</h2>
+        <p>Filter bookmarks let you save commonly used expressions for one-click reuse. Bookmarks persist across Wireshark sessions and are stored in your profile's <code>dfilters</code> file.</p>
+
+        <h3>Creating a Bookmark</h3>
+        <ol>
+            <li>Type a filter expression in the filter bar</li>
+            <li>Click the <strong>bookmark icon</strong> (blue ribbon) at the left end of the filter bar</li>
+            <li>Select <strong>Save this filter</strong></li>
+            <li>Give it a descriptive name (e.g., "C2 Beacon Check")</li>
+        </ol>
+
+        <h3>Organizing Bookmarks</h3>
+        <p>Go to <strong>Analyze &rsaquo; Display Filters</strong> to see all saved bookmarks. From this dialog you can:</p>
+        <ul>
+            <li>Rename bookmarks with descriptive labels</li>
+            <li>Reorder them by priority (most-used at the top)</li>
+            <li>Delete outdated filters</li>
+            <li>Import/export the <code>dfilters</code> file to share bookmarks across machines</li>
+        </ul>
+
+        <h3>Recommended Bookmark Set</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Name</th>
+                        <th>Filter</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-highlight">Security</td>
+                        <td>SYN-only scans</td>
+                        <td><code>tcp.flags.syn == 1 &amp;&amp; tcp.flags.ack == 0</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">Security</td>
+                        <td>RST floods</td>
+                        <td><code>tcp.flags.rst == 1 &amp;&amp; frame.time_delta_displayed &lt; 0.01</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">Security</td>
+                        <td>DNS tunneling suspect</td>
+                        <td><code>dns &amp;&amp; dns.qry.name.len &gt; 50</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">Security</td>
+                        <td>Executable downloads</td>
+                        <td><code>http.content_type contains "application/x-msdos-program" || http.content_type contains "application/x-msdownload"</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">Performance</td>
+                        <td>All TCP issues</td>
+                        <td><code>tcp.analysis.flags</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">Performance</td>
+                        <td>High latency</td>
+                        <td><code>tcp.analysis.ack_rtt &gt; 0.5</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">Forensics</td>
+                        <td>Cleartext passwords</td>
+                        <td><code>ftp.request.command == "PASS" || http.authbasic || imap.request contains "LOGIN"</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── Lab Exercises ── -->
+        <h2>Lab Exercises: Build the Filter</h2>
+        <p>For each scenario, construct the display filter that would isolate the relevant traffic. Type your answer and check it.</p>
+
+        <!-- Lab 1 -->
+        <div class="lab-exercise">
+            <div class="lab-title">Scenario 1: DNS Exfiltration Hunt</div>
+            <div class="lab-scenario">
+                A host at <strong>10.10.5.22</strong> is suspected of using DNS tunneling to exfiltrate data. You need to find all DNS queries from this host where the query name is unusually long (more than 40 characters). Write a display filter.
+            </div>
+            <div class="lab-input-group">
+                <label class="lab-input-label">Your Display Filter:</label>
+                <input class="lab-input" id="lab1-input" type="text" placeholder="Type your filter expression here">
+            </div>
+            <button class="lab-check-btn" onclick="checkLab(1)">Check Answer</button>
+            <div class="lab-feedback" id="lab1-fb"></div>
+        </div>
+
+        <!-- Lab 2 -->
+        <div class="lab-exercise">
+            <div class="lab-title">Scenario 2: Failed Login Detection</div>
+            <div class="lab-scenario">
+                Your web application at <strong>192.168.1.100</strong> is receiving brute-force login attempts. You need to see all HTTP POST requests to the login page (URI contains "/login") that received a 401 Unauthorized response. Write a filter that shows the HTTP responses with status code 401 going back to any source.
+            </div>
+            <div class="lab-input-group">
+                <label class="lab-input-label">Your Display Filter:</label>
+                <input class="lab-input" id="lab2-input" type="text" placeholder="Type your filter expression here">
+            </div>
+            <button class="lab-check-btn" onclick="checkLab(2)">Check Answer</button>
+            <div class="lab-feedback" id="lab2-fb"></div>
+        </div>
+
+        <!-- Lab 3 -->
+        <div class="lab-exercise">
+            <div class="lab-title">Scenario 3: TLS Version Audit</div>
+            <div class="lab-scenario">
+                You need to identify any connections still using TLS 1.0 or TLS 1.1 (which are deprecated and insecure). TLS 1.0 has record version <strong>0x0301</strong> and TLS 1.1 has record version <strong>0x0302</strong>. Write a filter to find Client Hello messages using these versions.
+            </div>
+            <div class="lab-input-group">
+                <label class="lab-input-label">Your Display Filter:</label>
+                <input class="lab-input" id="lab3-input" type="text" placeholder="Type your filter expression here">
+            </div>
+            <button class="lab-check-btn" onclick="checkLab(3)">Check Answer</button>
+            <div class="lab-feedback" id="lab3-fb"></div>
+        </div>
+
+        <!-- Lab 4 -->
+        <div class="lab-exercise">
+            <div class="lab-title">Scenario 4: Port Scan Detection</div>
+            <div class="lab-scenario">
+                You suspect host <strong>10.0.0.99</strong> is running a SYN scan against your network. A SYN scan sends TCP SYN packets without completing the handshake. Write a filter to find all SYN packets (SYN flag set, ACK flag NOT set) where the source is 10.0.0.99.
+            </div>
+            <div class="lab-input-group">
+                <label class="lab-input-label">Your Display Filter:</label>
+                <input class="lab-input" id="lab4-input" type="text" placeholder="Type your filter expression here">
+            </div>
+            <button class="lab-check-btn" onclick="checkLab(4)">Check Answer</button>
+            <div class="lab-feedback" id="lab4-fb"></div>
+        </div>
+
+        <!-- Lab 5 -->
+        <div class="lab-exercise">
+            <div class="lab-title">Scenario 5: Lateral Movement via SMB</div>
+            <div class="lab-scenario">
+                An attacker has compromised host <strong>10.0.0.50</strong> and is moving laterally via SMB (port 445). You need to see all SMB traffic originating from this host to any other internal host (10.0.0.0/24 subnet). Write the filter.
+            </div>
+            <div class="lab-input-group">
+                <label class="lab-input-label">Your Display Filter:</label>
+                <input class="lab-input" id="lab5-input" type="text" placeholder="Type your filter expression here">
+            </div>
+            <button class="lab-check-btn" onclick="checkLab(5)">Check Answer</button>
+            <div class="lab-feedback" id="lab5-fb"></div>
+        </div>
+
+        <!-- ── Takeaways ── -->
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>The Filter Expression dialog browses all available fields by protocol — useful for discovering field names you have never used.</li>
+                <li>Autocompletion in the filter bar is faster than the dialog once you know the naming pattern (protocol.field.subfield).</li>
+                <li>Filter bookmarks save time during investigations — pre-build a library of security, performance, and forensics filters.</li>
+                <li>Bookmarks are profile-specific and stored in the <code>dfilters</code> file — they can be shared across analyst workstations.</li>
+                <li>Practice building filters from scenario descriptions — in a real incident you will not have a cheat sheet.</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="ws-04-display-filters.module.html">&larr; Previous: Display Filters</a>
+            <a href="ws-06-profiles.module.html">Next: Profiles &amp; Preferences &rarr;</a>
+        </div>
+
+    </main>
+
+    <script>
+        /* ── Autocompletion data ── */
+        var fieldDb = [
+            { name: 'tcp.srcport', desc: 'Source port' },
+            { name: 'tcp.dstport', desc: 'Destination port' },
+            { name: 'tcp.port', desc: 'Source or destination port' },
+            { name: 'tcp.flags', desc: 'TCP flags field' },
+            { name: 'tcp.flags.syn', desc: 'SYN flag' },
+            { name: 'tcp.flags.ack', desc: 'ACK flag' },
+            { name: 'tcp.flags.rst', desc: 'RST flag' },
+            { name: 'tcp.flags.fin', desc: 'FIN flag' },
+            { name: 'tcp.flags.push', desc: 'PSH flag' },
+            { name: 'tcp.stream', desc: 'Stream index' },
+            { name: 'tcp.len', desc: 'TCP segment length' },
+            { name: 'tcp.window_size', desc: 'Window size' },
+            { name: 'tcp.analysis.retransmission', desc: 'Retransmitted segment' },
+            { name: 'tcp.analysis.zero_window', desc: 'Zero window event' },
+            { name: 'tcp.analysis.duplicate_ack', desc: 'Duplicate ACK' },
+            { name: 'tcp.analysis.ack_rtt', desc: 'ACK round-trip time' },
+            { name: 'tcp.analysis.flags', desc: 'All TCP analysis flags' },
+            { name: 'dns.qry.name', desc: 'Query domain name' },
+            { name: 'dns.qry.name.len', desc: 'Query name length' },
+            { name: 'dns.qry.type', desc: 'Query type (A, AAAA, MX...)' },
+            { name: 'dns.flags.response', desc: 'Response flag (0=query, 1=response)' },
+            { name: 'dns.flags.rcode', desc: 'Response code (0=OK, 3=NXDOMAIN)' },
+            { name: 'dns.resp.type', desc: 'Response record type' },
+            { name: 'dns.resp.len', desc: 'Response data length' },
+            { name: 'dns.count.answers', desc: 'Number of answer records' },
+            { name: 'http.request.method', desc: 'HTTP method (GET, POST...)' },
+            { name: 'http.request.uri', desc: 'Request URI path' },
+            { name: 'http.response.code', desc: 'HTTP status code' },
+            { name: 'http.host', desc: 'Host header value' },
+            { name: 'http.user_agent', desc: 'User-Agent header' },
+            { name: 'http.content_type', desc: 'Content-Type header' },
+            { name: 'http.cookie', desc: 'Cookie header' },
+            { name: 'http.authbasic', desc: 'Basic auth credentials' },
+            { name: 'ip.addr', desc: 'Source or destination IP' },
+            { name: 'ip.src', desc: 'Source IP address' },
+            { name: 'ip.dst', desc: 'Destination IP address' },
+            { name: 'ip.ttl', desc: 'Time to live' },
+            { name: 'ip.proto', desc: 'IP protocol number' },
+            { name: 'ip.len', desc: 'Total IP packet length' },
+            { name: 'tls.handshake.type', desc: 'Handshake type (1=ClientHello, 2=ServerHello)' },
+            { name: 'tls.handshake.extensions.server_name', desc: 'SNI hostname' },
+            { name: 'tls.record.version', desc: 'TLS record version' },
+            { name: 'frame.len', desc: 'Frame length on wire' },
+            { name: 'frame.time_delta_displayed', desc: 'Delta time from previous displayed' },
+            { name: 'frame.number', desc: 'Frame number' },
+            { name: 'frame.protocols', desc: 'Protocol stack' }
+        ];
+
+        function showAutocomplete() {
+            var input = document.getElementById('ac-field').value.trim().toLowerCase();
+            var dropdown = document.getElementById('ac-dropdown');
+            if (input.length < 2) {
+                dropdown.className = 'ac-dropdown';
+                return;
+            }
+            var matches = fieldDb.filter(function(f) { return f.name.indexOf(input) === 0; });
+            if (matches.length === 0) {
+                dropdown.className = 'ac-dropdown';
+                return;
+            }
+            var html = '';
+            matches.slice(0, 10).forEach(function(f) {
+                html += '<div class="ac-item" onclick="selectField(\'' + f.name + '\')">' +
+                    '<span class="field">' + f.name + '</span>' +
+                    '<span class="desc">' + f.desc + '</span></div>';
+            });
+            dropdown.innerHTML = html;
+            dropdown.className = 'ac-dropdown show';
+        }
+
+        function selectField(name) {
+            document.getElementById('ac-field').value = name;
+            document.getElementById('ac-dropdown').className = 'ac-dropdown';
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.autocomplete-demo')) {
+                document.getElementById('ac-dropdown').className = 'ac-dropdown';
+            }
+        });
+
+        /* ── Lab answer checking ── */
+        var labAnswers = {
+            1: {
+                accept: [
+                    'ip.src == 10.10.5.22 && dns && dns.qry.name.len > 40',
+                    'ip.src == 10.10.5.22 && dns.qry.name.len > 40',
+                    'dns && ip.src == 10.10.5.22 && dns.qry.name.len > 40',
+                    'ip.src==10.10.5.22 && dns.qry.name.len > 40',
+                    'ip.src == 10.10.5.22 and dns and dns.qry.name.len > 40',
+                    'ip.src == 10.10.5.22 and dns.qry.name.len > 40'
+                ],
+                keywords: ['ip.src', '10.10.5.22', 'dns', 'qry.name', '> 40'],
+                hint: 'You need: ip.src == 10.10.5.22 AND dns AND dns.qry.name.len > 40',
+                solution: 'ip.src == 10.10.5.22 && dns && dns.qry.name.len > 40'
+            },
+            2: {
+                accept: [
+                    'http.response.code == 401',
+                    'http.response.code == 401 && ip.dst == 192.168.1.100',
+                    'http.response.code eq 401'
+                ],
+                keywords: ['http.response.code', '401'],
+                hint: 'The key field is http.response.code == 401',
+                solution: 'http.response.code == 401'
+            },
+            3: {
+                accept: [
+                    'tls.handshake.type == 1 && (tls.record.version == 0x0301 || tls.record.version == 0x0302)',
+                    'tls.handshake.type == 1 && tls.record.version in {0x0301, 0x0302}',
+                    '(tls.record.version == 0x0301 || tls.record.version == 0x0302) && tls.handshake.type == 1',
+                    'tls.handshake.type == 1 && (tls.record.version == 0x0301 or tls.record.version == 0x0302)',
+                    'tls.record.version == 0x0301 || tls.record.version == 0x0302'
+                ],
+                keywords: ['tls', '0x0301', '0x0302'],
+                hint: 'Combine tls.handshake.type == 1 with tls.record.version checks for 0x0301 and 0x0302',
+                solution: 'tls.handshake.type == 1 && (tls.record.version == 0x0301 || tls.record.version == 0x0302)'
+            },
+            4: {
+                accept: [
+                    'ip.src == 10.0.0.99 && tcp.flags.syn == 1 && tcp.flags.ack == 0',
+                    'ip.src == 10.0.0.99 && tcp.flags.syn == 1 && !tcp.flags.ack',
+                    'tcp.flags.syn == 1 && tcp.flags.ack == 0 && ip.src == 10.0.0.99',
+                    'tcp.flags.syn == 1 && !tcp.flags.ack && ip.src == 10.0.0.99',
+                    'ip.src == 10.0.0.99 and tcp.flags.syn == 1 and tcp.flags.ack == 0'
+                ],
+                keywords: ['ip.src', '10.0.0.99', 'tcp.flags.syn', 'ack'],
+                hint: 'Combine ip.src == 10.0.0.99 with tcp.flags.syn == 1 and tcp.flags.ack == 0',
+                solution: 'ip.src == 10.0.0.99 && tcp.flags.syn == 1 && tcp.flags.ack == 0'
+            },
+            5: {
+                accept: [
+                    'ip.src == 10.0.0.50 && tcp.port == 445 && ip.dst != 10.0.0.50',
+                    'ip.src == 10.0.0.50 && tcp.dstport == 445',
+                    'ip.src == 10.0.0.50 && tcp.port == 445',
+                    'ip.src == 10.0.0.50 && smb',
+                    'ip.src == 10.0.0.50 && smb2',
+                    'ip.src == 10.0.0.50 && (smb || smb2)',
+                    'ip.src == 10.0.0.50 and tcp.port == 445'
+                ],
+                keywords: ['ip.src', '10.0.0.50', '445'],
+                hint: 'Filter on ip.src == 10.0.0.50 and tcp.port == 445 (or use the smb protocol name)',
+                solution: 'ip.src == 10.0.0.50 && tcp.dstport == 445'
+            }
+        };
+
+        function checkLab(num) {
+            var input = document.getElementById('lab' + num + '-input').value.trim();
+            var fb = document.getElementById('lab' + num + '-fb');
+            var answer = labAnswers[num];
+
+            if (!input) {
+                fb.textContent = 'Enter a filter expression first.';
+                fb.className = 'lab-feedback show hint';
+                return;
+            }
+
+            var normalized = input.replace(/\s+/g, ' ').toLowerCase();
+            var isExact = answer.accept.some(function(a) {
+                return normalized === a.toLowerCase().replace(/\s+/g, ' ');
+            });
+
+            if (isExact) {
+                fb.textContent = 'Correct. This filter accurately isolates the target traffic.';
+                fb.className = 'lab-feedback show ok';
+                return;
+            }
+
+            var keywordHits = answer.keywords.filter(function(k) {
+                return normalized.indexOf(k.toLowerCase()) !== -1;
+            });
+
+            if (keywordHits.length >= answer.keywords.length - 1) {
+                fb.textContent = 'Close. Your filter has the right components. Reference solution: ' + answer.solution;
+                fb.className = 'lab-feedback show hint';
+            } else {
+                fb.textContent = 'Not quite. Hint: ' + answer.hint;
+                fb.className = 'lab-feedback show no';
+            }
+        }
+    </script>
+
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script>ModuleProgress.init({ moduleId: 'ws-05', hubKey: 'hexworth_wireshark_progress' });</script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

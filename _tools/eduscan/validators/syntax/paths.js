@@ -100,6 +100,38 @@ const STRUCTURAL_DEPTH_RULES = [
         targetPattern: /components\//,
         minDepth: 6,
         description: 'CompTIA quiz files'
+    },
+    {
+        // Files in dark-arts/vault/*/ (dojo, labs, modules, etc.) - exactly 3 levels
+        // dark-arts(1)/vault(2)/dojo(3)/index.html → ../../../components/
+        filePattern: /^dark-arts\/vault\/[^/]+\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 3,
+        description: 'Dark Arts vault subdirectory files'
+    },
+    {
+        // Files in dark-arts/vault/gates/*/ - exactly 4 levels
+        // dark-arts(1)/vault(2)/gates(3)/gate-8(4)/file.html → ../../../../components/
+        filePattern: /^dark-arts\/vault\/gates\/[^/]+\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 4,
+        description: 'Dark Arts gate files'
+    },
+    {
+        // Arena box pages - exactly 3 levels
+        // arena(1)/boxes(2)/a1-ancient-ledger(3)/index.html → ../../../components/
+        filePattern: /^arena\/boxes\/[^/]+\/index\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 3,
+        description: 'arena box pages'
+    },
+    {
+        // Dispatch box pages - exactly 3 levels
+        // dispatch(1)/boxes(2)/os001-boot-failure(3)/index.html → ../../../components/
+        filePattern: /^dispatch\/boxes\/[^/]+\/index\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 3,
+        description: 'dispatch box pages'
     }
 ];
 

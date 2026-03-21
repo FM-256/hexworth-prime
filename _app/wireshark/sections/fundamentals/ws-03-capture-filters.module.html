@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WS-03 Capture Filters (BPF) — Wireshark Hub — Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-network.webp">
+
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0a0a0f; color: #e2e8f0;
+            min-height: 100vh; line-height: 1.7;
+        }
+        :root {
+            --accent: #06b6d4;
+            --accent-dim: rgba(6,182,212,0.12);
+            --accent-border: rgba(6,182,212,0.3);
+            --green: #4ade80;
+            --green-dim: rgba(74,222,128,0.1);
+            --indigo: #6366f1;
+            --yellow: #fbbf24;
+            --red: #f87171;
+            --orange: #fb923c;
+            --card: #12121a;
+        }
+
+        /* ── Header ── */
+        .ws-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 20px; border-bottom: 1px solid var(--accent-dim);
+            max-width: 940px; margin: 0 auto;
+        }
+        .ws-header img { width: 26px; height: 26px; border-radius: 4px; }
+        .ws-badge {
+            font-size: 0.72rem; padding: 3px 10px; border-radius: 10px;
+            background: var(--accent-dim); color: var(--accent);
+            font-weight: 600; font-family: 'JetBrains Mono', monospace;
+        }
+        .ws-header-title { font-size: 0.92rem; font-weight: 600; color: #f1f5f9; }
+        .ws-back { margin-left: auto; color: #64748b; text-decoration: none; font-size: 0.82rem; }
+        .ws-back:hover { color: var(--accent); }
+
+        /* ── Breadcrumb ── */
+        .ws-breadcrumb {
+            max-width: 940px; margin: 10px auto 0; padding: 0 20px;
+            font-size: 0.78rem; color: #475569;
+        }
+        .ws-breadcrumb a { color: #64748b; text-decoration: none; }
+        .ws-breadcrumb a:hover { color: var(--accent); }
+
+        /* ── Content panel ── */
+        .content-panel { max-width: 940px; margin: 24px auto; padding: 0 20px 80px; }
+        .content-panel h1 { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+        .content-panel h2 {
+            font-size: 1.25rem; font-weight: 700; color: var(--accent);
+            margin: 36px 0 12px; padding-bottom: 8px;
+            border-bottom: 1px solid var(--accent-dim);
+        }
+        .content-panel h3 { font-size: 1rem; font-weight: 600; color: #e2e8f0; margin: 20px 0 8px; }
+        .content-panel p { color: #94a3b8; margin-bottom: 12px; }
+        .content-panel ul, .content-panel ol {
+            padding-left: 20px; color: #94a3b8; margin-bottom: 12px;
+        }
+        .content-panel li { margin: 5px 0; }
+        strong { color: #e2e8f0; }
+
+        /* ── Objectives ── */
+        .objectives {
+            background: var(--accent-dim); border: 1px solid var(--accent-border);
+            border-radius: 10px; padding: 20px; margin: 20px 0;
+        }
+        .objectives h3 { color: var(--accent); margin-top: 0; margin-bottom: 10px; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li {
+            padding: 5px 0 5px 22px; color: #94a3b8;
+            font-size: 0.9rem; position: relative;
+        }
+        .objectives li::before {
+            content: ''; position: absolute; left: 0; top: 13px;
+            width: 8px; height: 8px; background: var(--accent); border-radius: 2px;
+        }
+
+        /* ── Code blocks ── */
+        .code-block {
+            background: #1a1a2e; border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px; padding: 16px; margin: 12px 0; overflow-x: auto;
+        }
+        .code-block code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.84rem; color: #e2e8f0; white-space: pre;
+        }
+        .code-comment { color: #6b7280; }
+        .code-green { color: var(--green); }
+        .code-cyan { color: var(--accent); }
+        .code-yellow { color: var(--yellow); }
+        .code-red { color: var(--red); }
+
+        /* ── Info boxes ── */
+        .info-box {
+            padding: 14px 16px; border-radius: 8px;
+            margin: 16px 0; border-left: 3px solid;
+        }
+        .info-box.note { background: rgba(6,182,212,0.07); border-color: var(--accent); }
+        .info-box.tip { background: rgba(74,222,128,0.07); border-color: var(--green); }
+        .info-box.warning { background: rgba(251,191,36,0.07); border-color: var(--yellow); }
+        .info-box.danger { background: rgba(248,113,113,0.07); border-color: var(--red); }
+        .info-box p { margin: 0; font-size: 0.88rem; }
+        .info-box .box-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.06em; display: block; margin-bottom: 5px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .info-box.note .box-label { color: var(--accent); }
+        .info-box.tip .box-label { color: var(--green); }
+        .info-box.warning .box-label { color: var(--yellow); }
+        .info-box.danger .box-label { color: var(--red); }
+
+        /* ── Tables ── */
+        .table-wrap { overflow-x: auto; margin: 16px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+        th {
+            background: rgba(6,182,212,0.1); color: var(--accent);
+            padding: 10px 12px; text-align: left; font-weight: 600;
+            border-bottom: 2px solid var(--accent-dim);
+        }
+        td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #94a3b8; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .col-highlight { color: var(--green); font-weight: 500; }
+
+        /* ── Interactive filter builder ── */
+        .filter-builder {
+            background: var(--card); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 24px; margin: 24px 0;
+        }
+        .filter-builder-title {
+            font-size: 0.8rem; font-weight: 600; color: var(--accent);
+            text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .fb-row {
+            display: flex; gap: 10px; align-items: center;
+            flex-wrap: wrap; margin-bottom: 12px;
+        }
+        .fb-label {
+            font-size: 0.82rem; color: #94a3b8; min-width: 80px;
+            font-weight: 600;
+        }
+        .fb-select, .fb-input {
+            background: #0f0f1a; border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px; padding: 7px 12px; color: #e2e8f0;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;
+            outline: none;
+        }
+        .fb-select:focus, .fb-input:focus { border-color: var(--accent); }
+        .fb-select { cursor: pointer; }
+        .fb-input { flex: 1; min-width: 140px; }
+        .fb-output {
+            background: #0f0f1a; border: 1px solid var(--accent-border);
+            border-radius: 8px; padding: 14px; margin-top: 16px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+            color: var(--green); min-height: 44px;
+        }
+        .fb-output-label {
+            font-size: 0.68rem; color: #64748b; text-transform: uppercase;
+            letter-spacing: 0.06em; margin-bottom: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .fb-btn {
+            background: var(--accent-dim); border: 1px solid var(--accent-border);
+            border-radius: 6px; padding: 8px 18px; color: var(--accent);
+            font-weight: 600; font-size: 0.82rem; cursor: pointer;
+            transition: all 0.15s; font-family: 'Inter', system-ui, sans-serif;
+        }
+        .fb-btn:hover { background: rgba(6,182,212,0.2); }
+        .fb-btn.copy { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.3); color: var(--green); }
+        .fb-btn.copy:hover { background: rgba(74,222,128,0.2); }
+
+        /* ── Quiz ── */
+        .quiz-section {
+            background: var(--card); border: 1px solid var(--accent-dim);
+            border-radius: 10px; padding: 22px; margin: 28px 0;
+        }
+        .quiz-section h3 { color: var(--accent); margin-top: 0; margin-bottom: 4px; }
+        .quiz-intro { font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; }
+        .quiz-q { margin: 14px 0; }
+        .quiz-q-text { font-size: 0.9rem; color: #e2e8f0; margin-bottom: 8px; }
+        .quiz-options { display: flex; flex-direction: column; gap: 6px; }
+        .quiz-opt {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px; padding: 9px 14px; cursor: pointer; font-size: 0.85rem;
+            color: #94a3b8; transition: all 0.15s; text-align: left;
+        }
+        .quiz-opt:hover { border-color: var(--accent); color: #e2e8f0; }
+        .quiz-opt.correct { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+        .quiz-opt.wrong { border-color: var(--red); background: rgba(248,113,113,0.08); color: var(--red); }
+        .quiz-feedback {
+            font-size: 0.8rem; padding: 8px 12px; border-radius: 6px; margin-top: 8px;
+            display: none;
+        }
+        .quiz-feedback.show { display: block; }
+        .quiz-feedback.ok { background: var(--green-dim); color: var(--green); }
+        .quiz-feedback.no { background: rgba(248,113,113,0.08); color: var(--red); }
+
+        /* ── Takeaways ── */
+        .takeaways {
+            background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.18);
+            border-radius: 10px; padding: 20px; margin: 28px 0;
+        }
+        .takeaways h3 { color: var(--green); margin-top: 0; margin-bottom: 10px; }
+        .takeaways ul { padding-left: 20px; }
+        .takeaways li { color: #94a3b8; margin: 6px 0; font-size: 0.9rem; }
+
+        /* ── Nav footer ── */
+        .nav-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .nav-footer a {
+            color: #64748b; text-decoration: none; font-size: 0.85rem;
+            padding: 8px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.07);
+            transition: all 0.18s;
+        }
+        .nav-footer a:hover { color: var(--accent); border-color: var(--accent-border); }
+
+        .key-kbd {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px; padding: 2px 7px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #e2e8f0;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
+        @media (prefers-contrast: more) {
+            .content-panel p, td, .objectives li, .takeaways li { color: #e2e8f0; }
+        }
+        @media (max-width: 640px) {
+            .fb-row { flex-direction: column; align-items: stretch; }
+            .fb-label { min-width: unset; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="ws-header">
+        <img src="/assets/images/icons/icon-network.webp" alt="">
+        <span class="ws-badge">WS-03</span>
+        <span class="ws-header-title">Capture Filters (BPF)</span>
+        <a href="../../index.html" class="ws-back">Back to Hub</a>
+    </header>
+
+    <nav class="ws-breadcrumb">
+        <a href="../../index.html">Wireshark Hub</a> &rsaquo;
+        <a href="../../index.html">Fundamentals</a> &rsaquo;
+        Capture Filters (BPF)
+    </nav>
+
+    <main class="content-panel">
+
+        <h1>Capture Filters (BPF)</h1>
+        <p>Capture filters determine which packets make it into the capture file in the first place. Unlike display filters, which merely hide traffic after capture, a capture filter permanently discards everything that does not match. This module covers Berkeley Packet Filter (BPF) syntax — the language shared by Wireshark, tcpdump, and every libpcap-based tool.</p>
+
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Explain the difference between capture filters and display filters in both function and syntax</li>
+                <li>Write BPF expressions using host, net, port, proto, and directional primitives</li>
+                <li>Combine primitives with logical operators (and, or, not) to build precise filters</li>
+                <li>Use byte-offset expressions for advanced protocol matching</li>
+                <li>Apply capture filters via Wireshark GUI and the command line</li>
+                <li>Avoid common capture filter mistakes that cause silent data loss</li>
+            </ul>
+        </div>
+
+        <!-- ── Why Capture Filters ── -->
+        <h2>Why Capture Filters Matter</h2>
+        <p>On a busy network, a full capture can generate gigabytes per hour. Capture filters solve three problems simultaneously:</p>
+        <ul>
+            <li><strong>Disk space</strong> — only the traffic you need lands on disk, extending recording windows from minutes to days</li>
+            <li><strong>Performance</strong> — the kernel discards non-matching packets before they cross the user-kernel boundary, reducing CPU overhead and preventing packet drops</li>
+            <li><strong>Scope control</strong> — in forensic investigations, limiting capture scope to a target host prevents inadvertent collection of privileged communications</li>
+        </ul>
+
+        <div class="info-box warning">
+            <span class="box-label">Critical Difference</span>
+            <p>Capture filters use <strong>BPF syntax</strong> (e.g., <code>host 10.0.0.5</code>). Display filters use <strong>Wireshark display filter syntax</strong> (e.g., <code>ip.addr == 10.0.0.5</code>). These are completely different languages. A display filter expression pasted into the capture filter field will silently fail or be rejected.</p>
+        </div>
+
+        <!-- ── BPF Primitives ── -->
+        <h2>BPF Primitive Reference</h2>
+        <p>Every BPF expression is built from primitives. A primitive consists of an optional qualifier followed by a value. The three qualifier types are:</p>
+        <ul>
+            <li><strong>Type</strong> — what the value represents: <code>host</code>, <code>net</code>, <code>port</code>, <code>portrange</code></li>
+            <li><strong>Direction</strong> — which address to match: <code>src</code>, <code>dst</code>, <code>src or dst</code>, <code>src and dst</code></li>
+            <li><strong>Protocol</strong> — which protocol layer: <code>ether</code>, <code>ip</code>, <code>ip6</code>, <code>arp</code>, <code>tcp</code>, <code>udp</code>, <code>icmp</code></li>
+        </ul>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Primitive</th>
+                        <th>BPF Syntax</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-highlight">host</td>
+                        <td><code>host 192.168.1.50</code></td>
+                        <td>Match packets where the IP address appears as source or destination</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">src host</td>
+                        <td><code>src host 10.0.0.1</code></td>
+                        <td>Match only when the IP is the source address</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">dst host</td>
+                        <td><code>dst host 10.0.0.1</code></td>
+                        <td>Match only when the IP is the destination address</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">net</td>
+                        <td><code>net 10.0.0.0/24</code></td>
+                        <td>Match any IP within the specified subnet</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">port</td>
+                        <td><code>port 443</code></td>
+                        <td>Match TCP or UDP traffic on the specified port (either direction)</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">dst port</td>
+                        <td><code>dst port 80</code></td>
+                        <td>Match only when the destination port equals 80</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">portrange</td>
+                        <td><code>portrange 8000-8080</code></td>
+                        <td>Match any port within the specified inclusive range</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">proto</td>
+                        <td><code>icmp</code></td>
+                        <td>Match a specific IP protocol (icmp, tcp, udp, etc.)</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">ether host</td>
+                        <td><code>ether host aa:bb:cc:dd:ee:ff</code></td>
+                        <td>Match by MAC address at the Ethernet layer</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">broadcast</td>
+                        <td><code>ether broadcast</code></td>
+                        <td>Match Ethernet broadcast frames (dst ff:ff:ff:ff:ff:ff)</td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">vlan</td>
+                        <td><code>vlan 100</code></td>
+                        <td>Match 802.1Q tagged frames on VLAN 100</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── Logical Operators ── -->
+        <h2>Logical Operators</h2>
+        <p>Primitives combine with standard boolean logic. BPF supports both symbolic and keyword forms:</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Operation</th>
+                        <th>Keyword</th>
+                        <th>Symbol</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-highlight">AND</td>
+                        <td><code>and</code></td>
+                        <td><code>&amp;&amp;</code></td>
+                        <td><code>host 10.0.0.5 and port 443</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">OR</td>
+                        <td><code>or</code></td>
+                        <td><code>||</code></td>
+                        <td><code>port 80 or port 443</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">NOT</td>
+                        <td><code>not</code></td>
+                        <td><code>!</code></td>
+                        <td><code>not arp</code></td>
+                    </tr>
+                    <tr>
+                        <td class="col-highlight">Grouping</td>
+                        <td colspan="2"><code>( )</code></td>
+                        <td><code>(port 80 or port 443) and host 10.0.0.5</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="info-box tip">
+            <span class="box-label">Operator Precedence</span>
+            <p><code>not</code> binds tightest, then <code>and</code>, then <code>or</code>. When in doubt, use parentheses. The expression <code>not host 10.0.0.1 and port 80</code> means "not from 10.0.0.1 AND on port 80" — it does <strong>not</strong> mean "not (host 10.0.0.1 and port 80)". Use explicit parentheses to avoid ambiguity.</p>
+        </div>
+
+        <!-- ── Common Patterns ── -->
+        <h2>Common Capture Filter Patterns</h2>
+        <p>These patterns cover the scenarios you will encounter most frequently in security analysis, network troubleshooting, and forensic capture.</p>
+
+        <h3>Isolate a Single Host</h3>
+        <div class="code-block"><code><span class="code-cyan">host</span> 192.168.1.100</code></div>
+        <p>Captures all traffic to and from the target host. This is the most common starting point for incident response — narrow focus to the compromised machine.</p>
+
+        <h3>Capture Only Web Traffic</h3>
+        <div class="code-block"><code><span class="code-cyan">tcp port</span> 80 <span class="code-yellow">or</span> <span class="code-cyan">tcp port</span> 443</code></div>
+        <p>Restricts capture to HTTP and HTTPS. Useful when investigating web-based attacks, phishing callbacks, or web application performance.</p>
+
+        <h3>Exclude Noisy Protocols</h3>
+        <div class="code-block"><code><span class="code-red">not</span> arp <span class="code-yellow">and</span> <span class="code-red">not</span> icmp <span class="code-yellow">and</span> <span class="code-red">not</span> <span class="code-cyan">port</span> 53</code></div>
+        <p>Removes ARP, ICMP, and DNS from the capture. On a busy LAN, these three protocols can account for 40% or more of all traffic.</p>
+
+        <h3>Capture a Subnet</h3>
+        <div class="code-block"><code><span class="code-cyan">net</span> 10.10.0.0/16</code></div>
+        <p>Matches all traffic where either source or destination falls within the /16 subnet. Essential for monitoring an entire VLAN or department segment.</p>
+
+        <h3>Capture Traffic Between Two Hosts</h3>
+        <div class="code-block"><code><span class="code-cyan">host</span> 10.0.0.5 <span class="code-yellow">and</span> <span class="code-cyan">host</span> 10.0.0.10</code></div>
+        <p>Captures only the conversation between two specific endpoints. Both addresses must appear in the same packet (one as source, one as destination).</p>
+
+        <h3>Capture Non-Standard Ports</h3>
+        <div class="code-block"><code><span class="code-cyan">tcp</span> <span class="code-yellow">and</span> <span class="code-red">not</span> <span class="code-cyan">portrange</span> 1-1024</code></div>
+        <p>Captures only TCP traffic on ephemeral and high ports. Useful for spotting C2 channels that avoid well-known ports.</p>
+
+        <h3>Capture Only SYN Packets (Connection Initiations)</h3>
+        <div class="code-block"><code><span class="code-cyan">tcp[tcpflags]</span> &amp; <span class="code-cyan">tcp-syn</span> != 0 <span class="code-yellow">and</span> <span class="code-cyan">tcp[tcpflags]</span> &amp; <span class="code-cyan">tcp-ack</span> == 0</code></div>
+        <p>Matches only the initial SYN of TCP handshakes — no SYN-ACKs, no data packets. This is a lightweight way to log every new connection attempt on a link without storing full payloads.</p>
+
+        <!-- ── Byte Offset Expressions ── -->
+        <h2>Byte-Offset Expressions</h2>
+        <p>BPF allows you to match on arbitrary byte positions in a packet using bracket notation. This is how you filter on fields that have no dedicated BPF keyword.</p>
+
+        <h3>Syntax</h3>
+        <div class="code-block"><code><span class="code-cyan">proto</span>[<span class="code-yellow">offset</span>:<span class="code-green">length</span>]</code></div>
+        <p>Where <code>proto</code> is the protocol layer (ip, tcp, udp, icmp, ether), <code>offset</code> is the byte position from the start of that header, and <code>length</code> is how many bytes to read (1, 2, or 4). Omit length for a single byte.</p>
+
+        <h3>Examples</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Expression</th>
+                        <th>Matches</th>
+                        <th>Explanation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>ip[8] < 5</code></td>
+                        <td>Low TTL packets</td>
+                        <td>Byte 8 of the IP header is the TTL field. Values below 5 suggest traceroute probes or misconfigured routers.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tcp[13] &amp; 2 != 0</code></td>
+                        <td>TCP SYN flag set</td>
+                        <td>Byte 13 of the TCP header contains the flags. Bit 1 (value 2) is the SYN flag.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tcp[13] == 18</code></td>
+                        <td>TCP SYN-ACK only</td>
+                        <td>Value 18 = SYN (2) + ACK (16). Matches only SYN-ACK responses.</td>
+                    </tr>
+                    <tr>
+                        <td><code>icmp[0] == 8</code></td>
+                        <td>ICMP Echo Request</td>
+                        <td>Byte 0 of the ICMP header is the Type field. Type 8 is Echo Request (ping).</td>
+                    </tr>
+                    <tr>
+                        <td><code>ip[6:2] &amp; 0x1fff != 0</code></td>
+                        <td>IP fragments</td>
+                        <td>Bytes 6-7 contain the fragment offset. Non-zero means this is a fragment (not the first).</td>
+                    </tr>
+                    <tr>
+                        <td><code>ether[12:2] == 0x0806</code></td>
+                        <td>ARP frames</td>
+                        <td>Bytes 12-13 of the Ethernet frame hold the EtherType. 0x0806 is ARP.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="info-box note">
+            <span class="box-label">TCP Flag Bitmask Reference</span>
+            <p>TCP flags byte (offset 13): FIN=1, SYN=2, RST=4, PSH=8, ACK=16, URG=32, ECE=64, CWR=128. Combine values for multi-flag matches: SYN+ACK = 18, FIN+ACK = 17, RST+ACK = 20.</p>
+        </div>
+
+        <!-- ── Where to Enter Capture Filters ── -->
+        <h2>Applying Capture Filters</h2>
+        <h3>In Wireshark GUI</h3>
+        <ol>
+            <li>Go to <strong>Capture &rsaquo; Options</strong> (or press <span class="key-kbd">Ctrl+K</span>)</li>
+            <li>Select the target interface in the interface list</li>
+            <li>Enter the BPF expression in the <strong>Capture Filter</strong> field at the bottom</li>
+            <li>The field turns green if the syntax is valid, red if invalid</li>
+            <li>Click <strong>Start</strong> to begin capturing with the filter active</li>
+        </ol>
+
+        <h3>With dumpcap (Command Line)</h3>
+        <div class="code-block"><code><span class="code-green">dumpcap</span> -i eth0 -f <span class="code-yellow">"host 10.0.0.5 and port 443"</span> -w capture.pcapng</code></div>
+        <p>The <code>-f</code> flag accepts BPF syntax. This is how Wireshark internally invokes capture — dumpcap runs with elevated privileges while the GUI runs as your regular user.</p>
+
+        <h3>With tcpdump</h3>
+        <div class="code-block"><code><span class="code-green">tcpdump</span> -i eth0 -w capture.pcap <span class="code-yellow">"host 10.0.0.5 and port 443"</span></code></div>
+        <p>tcpdump uses identical BPF syntax. Filters written for tcpdump work in Wireshark and vice versa.</p>
+
+        <!-- ── Interactive Filter Builder ── -->
+        <h2>Interactive BPF Builder</h2>
+        <p>Use this tool to assemble a capture filter visually. Select components and the BPF expression updates in real time.</p>
+
+        <div class="filter-builder">
+            <div class="filter-builder-title">BPF Capture Filter Builder</div>
+
+            <div class="fb-row">
+                <span class="fb-label">Direction:</span>
+                <select class="fb-select" id="fb-dir" onchange="buildFilter()">
+                    <option value="">any</option>
+                    <option value="src ">src</option>
+                    <option value="dst ">dst</option>
+                </select>
+            </div>
+
+            <div class="fb-row">
+                <span class="fb-label">Type:</span>
+                <select class="fb-select" id="fb-type" onchange="buildFilter()">
+                    <option value="host">host</option>
+                    <option value="net">net</option>
+                    <option value="port">port</option>
+                    <option value="portrange">portrange</option>
+                </select>
+            </div>
+
+            <div class="fb-row">
+                <span class="fb-label">Value:</span>
+                <input class="fb-input" id="fb-value" type="text" placeholder="e.g., 192.168.1.50 or 443" oninput="buildFilter()">
+            </div>
+
+            <div class="fb-row">
+                <span class="fb-label">Protocol:</span>
+                <select class="fb-select" id="fb-proto" onchange="buildFilter()">
+                    <option value="">any</option>
+                    <option value="tcp ">tcp</option>
+                    <option value="udp ">udp</option>
+                    <option value="icmp">icmp</option>
+                    <option value="arp">arp</option>
+                </select>
+            </div>
+
+            <div class="fb-row">
+                <span class="fb-label">Negate:</span>
+                <select class="fb-select" id="fb-negate" onchange="buildFilter()">
+                    <option value="">No</option>
+                    <option value="not ">not (exclude match)</option>
+                </select>
+            </div>
+
+            <div class="fb-output-label">Generated BPF Expression</div>
+            <div class="fb-output" id="fb-result">host 0.0.0.0</div>
+
+            <div style="display:flex;gap:8px;margin-top:12px">
+                <button class="fb-btn" onclick="resetFilter()">Reset</button>
+                <button class="fb-btn copy" onclick="copyFilter()">Copy to Clipboard</button>
+            </div>
+        </div>
+
+        <!-- ── Common Mistakes ── -->
+        <h2>Common Mistakes</h2>
+
+        <div class="info-box danger">
+            <span class="box-label">Mistake 1: Using Display Filter Syntax</span>
+            <p>Writing <code>ip.addr == 10.0.0.5</code> in the capture filter field. BPF does not understand Wireshark display filter syntax. Use <code>host 10.0.0.5</code> instead.</p>
+        </div>
+
+        <div class="info-box danger">
+            <span class="box-label">Mistake 2: Overly Narrow Filters</span>
+            <p>Setting <code>dst port 443</code> only captures outbound HTTPS — you miss the server responses. Use <code>port 443</code> to capture both directions, or explicitly write <code>src port 443 or dst port 443</code>.</p>
+        </div>
+
+        <div class="info-box danger">
+            <span class="box-label">Mistake 3: Forgetting DNS/DHCP</span>
+            <p>Filtering on <code>host 10.0.0.5</code> will not capture the DNS query that resolved the target hostname. If you need DNS resolution context, add <code>or port 53</code>.</p>
+        </div>
+
+        <div class="info-box danger">
+            <span class="box-label">Mistake 4: No Filter on Production Taps</span>
+            <p>Running a full capture on a 10 Gbps link will drop packets within seconds. Always apply a capture filter on high-speed links, even if you think you want everything. Consider ring buffers with <code>-b filesize:100000</code> (100 MB files) as a safety net.</p>
+        </div>
+
+        <!-- ── Quiz ── -->
+        <div class="quiz-section">
+            <h3>Capture Filter Challenge</h3>
+            <p class="quiz-intro">Test your understanding of BPF capture filter syntax.</p>
+
+            <div class="quiz-q" id="q1">
+                <div class="quiz-q-text">1. You need to capture only ICMP traffic to and from 10.0.0.50. Which BPF expression is correct?</div>
+                <div class="quiz-options">
+                    <button class="quiz-opt" onclick="checkAnswer('q1', this, false)">icmp.addr == 10.0.0.50</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q1', this, true)">icmp and host 10.0.0.50</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q1', this, false)">host 10.0.0.50 &amp;&amp; proto icmp</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q1', this, false)">ip.proto == 1 and ip.addr == 10.0.0.50</button>
+                </div>
+                <div class="quiz-feedback" id="q1-fb"></div>
+            </div>
+
+            <div class="quiz-q" id="q2">
+                <div class="quiz-q-text">2. What does the expression <code>tcp[13] &amp; 2 != 0</code> match?</div>
+                <div class="quiz-options">
+                    <button class="quiz-opt" onclick="checkAnswer('q2', this, false)">TCP packets with exactly 2 bytes of data</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q2', this, false)">TCP packets with the ACK flag set</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q2', this, true)">TCP packets with the SYN flag set (SYN, SYN-ACK, etc.)</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q2', this, false)">TCP packets on port 2</button>
+                </div>
+                <div class="quiz-feedback" id="q2-fb"></div>
+            </div>
+
+            <div class="quiz-q" id="q3">
+                <div class="quiz-q-text">3. You apply the capture filter <code>dst port 443</code>. What traffic will you miss?</div>
+                <div class="quiz-options">
+                    <button class="quiz-opt" onclick="checkAnswer('q3', this, false)">All HTTPS traffic</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q3', this, true)">Server responses coming back from port 443 (source port 443)</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q3', this, false)">UDP traffic on port 443</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q3', this, false)">Nothing — this captures both directions</button>
+                </div>
+                <div class="quiz-feedback" id="q3-fb"></div>
+            </div>
+
+            <div class="quiz-q" id="q4">
+                <div class="quiz-q-text">4. Which expression captures all traffic on the 172.16.0.0/12 subnet?</div>
+                <div class="quiz-options">
+                    <button class="quiz-opt" onclick="checkAnswer('q4', this, false)">ip.addr == 172.16.0.0/12</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q4', this, false)">subnet 172.16.0.0 mask 255.240.0.0</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q4', this, true)">net 172.16.0.0/12</button>
+                    <button class="quiz-opt" onclick="checkAnswer('q4', this, false)">host 172.16.0.0-172.31.255.255</button>
+                </div>
+                <div class="quiz-feedback" id="q4-fb"></div>
+            </div>
+        </div>
+
+        <!-- ── Takeaways ── -->
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Capture filters use BPF syntax — a completely different language from Wireshark display filters. They cannot be interchanged.</li>
+                <li>BPF primitives are built from type (host/net/port), direction (src/dst), and protocol (tcp/udp/icmp) qualifiers.</li>
+                <li>Combine primitives with <code>and</code>, <code>or</code>, <code>not</code>, and parentheses. Use parentheses liberally to avoid precedence surprises.</li>
+                <li>Byte-offset expressions (<code>tcp[13]</code>, <code>ip[8]</code>) allow matching on any header field, even those without BPF keywords.</li>
+                <li>Capture filters discard non-matching packets permanently — there is no undo. When in doubt, capture more broadly and filter at display time.</li>
+                <li>The same BPF syntax works in Wireshark, dumpcap, tcpdump, tshark, and any libpcap-based tool.</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="ws-02-capture-options.module.html">&larr; Previous: Capture Options</a>
+            <a href="ws-04-display-filters.module.html">Next: Display Filters &rarr;</a>
+        </div>
+
+    </main>
+
+    <script>
+        /* ── Filter builder logic ── */
+        function buildFilter() {
+            var dir = document.getElementById('fb-dir').value;
+            var type = document.getElementById('fb-type').value;
+            var val = document.getElementById('fb-value').value.trim();
+            var proto = document.getElementById('fb-proto').value;
+            var negate = document.getElementById('fb-negate').value;
+
+            if (!val) {
+                document.getElementById('fb-result').textContent = '(enter a value)';
+                return;
+            }
+
+            var parts = [];
+            if (negate) parts.push(negate.trim());
+            if (proto && proto !== 'icmp' && proto !== 'arp') parts.push(proto.trim());
+            if (proto === 'icmp') parts.push('icmp and');
+            if (proto === 'arp') parts.push('arp and');
+            if (dir) parts.push(dir.trim());
+            parts.push(type);
+            parts.push(val);
+
+            document.getElementById('fb-result').textContent = parts.join(' ');
+        }
+
+        function resetFilter() {
+            document.getElementById('fb-dir').value = '';
+            document.getElementById('fb-type').value = 'host';
+            document.getElementById('fb-value').value = '';
+            document.getElementById('fb-proto').value = '';
+            document.getElementById('fb-negate').value = '';
+            document.getElementById('fb-result').textContent = '(enter a value)';
+        }
+
+        function copyFilter() {
+            var text = document.getElementById('fb-result').textContent;
+            if (text === '(enter a value)') return;
+            navigator.clipboard.writeText(text).then(function() {
+                var btn = document.querySelector('.fb-btn.copy');
+                btn.textContent = 'Copied';
+                setTimeout(function() { btn.textContent = 'Copy to Clipboard'; }, 1500);
+            });
+        }
+
+        /* ── Quiz logic ── */
+        function checkAnswer(qId, btn, correct) {
+            var container = document.getElementById(qId);
+            if (container.dataset.answered) return;
+            container.dataset.answered = '1';
+            var fb = document.getElementById(qId + '-fb');
+            var opts = container.querySelectorAll('.quiz-opt');
+            opts.forEach(function(o) { o.style.pointerEvents = 'none'; });
+            if (correct) {
+                btn.classList.add('correct');
+                fb.textContent = 'Correct.';
+                fb.className = 'quiz-feedback show ok';
+            } else {
+                btn.classList.add('wrong');
+                fb.textContent = 'Not quite — review the section above.';
+                fb.className = 'quiz-feedback show no';
+                opts.forEach(function(o) {
+                    if (o.getAttribute('onclick').includes('true')) o.classList.add('correct');
+                });
+            }
+        }
+    </script>
+
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script>ModuleProgress.init({ moduleId: 'ws-03', hubKey: 'hexworth_wireshark_progress' });</script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

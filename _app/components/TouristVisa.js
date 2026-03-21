@@ -69,6 +69,7 @@ const TouristVisa = (function () {
         if (!localStorage.getItem(STORAGE_KEYS.visited)) {
             localStorage.setItem(STORAGE_KEYS.visited, '[]');
         }
+        installBlockers();
         console.log('[TouristVisa] Tourist mode activated — ' + MAX_VISITS + ' house visits available');
     }
 
@@ -205,6 +206,55 @@ const TouristVisa = (function () {
     }
 
     // ─────────────────────────────────────────────────
+    // PROGRESS BLOCKING
+    // Intercept XP/achievement/progress saves for tourists
+    // ─────────────────────────────────────────────────
+
+    var _interceptsInstalled = false;
+
+    /**
+     * Install no-op interceptors on ModuleProgress and AchievementManager
+     * so tourists cannot accumulate XP, achievements, or progress.
+     * Safe to call multiple times — only installs once.
+     */
+    function installBlockers() {
+        if (_interceptsInstalled) return;
+        _interceptsInstalled = true;
+
+        function wrapIfExists(obj, methodName, label) {
+            if (!obj || typeof obj[methodName] !== 'function') return;
+            var original = obj[methodName];
+            obj[methodName] = function () {
+                if (isActive()) {
+                    console.log('[TouristVisa] Blocked ' + label + ' — tourist mode');
+                    return false;
+                }
+                return original.apply(obj, arguments);
+            };
+        }
+
+        // Defer until the globals are defined (they load after AccessGuard)
+        function tryInstall() {
+            if (typeof ModuleProgress !== 'undefined') {
+                wrapIfExists(ModuleProgress, 'complete', 'ModuleProgress.complete');
+                wrapIfExists(ModuleProgress, 'completeQuiz', 'ModuleProgress.completeQuiz');
+            }
+            if (typeof AchievementManager !== 'undefined') {
+                wrapIfExists(AchievementManager, 'unlock', 'AchievementManager.unlock');
+                wrapIfExists(AchievementManager, 'check', 'AchievementManager.check');
+            }
+        }
+
+        // Try immediately, then retry after DOM ready in case scripts load later
+        tryInstall();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', tryInstall);
+        }
+        // Also try after a short delay for async-loaded scripts
+        setTimeout(tryInstall, 1000);
+    }
+
+    // ─────────────────────────────────────────────────
     // INTERNAL HELPERS
     // ─────────────────────────────────────────────────
 
@@ -224,6 +274,11 @@ const TouristVisa = (function () {
     // PUBLIC API
     // ─────────────────────────────────────────────────
 
+    // Auto-install blockers if tourist mode is already active on load
+    if (isActive()) {
+        installBlockers();
+    }
+
     return {
         enable: enable,
         disable: disable,
@@ -237,6 +292,7 @@ const TouristVisa = (function () {
         getAllHouses: getAllHouses,
         injectBadge: injectBadge,
         injectOverlay: injectOverlay,
+        installBlockers: installBlockers,
         MAX_VISITS: MAX_VISITS
     };
 })();

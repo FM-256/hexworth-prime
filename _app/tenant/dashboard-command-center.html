@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="/components/TenantShell.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Command Center</title>
+    <style>
+        /* ── Reset ── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ── Loading screen ── */
+        #tenant-loader {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #060810;
+            z-index: 9999;
+            transition: opacity 0.4s;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+        }
+        #tenant-loader.fade-out { opacity: 0; pointer-events: none; }
+        .loader-spinner {
+            width: 36px;
+            height: 36px;
+            border: 2px solid rgba(6,182,212,0.15);
+            border-top-color: #06b6d4;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-text {
+            color: #4a6070;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .loader-error {
+            color: #ff3366;
+            font-size: 0.78rem;
+            margin-top: 12px;
+            display: none;
+            max-width: 400px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* ──────────────────────────────────────────────────────────────
+           VARIANT A — COMMAND CENTER
+           Bloomberg terminal meets SOC dashboard.
+           Dense, data-rich, monospace.
+        ────────────────────────────────────────────────────────────── */
+
+        .va-wrap {
+            /* Local design tokens — independent of tenant CSS variables
+               so the terminal aesthetic holds regardless of tenant theme.
+               Tenant branding is surfaced through accent overrides below. */
+            --va-bg:         #060810;
+            --va-panel:      #0b0f18;
+            --va-border:     rgba(6,182,212,0.15);
+            --va-primary:    #06b6d4;
+            --va-secondary:  #8b5cf6;
+            --va-text:       #c8d8e8;
+            --va-text-dim:   #4a6070;
+            --va-green:      #00ff88;
+            --va-red:        #ff3366;
+            --va-amber:      #ffaa00;
+            --va-font-mono:  'JetBrains Mono', 'Courier New', monospace;
+            --va-font-ui:    Inter, system-ui, sans-serif;
+
+            background: var(--va-bg);
+            font-family: var(--va-font-mono);
+            /* Bottom padding reserves space for fixed status bar */
+            padding-bottom: 36px;
+            min-height: 100vh;
+        }
+
+        /* ── Header — dense, system-like segments ── */
+        .va-header {
+            background: var(--va-panel);
+            border-bottom: 1px solid var(--va-border);
+            padding: 0 24px;
+            display: flex;
+            align-items: stretch;
+            height: 44px;
+            position: relative;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+
+        /* Accent gradient line below header */
+        .va-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                var(--va-primary) 20%,
+                var(--va-primary) 80%,
+                transparent 100%);
+            opacity: 0.4;
+        }
+
+        /* Each segment is a bordered flex cell */
+        .va-header-seg {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 20px;
+            border-right: 1px solid var(--va-border);
+            font-size: 0.72rem;
+            color: var(--va-text-dim);
+        }
+        .va-header-seg:first-child { padding-left: 0; }
+        /* Last segment pushes to the right */
+        .va-header-seg:last-child { border-right: none; margin-left: auto; }
+
+        .va-header-brand {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--va-primary);
+        }
+
+        .va-header-logo {
+            height: 20px;
+            width: auto;
+            object-fit: contain;
+            display: none; /* shown when logo loads */
+        }
+
+        .va-header-user { color: var(--va-text); font-weight: 600; }
+
+        .va-header-live {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--va-green);
+            font-size: 0.68rem;
+            cursor: pointer;
+        }
+
+        .va-live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--va-green);
+            animation: va-pulse 1.4s infinite;
+        }
+        @keyframes va-pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--va-green); }
+            50% { opacity: 0.4; box-shadow: none; }
+        }
+
+        /* ── Threat Intel Ticker ── */
+        .va-ticker {
+            background: rgba(6,182,212,0.04);
+            border-bottom: 1px solid var(--va-border);
+            padding: 6px 24px;
+            font-size: 0.68rem;
+            color: var(--va-text-dim);
+            overflow: hidden;
+            white-space: nowrap;
+            display: flex;
+            gap: 0;
+        }
+
+        .va-ticker-label {
+            font-weight: 700;
+            color: var(--va-amber);
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+
+        .va-ticker-scroll {
+            overflow: hidden;
+            flex: 1;
+        }
+
+        /* Content is duplicated in HTML to enable seamless infinite loop */
+        .va-ticker-content {
+            display: inline-flex;
+            gap: 40px;
+            animation: va-scroll 32s linear infinite;
+        }
+        @keyframes va-scroll {
+            from { transform: translateX(0); }
+            to   { transform: translateX(-50%); }
+        }
+
+        .va-ticker-item { color: var(--va-text-dim); }
+        .va-ticker-item .hi    { color: var(--va-text); }
+        .va-ticker-item .alert { color: var(--va-red); }
+        .va-ticker-item .ok    { color: var(--va-green); }
+
+        /* ── Two-column body grid ── */
+        .va-body {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 1px;
+            background: var(--va-border);
+            max-width: 1280px;
+            margin: 20px auto;
+            border: 1px solid var(--va-border);
+        }
+
+        .va-main    { background: var(--va-bg); padding: 0; }
+        .va-sidebar { background: var(--va-bg); border-left: 1px solid var(--va-border); }
+
+        /* ── Bloomberg-style stat counters ── */
+        .va-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-bottom: 1px solid var(--va-border);
+        }
+
+        .va-stat {
+            padding: 12px 16px;
+            border-right: 1px solid var(--va-border);
+            position: relative;
+        }
+        .va-stat:last-child { border-right: none; }
+
+        .va-stat-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--va-text-dim);
+            margin-bottom: 4px;
+        }
+
+        .va-stat-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            font-family: var(--va-font-mono);
+            color: var(--va-primary);
+            line-height: 1;
+        }
+
+        .va-stat-delta {
+            font-size: 0.62rem;
+            margin-top: 4px;
+        }
+        .va-stat-delta.up      { color: var(--va-green); }
+        .va-stat-delta.neutral { color: var(--va-text-dim); }
+
+        /* Bottom edge bar — acts as mini sparkline indicator */
+        .va-stat-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            background: var(--va-primary);
+            opacity: 0.4;
+        }
+
+        /* ── Section heading row ── */
+        .va-section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--va-border);
+            background: rgba(6,182,212,0.03);
+        }
+
+        .va-section-title {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--va-primary);
+            font-weight: 700;
+        }
+
+        .va-section-meta {
+            font-size: 0.62rem;
+            color: var(--va-text-dim);
+        }
+
+        /* Sortable column headers clickable indicator */
+        .va-sort-btn {
+            background: none;
+            border: none;
+            color: var(--va-text-dim);
+            font-size: 0.58rem;
+            font-family: var(--va-font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .va-sort-btn:hover { color: var(--va-primary); }
+        .va-sort-btn.active { color: var(--va-primary); }
+        .va-sort-arrow { font-size: 0.55rem; }
+
+        /* ── Mission data table ── */
+        .va-mission-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+
+        .va-mission-table th {
+            text-align: left;
+            padding: 6px 16px;
+            border-bottom: 1px solid var(--va-border);
+            font-weight: 600;
+        }
+
+        .va-mission-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(6,182,212,0.05);
+            vertical-align: middle;
+        }
+        .va-mission-table tr:hover td { background: rgba(6,182,212,0.04); cursor: pointer; }
+
+        /* CRIT / HIGH / MED priority badges */
+        .va-priority {
+            display: inline-block;
+            width: 44px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            padding: 2px 0;
+            text-align: center;
+            border-radius: 2px;
+        }
+        .va-priority.crit { background: rgba(255,51,102,0.15); color: var(--va-red);   border: 1px solid rgba(255,51,102,0.3); }
+        .va-priority.high { background: rgba(255,170,0,0.12);  color: var(--va-amber); border: 1px solid rgba(255,170,0,0.25); }
+        .va-priority.med  { background: rgba(6,182,212,0.1);   color: var(--va-primary); border: 1px solid rgba(6,182,212,0.2); }
+
+        .va-mission-name { color: var(--va-text); font-family: var(--va-font-ui); }
+        .va-mission-cat  { color: var(--va-text-dim); font-size: 0.68rem; margin-top: 2px; }
+
+        /* Status badges */
+        .va-status-badge {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            padding: 2px 7px;
+            border-radius: 2px;
+            text-transform: uppercase;
+        }
+        .va-status-badge.active { background: rgba(255,170,0,0.12);  color: var(--va-amber); }
+        .va-status-badge.open   { background: rgba(6,182,212,0.1);   color: var(--va-primary); }
+        .va-status-badge.done   { background: rgba(0,255,136,0.1);   color: var(--va-green); }
+
+        .va-time { color: var(--va-text-dim); font-size: 0.7rem; }
+
+        /* Empty state for mission table */
+        .va-mission-empty {
+            padding: 32px 16px;
+            text-align: center;
+            color: var(--va-text-dim);
+            font-size: 0.72rem;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Quick access grid — horizontal strips ── */
+        .va-quick {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--va-border);
+        }
+
+        .va-quick-item {
+            background: var(--va-bg);
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: background 0.15s;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .va-quick-item:hover { background: rgba(6,182,212,0.06); }
+
+        .va-quick-icon {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+            background: rgba(6,182,212,0.08);
+            border: 1px solid var(--va-border);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .va-quick-icon img {
+            width: 16px;
+            height: 16px;
+            /* Colorize icons to match terminal cyan accent */
+            filter: invert(1) brightness(0.5) sepia(1) hue-rotate(160deg) saturate(3);
+        }
+
+        .va-quick-title { font-size: 0.76rem; color: var(--va-text); font-family: var(--va-font-ui); }
+        .va-quick-sub   { font-size: 0.62rem; color: var(--va-text-dim); }
+
+        /* ── Sidebar panels ── */
+        .va-side-panel { border-bottom: 1px solid var(--va-border); }
+
+        .va-welcome {
+            padding: 16px;
+            border-bottom: 1px solid var(--va-border);
+        }
+        .va-welcome-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--va-text-dim);
+            margin-bottom: 4px;
+        }
+        .va-welcome-name {
+            font-size: 1rem;
+            color: var(--va-text);
+            font-family: var(--va-font-ui);
+            font-weight: 700;
+        }
+        .va-welcome-role {
+            font-size: 0.68rem;
+            color: var(--va-primary);
+            margin-top: 4px;
+        }
+        .va-welcome-tagline {
+            font-size: 0.7rem;
+            color: var(--va-text-dim);
+            margin-top: 8px;
+            line-height: 1.4;
+            font-family: var(--va-font-ui);
+        }
+
+        /* ── Activity / Shift log ── */
+        .va-log { padding: 0; }
+
+        .va-log-row {
+            display: grid;
+            grid-template-columns: 60px 1fr;
+            gap: 8px;
+            padding: 8px 16px;
+            border-bottom: 1px solid rgba(6,182,212,0.04);
+            font-size: 0.7rem;
+        }
+        .va-log-time { color: var(--va-text-dim); font-family: var(--va-font-mono); }
+        .va-log-msg  { color: var(--va-text); }
+        .va-log-msg .ok   { color: var(--va-green); }
+        .va-log-msg .warn { color: var(--va-amber); }
+        .va-log-msg .err  { color: var(--va-red); }
+
+        /* ── Rank progression meter ── */
+        .va-rank-block { padding: 16px; }
+
+        .va-rank-title {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--va-text-dim);
+            margin-bottom: 10px;
+        }
+        .va-rank-name {
+            font-size: 1.1rem;
+            color: var(--va-primary);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .va-progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        .va-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--va-primary), var(--va-secondary));
+            border-radius: 2px;
+            transition: width 1s ease;
+        }
+        .va-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.62rem;
+            color: var(--va-text-dim);
+        }
+
+        /* ── Fixed status bar at bottom ── */
+        .va-statusbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--va-panel);
+            border-top: 1px solid var(--va-border);
+            padding: 5px 24px;
+            display: flex;
+            gap: 24px;
+            font-size: 0.62rem;
+            color: var(--va-text-dim);
+            font-family: var(--va-font-mono);
+            z-index: 200;
+        }
+        .va-statusbar-item { display: flex; align-items: center; gap: 6px; }
+        .va-statusbar-item .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--va-green); }
+        .va-statusbar-item .val { color: var(--va-text); }
+
+        /* ── Exit link ── */
+        .va-exit-link {
+            color: var(--va-text-dim);
+            text-decoration: none;
+            font-size: 0.68rem;
+            letter-spacing: 0.06em;
+            transition: color 0.15s;
+        }
+        .va-exit-link:hover { color: var(--va-primary); }
+    </style>
+</head>
+<body>
+
+    <!-- Loading screen — displayed while tenant config is fetched -->
+    <div id="tenant-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text" id="loader-text">Initializing secure connection...</div>
+        <div class="loader-error" id="loader-error"></div>
+    </div>
+
+    <!-- Command Center — hidden until tenant config loads successfully -->
+    <div id="tenant-app" class="va-wrap" style="display:none;">
+
+        <!-- ── Header bar ── -->
+        <header class="va-header">
+            <div class="va-header-seg">
+                <!-- Logo shown when tenant provides one; brand name shown always -->
+                <img class="va-header-logo" id="header-logo" src="" alt="">
+                <span class="va-header-brand" id="header-brand">COMMAND CENTER</span>
+            </div>
+            <div class="va-header-seg">
+                <span class="va-text-dim">ANALYST</span>
+                <span class="va-header-user">ON DUTY</span>
+            </div>
+            <div class="va-header-seg">
+                <span class="va-text-dim">TENANT</span>
+                <span class="va-header-user" id="header-tenant-id">--</span>
+            </div>
+            <div class="va-header-seg">
+                <span class="va-text-dim">SESSION</span>
+                <span class="va-header-user" id="header-session-clock">00:00:00</span>
+            </div>
+            <div class="va-header-seg">
+                <!-- Live indicator + exit button -->
+                <div class="va-header-live">
+                    <div class="va-live-dot"></div>
+                    <span>LIVE</span>
+                </div>
+            </div>
+            <div class="va-header-seg">
+                <a class="va-exit-link" href="/">EXIT TO HEXWORTH</a>
+            </div>
+        </header>
+
+        <!-- ── Threat Intel Ticker ── -->
+        <div class="va-ticker">
+            <span class="va-ticker-label">INTEL FEED</span>
+            <div class="va-ticker-scroll">
+                <!-- Content is duplicated to allow seamless CSS infinite scroll loop -->
+                <div class="va-ticker-content" id="ticker-content">
+                    <span class="va-ticker-item"><span class="alert">CRIT</span> CVE-2024-3094: XZ Utils backdoor — patch status: <span class="ok">RESOLVED</span></span>
+                    <span class="va-ticker-item">Active probes detected on <span class="hi">192.168.4.0/24</span> — source: <span class="alert">EXTERNAL</span></span>
+                    <span class="va-ticker-item">Module <span class="hi">NET-302: Packet Interception</span> — 14 analysts enrolled</span>
+                    <span class="va-ticker-item">Leaderboard updated — <span class="hi">T. CHEN</span> moved to Rank <span class="ok">#1</span></span>
+                    <span class="va-ticker-item">Lab environment <span class="hi">FORENSICS-7</span> online — <span class="ok">HEALTHY</span></span>
+                    <span class="va-ticker-item">New assignment: <span class="hi">Memory Forensics Deep Dive</span> — due <span class="alert">48h</span></span>
+                    <span class="va-ticker-item"><span class="alert">WARN</span> CVE-2025-0282: Ivanti Connect Secure — <span class="warn">PATCH AVAILABLE</span></span>
+                    <span class="va-ticker-item">Training Range <span class="hi">PR7-RvB</span> — capacity <span class="ok">AVAILABLE</span></span>
+                    <!-- Duplicate set for seamless loop -->
+                    <span class="va-ticker-item"><span class="alert">CRIT</span> CVE-2024-3094: XZ Utils backdoor — patch status: <span class="ok">RESOLVED</span></span>
+                    <span class="va-ticker-item">Active probes detected on <span class="hi">192.168.4.0/24</span> — source: <span class="alert">EXTERNAL</span></span>
+                    <span class="va-ticker-item">Module <span class="hi">NET-302: Packet Interception</span> — 14 analysts enrolled</span>
+                    <span class="va-ticker-item">Leaderboard updated — <span class="hi">T. CHEN</span> moved to Rank <span class="ok">#1</span></span>
+                    <span class="va-ticker-item">Lab environment <span class="hi">FORENSICS-7</span> online — <span class="ok">HEALTHY</span></span>
+                    <span class="va-ticker-item">New assignment: <span class="hi">Memory Forensics Deep Dive</span> — due <span class="alert">48h</span></span>
+                    <span class="va-ticker-item"><span class="alert">WARN</span> CVE-2025-0282: Ivanti Connect Secure — <span class="warn">PATCH AVAILABLE</span></span>
+                    <span class="va-ticker-item">Training Range <span class="hi">PR7-RvB</span> — capacity <span class="ok">AVAILABLE</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Main two-column body ── -->
+        <div class="va-body">
+
+            <!-- Left: main content column -->
+            <div class="va-main">
+
+                <!-- Bloomberg-style stat counters -->
+                <div class="va-stats">
+                    <div class="va-stat">
+                        <div class="va-stat-label">Active Missions</div>
+                        <div class="va-stat-value" id="stat-missions">--</div>
+                        <div class="va-stat-delta neutral" id="stat-missions-delta">loading</div>
+                        <div class="va-stat-bar" id="stat-bar-missions" style="width:0%;"></div>
+                    </div>
+                    <div class="va-stat">
+                        <div class="va-stat-label">Flags Captured</div>
+                        <div class="va-stat-value" id="stat-flags">--</div>
+                        <div class="va-stat-delta neutral" id="stat-flags-delta">loading</div>
+                        <div class="va-stat-bar" id="stat-bar-flags" style="width:0%;"></div>
+                    </div>
+                    <div class="va-stat">
+                        <div class="va-stat-label">Score</div>
+                        <div class="va-stat-value" id="stat-score">--</div>
+                        <div class="va-stat-delta neutral" id="stat-score-delta">loading</div>
+                        <div class="va-stat-bar" id="stat-bar-score" style="width:0%;"></div>
+                    </div>
+                    <div class="va-stat">
+                        <div class="va-stat-label">Cohort Rank</div>
+                        <div class="va-stat-value" id="stat-rank">--</div>
+                        <div class="va-stat-delta neutral" id="stat-rank-delta">loading</div>
+                        <div class="va-stat-bar" id="stat-bar-rank" style="width:0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Mission queue table with sortable columns -->
+                <div class="va-section-head">
+                    <span class="va-section-title">Mission Queue — Active &amp; Pending</span>
+                    <span class="va-section-meta" id="mission-queue-meta">0 assigned</span>
+                </div>
+
+                <table class="va-mission-table" id="mission-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <button class="va-sort-btn active" data-col="priority" onclick="sortMissions('priority')">
+                                    Priority <span class="va-sort-arrow" id="arrow-priority">v</span>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="va-sort-btn" data-col="mission" onclick="sortMissions('mission')">
+                                    Mission <span class="va-sort-arrow" id="arrow-mission"></span>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="va-sort-btn" data-col="category" onclick="sortMissions('category')">
+                                    Category <span class="va-sort-arrow" id="arrow-category"></span>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="va-sort-btn" data-col="status" onclick="sortMissions('status')">
+                                    Status <span class="va-sort-arrow" id="arrow-status"></span>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="va-sort-btn" data-col="due" onclick="sortMissions('due')">
+                                    Due <span class="va-sort-arrow" id="arrow-due"></span>
+                                </button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="mission-tbody">
+                        <tr>
+                            <td colspan="5">
+                                <div class="va-mission-empty">Awaiting mission data...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Quick access — rendered from licensed features -->
+                <div class="va-section-head" style="border-top:1px solid rgba(6,182,212,0.1);">
+                    <span class="va-section-title">Quick Access — Licensed Modules</span>
+                    <span class="va-section-meta" id="quick-access-meta">loading</span>
+                </div>
+                <div class="va-quick" id="quick-access">
+                    <!-- Populated by JS from tenant licensing config -->
+                </div>
+
+            </div><!-- /.va-main -->
+
+            <!-- Right: sidebar column -->
+            <div class="va-sidebar">
+
+                <!-- Welcome / auth panel -->
+                <div class="va-welcome">
+                    <div class="va-welcome-label">Authenticated As</div>
+                    <div class="va-welcome-name" id="welcome-name">ANALYST</div>
+                    <div class="va-welcome-role" id="welcome-role">SOC ANALYST</div>
+                    <div class="va-welcome-tagline" id="welcome-tagline"></div>
+                </div>
+
+                <!-- Rank progression -->
+                <div class="va-side-panel">
+                    <div class="va-section-head">
+                        <span class="va-section-title">Rank Progression</span>
+                        <span class="va-section-meta">Current Cycle</span>
+                    </div>
+                    <div class="va-rank-block">
+                        <div class="va-rank-title">Current Designation</div>
+                        <div class="va-rank-name" id="rank-name">RECRUIT</div>
+                        <div class="va-progress-bar">
+                            <div class="va-progress-fill" id="rank-progress" style="width:0%;"></div>
+                        </div>
+                        <div class="va-progress-label">
+                            <span id="rank-pts">0 pts</span>
+                            <span id="rank-next">Next: 500 pts</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shift log — real-time activity feed -->
+                <div class="va-side-panel">
+                    <div class="va-section-head">
+                        <span class="va-section-title">Shift Log</span>
+                        <span class="va-section-meta" id="shift-log-date">Today</span>
+                    </div>
+                    <div class="va-log" id="shift-log">
+                        <!-- Populated by JS; seed entries added on load -->
+                    </div>
+                </div>
+
+                <!-- Environment status -->
+                <div class="va-side-panel">
+                    <div class="va-section-head">
+                        <span class="va-section-title">Environment Status</span>
+                        <span class="va-section-meta">Live</span>
+                    </div>
+                    <div class="va-log" id="env-status">
+                        <div class="va-log-row">
+                            <span class="va-log-time">CTF</span>
+                            <span class="va-log-msg"><span class="ok">ONLINE</span> 34/34 boxes</span>
+                        </div>
+                        <div class="va-log-row">
+                            <span class="va-log-time">PCAP</span>
+                            <span class="va-log-msg"><span class="ok">ONLINE</span> 12 challenge sets</span>
+                        </div>
+                        <div class="va-log-row">
+                            <span class="va-log-time">FOR</span>
+                            <span class="va-log-msg"><span class="ok">ONLINE</span> 8 lab images</span>
+                        </div>
+                        <div class="va-log-row">
+                            <span class="va-log-time">RANGE</span>
+                            <span class="va-log-msg"><span class="warn">MAINT</span> scheduled 02:00</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /.va-sidebar -->
+
+        </div><!-- /.va-body -->
+
+        <!-- ── Fixed status bar ── -->
+        <div class="va-statusbar">
+            <div class="va-statusbar-item">
+                <div class="dot"></div>
+                <span>SYSTEM NOMINAL</span>
+            </div>
+            <div class="va-statusbar-item">
+                <span>TENANT:</span>
+                <span class="val" id="statusbar-tenant">--</span>
+            </div>
+            <div class="va-statusbar-item">
+                <span>SESSION:</span>
+                <span class="val" id="statusbar-session">00:00</span>
+            </div>
+            <div class="va-statusbar-item">
+                <span>MISSIONS:</span>
+                <span class="val" id="statusbar-missions">--</span>
+            </div>
+            <div class="va-statusbar-item">
+                <span>BUILD:</span>
+                <span class="val">v6.0.0 IRON CURTAIN</span>
+            </div>
+        </div>
+
+    </div><!-- /#tenant-app -->
+
+    <script>
+    /**
+     * Command Center — Tenant Loader (Variant A)
+     *
+     * Mirrors index.html loader logic exactly:
+     *   1. Extract slug from URL (?slug= or /t/{slug}/ path pattern)
+     *   2. Fetch tenant config from Cloud Function
+     *   3. Apply branding via CSS custom properties
+     *   4. Render quick access cards from licensed features
+     *   5. Fade out loader and show dashboard
+     *   6. Start session timer
+     *
+     * Additional Command Center logic:
+     *   - Populates shift log with timestamped boot entries
+     *   - Renders placeholder stats (real data would come from learner API)
+     *   - Provides sortable mission table via sortMissions()
+     *   - Runs HH:MM:SS session clock in header and status bar
+     *
+     * @feature WL-2  @variant VA
+     */
+    (function() {
+        'use strict';
+
+        /* ── State ── */
+        var sessionStart = Date.now();
+        var missionData = [];
+        var sortState = { col: 'priority', dir: 'asc' };
+
+        /* Priority sort weights for CRIT/HIGH/MED ordering */
+        var PRIORITY_ORDER = { crit: 0, high: 1, med: 2 };
+
+        /* ── DOM refs ── */
+        var loaderText  = document.getElementById('loader-text');
+        var loaderError = document.getElementById('loader-error');
+
+        /* ── Utility: pad a number to at least 2 digits ── */
+        function pad(n) { return String(n).padStart(2, '0'); }
+
+        /* ── Format elapsed seconds as HH:MM:SS ── */
+        function formatElapsed(ms) {
+            var s = Math.floor(ms / 1000);
+            var h = Math.floor(s / 3600);
+            var m = Math.floor((s % 3600) / 60);
+            var sec = s % 60;
+            return pad(h) + ':' + pad(m) + ':' + pad(sec);
+        }
+
+        /* ── Format current time as HH:MM ── */
+        function nowTime() {
+            var d = new Date();
+            return pad(d.getHours()) + ':' + pad(d.getMinutes());
+        }
+
+        /* ── Format today's date for shift log ── */
+        function todayDate() {
+            var d = new Date();
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        /* ── Append a row to the shift log ── */
+        function logEntry(msg) {
+            var log = document.getElementById('shift-log');
+            var row = document.createElement('div');
+            row.className = 'va-log-row';
+            row.innerHTML = '<span class="va-log-time">' + nowTime() + '</span>' +
+                            '<span class="va-log-msg">' + msg + '</span>';
+            log.insertBefore(row, log.firstChild);
+        }
+
+        /* ── Session clock — updates every second ── */
+        function startSessionClock() {
+            function tick() {
+                var elapsed = formatElapsed(Date.now() - sessionStart);
+                var headerClock = document.getElementById('header-session-clock');
+                var statusSession = document.getElementById('statusbar-session');
+                if (headerClock) headerClock.textContent = elapsed;
+                if (statusSession) statusSession.textContent = elapsed;
+            }
+            tick();
+            setInterval(tick, 1000);
+        }
+
+        /* ── Render the stat counters with placeholder values ── */
+        function renderStats(config) {
+            /* Stats would be populated from a learner progress API in production.
+               Here we show zeroed placeholders with the terminal aesthetic intact. */
+            var missions = (missionData && missionData.length) || 0;
+            document.getElementById('stat-missions').textContent = pad(missions);
+            document.getElementById('stat-missions-delta').textContent = 'assigned this session';
+            document.getElementById('stat-missions-delta').className = 'va-stat-delta neutral';
+            document.getElementById('stat-bar-missions').style.width = Math.min(missions * 10, 100) + '%';
+
+            document.getElementById('stat-flags').textContent = '00';
+            document.getElementById('stat-flags-delta').textContent = 'capture your first flag';
+            document.getElementById('stat-flags-delta').className = 'va-stat-delta neutral';
+            document.getElementById('stat-bar-flags').style.width = '0%';
+
+            document.getElementById('stat-score').textContent = '0';
+            document.getElementById('stat-score-delta').textContent = 'complete missions to score';
+            document.getElementById('stat-score-delta').className = 'va-stat-delta neutral';
+            document.getElementById('stat-bar-score').style.width = '0%';
+
+            document.getElementById('stat-rank').textContent = '--';
+            document.getElementById('stat-rank-delta').textContent = 'rank pending';
+            document.getElementById('stat-rank-delta').className = 'va-stat-delta neutral';
+            document.getElementById('stat-bar-rank').style.width = '5%';
+        }
+
+        /* ── Render the mission table from missionData array ── */
+        function renderMissions() {
+            var tbody = document.getElementById('mission-tbody');
+            var meta  = document.getElementById('mission-queue-meta');
+
+            if (!missionData || missionData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5"><div class="va-mission-empty">No missions assigned. Check back with your instructor.</div></td></tr>';
+                meta.textContent = '0 assigned';
+                document.getElementById('statusbar-missions').textContent = '0 ACTIVE';
+                return;
+            }
+
+            /* Sort a shallow copy so original data order is preserved */
+            var sorted = missionData.slice().sort(function(a, b) {
+                var col = sortState.col;
+                var valA, valB;
+
+                if (col === 'priority') {
+                    valA = PRIORITY_ORDER[a.priority] !== undefined ? PRIORITY_ORDER[a.priority] : 99;
+                    valB = PRIORITY_ORDER[b.priority] !== undefined ? PRIORITY_ORDER[b.priority] : 99;
+                } else if (col === 'mission') {
+                    valA = a.name.toLowerCase();
+                    valB = b.name.toLowerCase();
+                } else if (col === 'category') {
+                    valA = a.category.toLowerCase();
+                    valB = b.category.toLowerCase();
+                } else if (col === 'status') {
+                    valA = a.status.toLowerCase();
+                    valB = b.status.toLowerCase();
+                } else if (col === 'due') {
+                    valA = a.dueSort || 0;
+                    valB = b.dueSort || 0;
+                } else {
+                    valA = 0; valB = 0;
+                }
+
+                if (valA < valB) return sortState.dir === 'asc' ? -1 : 1;
+                if (valA > valB) return sortState.dir === 'asc' ?  1 : -1;
+                return 0;
+            });
+
+            var active  = sorted.filter(function(m) { return m.status === 'active'; }).length;
+            var pending = sorted.filter(function(m) { return m.status === 'open'; }).length;
+            var done    = sorted.filter(function(m) { return m.status === 'done'; }).length;
+
+            meta.textContent = sorted.length + ' assigned / ' + active + ' active / ' + pending + ' pending';
+            document.getElementById('statusbar-missions').textContent = active + ' ACTIVE';
+
+            tbody.innerHTML = sorted.map(function(m) {
+                /* Sanitize text content using a text node approach */
+                var priorityLabel = (m.priority || 'med').toUpperCase();
+                var statusLabel   = (m.status   || 'open');
+
+                return '<tr onclick="window.location.href=\'' + encodeURI(m.href || '#') + '\'">' +
+                    '<td><span class="va-priority ' + (m.priority || 'med') + '">' + priorityLabel + '</span></td>' +
+                    '<td>' +
+                        '<div class="va-mission-name">' + escapeHtml(m.name) + '</div>' +
+                        '<div class="va-mission-cat">'  + escapeHtml(m.code) + ' // ' + escapeHtml(m.module) + '</div>' +
+                    '</td>' +
+                    '<td style="color:#4a6070;font-size:0.72rem;">' + escapeHtml(m.category) + '</td>' +
+                    '<td><span class="va-status-badge ' + statusLabel + '">' + statusLabel.toUpperCase() + '</span></td>' +
+                    '<td class="va-time">' + escapeHtml(m.due) + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        /* ── Column sort handler — called by onclick on th buttons ── */
+        window.sortMissions = function(col) {
+            if (sortState.col === col) {
+                sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState.col = col;
+                sortState.dir = 'asc';
+            }
+
+            /* Update all arrow indicators */
+            var cols = ['priority', 'mission', 'category', 'status', 'due'];
+            cols.forEach(function(c) {
+                var btn   = document.querySelector('[data-col="' + c + '"]');
+                var arrow = document.getElementById('arrow-' + c);
+                if (!btn || !arrow) return;
+                if (c === sortState.col) {
+                    btn.classList.add('active');
+                    arrow.textContent = sortState.dir === 'asc' ? 'v' : '^';
+                } else {
+                    btn.classList.remove('active');
+                    arrow.textContent = '';
+                }
+            });
+
+            renderMissions();
+        };
+
+        /* ── Escape HTML to prevent XSS in dynamic content ── */
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g,  '&amp;')
+                .replace(/</g,  '&lt;')
+                .replace(/>/g,  '&gt;')
+                .replace(/"/g,  '&quot;')
+                .replace(/'/g,  '&#39;');
+        }
+
+        /* ── Render quick access grid from licensed features ── */
+        function renderQuickAccess(features) {
+            var items = [];
+
+            /* Training Range is always included */
+            items.push({
+                title: 'Training Range',
+                sub:   'CTF Arena // 120+ boxes',
+                icon:  '/assets/images/icons/icon-target.webp',
+                href:  '/arena/'
+            });
+
+            if (features.vsMode) {
+                items.push({
+                    title: 'VS Mode',
+                    sub:   'Red vs Blue',
+                    icon:  '/assets/images/icons/icon-swords.webp',
+                    href:  '/arena/boxes/pr7-red-vs-blue/'
+                });
+            }
+
+            if (features.wiresharkHub) {
+                items.push({
+                    title: 'Wireshark Hub',
+                    sub:   'Packet Analysis',
+                    icon:  '/assets/images/icons/icon-magnifier.webp',
+                    href:  '/wireshark/'
+                });
+            }
+
+            if (features.forensicsHub) {
+                items.push({
+                    title: 'Forensics Hub',
+                    sub:   'DFIR Training',
+                    icon:  '/assets/images/icons/icon-microscope.webp',
+                    href:  '/forensics/'
+                });
+            }
+
+            if (features.bugHunting) {
+                items.push({
+                    title: 'Bug Hunting Dojo',
+                    sub:   'Vuln Research',
+                    icon:  '/assets/images/icons/icon-syringe.webp',
+                    href:  '/dark-arts/vault/dojo/'
+                });
+            }
+
+            /* All Courses always included */
+            items.push({
+                title: 'All Courses',
+                sub:   'Full Curriculum',
+                icon:  '/assets/images/icons/icon-books.webp',
+                href:  '/dashboard.html'
+            });
+
+            var container = document.getElementById('quick-access');
+            var meta      = document.getElementById('quick-access-meta');
+
+            meta.textContent = items.length + ' modules active';
+
+            container.innerHTML = items.map(function(item) {
+                return '<a class="va-quick-item" href="' + encodeURI(item.href) + '">' +
+                    '<div class="va-quick-icon">' +
+                        '<img src="' + item.icon + '" alt="">' +
+                    '</div>' +
+                    '<div class="va-quick-text">' +
+                        '<div class="va-quick-title">' + escapeHtml(item.title) + '</div>' +
+                        '<div class="va-quick-sub">'   + escapeHtml(item.sub)   + '</div>' +
+                    '</div>' +
+                    '</a>';
+            }).join('');
+        }
+
+        /* ── Main async loader — mirrors index.html flow exactly ── */
+        async function loadTenant() {
+            try {
+                /* Step 1: Extract tenant slug from URL
+                   Supports both ?slug=foo and /t/foo/ path patterns */
+                var slug = new URLSearchParams(window.location.search).get('slug');
+                if (!slug) {
+                    var pathMatch = window.location.pathname.match(/\/t\/([^\/]+)/);
+                    if (pathMatch) slug = pathMatch[1];
+                }
+                if (!slug) {
+                    throw new Error('No tenant specified. Add ?slug=your-tenant to the URL.');
+                }
+
+                loaderText.textContent = 'Connecting to ' + slug + '...';
+
+                /* Step 2: Fetch tenant config from Cloud Function */
+                var apiUrl = 'https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug=' + encodeURIComponent(slug);
+                var response = await fetch(apiUrl);
+                if (!response.ok) {
+                    var errData = await response.json().catch(function() { return {}; });
+                    throw new Error(errData.error || 'Tenant not found (HTTP ' + response.status + ')');
+                }
+                var config = await response.json();
+
+                if (config.status !== 'active') {
+                    throw new Error('This training environment is currently inactive.');
+                }
+
+                /* Persist tenant context for downstream pages */
+                sessionStorage.setItem('hexworth_tenant', JSON.stringify(config));
+
+                loaderText.textContent = 'Applying configuration...';
+
+                /* Step 3: Apply tenant branding
+                   CSS custom properties are applied globally via :root.
+                   The va-wrap uses its own fixed terminal tokens for the
+                   core aesthetic, but --brand-primary / --brand-secondary
+                   are available for any tenant-specific overrides in customCSS. */
+                var b    = config.branding;
+                var root = document.documentElement;
+                root.style.setProperty('--brand-primary',    b.primaryColor    || '#06b6d4');
+                root.style.setProperty('--brand-secondary',  b.secondaryColor  || '#8b5cf6');
+                root.style.setProperty('--brand-bg',         b.backgroundColor || '#0a0a0f');
+                root.style.setProperty('--brand-header',     b.headerColor     || '#0d1117');
+                if (b.fontFamily) root.style.setProperty('--brand-font', b.fontFamily);
+
+                /* Inject tenant customCSS if provided */
+                if (b.customCSS) {
+                    var customStyle = document.createElement('style');
+                    customStyle.textContent = b.customCSS;
+                    document.head.appendChild(customStyle);
+                }
+
+                /* Page title */
+                document.title = (b.platformName || config.name) + ' // Command Center';
+
+                /* Header brand — show logo if provided, keep text name regardless */
+                document.getElementById('header-brand').textContent = (b.platformName || config.name).toUpperCase();
+                var logoEl = document.getElementById('header-logo');
+                if (b.logo) {
+                    logoEl.src   = b.logo;
+                    logoEl.alt   = config.name;
+                    logoEl.style.display = 'block';
+                }
+
+                /* Tenant ID in header + status bar */
+                var shortSlug = slug.toUpperCase().replace(/-/g, '-');
+                document.getElementById('header-tenant-id').textContent   = shortSlug;
+                document.getElementById('statusbar-tenant').textContent   = shortSlug;
+                document.getElementById('shift-log-date').textContent     = todayDate();
+
+                /* Sidebar welcome */
+                document.getElementById('welcome-name').textContent    = 'ANALYST';
+                document.getElementById('welcome-role').textContent    = 'SOC ANALYST';
+                document.getElementById('welcome-tagline').textContent = b.tagline || (b.platformName || config.name);
+
+                /* Rank block initial state */
+                document.getElementById('rank-name').textContent      = 'RECRUIT';
+                document.getElementById('rank-pts').textContent       = '0 pts';
+                document.getElementById('rank-next').textContent      = 'Next: 500 pts';
+                document.getElementById('rank-progress').style.width  = '0%';
+
+                /* Step 4: Render licensed quick access */
+                var features = config.licensing.contentAccess.features;
+                renderQuickAccess(features);
+
+                /* Seed mission table — real data would come from a learner API.
+                   The table renders empty-state with proper column structure. */
+                missionData = [];
+                renderMissions();
+                renderStats(config);
+
+                /* Seed shift log with boot entries */
+                logEntry('Session initialized — <span class="ok">CONNECTED</span>');
+                logEntry('Tenant config loaded — <span class="ok">' + escapeHtml(b.platformName || config.name) + '</span>');
+                logEntry('Quick access rendered — <span class="ok">' + document.querySelectorAll('.va-quick-item').length + ' modules</span>');
+
+                /* Step 5: Fade out loader, reveal dashboard */
+                var loader = document.getElementById('tenant-loader');
+                loader.classList.add('fade-out');
+                setTimeout(function() { loader.remove(); }, 500);
+                document.getElementById('tenant-app').style.display = 'block';
+
+                /* Step 6: Start HH:MM:SS session clock */
+                startSessionClock();
+
+            } catch (err) {
+                loaderText.textContent     = 'CONNECTION FAILED';
+                loaderError.textContent    = err.message;
+                loaderError.style.display  = 'block';
+            }
+        }
+
+        /* Kick off load on DOMContentLoaded */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadTenant);
+        } else {
+            loadTenant();
+        }
+
+    })();
+    </script>
+
+</body>
+</html>

@@ -390,7 +390,8 @@ const CompletionStamp = (function() {
             item.className = 'cs-grid-item' + (done ? ' done' : '');
 
             var icon = done ? '<span class="cs-item-icon">&#10003;</span>' : '<span class="cs-item-icon" style="opacity:0.4">&#9711;</span>';
-            var title = '<span class="cs-item-title">' + (m.icon || '') + ' ' + (m.title || m.id) + '</span>';
+            var iconImg = m.icon ? '<img src="' + m.icon + '" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> ' : '';
+            var title = '<span class="cs-item-title">' + iconImg + (m.title || m.id) + '</span>';
             var score = (done && record.score !== null && record.score !== undefined)
                 ? '<span class="cs-item-score">' + record.score + '%</span>'
                 : '';
