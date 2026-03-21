@@ -197,12 +197,23 @@ Cloud Functions for CRUD on assignments. Instructor creates "missions" that appe
 ### WL-6: Grade Export
 CSV export mapping student progress to cert objectives. LMS-compatible format.
 
-### WL-7: Demo Tenant with Sample Data
-Pre-populate the demo tenant with:
-- Sample class (CYB-301 Fall 2026)
-- 5 sample students with progress data
-- 3 sample assignments with due dates
-- Used for live demos and university pitches
+### WL-7: Demo Tenant with Sample Data (COMPLETE)
+
+**Seed Script:** `functions/seed-demo-tenant.js`
+**Reference Doc:** `_planning/WL7_DEMO_TENANT.md`
+
+Pre-populates the hexworth-academy demo tenant with:
+- 1 sample class (CYB-301 Fall 2026, Dr. Martinez)
+- 8 assignments spanning box/quiz/module/lab/presentation types (775 total points)
+- 5 sample students (NOVA, CIPHER, GHOST, SPARK, ECHO) with varied progress
+- Tenant config updated with all features enabled + demoClassId reference
+
+Idempotent — uses set() with explicit doc IDs. Re-run before demos for fresh due dates.
+
+```bash
+cd functions
+GOOGLE_CLOUD_PROJECT=hexworth-prime node seed-demo-tenant.js
+```
 
 ### WL-8: Subdomain Routing
 `*.hexworth.app` wildcard DNS + Firebase Hosting rewrite.
