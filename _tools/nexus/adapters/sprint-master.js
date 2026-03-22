@@ -81,27 +81,13 @@ module.exports = function createSprintAdapter({ name, dataPath, projectRoot }) {
         const sprints = data.sprints || [];
         const meta = data.meta || {};
 
-        // Count by status
-        const counts = {
-            open: 0,
-            'in-progress': 0,
-            blocked: 0,
-            done: 0,
-            other: 0,
-        };
-
+        // Count by Sprint Master's own status field — SM governs its own data.
+        // Do NOT compute blocked from dependencies; only use the explicit
+        // status value that Sprint Master assigned.
+        const counts = {};
         for (const s of sprints) {
-            if (s.status === 'done') {
-                counts.done++;
-            } else if (s.status === 'in-progress') {
-                counts['in-progress']++;
-            } else if (s.status === 'blocked' || isBlocked(s, sprints)) {
-                counts.blocked++;
-            } else if (s.status === 'open' || s.status === 'partial') {
-                counts.open++;
-            } else {
-                counts.other++;
-            }
+            const status = s.status || 'unknown';
+            counts[status] = (counts[status] || 0) + 1;
         }
 
         return {
