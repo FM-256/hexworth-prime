@@ -606,7 +606,10 @@ async function cmdPull(args, flags) {
 
 async function cmdFull(args, flags) {
     const strict = flags.strict || false;
-    const publish = flags.publish || false;
+    // Always publish on full pipeline — the admin console Quality panel
+    // reads from Firestore, so every full run should update it.
+    // Use --no-publish to skip if needed (e.g., offline).
+    const publish = flags.publish !== false;
     const config = hub.loadConfig();
     const projectRoot = hub.getProjectRoot();
 
@@ -869,6 +872,8 @@ function parseFlags(args) {
             flags.strict = true;
         } else if (args[i] === '--publish') {
             flags.publish = true;
+        } else if (args[i] === '--no-publish') {
+            flags.publish = false;
         } else if (args[i] === '--dry-run') {
             flags['dry-run'] = true;
         } else if (args[i] === '--severity' && args[i + 1]) {
