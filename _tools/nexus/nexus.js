@@ -134,12 +134,15 @@ function cmdStatus() {
     console.log('');
 }
 
-function cmdScan() {
+async function cmdScan(args, flags) {
+    const publish = flags.publish || false;
     const config = hub.loadConfig();
     const projectRoot = hub.getProjectRoot();
 
+    const scanStart = Date.now();
+
     console.log('');
-    console.log(`${C.bold}NEXUS SCAN${C.reset}`);
+    console.log(`${C.bold}NEXUS SCAN${C.reset}${publish ? `  ${C.cyan}(publish)${C.reset}` : ''}`);
     console.log(`${C.dim}${'─'.repeat(68)}${C.reset}`);
     console.log('');
 
@@ -179,6 +182,24 @@ function cmdScan() {
 
     console.log('');
     console.log(`  ${C.dim}Findings store: ${store.findings.length} total${C.reset}`);
+
+    // Step 3: Publish to Firestore if --publish flag
+    if (publish) {
+        const duration = Date.now() - scanStart;
+        const gateResult = hub.runGate(config, spokes, { strict: false });
+        const { buildSummary, publishToFirestore } = require('./publish');
+        const summary = buildSummary(hub, config, spokes, store, gateResult, duration);
+
+        console.log('');
+        console.log(`  ${C.cyan}Publishing to Firestore...${C.reset}`);
+        try {
+            await publishToFirestore(summary);
+            console.log(`  ${C.green}Published${C.reset} ${C.dim}→ _quality_reports/latest${C.reset}`);
+        } catch (err) {
+            console.error(`  ${C.red}Publish failed: ${err.message}${C.reset}`);
+        }
+    }
+
     console.log('');
 }
 
@@ -585,14 +606,16 @@ async function cmdPull(args, flags) {
 
 async function cmdFull(args, flags) {
     const strict = flags.strict || false;
+    const publish = flags.publish || false;
     const config = hub.loadConfig();
     const projectRoot = hub.getProjectRoot();
 
+    const scanStart = Date.now();
     const now = new Date();
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     console.log('');
-    console.log(`${C.bold}NEXUS FULL${C.reset}${strict ? `  ${C.yellow}(strict)${C.reset}` : ''}${' '.repeat(strict ? 43 - dateStr.length : 52 - dateStr.length)}${C.dim}${dateStr}${C.reset}`);
+    console.log(`${C.bold}NEXUS FULL${C.reset}${strict ? `  ${C.yellow}(strict)${C.reset}` : ''}${publish ? `  ${C.cyan}(publish)${C.reset}` : ''}${' '.repeat(Math.max(1, (strict ? 43 : publish ? 43 : 52) - dateStr.length))}${C.dim}${dateStr}${C.reset}`);
     console.log(`${C.dim}${'═'.repeat(68)}${C.reset}`);
 
     // Step 1: Scan
@@ -749,6 +772,21 @@ async function cmdFull(args, flags) {
     console.log(`  ${C.dim}${connectedSpokes} spoke${connectedSpokes !== 1 ? 's' : ''} connected · ${store.findings.length} findings synced · gate: ${gateResult.passed ? `${C.green}PASS${C.dim}` : `${C.red}FAIL${C.dim}`}${C.reset}`);
     console.log('');
 
+    // Publish to Firestore if --publish flag is set
+    if (publish) {
+        console.log(`  ${C.cyan}Publishing to Firestore...${C.reset}`);
+        try {
+            const duration = Date.now() - scanStart;
+            const { buildSummary, publishToFirestore } = require('./publish');
+            const summary = buildSummary(hub, config, spokes, store, gateResult, duration);
+            await publishToFirestore(summary);
+            console.log(`  ${C.green}Published${C.reset} ${C.dim}→ _quality_reports/latest${C.reset}`);
+        } catch (err) {
+            console.error(`  ${C.red}Publish failed: ${err.message}${C.reset}`);
+        }
+        console.log('');
+    }
+
     process.exit(gateResult.passed ? 0 : 1);
 }
 
@@ -774,6 +812,7 @@ ${C.bold}COMMANDS${C.reset}
 ${C.bold}FLAGS${C.reset}
 
   ${C.dim}--apply${C.reset}                  Actually write (triage defaults to dry-run)
+  ${C.dim}--publish${C.reset}                Publish scan results to Firestore (full, scan)
   ${C.dim}--triage${C.reset}                 Full: auto-create sprint items during full run
   ${C.dim}--prune${C.reset}                  Remove stale findings during sync
   ${C.dim}--severity${C.reset} critical,high Severity filter for triage (default: critical,high)
@@ -785,6 +824,7 @@ ${C.bold}FLAGS${C.reset}
 ${C.bold}EXAMPLES${C.reset}
 
   nexus full                Full pipeline (scan + pull + sync + gate + status)
+  nexus full --publish      Full pipeline + publish results to Firestore
   nexus full --strict       Full pipeline, gate blocks on critical + high
   nexus pull hed            Pull HED errors from Cloud Function
   nexus status              Show combined status from all tools
@@ -827,6 +867,8 @@ function parseFlags(args) {
             flags.json = true;
         } else if (args[i] === '--strict') {
             flags.strict = true;
+        } else if (args[i] === '--publish') {
+            flags.publish = true;
         } else if (args[i] === '--dry-run') {
             flags['dry-run'] = true;
         } else if (args[i] === '--severity' && args[i + 1]) {
@@ -856,7 +898,7 @@ switch (command) {
         cmdStatus();
         break;
     case 'scan':
-        cmdScan();
+        cmdScan(positional, flags);
         break;
     case 'sync':
         cmdSync(positional, flags);
