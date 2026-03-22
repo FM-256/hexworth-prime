@@ -87,7 +87,7 @@ const WiresharkEngine = (() => {
                 </div>
             </div>
             <div class="wh-header-right">
-                <a href="/dashboard.html" class="wh-btn">&larr; Dashboard</a>
+                <a href="${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('dashboard') : '/dashboard.html'}" class="wh-btn">&larr; ${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getName() : 'Dashboard'}</a>
             </div>`;
         return header;
     }

@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="/components/TenantRouter.js"></script>
+    <script src="/components/TenantShell.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+        /* ── CSS Variables — overridden by tenant branding at runtime ── */
+        :root {
+            --brand-primary:   #3b82f6;
+            --brand-secondary: #6366f1;
+            --brand-bg:        #0e1116;
+            --brand-header:    #141820;
+            --brand-text:      #d1d9e6;
+            --brand-text-secondary: #6b7a8d;
+            --brand-border:    rgba(255,255,255,0.08);
+            --brand-font:      Inter, system-ui, -apple-system, sans-serif;
+        }
+
+        /* ── Enterprise Design Tokens (Variant D) ── */
+        :root {
+            --vd-bg:       var(--brand-bg);
+            --vd-surface:  var(--brand-header);
+            --vd-surface2: #1a2030;
+            --vd-border:   var(--brand-border);
+            --vd-primary:  var(--brand-primary);
+            --vd-secondary:var(--brand-secondary);
+            --vd-success:  #22c55e;
+            --vd-warning:  #eab308;
+            --vd-danger:   #ef4444;
+            --vd-text:     var(--brand-text);
+            --vd-text-sub: var(--brand-text-secondary);
+            --vd-text-dim: #2a3444;
+            --vd-font:     var(--brand-font);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--vd-font);
+            background: var(--vd-bg);
+            color: var(--vd-text);
+            min-height: 100vh;
+        }
+
+        /* ── Loading screen ── */
+        #tenant-loader {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--vd-bg);
+            z-index: 9999;
+            transition: opacity 0.4s;
+        }
+        #tenant-loader.fade-out { opacity: 0; pointer-events: none; }
+
+        .loader-spinner {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--vd-border);
+            border-top-color: var(--vd-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loader-text  { color: var(--vd-text-sub); font-size: 0.8rem; }
+        .loader-error { color: #ef4444; font-size: 0.8rem; margin-top: 10px; display: none; }
+
+        /* ── Dashboard wrapper — hidden until config loads ── */
+        #tenant-app {
+            display: none;
+            min-height: 100vh;
+            padding-bottom: 42px;
+        }
+
+        /* ════════════════════════════════════════════════
+           HEADER — corporate top bar, 50px tall
+        ════════════════════════════════════════════════ */
+        .vd-header {
+            background: var(--vd-surface);
+            border-bottom: 1px solid var(--vd-border);
+            padding: 0 28px;
+            display: flex;
+            align-items: stretch;
+            height: 50px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+
+        /* Left brand block: logo box + name stack */
+        .vd-header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-right: 24px;
+            border-right: 1px solid var(--vd-border);
+            margin-right: 20px;
+        }
+
+        .vd-brand-logo {
+            width: 30px;
+            height: 30px;
+            background: var(--vd-primary);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        /* Icon inside brand logo box — falls back to colored box if no logo */
+        .vd-brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Fallback shield icon when tenant has no logo */
+        .vd-brand-logo .vd-brand-icon {
+            width: 16px;
+            height: 16px;
+            filter: brightness(0) invert(1);
+        }
+
+        .vd-brand-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--vd-text);
+            line-height: 1.2;
+        }
+
+        .vd-brand-sub {
+            font-size: 0.62rem;
+            color: var(--vd-text-sub);
+            line-height: 1;
+        }
+
+        /* Horizontal tab nav in header */
+        .vd-header-nav {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .vd-nav-item {
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            font-size: 0.78rem;
+            color: var(--vd-text-sub);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .vd-nav-item:hover { color: var(--vd-text); }
+        .vd-nav-item.active {
+            color: var(--vd-text);
+            border-bottom-color: var(--vd-primary);
+        }
+
+        /* Right side: user info + sign out */
+        .vd-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+            font-size: 0.78rem;
+        }
+
+        .vd-header-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--vd-text-sub);
+        }
+
+        .vd-user-badge {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            background: rgba(59,130,246,0.1);
+            color: var(--vd-primary);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .vd-user-name { color: var(--vd-text); font-weight: 600; }
+
+        .vd-sign-out {
+            font-size: 0.72rem;
+            color: var(--vd-text-sub);
+            cursor: pointer;
+            padding: 4px 10px;
+            border: 1px solid var(--vd-border);
+            border-radius: 3px;
+            background: transparent;
+            font-family: var(--vd-font);
+            transition: all 0.15s;
+        }
+        .vd-sign-out:hover { color: var(--vd-text); border-color: rgba(255,255,255,0.15); }
+
+        /* ════════════════════════════════════════════════
+           SUB-HEADER — breadcrumb + live indicator
+        ════════════════════════════════════════════════ */
+        .vd-subheader {
+            background: var(--vd-bg);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            padding: 7px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            position: sticky;
+            top: 50px;
+            z-index: 199;
+        }
+
+        .vd-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--vd-text-sub);
+        }
+
+        .vd-breadcrumb-sep { opacity: 0.3; }
+        .vd-breadcrumb-current { color: var(--vd-text); font-weight: 600; }
+
+        .vd-subheader-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--vd-text-sub);
+        }
+
+        .vd-live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--vd-success);
+            font-weight: 600;
+        }
+
+        .vd-live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--vd-success);
+            animation: vd-pulse 2s infinite;
+        }
+
+        @keyframes vd-pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+        /* ════════════════════════════════════════════════
+           BODY — three-column grid: 220px | fluid | 260px
+        ════════════════════════════════════════════════ */
+        .vd-body {
+            display: grid;
+            grid-template-columns: 220px 1fr 260px;
+            min-height: calc(100vh - 92px);
+        }
+
+        /* ── Left sidebar navigation ── */
+        .vd-left-nav {
+            background: var(--vd-surface);
+            border-right: 1px solid var(--vd-border);
+            padding: 16px 0;
+        }
+
+        .vd-nav-section { margin-bottom: 20px; }
+
+        .vd-nav-section-label {
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--vd-text-dim);
+            padding: 0 16px;
+            margin-bottom: 4px;
+        }
+
+        .vd-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            color: var(--vd-text-sub);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            border-left: 2px solid transparent;
+        }
+
+        .vd-nav-link:hover {
+            color: var(--vd-text);
+            background: rgba(255,255,255,0.03);
+        }
+
+        .vd-nav-link.active {
+            color: var(--vd-primary);
+            background: rgba(59,130,246,0.06);
+            border-left-color: var(--vd-primary);
+            font-weight: 600;
+        }
+
+        /* Nav link icons: 14px, muted by default */
+        .vd-nav-link img {
+            width: 14px;
+            height: 14px;
+            opacity: 0.45;
+            filter: invert(1);
+            flex-shrink: 0;
+        }
+
+        .vd-nav-link.active img {
+            opacity: 1;
+            filter: invert(1) sepia(1) hue-rotate(190deg) saturate(3);
+        }
+
+        /* Small counter badge in nav */
+        .vd-nav-badge {
+            margin-left: auto;
+            font-size: 0.6rem;
+            background: rgba(59,130,246,0.15);
+            color: var(--vd-primary);
+            padding: 1px 6px;
+            border-radius: 99px;
+            font-weight: 700;
+        }
+
+        /* ── Main content area ── */
+        .vd-main {
+            padding: 20px 24px;
+            overflow-y: auto;
+            min-width: 0; /* Prevent grid blowout */
+        }
+
+        /* Welcome row */
+        .vd-welcome {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .vd-welcome-text h2 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--vd-text);
+            margin-bottom: 3px;
+        }
+
+        .vd-welcome-text p {
+            font-size: 0.78rem;
+            color: var(--vd-text-sub);
+        }
+
+        .vd-time-badge {
+            font-size: 0.72rem;
+            color: var(--vd-text-sub);
+            background: var(--vd-surface);
+            border: 1px solid var(--vd-border);
+            padding: 6px 14px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* KPI row — 4 equal columns */
+        .vd-kpis {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .vd-kpi {
+            background: var(--vd-surface);
+            border: 1px solid var(--vd-border);
+            border-radius: 6px;
+            padding: 14px 16px;
+        }
+
+        .vd-kpi-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .vd-kpi-label {
+            font-size: 0.68rem;
+            color: var(--vd-text-sub);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .vd-kpi-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: rgba(59,130,246,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .vd-kpi-icon img {
+            width: 12px;
+            height: 12px;
+            filter: invert(1) sepia(1) hue-rotate(190deg) saturate(3);
+        }
+
+        .vd-kpi-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--vd-text);
+            letter-spacing: -0.02em;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .vd-kpi-trend {
+            font-size: 0.68rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .vd-kpi-trend.up   { color: var(--vd-success); }
+        .vd-kpi-trend.down { color: var(--vd-danger); }
+        .vd-kpi-trend.flat { color: var(--vd-text-sub); }
+
+        /* Mission data table */
+        .vd-table-wrap {
+            background: var(--vd-surface);
+            border: 1px solid var(--vd-border);
+            border-radius: 6px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .vd-table-head {
+            padding: 11px 16px;
+            border-bottom: 1px solid var(--vd-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .vd-table-title {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--vd-text);
+        }
+
+        .vd-table-actions { display: flex; gap: 8px; }
+
+        .vd-btn-sm {
+            font-size: 0.68rem;
+            padding: 4px 10px;
+            border: 1px solid var(--vd-border);
+            background: transparent;
+            color: var(--vd-text-sub);
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: var(--vd-font);
+            transition: all 0.15s;
+        }
+
+        .vd-btn-sm:hover { color: var(--vd-text); border-color: rgba(255,255,255,0.15); }
+
+        .vd-btn-primary {
+            background: var(--vd-primary);
+            color: white;
+            border-color: var(--vd-primary);
+        }
+        .vd-btn-primary:hover { opacity: 0.88; }
+
+        /* Full-width data table */
+        .vd-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+
+        .vd-table th {
+            text-align: left;
+            font-size: 0.63rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--vd-text-sub);
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--vd-border);
+            font-weight: 600;
+            background: rgba(255,255,255,0.01);
+        }
+
+        .vd-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            vertical-align: middle;
+            color: var(--vd-text);
+        }
+
+        .vd-table tr:last-child td { border-bottom: none; }
+        .vd-table tr:hover td { background: rgba(255,255,255,0.02); cursor: pointer; }
+
+        /* Status/priority pills */
+        .vd-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.63rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 3px;
+            letter-spacing: 0.02em;
+        }
+
+        .vd-pill-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+        }
+
+        .vd-pill.success { background: rgba(34,197,94,0.1); color: var(--vd-success); }
+        .vd-pill.success .vd-pill-dot { background: var(--vd-success); }
+        .vd-pill.warning { background: rgba(234,179,8,0.1); color: var(--vd-warning); }
+        .vd-pill.warning .vd-pill-dot { background: var(--vd-warning); }
+        .vd-pill.danger  { background: rgba(239,68,68,0.1); color: var(--vd-danger); }
+        .vd-pill.danger  .vd-pill-dot { background: var(--vd-danger); }
+        .vd-pill.info    { background: rgba(59,130,246,0.1); color: var(--vd-primary); }
+        .vd-pill.info    .vd-pill-dot { background: var(--vd-primary); }
+
+        .vd-table-text-sub {
+            font-size: 0.68rem;
+            color: var(--vd-text-sub);
+            margin-top: 2px;
+        }
+
+        /* Empty state for mission table */
+        .vd-table-empty {
+            padding: 36px 16px;
+            text-align: center;
+            color: var(--vd-text-sub);
+            font-size: 0.82rem;
+        }
+
+        /* ── Right panel ── */
+        .vd-right-panel {
+            background: var(--vd-surface);
+            border-left: 1px solid var(--vd-border);
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .vd-panel-title {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--vd-text-sub);
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--vd-border);
+        }
+
+        /* Quick access arrow links */
+        .vd-quick-links {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 24px;
+        }
+
+        .vd-quick-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            background: var(--vd-surface2);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 4px;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .vd-quick-link:hover {
+            border-color: rgba(59,130,246,0.3);
+            background: rgba(59,130,246,0.04);
+        }
+
+        .vd-quick-link-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .vd-quick-link-icon img {
+            width: 13px;
+            height: 13px;
+            filter: invert(1) opacity(0.45);
+        }
+
+        .vd-quick-link-name { font-size: 0.78rem; font-weight: 500; color: var(--vd-text); }
+        .vd-quick-link-sub  { font-size: 0.62rem; color: var(--vd-text-sub); }
+
+        .vd-quick-link-arrow {
+            margin-left: auto;
+            color: var(--vd-text-dim);
+            font-size: 0.9rem;
+            font-weight: 400;
+            flex-shrink: 0;
+        }
+
+        /* Profile progress block */
+        .vd-profile-block {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 4px;
+            padding: 14px;
+            margin-bottom: 20px;
+        }
+
+        .vd-profile-name {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--vd-text);
+            margin-bottom: 2px;
+        }
+
+        .vd-profile-tier {
+            font-size: 0.68rem;
+            color: var(--vd-primary);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .vd-progress-label {
+            font-size: 0.65rem;
+            color: var(--vd-text-sub);
+            margin-bottom: 6px;
+        }
+
+        .vd-progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        .vd-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--vd-primary), var(--vd-secondary));
+            border-radius: 2px;
+            transition: width 0.6s ease;
+        }
+
+        .vd-progress-note {
+            font-size: 0.62rem;
+            color: var(--vd-text-sub);
+        }
+
+        /* Stat rows for right panel sections */
+        .vd-stat-block {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 4px;
+            padding: 4px 14px;
+            margin-bottom: 20px;
+        }
+
+        .vd-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.74rem;
+        }
+
+        .vd-stat-row:last-child { border-bottom: none; }
+        .vd-stat-row-label { color: var(--vd-text-sub); }
+        .vd-stat-row-val   { color: var(--vd-text); font-weight: 600; }
+        .vd-stat-row-val.online  { color: var(--vd-success); }
+        .vd-stat-row-val.maint   { color: var(--vd-warning); }
+        .vd-stat-row-val.blue    { color: var(--vd-primary); }
+
+        /* ════════════════════════════════════════════════
+           STATUS BAR — fixed bottom, 42px
+        ════════════════════════════════════════════════ */
+        .vd-statusbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--vd-surface);
+            border-top: 1px solid var(--vd-border);
+            padding: 6px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.68rem;
+            color: var(--vd-text-sub);
+            z-index: 300;
+        }
+
+        .vd-statusbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .vd-statusbar-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .vd-statusbar-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--vd-success);
+            animation: vd-pulse 2s infinite;
+        }
+
+        /* Admin-only instructor panel button */
+        .vd-admin-btn {
+            font-size: 0.72rem;
+            color: #f59e0b;
+            cursor: pointer;
+            padding: 4px 10px;
+            border: 1px solid rgba(245,158,11,0.3);
+            border-radius: 3px;
+            background: transparent;
+            font-family: var(--vd-font);
+            transition: all 0.15s;
+            text-decoration: none;
+            display: none; /* shown by JS when admin detected */
+        }
+        .vd-admin-btn:hover { color: #fbbf24; border-color: rgba(245,158,11,0.5); }
+
+        /* ── Responsive ── */
+        @media (max-width: 1200px) {
+            .vd-body { grid-template-columns: 1fr; }
+            .vd-left-nav { display: none; }
+            .vd-right-panel { border-left: none; border-top: 1px solid var(--vd-border); }
+        }
+        @media (max-width: 768px) {
+            .vd-kpis { grid-template-columns: repeat(2, 1fr); }
+            .vd-header { padding: 0 14px; }
+            .vd-header-nav { display: none; }
+            .vd-main { padding: 16px; }
+            .vd-subheader { padding: 7px 14px; }
+        }
+        @media (max-width: 480px) {
+            .vd-kpis { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Enterprise Dashboard</h1>
+
+    <!-- Loading screen — visible while tenant config fetches -->
+    <div id="tenant-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text" id="loader-text">Initializing secure connection...</div>
+        <div class="loader-error" id="loader-error"></div>
+    </div>
+
+    <!-- Enterprise dashboard — display:none until config loads -->
+    <div id="tenant-app">
+
+        <!-- ── TOP BAR ── -->
+        <header class="vd-header">
+            <div class="vd-header-brand">
+                <div class="vd-brand-logo" id="brand-logo-wrap">
+                    <!-- Populated by JS: tenant logo or shield fallback -->
+                    <img class="vd-brand-icon" src="/assets/images/icons/icon-shield.webp" alt="" id="brand-logo-img">
+                </div>
+                <div>
+                    <div class="vd-brand-name" id="brand-name">Loading...</div>
+                    <div class="vd-brand-sub">Powered by Hexworth Prime</div>
+                </div>
+            </div>
+
+            <nav class="vd-header-nav">
+                <a class="vd-nav-item active" href="#">Dashboard</a>
+                <a class="vd-nav-item" href="#">Missions</a>
+                <a class="vd-nav-item" href="#">Labs</a>
+                <a class="vd-nav-item" href="#">Reports</a>
+            </nav>
+
+            <div class="vd-header-right">
+                <div class="vd-header-user">
+                    <span class="vd-user-badge">Analyst</span>
+                    <span class="vd-user-name" id="header-user-name">Analyst</span>
+                    <!-- Alias for tenant-data.js compatibility -->
+                    <span id="header-operative" style="display:none;"></span>
+                </div>
+                <a class="vd-admin-btn" id="admin-panel-link" href="/tenant/instructor.html">Manage Assignments</a>
+                <button class="vd-sign-out" onclick="if(typeof TenantRouter!=='undefined'&&TenantRouter.isActive()){TenantRouter.goToHub()}else{window.location.href='/'}">Sign Out</button>
+            </div>
+        </header>
+
+        <!-- ── BREADCRUMB SUB-HEADER ── -->
+        <div class="vd-subheader">
+            <div class="vd-breadcrumb">
+                <span id="breadcrumb-tenant">Organization</span>
+                <span class="vd-breadcrumb-sep">/</span>
+                <span class="vd-breadcrumb-current">Student Dashboard</span>
+            </div>
+            <div class="vd-subheader-right">
+                <div class="vd-live-indicator">
+                    <div class="vd-live-dot"></div>
+                    Live
+                </div>
+                <span id="subheader-date"></span>
+                <span id="subheader-session">Session: 0 min</span>
+            </div>
+        </div>
+
+        <!-- ── THREE-COLUMN BODY ── -->
+        <div class="vd-body">
+
+            <!-- Left navigation sidebar -->
+            <aside class="vd-left-nav">
+                <div class="vd-nav-section">
+                    <div class="vd-nav-section-label">Overview</div>
+                    <a class="vd-nav-link active" href="#">
+                        <img src="/assets/images/icons/icon-home.webp" alt="">
+                        Dashboard
+                    </a>
+                    <a class="vd-nav-link" href="#">
+                        <img src="/assets/images/icons/icon-clipboard.webp" alt="">
+                        My Missions
+                        <span class="vd-nav-badge" id="nav-mission-badge">0</span>
+                    </a>
+                    <a class="vd-nav-link" href="#">
+                        <img src="/assets/images/icons/icon-barchart.webp" alt="">
+                        Progress Report
+                    </a>
+                </div>
+
+                <!-- Training section — links conditionally shown based on licensed features -->
+                <div class="vd-nav-section">
+                    <div class="vd-nav-section-label">Training</div>
+                    <!-- Always-visible base items -->
+                    <a class="vd-nav-link" href="/arena/">
+                        <img src="/assets/images/icons/icon-target.webp" alt="">
+                        Training Range
+                    </a>
+                    <!-- Feature-gated items — shown/hidden by JS after config loads -->
+                    <a class="vd-nav-link vd-nav-wireshark" href="/wireshark/" style="display:none;">
+                        <img src="/assets/images/icons/icon-magnifier.webp" alt="">
+                        Wireshark Hub
+                    </a>
+                    <a class="vd-nav-link vd-nav-forensics" href="/forensics/" style="display:none;">
+                        <img src="/assets/images/icons/icon-detective.webp" alt="">
+                        Forensics Hub
+                    </a>
+                    <a class="vd-nav-link vd-nav-bugdojo" href="/dark-arts/vault/dojo/" style="display:none;">
+                        <img src="/assets/images/icons/icon-syringe.webp" alt="">
+                        Bug Hunting Dojo
+                    </a>
+                    <a class="vd-nav-link vd-nav-vsmode" href="/arena/boxes/pr7-red-vs-blue/" style="display:none;">
+                        <img src="/assets/images/icons/icon-swords.webp" alt="">
+                        VS Mode
+                    </a>
+                    <a class="vd-nav-link" href="/dashboard.html">
+                        <img src="/assets/images/icons/icon-books.webp" alt="">
+                        All Courses
+                    </a>
+                </div>
+
+                <div class="vd-nav-section">
+                    <div class="vd-nav-section-label">Account</div>
+                    <a class="vd-nav-link" href="#">
+                        <img src="/assets/images/icons/icon-crown.webp" alt="">
+                        Rank &amp; Badges
+                    </a>
+                    <a class="vd-nav-link" href="#">
+                        <img src="/assets/images/icons/icon-gear.webp" alt="">
+                        Settings
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Main content area -->
+            <main class="vd-main">
+
+                <!-- Welcome row -->
+                <div class="vd-welcome">
+                    <div class="vd-welcome-text">
+                        <h2 id="welcome-title">Welcome back, Analyst</h2>
+                        <!-- Alias for tenant-data.js compatibility -->
+                        <span id="welcome-name" style="display:none;"></span>
+                        <p id="welcome-subtitle">Review your mission queue and training status below.</p>
+                    </div>
+                    <div class="vd-time-badge" id="course-badge">Enterprise Console</div>
+                </div>
+
+                <!-- KPIs — 4 cards -->
+                <div class="vd-kpis">
+                    <div class="vd-kpi">
+                        <div class="vd-kpi-header">
+                            <span class="vd-kpi-label">Active Missions</span>
+                            <div class="vd-kpi-icon">
+                                <img src="/assets/images/icons/icon-target.webp" alt="">
+                            </div>
+                        </div>
+                        <div class="vd-kpi-value" id="kpi-missions">0</div>
+                        <div class="vd-kpi-trend flat" id="kpi-missions-trend">No missions assigned</div>
+                    </div>
+                    <div class="vd-kpi">
+                        <div class="vd-kpi-header">
+                            <span class="vd-kpi-label">Flags Captured</span>
+                            <div class="vd-kpi-icon">
+                                <img src="/assets/images/icons/icon-flag.webp" alt="">
+                            </div>
+                        </div>
+                        <div class="vd-kpi-value" id="kpi-flags">0</div>
+                        <div class="vd-kpi-trend flat" id="kpi-flags-trend">Start a mission to earn flags</div>
+                    </div>
+                    <div class="vd-kpi">
+                        <div class="vd-kpi-header">
+                            <span class="vd-kpi-label">Total Score</span>
+                            <div class="vd-kpi-icon">
+                                <img src="/assets/images/icons/icon-lightning.webp" alt="">
+                            </div>
+                        </div>
+                        <div class="vd-kpi-value" id="kpi-score">0</div>
+                        <div class="vd-kpi-trend flat" id="kpi-score-trend">Complete missions to earn points</div>
+                    </div>
+                    <div class="vd-kpi">
+                        <div class="vd-kpi-header">
+                            <span class="vd-kpi-label">Cohort Rank</span>
+                            <div class="vd-kpi-icon">
+                                <img src="/assets/images/icons/icon-trophy.webp" alt="">
+                            </div>
+                        </div>
+                        <div class="vd-kpi-value" id="kpi-rank">--</div>
+                        <div class="vd-kpi-trend flat" id="kpi-rank-trend">Analyst</div>
+                    </div>
+                </div>
+
+                <!-- Mission queue data table -->
+                <div class="vd-table-wrap">
+                    <div class="vd-table-head">
+                        <span class="vd-table-title">Mission Queue</span>
+                        <div class="vd-table-actions">
+                            <button class="vd-btn-sm">Filter</button>
+                            <button class="vd-btn-sm">Sort</button>
+                            <button class="vd-btn-sm vd-btn-primary" onclick="if(typeof TenantRouter!=='undefined'&&TenantRouter.isActive()){TenantRouter.goToHub()}else{window.location.href='/dashboard.html'}">View All</button>
+                        </div>
+                    </div>
+                    <!-- Table body populated by JS; shows empty state until missions arrive -->
+                    <div id="mission-table-container">
+                        <table class="vd-table" id="mission-table" style="display:none;">
+                            <thead>
+                                <tr>
+                                    <th>Mission</th>
+                                    <th>Category</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                    <th>Points</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mission-tbody">
+                                <!-- Rows rendered by renderMissions() -->
+                            </tbody>
+                        </table>
+                        <div class="vd-table-empty" id="mission-empty">
+                            No missions assigned yet. Check back with your instructor.
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+
+            <!-- Right panel: quick access, profile, environment, cohort -->
+            <aside class="vd-right-panel">
+
+                <div class="vd-panel-title">Quick Access</div>
+                <!-- Populated by JS based on config.licensing.contentAccess.features -->
+                <div class="vd-quick-links" id="quick-access">
+                    <!-- Rendered by renderQuickAccess() -->
+                </div>
+
+                <div class="vd-panel-title">Analyst Profile</div>
+                <div class="vd-profile-block">
+                    <div class="vd-profile-name" id="profile-name">Analyst</div>
+                    <div class="vd-profile-tier" id="profile-tier">Tier I Analyst</div>
+                    <div class="vd-progress-label">Progress to next tier</div>
+                    <div class="vd-progress-bar">
+                        <div class="vd-progress-fill" id="profile-progress" style="width:15%;"></div>
+                    </div>
+                    <div class="vd-progress-note" id="profile-progress-note">Complete missions to advance</div>
+                </div>
+
+                <div class="vd-panel-title">Environment Status</div>
+                <div class="vd-stat-block" id="env-status">
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">CTF Range</span>
+                        <span class="vd-stat-row-val online">Online</span>
+                    </div>
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">Forensics Labs</span>
+                        <span class="vd-stat-row-val online">Online</span>
+                    </div>
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">Wireshark Hub</span>
+                        <span class="vd-stat-row-val online">Online</span>
+                    </div>
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">Training Range</span>
+                        <span class="vd-stat-row-val online">Online</span>
+                    </div>
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">Active Students</span>
+                        <span class="vd-stat-row-val blue" id="env-active-students">--</span>
+                    </div>
+                </div>
+
+                <div class="vd-panel-title">Cohort Summary</div>
+                <div class="vd-stat-block">
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">Total Students</span>
+                        <span class="vd-stat-row-val" id="cohort-total">--</span>
+                    </div>
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">Avg Score</span>
+                        <span class="vd-stat-row-val" id="cohort-avg">--</span>
+                    </div>
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">Your Percentile</span>
+                        <span class="vd-stat-row-val blue" id="cohort-percentile">--</span>
+                    </div>
+                    <div class="vd-stat-row">
+                        <span class="vd-stat-row-label">Completion Rate</span>
+                        <span class="vd-stat-row-val" id="cohort-completion">--</span>
+                    </div>
+                </div>
+
+            </aside>
+
+        </div><!-- /.vd-body -->
+
+        <!-- Fixed bottom status bar -->
+        <div class="vd-statusbar">
+            <div class="vd-statusbar-left">
+                <div class="vd-statusbar-item">
+                    <div class="vd-statusbar-dot"></div>
+                    <span>System Operational</span>
+                </div>
+                <div class="vd-statusbar-item">
+                    <span id="statusbar-tenant">Tenant: --</span>
+                </div>
+                <div class="vd-statusbar-item">
+                    <span id="statusbar-user">Analyst: --</span>
+                </div>
+            </div>
+            <span id="statusbar-session">Session: 0 min &nbsp;&bull;&nbsp; Build v6.0.0 IRON CURTAIN</span>
+        </div>
+
+    </div><!-- /#tenant-app -->
+
+    <script>
+    /**
+     * Tenant Loader — Enterprise Console (Variant D)
+     *
+     * Execution order:
+     *   1. Extract slug from URL query param (?slug=) or /t/{slug}/ path
+     *   2. Fetch tenant config from Cloud Function
+     *   3. Apply branding: CSS variables, logo, platform name
+     *   4. Store config in sessionStorage for downstream pages
+     *   5. Render quick access links based on licensed features
+     *   6. Show nav links for licensed features
+     *   7. Reveal dashboard, start session timer
+     *
+     * @feature WL-2 (Variant D — Enterprise Console)
+     */
+    (async function() {
+        var loaderText  = document.getElementById('loader-text');
+        var loaderError = document.getElementById('loader-error');
+
+        try {
+            /* ── Step 1: Extract tenant slug ── */
+            var slug = new URLSearchParams(window.location.search).get('slug');
+            if (!slug) {
+                /* Fallback: /t/{slug}/ path pattern */
+                var pathMatch = window.location.pathname.match(/\/t\/([^\/]+)/);
+                if (pathMatch) { slug = pathMatch[1]; }
+            }
+            if (!slug) {
+                throw new Error('No tenant specified. Add ?slug=your-tenant to the URL.');
+            }
+
+            loaderText.textContent = 'Loading ' + slug + '...';
+
+            /* ── Step 2: Fetch tenant config ── */
+            var apiUrl = 'https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug='
+                         + encodeURIComponent(slug);
+            var response = await fetch(apiUrl);
+            if (!response.ok) {
+                var errData = await response.json().catch(function() { return {}; });
+                throw new Error(errData.error || 'Tenant not found (HTTP ' + response.status + ')');
+            }
+            var config = await response.json();
+
+            if (config.status !== 'active') {
+                throw new Error('This training environment is currently inactive.');
+            }
+
+            /* Store tenant context — picked up by any page that calls
+               JSON.parse(sessionStorage.getItem('hexworth_tenant')) */
+            sessionStorage.setItem('hexworth_tenant', JSON.stringify(config));
+    // Register Tenant Service Worker (seals all pages inside tenant shell)
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/tenant-sw.js", { scope: "/" }).then(function(reg) {
+            var sw = reg.installing || reg.waiting || reg.active;
+            if (sw) sw.postMessage({ type: "TENANT_ACTIVATE" });
+            if (reg.active) reg.active.postMessage({ type: "TENANT_ACTIVATE" });
+        }).catch(function() {});
+    }
+
+            loaderText.textContent = 'Applying configuration...';
+
+            /* ── Step 3: Apply branding CSS variables ── */
+            var b    = config.branding;
+            var root = document.documentElement;
+            root.style.setProperty('--brand-primary',          b.primaryColor     || '#3b82f6');
+            root.style.setProperty('--brand-secondary',        b.secondaryColor   || '#6366f1');
+            root.style.setProperty('--brand-bg',               b.backgroundColor  || '#0e1116');
+            root.style.setProperty('--brand-header',           b.headerColor      || '#141820');
+            root.style.setProperty('--brand-text',             b.textColor        || '#d1d9e6');
+            root.style.setProperty('--brand-text-secondary',   b.textSecondary    || '#6b7a8d');
+            if (b.fontFamily) {
+                root.style.setProperty('--brand-font', b.fontFamily);
+            }
+
+            /* Inject any custom CSS the tenant has defined */
+            if (b.customCSS) {
+                var customStyle = document.createElement('style');
+                /* customCSS is assumed to be safe (comes from authenticated tenant config) */
+                customStyle.textContent = b.customCSS;
+                document.head.appendChild(customStyle);
+            }
+
+            /* Page title */
+            document.title = (b.platformName || config.name) + ' — Enterprise Console';
+
+            /* Brand name in header */
+            var brandNameEl = document.getElementById('brand-name');
+            brandNameEl.textContent = b.platformName || config.name;
+
+            /* Logo: use tenant logo if present, otherwise the shield stays */
+            if (b.logo) {
+                var logoImg = document.getElementById('brand-logo-img');
+                logoImg.src = b.logo;
+                logoImg.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+                /* Remove tinted background when using a real logo */
+                document.getElementById('brand-logo-wrap').style.background = 'transparent';
+            }
+
+            /* Breadcrumb tenant name */
+            document.getElementById('breadcrumb-tenant').textContent = b.platformName || config.name;
+
+            /* Subheader date */
+            document.getElementById('subheader-date').textContent = new Date().toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            /* Status bar tenant label */
+            document.getElementById('statusbar-tenant').textContent = 'Tenant: ' + slug.toUpperCase();
+
+            /* ── Step 4: Render Quick Access based on licensed features ── */
+            var features = config.licensing.contentAccess.features;
+            renderQuickAccess(features);
+            renderLeftNavFeatures(features);
+
+            /* ── Step 5: Reveal dashboard, dismiss loader ── */
+            var loader = document.getElementById('tenant-loader');
+            loader.classList.add('fade-out');
+            setTimeout(function() { loader.remove(); }, 500);
+            document.getElementById('tenant-app').style.display = 'block';
+
+            /* ── Step 6: Session timer — updates subheader + status bar ── */
+            var sessionStart = Date.now();
+            setInterval(function() {
+                var mins = Math.floor((Date.now() - sessionStart) / 60000);
+                var label = 'Session: ' + mins + ' min';
+                document.getElementById('subheader-session').textContent    = label;
+                document.getElementById('statusbar-session').textContent =
+                    label + ' \u00a0\u2022\u00a0 Build v6.0.0 IRON CURTAIN';
+            }, 60000);
+
+        } catch (err) {
+            loaderText.textContent      = 'Connection failed';
+            loaderError.textContent     = err.message;
+            loaderError.style.display   = 'block';
+        }
+    })();
+
+    /**
+     * renderQuickAccess
+     *
+     * Builds the right-panel quick-access arrow links from the feature flags
+     * in config.licensing.contentAccess.features. Training Range and All Courses
+     * are always present; optional features append conditionally.
+     *
+     * @param {Object} features - Feature flags from tenant config
+     */
+    function renderQuickAccess(features) {
+        var items = [];
+
+        /* Always available */
+        items.push({
+            name: 'Training Range',
+            sub:  'CTF Arena — 120+ boxes',
+            icon: '/assets/images/icons/icon-target.webp',
+            href: '/arena/'
+        });
+
+        /* Feature-gated */
+        if (features.vsMode) {
+            items.push({
+                name: 'VS Mode',
+                sub:  'Live Red vs Blue',
+                icon: '/assets/images/icons/icon-swords.webp',
+                href: '/arena/boxes/pr7-red-vs-blue/'
+            });
+        }
+        if (features.wiresharkHub) {
+            items.push({
+                name: 'Wireshark Hub',
+                sub:  'Packet analysis training',
+                icon: '/assets/images/icons/icon-magnifier.webp',
+                href: '/wireshark/'
+            });
+        }
+        if (features.forensicsHub) {
+            items.push({
+                name: 'Forensics Hub',
+                sub:  'Digital forensics training',
+                icon: '/assets/images/icons/icon-detective.webp',
+                href: '/forensics/'
+            });
+        }
+        if (features.bugHunting) {
+            items.push({
+                name: 'Bug Hunting Dojo',
+                sub:  'Vulnerability research',
+                icon: '/assets/images/icons/icon-syringe.webp',
+                href: '/dark-arts/vault/dojo/'
+            });
+        }
+
+        /* Always available */
+        items.push({
+            name: 'All Courses',
+            sub:  'Browse full curriculum',
+            icon: '/assets/images/icons/icon-books.webp',
+            href: (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('dashboard') : '/dashboard.html'
+        });
+
+        var container = document.getElementById('quick-access');
+        container.innerHTML = items.map(function(item) {
+            return '<a class="vd-quick-link" href="' + item.href + '">'
+                 + '<div class="vd-quick-link-icon"><img src="' + item.icon + '" alt=""></div>'
+                 + '<div class="vd-quick-link-text">'
+                 + '<div class="vd-quick-link-name">' + escapeText(item.name) + '</div>'
+                 + '<div class="vd-quick-link-sub">'  + escapeText(item.sub)  + '</div>'
+                 + '</div>'
+                 + '<span class="vd-quick-link-arrow">&#8250;</span>'
+                 + '</a>';
+        }).join('');
+    }
+
+    /**
+     * renderLeftNavFeatures
+     *
+     * Shows left-nav Training section items for licensed features.
+     * Items default to display:none; this reveals the appropriate ones.
+     *
+     * @param {Object} features - Feature flags from tenant config
+     */
+    function renderLeftNavFeatures(features) {
+        if (features.wiresharkHub) {
+            document.querySelector('.vd-nav-wireshark').style.display = 'flex';
+        }
+        if (features.forensicsHub) {
+            document.querySelector('.vd-nav-forensics').style.display = 'flex';
+        }
+        if (features.bugHunting) {
+            document.querySelector('.vd-nav-bugdojo').style.display = 'flex';
+        }
+        if (features.vsMode) {
+            document.querySelector('.vd-nav-vsmode').style.display = 'flex';
+        }
+    }
+
+    /**
+     * escapeText
+     *
+     * Sanitizes a string for safe insertion as text content via innerHTML.
+     * Escapes the five XML/HTML special characters.
+     *
+     * @param  {string} str - Raw string to sanitize
+     * @return {string}       HTML-safe string
+     */
+    function escapeText(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+    </script>
+    <script src="tenant-data.js"></script>
+    <script>
+    (function() {
+        var checkConfig = setInterval(function() {
+            var raw = sessionStorage.getItem('hexworth_tenant');
+            if (raw) {
+                clearInterval(checkConfig);
+                try {
+                    var config = JSON.parse(raw);
+                    TenantData.init(config);
+                } catch (e) {
+                    console.error('[TenantData] Config parse error:', e);
+                }
+            }
+        }, 100);
+        setTimeout(function() { clearInterval(checkConfig); }, 15000);
+    })();
+    </script>
+    <!-- Show instructor panel link for admins -->
+    <script>
+    (function() {
+        if (localStorage.getItem('hexworth_firebase_admin')) {
+            var link = document.getElementById('admin-panel-link');
+            if (link) link.style.display = 'inline';
+        }
+    })();
+    </script>
+
+</body>
+</html>

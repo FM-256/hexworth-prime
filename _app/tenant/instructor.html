@@ -1,0 +1,2626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="/components/TenantRouter.js"></script>
+    <script src="/components/TenantShell.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+        /* ── Color tokens — identical to dashboard-tactical-hud.html ── */
+        :root {
+            --vc-bg:        #060912;
+            --vc-panel:     #080c18;
+            --vc-primary:   #00e5ff;
+            --vc-secondary: #b347ea;
+            --vc-accent:    #ff6b35;
+            --vc-text:      #cce8f4;
+            --vc-text-dim:  #2a4a6a;
+            --vc-green:     #39ff88;
+            --vc-red:       #ff2255;
+            --vc-amber:     #ffb830;
+            --vc-font:      'Rajdhani', Inter, system-ui, sans-serif;
+            --brand-primary:   #00e5ff;
+            --brand-secondary: #b347ea;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--vc-font);
+            background: var(--vc-bg);
+            color: var(--vc-text);
+            min-height: 100vh;
+        }
+
+        /* ── Loading screen ── */
+        #tenant-loader {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--vc-bg);
+            z-index: 9999;
+            transition: opacity 0.4s;
+        }
+        #tenant-loader.fade-out { opacity: 0; pointer-events: none; }
+
+        .hud-spinner {
+            width: 48px;
+            height: 48px;
+            border: 2px solid rgba(0,229,255,0.15);
+            border-top-color: var(--vc-primary);
+            border-right-color: var(--vc-secondary);
+            border-radius: 50%;
+            animation: hud-spin 0.7s linear infinite;
+            margin-bottom: 16px;
+            box-shadow: 0 0 16px rgba(0,229,255,0.2);
+        }
+        @keyframes hud-spin { to { transform: rotate(360deg); } }
+
+        .loader-text {
+            color: var(--vc-text-dim);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+        }
+        .loader-error {
+            color: var(--vc-red);
+            font-size: 0.82rem;
+            margin-top: 14px;
+            display: none;
+            text-align: center;
+            max-width: 360px;
+            line-height: 1.5;
+            letter-spacing: 0.04em;
+            border: 1px solid rgba(255,34,85,0.2);
+            padding: 10px 16px;
+        }
+
+        /* ── Scan-line overlay ── */
+        #hud-scanlines {
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,229,255,0.012) 2px,
+                rgba(0,229,255,0.012) 4px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ── Corner bracket decorations ── */
+        .vc-corner-tl,
+        .vc-corner-tr,
+        .vc-corner-bl,
+        .vc-corner-br {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .vc-corner-tl { top: 60px; left: 10px; border-top: 2px solid var(--vc-primary); border-left: 2px solid var(--vc-primary); opacity: 0.4; }
+        .vc-corner-tr { top: 60px; right: 10px; border-top: 2px solid var(--vc-primary); border-right: 2px solid var(--vc-primary); opacity: 0.4; }
+        .vc-corner-bl { bottom: 50px; left: 10px; border-bottom: 2px solid var(--vc-primary); border-left: 2px solid var(--vc-primary); opacity: 0.4; }
+        .vc-corner-br { bottom: 50px; right: 10px; border-bottom: 2px solid var(--vc-primary); border-right: 2px solid var(--vc-primary); opacity: 0.4; }
+
+        /* ── Header ── */
+        .vc-header {
+            background: linear-gradient(90deg, var(--vc-panel) 0%, rgba(0,229,255,0.05) 50%, var(--vc-panel) 100%);
+            border-bottom: 1px solid rgba(0,229,255,0.2);
+            padding: 0 28px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .vc-header::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--vc-primary) 30%, var(--vc-secondary) 70%, transparent);
+            filter: blur(1px);
+        }
+
+        .vc-brand { display: flex; align-items: center; gap: 14px; }
+        .vc-brand-icon {
+            width: 32px;
+            height: 32px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .vc-brand-icon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 1px solid var(--vc-primary);
+            transform: rotate(45deg);
+            opacity: 0.5;
+        }
+        .vc-brand-icon img {
+            width: 16px;
+            height: 16px;
+            filter: invert(1) brightness(0.4) sepia(1) hue-rotate(170deg) saturate(5);
+            position: relative;
+            z-index: 1;
+        }
+        .vc-brand-name {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--vc-text);
+        }
+        .vc-brand-sub {
+            font-size: 0.58rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--vc-primary);
+            opacity: 0.7;
+        }
+
+        .vc-header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .vc-header-item { display: flex; align-items: center; gap: 6px; color: var(--vc-text-dim); }
+        .vc-header-item .hl { color: var(--vc-text); }
+        .vc-header-live { display: flex; align-items: center; gap: 6px; color: var(--vc-green); font-weight: 700; }
+        .vc-live-ring {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1px solid var(--vc-green);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .vc-live-ring::before {
+            content: '';
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--vc-green);
+            animation: vc-blink 1s infinite;
+        }
+        @keyframes vc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+        .header-btn {
+            background: rgba(0,229,255,0.05);
+            border: 1px solid rgba(0,229,255,0.2);
+            color: var(--vc-text-dim);
+            padding: 5px 14px;
+            font-size: 0.68rem;
+            font-family: var(--vc-font);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .header-btn:hover {
+            background: rgba(0,229,255,0.1);
+            color: var(--vc-text);
+            border-color: rgba(0,229,255,0.4);
+        }
+        .header-btn.danger {
+            border-color: rgba(255,34,85,0.2);
+            color: var(--vc-text-dim);
+        }
+        .header-btn.danger:hover {
+            background: rgba(255,34,85,0.08);
+            border-color: rgba(255,34,85,0.4);
+            color: var(--vc-red);
+        }
+
+        /* ── Main body ── */
+        #tenant-app { display: none; }
+        .vc-body {
+            position: relative;
+            z-index: 5;
+            padding: 24px 28px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ── Page header banner ── */
+        .page-banner {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(0,229,255,0.1);
+            position: relative;
+        }
+        .page-banner::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 120px;
+            height: 2px;
+            background: var(--vc-primary);
+            filter: blur(1px);
+        }
+        .page-banner-eyebrow {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: var(--vc-primary);
+            margin-bottom: 6px;
+        }
+        .page-banner-title {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--vc-text);
+            line-height: 1;
+        }
+        .page-banner-sub {
+            font-size: 0.72rem;
+            color: var(--vc-text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-top: 6px;
+        }
+
+        /* ── Quick action bar ── */
+        .quick-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+        .quick-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,229,255,0.04);
+            border: 1px solid rgba(0,229,255,0.18);
+            color: var(--vc-text);
+            padding: 8px 16px;
+            font-size: 0.74rem;
+            font-family: var(--vc-font);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .quick-btn img { width: 14px; height: 14px; opacity: 0.7; }
+        .quick-btn:hover {
+            background: rgba(0,229,255,0.1);
+            border-color: var(--vc-primary);
+            color: var(--vc-primary);
+        }
+        .quick-btn:hover img { opacity: 1; }
+        .quick-btn.accent {
+            border-color: rgba(0,229,255,0.4);
+            background: rgba(0,229,255,0.08);
+        }
+        .quick-btn.accent:hover {
+            background: rgba(0,229,255,0.15);
+        }
+
+        /* ── Two-column layout ── */
+        .instructor-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .instructor-layout { grid-template-columns: 1fr; }
+        }
+
+        /* ── Panel card ── */
+        .vc-panel {
+            background: var(--vc-panel);
+            border: 1px solid rgba(0,229,255,0.1);
+            margin-bottom: 18px;
+        }
+        .vc-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(0,229,255,0.08);
+        }
+        .vc-panel-title {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.22em;
+            color: var(--vc-primary);
+            font-weight: 700;
+        }
+        .vc-panel-meta {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--vc-text-dim);
+        }
+        .vc-panel-body { padding: 14px 16px; }
+
+        /* ── Class list sidebar ── */
+        .class-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(0,229,255,0.05);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .class-item:last-child { border-bottom: none; }
+        .class-item:hover { background: rgba(0,229,255,0.04); }
+        .class-item.active {
+            background: rgba(0,229,255,0.08);
+            border-left: 2px solid var(--vc-primary);
+        }
+        .class-item-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--vc-text-dim);
+            flex-shrink: 0;
+        }
+        .class-item.active .class-item-dot { background: var(--vc-primary); }
+        .class-item-info { flex: 1; min-width: 0; }
+        .class-item-name {
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--vc-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .class-item.active .class-item-name { color: var(--vc-primary); }
+        .class-item-meta {
+            font-size: 0.62rem;
+            color: var(--vc-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 2px;
+        }
+        .class-empty {
+            padding: 20px 16px;
+            text-align: center;
+            color: var(--vc-text-dim);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        /* Create class form inline toggle */
+        .create-class-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            font-size: 0.68rem;
+            font-family: var(--vc-font);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--vc-primary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            border-top: 1px solid rgba(0,229,255,0.08);
+            transition: background 0.15s;
+        }
+        .create-class-toggle:hover { background: rgba(0,229,255,0.04); }
+        .create-class-toggle img { width: 12px; height: 12px; opacity: 0.7; }
+
+        /* ── Tab navigation ── */
+        .tab-nav {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid rgba(0,229,255,0.1);
+            margin-bottom: 18px;
+        }
+        .tab-btn {
+            padding: 9px 20px;
+            font-size: 0.7rem;
+            font-family: var(--vc-font);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--vc-text-dim);
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .tab-btn:hover { color: var(--vc-text); }
+        .tab-btn.active {
+            color: var(--vc-primary);
+            border-bottom-color: var(--vc-primary);
+        }
+
+        /* Tab pane show/hide */
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* ── Stats row ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        @media (max-width: 700px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        .stat-card {
+            background: var(--vc-panel);
+            border: 1px solid rgba(0,229,255,0.1);
+            padding: 12px 16px;
+        }
+        .stat-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--vc-text-dim);
+            margin-bottom: 6px;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--vc-primary);
+            line-height: 1;
+        }
+        .stat-sub {
+            font-size: 0.62rem;
+            color: var(--vc-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 4px;
+        }
+
+        /* ── Assignment table ── */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.76rem;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--vc-text-dim);
+            border-bottom: 1px solid rgba(0,229,255,0.1);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .data-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(0,229,255,0.05);
+            color: var(--vc-text);
+            vertical-align: middle;
+        }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(0,229,255,0.03); }
+
+        .order-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border: 1px solid rgba(0,229,255,0.2);
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--vc-text-dim);
+        }
+
+        /* Content type badge */
+        .type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 700;
+            border: 1px solid;
+        }
+        .type-badge.box         { color: var(--vc-red);    border-color: rgba(255,34,85,0.3);   background: rgba(255,34,85,0.06); }
+        .type-badge.module      { color: var(--vc-primary); border-color: rgba(0,229,255,0.3);  background: rgba(0,229,255,0.06); }
+        .type-badge.quiz        { color: var(--vc-amber);  border-color: rgba(255,184,48,0.3);  background: rgba(255,184,48,0.06); }
+        .type-badge.lab         { color: var(--vc-green);  border-color: rgba(57,255,136,0.3);  background: rgba(57,255,136,0.06); }
+        .type-badge.presentation { color: var(--vc-secondary); border-color: rgba(179,71,234,0.3); background: rgba(179,71,234,0.06); }
+
+        /* Assignment status badge */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 700;
+            border: 1px solid;
+        }
+        .status-badge.active   { color: var(--vc-green);  border-color: rgba(57,255,136,0.3);  background: rgba(57,255,136,0.06); }
+        .status-badge.draft    { color: var(--vc-text-dim); border-color: rgba(42,74,106,0.4); background: transparent; }
+        .status-badge.archived { color: var(--vc-amber);  border-color: rgba(255,184,48,0.3);  background: rgba(255,184,48,0.06); }
+
+        /* Row action buttons */
+        .row-actions { display: flex; gap: 6px; }
+        .row-btn {
+            padding: 3px 10px;
+            font-size: 0.6rem;
+            font-family: var(--vc-font);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            background: none;
+            border: 1px solid rgba(0,229,255,0.15);
+            color: var(--vc-text-dim);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-weight: 600;
+        }
+        .row-btn:hover { border-color: var(--vc-primary); color: var(--vc-primary); background: rgba(0,229,255,0.05); }
+        .row-btn.danger:hover { border-color: var(--vc-red); color: var(--vc-red); background: rgba(255,34,85,0.05); }
+        .row-btn.archive:hover { border-color: var(--vc-amber); color: var(--vc-amber); background: rgba(255,184,48,0.05); }
+
+        /* ── Progress table — student progress rows ── */
+        .progress-bar-wrap {
+            background: rgba(0,229,255,0.06);
+            border: 1px solid rgba(0,229,255,0.1);
+            height: 6px;
+            width: 80px;
+            position: relative;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--vc-primary);
+            transition: width 0.3s ease;
+        }
+
+        /* Student click-through — highlight row as clickable */
+        .student-row { cursor: pointer; }
+        .student-row:hover td { background: rgba(0,229,255,0.05) !important; }
+
+        /* ── Empty states ── */
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--vc-text-dim);
+        }
+        .empty-state-icon {
+            width: 36px;
+            height: 36px;
+            opacity: 0.25;
+            margin: 0 auto 12px;
+        }
+        .empty-state-title {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--vc-text-dim);
+            margin-bottom: 6px;
+        }
+        .empty-state-sub {
+            font-size: 0.68rem;
+            color: var(--vc-text-dim);
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* ── Modal overlay ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(6,9,18,0.88);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal {
+            background: var(--vc-panel);
+            border: 1px solid rgba(0,229,255,0.2);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--vc-primary), var(--vc-secondary));
+        }
+        .modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(0,229,255,0.08);
+        }
+        .modal-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--vc-primary);
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--vc-text-dim);
+            font-size: 1.2rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 2px 6px;
+            transition: color 0.15s;
+        }
+        .modal-close:hover { color: var(--vc-red); }
+        .modal-body { padding: 20px; }
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid rgba(0,229,255,0.08);
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* ── Form fields ── */
+        .form-row { margin-bottom: 16px; }
+        .form-row-double {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 500px) {
+            .form-row-double { grid-template-columns: 1fr; }
+        }
+        .form-label {
+            display: block;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--vc-text-dim);
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+        .form-label .req { color: var(--vc-red); margin-left: 2px; }
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            background: rgba(0,229,255,0.03);
+            border: 1px solid rgba(0,229,255,0.15);
+            color: var(--vc-text);
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            font-family: var(--vc-font);
+            outline: none;
+            transition: border-color 0.15s;
+            letter-spacing: 0.04em;
+        }
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            border-color: rgba(0,229,255,0.5);
+            background: rgba(0,229,255,0.05);
+        }
+        .form-input::placeholder { color: var(--vc-text-dim); opacity: 0.6; }
+        .form-textarea { resize: vertical; min-height: 80px; }
+        .form-select option { background: #0d1117; color: var(--vc-text); }
+        .form-hint {
+            font-size: 0.62rem;
+            color: var(--vc-text-dim);
+            margin-top: 4px;
+            letter-spacing: 0.06em;
+        }
+
+        /* Form section separator */
+        .form-section-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.22em;
+            color: var(--vc-text-dim);
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(0,229,255,0.06);
+            margin-bottom: 14px;
+        }
+
+        /* ── Primary / secondary / danger buttons ── */
+        .btn {
+            padding: 9px 20px;
+            font-size: 0.72rem;
+            font-family: var(--vc-font);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid;
+        }
+        .btn-primary {
+            background: rgba(0,229,255,0.12);
+            border-color: var(--vc-primary);
+            color: var(--vc-primary);
+        }
+        .btn-primary:hover { background: rgba(0,229,255,0.2); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-ghost {
+            background: none;
+            border-color: rgba(0,229,255,0.15);
+            color: var(--vc-text-dim);
+        }
+        .btn-ghost:hover { border-color: rgba(0,229,255,0.35); color: var(--vc-text); }
+        .btn-danger {
+            background: rgba(255,34,85,0.08);
+            border-color: rgba(255,34,85,0.4);
+            color: var(--vc-red);
+        }
+        .btn-danger:hover { background: rgba(255,34,85,0.15); }
+
+        /* ── Toast notification ── */
+        #toast {
+            position: fixed;
+            bottom: 60px;
+            right: 24px;
+            z-index: 9000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast-msg {
+            padding: 10px 18px;
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: 1px solid;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.25s, transform 0.25s;
+            pointer-events: none;
+            max-width: 320px;
+        }
+        .toast-msg.show { opacity: 1; transform: translateY(0); }
+        .toast-msg.success { color: var(--vc-green); border-color: rgba(57,255,136,0.3); background: rgba(6,9,18,0.95); }
+        .toast-msg.error   { color: var(--vc-red);   border-color: rgba(255,34,85,0.3);  background: rgba(6,9,18,0.95); }
+        .toast-msg.info    { color: var(--vc-primary); border-color: rgba(0,229,255,0.3); background: rgba(6,9,18,0.95); }
+
+        /* ── Inline spinner for buttons ── */
+        .btn-spinner {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 1px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: hud-spin 0.6s linear infinite;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        /* ── Student detail view ── */
+        .student-detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .student-detail-name {
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--vc-text);
+        }
+        .student-detail-uid {
+            font-size: 0.62rem;
+            color: var(--vc-text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        .progress-status {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            border: 1px solid;
+        }
+        .progress-status.not_started  { color: var(--vc-text-dim); border-color: rgba(42,74,106,0.4); }
+        .progress-status.in_progress  { color: var(--vc-amber);    border-color: rgba(255,184,48,0.3);  background: rgba(255,184,48,0.06); }
+        .progress-status.completed    { color: var(--vc-green);    border-color: rgba(57,255,136,0.3);  background: rgba(57,255,136,0.06); }
+        .progress-status.graded       { color: var(--vc-primary);  border-color: rgba(0,229,255,0.3);   background: rgba(0,229,255,0.06); }
+
+        /* ── Status bar ── */
+        .vc-statusbar {
+            background: var(--vc-panel);
+            border-top: 1px solid rgba(0,229,255,0.1);
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 8;
+        }
+        .vc-statusbar-left { display: flex; gap: 20px; }
+        .vc-statusbar-item { display: flex; align-items: center; gap: 6px; color: var(--vc-text-dim); }
+        .vc-statusbar-item .val { color: var(--vc-text); }
+        .vc-statusbar-right { color: var(--vc-text-dim); }
+
+        /* Bottom padding to clear status bar */
+        .vc-body { padding-bottom: 48px; }
+
+        /* ── Confirmation dialog (within modal) ── */
+        .confirm-body {
+            padding: 20px;
+            text-align: center;
+        }
+        .confirm-icon {
+            width: 40px;
+            height: 40px;
+            opacity: 0.5;
+            margin: 0 auto 14px;
+        }
+        .confirm-msg {
+            font-size: 0.82rem;
+            letter-spacing: 0.06em;
+            color: var(--vc-text);
+            margin-bottom: 6px;
+        }
+        .confirm-sub {
+            font-size: 0.68rem;
+            color: var(--vc-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* ── Inline create-class form ── */
+        #create-class-form-wrap {
+            display: none;
+            border-top: 1px solid rgba(0,229,255,0.08);
+        }
+        #create-class-form-wrap.open { display: block; }
+        #create-class-form-wrap .vc-panel-body { border-bottom: 1px solid rgba(0,229,255,0.08); }
+
+        /* No-class placeholder for main pane */
+        .select-class-prompt {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            color: var(--vc-text-dim);
+            text-align: center;
+            gap: 12px;
+        }
+        .select-class-prompt img {
+            width: 44px;
+            height: 44px;
+            opacity: 0.2;
+        }
+        .select-class-prompt-title {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+        .select-class-prompt-sub {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            opacity: 0.6;
+        }
+
+        /* Overdue date highlight */
+        .overdue { color: var(--vc-red); }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Instructor Dashboard</h1>
+
+<!-- Loading screen -->
+<div id="tenant-loader">
+    <div class="hud-spinner"></div>
+    <div class="loader-text" id="loader-text">Authenticating...</div>
+    <div class="loader-error" id="loader-error"></div>
+</div>
+
+<!-- Scan-line and corner decorations -->
+<div id="hud-scanlines"></div>
+<div class="vc-corner-tl"></div>
+<div class="vc-corner-tr"></div>
+<div class="vc-corner-bl"></div>
+<div class="vc-corner-br"></div>
+
+<!-- Main app (hidden until auth + tenant config load) -->
+<div id="tenant-app">
+
+    <!-- Header -->
+    <header class="vc-header">
+        <div class="vc-brand">
+            <div class="vc-brand-icon">
+                <img src="/assets/images/icons/icon-clipboard.webp" alt="">
+            </div>
+            <div>
+                <div class="vc-brand-name" id="header-name">Loading...</div>
+                <div class="vc-brand-sub">Instructor Command Center</div>
+            </div>
+        </div>
+        <div class="vc-header-right">
+            <div class="vc-header-item">
+                <span>Role:</span>
+                <span class="hl">INSTRUCTOR</span>
+            </div>
+            <div class="vc-header-item" id="header-tenant-item">
+                <span>Tenant:</span>
+                <span class="hl" id="header-tenant-id">--</span>
+            </div>
+            <div class="vc-header-live">
+                <div class="vc-live-ring"></div>
+                LIVE
+            </div>
+            <button class="header-btn" onclick="InstructorApp.navToDashboard()">Dashboard</button>
+            <button class="header-btn danger" onclick="InstructorApp.signOut()">Sign Out</button>
+        </div>
+    </header>
+
+    <main class="vc-body">
+
+        <!-- Page banner -->
+        <div class="page-banner">
+            <div>
+                <div class="page-banner-eyebrow" id="banner-eyebrow">Instructor Panel</div>
+                <div class="page-banner-title">Assignment Command</div>
+                <div class="page-banner-sub" id="banner-sub">Select a class to begin</div>
+            </div>
+            <div>
+                <div class="page-banner-eyebrow" style="text-align:right;">Current Operator</div>
+                <div class="page-banner-title" style="font-size:1rem;" id="banner-operator">--</div>
+            </div>
+        </div>
+
+        <!-- Quick action bar -->
+        <div class="quick-bar">
+            <button class="quick-btn accent" onclick="InstructorApp.openCreateAssignment()">
+                <img src="/assets/images/icons/icon-rocket.webp" alt="">
+                Create Mission
+            </button>
+            <button class="quick-btn" onclick="InstructorApp.showClassReport()">
+                <img src="/assets/images/icons/icon-barchart.webp" alt="">
+                View Class Report
+            </button>
+            <button class="quick-btn" onclick="InstructorApp.exportGrades()">
+                <img src="/assets/images/icons/icon-clipboard.webp" alt="">
+                Export Grades
+            </button>
+            <button class="quick-btn" onclick="InstructorApp.refreshData()">
+                <img src="/assets/images/icons/icon-signal.webp" alt="">
+                Refresh Data
+            </button>
+        </div>
+
+        <!-- Main two-column layout -->
+        <div class="instructor-layout">
+
+            <!-- Left sidebar — class list -->
+            <div>
+                <div class="vc-panel">
+                    <div class="vc-panel-head">
+                        <span class="vc-panel-title">Classes</span>
+                        <span class="vc-panel-meta" id="class-count-badge">0</span>
+                    </div>
+                    <div id="class-list-body">
+                        <div class="class-empty">No classes found</div>
+                    </div>
+                    <!-- Inline create-class toggle -->
+                    <button class="create-class-toggle" onclick="InstructorApp.toggleCreateClassForm()">
+                        <img src="/assets/images/icons/icon-rocket.webp" alt="">
+                        New Class
+                    </button>
+                    <div id="create-class-form-wrap">
+                        <div class="vc-panel-body">
+                            <div class="form-row">
+                                <label class="form-label">Class Name <span class="req">*</span></label>
+                                <input type="text" class="form-input" id="new-class-name" placeholder="e.g. Intro to Cybersecurity">
+                            </div>
+                            <div class="form-row-double">
+                                <div>
+                                    <label class="form-label">Section</label>
+                                    <input type="text" class="form-input" id="new-class-section" placeholder="e.g. 001">
+                                </div>
+                                <div>
+                                    <label class="form-label">Semester</label>
+                                    <input type="text" class="form-input" id="new-class-semester" placeholder="e.g. Spring 2026">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn btn-primary" id="btn-create-class" onclick="InstructorApp.createClass()">
+                                    Create
+                                </button>
+                                <button class="btn btn-ghost" onclick="InstructorApp.toggleCreateClassForm()">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Class summary stats (visible when a class is selected) -->
+                <div class="vc-panel" id="class-summary-panel" style="display:none;">
+                    <div class="vc-panel-head">
+                        <span class="vc-panel-title">Class Summary</span>
+                    </div>
+                    <div class="vc-panel-body">
+                        <div style="margin-bottom:10px;">
+                            <div class="form-label">Class</div>
+                            <div style="font-size:0.82rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;" id="summary-class-name">--</div>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <div class="form-label">Semester</div>
+                            <div style="font-size:0.78rem; color:var(--vc-text-dim);" id="summary-semester">--</div>
+                        </div>
+                        <div>
+                            <div class="form-label">Class ID</div>
+                            <div style="font-size:0.64rem; color:var(--vc-text-dim); font-family:monospace; word-break:break-all;" id="summary-class-id">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right main pane — tabs: assignments / student progress -->
+            <div id="main-pane">
+
+                <!-- Placeholder when no class is selected -->
+                <div id="no-class-prompt" class="vc-panel">
+                    <div class="select-class-prompt">
+                        <img src="/assets/images/icons/icon-books.webp" alt="">
+                        <div class="select-class-prompt-title">No class selected</div>
+                        <div class="select-class-prompt-sub">Select a class from the sidebar or create a new one</div>
+                    </div>
+                </div>
+
+                <!-- Class pane — shown when class is active -->
+                <div id="class-pane" style="display:none;">
+
+                    <!-- Stat cards row -->
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-label">Assignments</div>
+                            <div class="stat-value" id="stat-assignments">0</div>
+                            <div class="stat-sub">Total</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Active</div>
+                            <div class="stat-value" id="stat-active">0</div>
+                            <div class="stat-sub">Published</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Students</div>
+                            <div class="stat-value" id="stat-students">0</div>
+                            <div class="stat-sub">Enrolled</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Completions</div>
+                            <div class="stat-value" id="stat-completions">0</div>
+                            <div class="stat-sub">Across class</div>
+                        </div>
+                    </div>
+
+                    <!-- Tab navigation -->
+                    <div class="tab-nav">
+                        <button class="tab-btn active" onclick="InstructorApp.switchTab('assignments', this)">
+                            Assignments
+                        </button>
+                        <button class="tab-btn" onclick="InstructorApp.switchTab('students', this)">
+                            Student Progress
+                        </button>
+                    </div>
+
+                    <!-- Assignments tab -->
+                    <div id="tab-assignments" class="tab-pane active">
+                        <div class="vc-panel">
+                            <div class="vc-panel-head">
+                                <span class="vc-panel-title">Mission Queue</span>
+                                <span class="vc-panel-meta" id="assignments-count-label">0 Missions</span>
+                            </div>
+                            <div id="assignments-table-wrap">
+                                <div class="empty-state">
+                                    <img class="empty-state-icon" src="/assets/images/icons/icon-clipboard.webp" alt="">
+                                    <div class="empty-state-title">No assignments yet</div>
+                                    <div class="empty-state-sub">Create your first mission above</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Progress tab -->
+                    <div id="tab-students" class="tab-pane">
+                        <div class="vc-panel" id="students-panel">
+                            <div class="vc-panel-head">
+                                <span class="vc-panel-title">Operative Roster</span>
+                                <span class="vc-panel-meta" id="students-count-label">0 Operatives</span>
+                            </div>
+                            <div id="students-table-wrap">
+                                <div class="empty-state">
+                                    <img class="empty-state-icon" src="/assets/images/icons/icon-users.webp" alt="">
+                                    <div class="empty-state-title">No student data</div>
+                                    <div class="empty-state-sub">Students will appear here once enrolled</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Student detail view (shown when a student row is clicked) -->
+                        <div class="vc-panel" id="student-detail-panel" style="display:none;">
+                            <div class="vc-panel-head">
+                                <span class="vc-panel-title" id="student-detail-title">Student Detail</span>
+                                <button class="row-btn" onclick="InstructorApp.closeStudentDetail()">Back to Roster</button>
+                            </div>
+                            <div class="vc-panel-body">
+                                <div class="student-detail-header">
+                                    <div>
+                                        <div class="student-detail-name" id="detail-student-name">--</div>
+                                        <div class="student-detail-uid" id="detail-student-uid">UID: --</div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-size:1.4rem; font-weight:700; color:var(--vc-primary);" id="detail-total-score">0</div>
+                                        <div style="font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--vc-text-dim);">Total Score</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="student-assignments-wrap"></div>
+                        </div>
+                    </div>
+
+                </div><!-- /#class-pane -->
+            </div><!-- /#main-pane -->
+
+        </div><!-- /.instructor-layout -->
+    </main>
+
+    <!-- Status bar -->
+    <div class="vc-statusbar">
+        <div class="vc-statusbar-left">
+            <div class="vc-statusbar-item">
+                <div class="vc-live-ring"></div>
+                <span class="val">CONNECTED</span>
+            </div>
+            <div class="vc-statusbar-item">
+                <span>Operator:</span>
+                <span class="val" id="statusbar-operator">--</span>
+            </div>
+            <div class="vc-statusbar-item">
+                <span>Session:</span>
+                <span class="val" id="statusbar-session">00:00:00</span>
+            </div>
+            <div class="vc-statusbar-item">
+                <span>Class:</span>
+                <span class="val" id="statusbar-class">NONE</span>
+            </div>
+        </div>
+        <div class="vc-statusbar-right">HEXWORTH INSTRUCTOR OPS // v6.0.0</div>
+    </div>
+
+</div><!-- /#tenant-app -->
+
+<!-- ── Assignment Create/Edit Modal ── -->
+<div class="modal-overlay" id="modal-assignment">
+    <div class="modal">
+        <div class="modal-head">
+            <span class="modal-title" id="modal-assignment-title">Create Assignment</span>
+            <button class="modal-close" onclick="InstructorApp.closeModal('modal-assignment')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="edit-assignment-id">
+
+            <div class="form-section-label">Mission Identity</div>
+            <div class="form-row">
+                <label class="form-label">Title <span class="req">*</span></label>
+                <input type="text" class="form-input" id="a-title" placeholder="e.g. Phantom Shell Infiltration" maxlength="200">
+            </div>
+            <div class="form-row">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="a-description" placeholder="Operational brief for students..."></textarea>
+            </div>
+
+            <div class="form-section-label">Content Link</div>
+            <div class="form-row-double">
+                <div>
+                    <label class="form-label">Content Type <span class="req">*</span></label>
+                    <select class="form-select" id="a-content-type">
+                        <option value="">Select type...</option>
+                        <option value="box">CTF Box</option>
+                        <option value="module">Module</option>
+                        <option value="quiz">Quiz</option>
+                        <option value="lab">Lab</option>
+                        <option value="presentation">Presentation</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Content ID <span class="req">*</span></label>
+                    <input type="text" class="form-input" id="a-content-id" placeholder="e.g. a3-phantom-shell">
+                    <div class="form-hint">The box/module/quiz ID from the content system</div>
+                </div>
+            </div>
+
+            <div class="form-section-label">Scheduling &amp; Scoring</div>
+            <div class="form-row-double">
+                <div>
+                    <label class="form-label">Due Date</label>
+                    <input type="date" class="form-input" id="a-due-date">
+                </div>
+                <div>
+                    <label class="form-label">Points</label>
+                    <input type="number" class="form-input" id="a-points" placeholder="100" min="0" max="10000" value="100">
+                </div>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Display Order</label>
+                <input type="number" class="form-input" id="a-order" placeholder="Auto" min="1">
+                <div class="form-hint">Position in the student mission queue. Leave blank to append at end.</div>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="a-status">
+                    <option value="active">Active — Visible to students</option>
+                    <option value="draft">Draft — Hidden from students</option>
+                    <option value="archived">Archived</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="InstructorApp.closeModal('modal-assignment')">Cancel</button>
+            <button class="btn btn-primary" id="btn-save-assignment" onclick="InstructorApp.saveAssignment()">
+                Save Assignment
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Confirm Delete Modal ── -->
+<div class="modal-overlay" id="modal-confirm">
+    <div class="modal" style="max-width:420px;">
+        <div class="modal-head">
+            <span class="modal-title">Confirm Action</span>
+            <button class="modal-close" onclick="InstructorApp.closeModal('modal-confirm')">&times;</button>
+        </div>
+        <div class="confirm-body">
+            <img class="confirm-icon" src="/assets/images/icons/icon-siren.webp" alt="">
+            <div class="confirm-msg" id="confirm-msg">Are you sure?</div>
+            <div class="confirm-sub" id="confirm-sub">This action cannot be undone</div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="InstructorApp.closeModal('modal-confirm')">Cancel</button>
+            <button class="btn btn-danger" id="btn-confirm-action">Confirm Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Toast notification container ── -->
+<div id="toast"></div>
+
+<script>
+/**
+ * InstructorApp — Instructor Assignment Management Panel
+ *
+ * Architecture:
+ *   - Firebase Auth: Google sign-in required. Must be in tenant's adminUids.
+ *   - Tenant config: loaded from sessionStorage (set by the student dashboard)
+ *     or via the getTenantConfig Cloud Function as a fallback.
+ *   - Class management: direct Firestore SDK (tenant admins can write
+ *     to tenants/{tenantId}/classes per firestore.rules).
+ *   - Assignment CRUD: Cloud Function callables (createAssignment,
+ *     updateAssignment, deleteAssignment, getAssignments).
+ *   - Student progress: Cloud Function callable (getStudentProgress).
+ *
+ * Firebase SDK version: 12.7.0 (matches codebase standard)
+ * Functions region: us-central1
+ */
+(async function() {
+    'use strict';
+
+    // ── Constants ───────────────────────────────────────────────────────────
+
+    var FIREBASE_VERSION = '12.7.0';
+    var FUNCTIONS_REGION = 'us-central1';
+    var PROJECT_ID       = 'hexworth-prime';
+
+    var FIREBASE_CONFIG = {
+        apiKey:            'AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M',
+        authDomain:        'hexworth-prime.firebaseapp.com',
+        projectId:         PROJECT_ID,
+        storageBucket:     'hexworth-prime.firebasestorage.app',
+        messagingSenderId: '11726236962',
+        appId:             '1:11726236962:web:1829ea0839f2587121497b'
+    };
+
+    // ── App state ────────────────────────────────────────────────────────────
+
+    var _auth         = null;
+    var _db           = null;
+    var _functions    = null;
+    var _tenantConfig = null;
+    var _tenantId     = null;
+    var _currentUser  = null;
+    var _classes      = [];          // Array of { classId, name, section, semester, ... }
+    var _activeClass  = null;        // Currently selected class object
+    var _assignments  = [];          // Assignments for the active class
+    var _studentData  = [];          // Student progress rows for the active class
+    var _sessionStart = Date.now();
+
+    // Callable function references (initialized after Firebase loads)
+    var _fnCreate   = null;
+    var _fnUpdate   = null;
+    var _fnDelete   = null;
+    var _fnGet      = null;
+    var _fnProgress = null;
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+
+    var loaderEl    = document.getElementById('tenant-loader');
+    var loaderText  = document.getElementById('loader-text');
+    var loaderError = document.getElementById('loader-error');
+    var appEl       = document.getElementById('tenant-app');
+
+    // ── Initialization entry point ───────────────────────────────────────────
+
+    /**
+     * Boot sequence:
+     * 1. Load Firebase SDKs
+     * 2. Initialize Firebase app
+     * 3. Wait for Google auth (sign-in required — no anonymous fallback here)
+     * 4. Load tenant config
+     * 5. Verify user is in adminUids
+     * 6. Load class list
+     * 7. Reveal dashboard
+     */
+    async function init() {
+        try {
+            loaderText.textContent = 'Loading Firebase...';
+
+            // Load all SDK modules in parallel
+            var [fbApp, fbAuth, fbFirestore, fbFunctions] = await Promise.all([
+                import('https://www.gstatic.com/firebasejs/' + FIREBASE_VERSION + '/firebase-app.js'),
+                import('https://www.gstatic.com/firebasejs/' + FIREBASE_VERSION + '/firebase-auth.js'),
+                import('https://www.gstatic.com/firebasejs/' + FIREBASE_VERSION + '/firebase-firestore.js'),
+                import('https://www.gstatic.com/firebasejs/' + FIREBASE_VERSION + '/firebase-functions.js')
+            ]);
+
+            // Initialize app (reuse if already present)
+            var app = fbApp.getApps().length > 0
+                ? fbApp.getApps()[0]
+                : fbApp.initializeApp(FIREBASE_CONFIG);
+
+            _auth      = fbAuth.getAuth(app);
+            _db        = fbFirestore.getFirestore(app);
+            _functions = fbFunctions.getFunctions(app, FUNCTIONS_REGION);
+
+            // Expose Firestore helpers on the module objects so helpers below can use them
+            window._fbFirestore = fbFirestore;
+
+            // Wire up callable function references
+            _fnCreate   = fbFunctions.httpsCallable(_functions, 'createAssignment');
+            _fnUpdate   = fbFunctions.httpsCallable(_functions, 'updateAssignment');
+            _fnDelete   = fbFunctions.httpsCallable(_functions, 'deleteAssignment');
+            _fnGet      = fbFunctions.httpsCallable(_functions, 'getAssignments');
+            _fnProgress = fbFunctions.httpsCallable(_functions, 'getStudentProgress');
+
+            loaderText.textContent = 'Authenticating...';
+
+            // Wait for auth state — require a real signed-in user
+            _currentUser = await waitForAuthUser(fbAuth);
+            if (!_currentUser) {
+                // Redirect to sign-in if not authenticated
+                redirectToSignIn();
+                return;
+            }
+
+            loaderText.textContent = 'Loading tenant configuration...';
+
+            // Load tenant config from sessionStorage first, then fall back to API
+            _tenantConfig = loadTenantConfig();
+            if (!_tenantConfig) {
+                var slug = getSlugFromUrl();
+                if (!slug) {
+                    throw new Error('No tenant specified. Add ?slug=your-tenant to the URL or sign in via the student dashboard.');
+                }
+                _tenantConfig = await fetchTenantConfig(slug);
+            }
+
+            _tenantId = _tenantConfig.tenantId || _tenantConfig.slug;
+
+            // Verify this user is a tenant admin
+            var adminUids = _tenantConfig.adminUids || [];
+            if (!adminUids.includes(_currentUser.uid)) {
+                throw new Error('Access denied. Your account (' + _currentUser.email + ') is not an instructor for this tenant. Contact your platform administrator.');
+            }
+
+            // Apply branding
+            applyBranding(_tenantConfig.branding);
+
+            loaderText.textContent = 'Loading class roster...';
+
+            // Load classes for this tenant
+            await loadClasses();
+
+            // Populate header and status bar
+            var platformName = _tenantConfig.branding.platformName || _tenantConfig.name;
+            document.title = platformName + ' — Instructor Panel';
+            document.getElementById('header-name').textContent   = platformName;
+            document.getElementById('header-tenant-id').textContent = _tenantId.toUpperCase();
+            document.getElementById('banner-eyebrow').textContent   = _tenantId.toUpperCase() + ' // Instructor Panel';
+            document.getElementById('statusbar-operator').textContent = (_currentUser.displayName || _currentUser.email || 'INSTRUCTOR').toUpperCase();
+            document.getElementById('banner-operator').textContent    = (_currentUser.displayName || _currentUser.email || '').toUpperCase();
+
+            // Start session timer
+            setInterval(updateSessionTimer, 1000);
+
+            // Reveal app
+            loaderEl.classList.add('fade-out');
+            setTimeout(function() { loaderEl.remove(); }, 500);
+            appEl.style.display = 'block';
+
+        } catch (err) {
+            loaderText.textContent    = 'Initialization failed';
+            loaderError.textContent   = err.message;
+            loaderError.style.display = 'block';
+            console.error('[InstructorApp] Boot error:', err);
+        }
+    }
+
+    // ── Auth helpers ─────────────────────────────────────────────────────────
+
+    /**
+     * Returns a Promise that resolves with the current Firebase User
+     * once auth state is known. Returns null if not signed in.
+     */
+    function waitForAuthUser(fbAuth) {
+        return new Promise(function(resolve) {
+            var unsubscribe = fbAuth.onAuthStateChanged(_auth, function(user) {
+                unsubscribe();
+                resolve(user);
+            });
+        });
+    }
+
+    function redirectToSignIn() {
+        var slug = getSlugFromUrl() || '';
+        var returnUrl = encodeURIComponent(window.location.href);
+        // Point to whichever login page is in the tenant system
+        window.location.href = '/login.html?slug=' + slug + '&return=' + returnUrl;
+    }
+
+    // ── Tenant config helpers ─────────────────────────────────────────────────
+
+    function loadTenantConfig() {
+        try {
+            var raw = sessionStorage.getItem('hexworth_tenant');
+            if (raw) { return JSON.parse(raw); }
+        } catch (e) {}
+        return null;
+    }
+
+    async function fetchTenantConfig(slug) {
+        var url = 'https://' + FUNCTIONS_REGION + '-' + PROJECT_ID + '.cloudfunctions.net/getTenantConfig?slug=' + encodeURIComponent(slug);
+        var res = await fetch(url);
+        if (!res.ok) {
+            var err = await res.json().catch(function() { return {}; });
+            throw new Error(err.error || 'Tenant not found (HTTP ' + res.status + ')');
+        }
+        var config = await res.json();
+        if (config.status !== 'active') {
+            throw new Error('This training environment is currently inactive.');
+        }
+        sessionStorage.setItem('hexworth_tenant', JSON.stringify(config));
+        return config;
+    }
+
+    function getSlugFromUrl() {
+        var slug = new URLSearchParams(window.location.search).get('slug');
+        if (!slug) {
+            var m = window.location.pathname.match(/\/t\/([^\/]+)/);
+            if (m) { slug = m[1]; }
+        }
+        return slug;
+    }
+
+    // ── Branding ──────────────────────────────────────────────────────────────
+
+    function applyBranding(b) {
+        if (!b) { return; }
+        var root      = document.documentElement;
+        var primary   = b.primaryColor   || '#00e5ff';
+        var secondary = b.secondaryColor || '#b347ea';
+
+        root.style.setProperty('--brand-primary',   primary);
+        root.style.setProperty('--brand-secondary', secondary);
+        root.style.setProperty('--vc-primary',      primary);
+        root.style.setProperty('--vc-secondary',    secondary);
+
+        if (b.backgroundColor) {
+            root.style.setProperty('--vc-bg',    b.backgroundColor);
+            root.style.setProperty('--vc-panel', b.headerColor || b.backgroundColor);
+        } else if (b.headerColor) {
+            root.style.setProperty('--vc-panel', b.headerColor);
+        }
+
+        if (b.fontFamily) { root.style.setProperty('--vc-font', b.fontFamily); }
+
+        if (b.customCSS) {
+            var s = document.createElement('style');
+            s.textContent = b.customCSS;
+            document.head.appendChild(s);
+        }
+    }
+
+    // ── Class management — Firestore direct (tenant admins can write) ─────────
+
+    /**
+     * Load all classes for this tenant from Firestore.
+     * Path: tenants/{tenantId}/classes
+     */
+    async function loadClasses() {
+        var { collection, getDocs, orderBy, query } = window._fbFirestore;
+        var q   = query(collection(_db, 'tenants', _tenantId, 'classes'), orderBy('createdAt', 'desc'));
+        var snap = await getDocs(q);
+
+        _classes = [];
+        snap.forEach(function(doc) {
+            _classes.push(Object.assign({ classId: doc.id }, doc.data()));
+        });
+
+        renderClassList();
+    }
+
+    function renderClassList() {
+        var listEl = document.getElementById('class-list-body');
+        document.getElementById('class-count-badge').textContent = _classes.length;
+
+        if (_classes.length === 0) {
+            listEl.innerHTML = '';
+            var empty = document.createElement('div');
+            empty.className = 'class-empty';
+            empty.textContent = 'No classes yet';
+            listEl.appendChild(empty);
+            return;
+        }
+
+        listEl.innerHTML = '';
+        _classes.forEach(function(cls) {
+            var item = document.createElement('div');
+            item.className = 'class-item' + (_activeClass && _activeClass.classId === cls.classId ? ' active' : '');
+            item.setAttribute('data-class-id', cls.classId);
+
+            var dot = document.createElement('div');
+            dot.className = 'class-item-dot';
+
+            var info = document.createElement('div');
+            info.className = 'class-item-info';
+
+            var name = document.createElement('div');
+            name.className = 'class-item-name';
+            name.textContent = cls.name || cls.classId;
+
+            var meta = document.createElement('div');
+            meta.className = 'class-item-meta';
+            meta.textContent = [cls.section, cls.semester].filter(Boolean).join(' // ') || 'No section info';
+
+            info.appendChild(name);
+            info.appendChild(meta);
+            item.appendChild(dot);
+            item.appendChild(info);
+
+            item.addEventListener('click', function() { selectClass(cls); });
+            listEl.appendChild(item);
+        });
+    }
+
+    /**
+     * Activate a class — loads its assignments and student progress.
+     */
+    async function selectClass(cls) {
+        _activeClass = cls;
+        renderClassList(); // Refresh active indicator
+
+        // Update status bar
+        document.getElementById('statusbar-class').textContent = (cls.name || cls.classId).toUpperCase();
+
+        // Update summary panel
+        document.getElementById('class-summary-panel').style.display = 'block';
+        document.getElementById('summary-class-name').textContent = cls.name || cls.classId;
+        document.getElementById('summary-semester').textContent    = [cls.section, cls.semester].filter(Boolean).join(' // ') || '--';
+        document.getElementById('summary-class-id').textContent    = cls.classId;
+
+        document.getElementById('banner-sub').textContent =
+            (cls.name || cls.classId).toUpperCase() + (cls.semester ? ' // ' + cls.semester : '');
+
+        // Show class pane, hide prompt
+        document.getElementById('no-class-prompt').style.display  = 'none';
+        document.getElementById('class-pane').style.display = 'block';
+
+        // Close any open student detail
+        closeStudentDetail();
+
+        // Load data
+        showTabLoading('assignments');
+        showTabLoading('students');
+        await Promise.all([loadAssignments(), loadStudentProgress()]);
+    }
+
+    // ── Inline create-class form ──────────────────────────────────────────────
+
+    function toggleCreateClassForm() {
+        var wrap = document.getElementById('create-class-form-wrap');
+        wrap.classList.toggle('open');
+        if (wrap.classList.contains('open')) {
+            document.getElementById('new-class-name').focus();
+        }
+    }
+
+    async function createClass() {
+        var name     = document.getElementById('new-class-name').value.trim();
+        var section  = document.getElementById('new-class-section').value.trim();
+        var semester = document.getElementById('new-class-semester').value.trim();
+
+        if (!name) {
+            toast('Class name is required.', 'error');
+            document.getElementById('new-class-name').focus();
+            return;
+        }
+
+        var btn = document.getElementById('btn-create-class');
+        setButtonLoading(btn, true);
+
+        try {
+            var { collection, addDoc, serverTimestamp } = window._fbFirestore;
+            var ref = await addDoc(
+                collection(_db, 'tenants', _tenantId, 'classes'),
+                {
+                    name:      name,
+                    section:   section  || null,
+                    semester:  semester || null,
+                    tenantId:  _tenantId,
+                    createdBy: _currentUser.uid,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                }
+            );
+
+            toast('Class "' + name + '" created.', 'success');
+
+            // Reset form and close
+            document.getElementById('new-class-name').value    = '';
+            document.getElementById('new-class-section').value  = '';
+            document.getElementById('new-class-semester').value = '';
+            toggleCreateClassForm();
+
+            // Reload and auto-select the new class
+            await loadClasses();
+            var newCls = _classes.find(function(c) { return c.classId === ref.id; });
+            if (newCls) { selectClass(newCls); }
+
+        } catch (err) {
+            toast('Failed to create class: ' + err.message, 'error');
+            console.error('[InstructorApp] createClass error:', err);
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    // ── Assignment CRUD ───────────────────────────────────────────────────────
+
+    /**
+     * Fetch assignments from the getAssignments callable (returns all for admins).
+     */
+    async function loadAssignments() {
+        if (!_activeClass) { return; }
+
+        try {
+            var result = await _fnGet({ tenantId: _tenantId, classId: _activeClass.classId });
+            _assignments = (result.data.assignments || []).sort(function(a, b) {
+                return (a.order || 0) - (b.order || 0);
+            });
+            renderAssignmentsTable();
+            updateClassStats();
+        } catch (err) {
+            toast('Failed to load assignments: ' + err.message, 'error');
+            console.error('[InstructorApp] loadAssignments error:', err);
+        }
+    }
+
+    function renderAssignmentsTable() {
+        var wrap = document.getElementById('assignments-table-wrap');
+        var countLabel = document.getElementById('assignments-count-label');
+
+        countLabel.textContent = _assignments.length + ' Mission' + (_assignments.length !== 1 ? 's' : '');
+
+        if (_assignments.length === 0) {
+            wrap.innerHTML = '';
+            var empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.innerHTML =
+                '<img class="empty-state-icon" src="/assets/images/icons/icon-clipboard.webp" alt="">' +
+                '<div class="empty-state-title">No assignments yet</div>' +
+                '<div class="empty-state-sub">Create your first mission using the button above</div>';
+            wrap.appendChild(empty);
+            return;
+        }
+
+        var table = document.createElement('table');
+        table.className = 'data-table';
+
+        // Header row
+        var thead = document.createElement('thead');
+        var headerRow = document.createElement('tr');
+        ['#', 'Title', 'Type', 'Content ID', 'Due Date', 'Points', 'Status', 'Actions'].forEach(function(col) {
+            var th = document.createElement('th');
+            th.textContent = col;
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        var tbody = document.createElement('tbody');
+        _assignments.forEach(function(a) {
+            var tr = document.createElement('tr');
+
+            // Order badge
+            var tdOrder = document.createElement('td');
+            var orderBadge = document.createElement('span');
+            orderBadge.className = 'order-badge';
+            orderBadge.textContent = a.order || '--';
+            tdOrder.appendChild(orderBadge);
+
+            // Title
+            var tdTitle = document.createElement('td');
+            tdTitle.textContent = a.title;
+            tdTitle.style.maxWidth = '200px';
+            tdTitle.style.overflow = 'hidden';
+            tdTitle.style.textOverflow = 'ellipsis';
+            tdTitle.style.whiteSpace = 'nowrap';
+
+            // Content type badge
+            var tdType = document.createElement('td');
+            var typeBadge = document.createElement('span');
+            typeBadge.className = 'type-badge ' + (a.contentType || 'module');
+            typeBadge.textContent = a.contentType || '--';
+            tdType.appendChild(typeBadge);
+
+            // Content ID
+            var tdContentId = document.createElement('td');
+            tdContentId.textContent = a.contentId || '--';
+            tdContentId.style.fontFamily = 'monospace';
+            tdContentId.style.fontSize = '0.72rem';
+            tdContentId.style.color = 'var(--vc-text-dim)';
+
+            // Due date
+            var tdDue = document.createElement('td');
+            if (a.dueDate) {
+                var d = new Date(a.dueDate);
+                var isOverdue = d < new Date() && a.status === 'active';
+                tdDue.textContent = formatDate(d);
+                if (isOverdue) { tdDue.className = 'overdue'; }
+            } else {
+                tdDue.textContent = '--';
+                tdDue.style.color = 'var(--vc-text-dim)';
+            }
+
+            // Points
+            var tdPoints = document.createElement('td');
+            tdPoints.textContent = (a.points || 0).toLocaleString();
+            tdPoints.style.fontWeight = '700';
+
+            // Status badge
+            var tdStatus = document.createElement('td');
+            var statusBadge = document.createElement('span');
+            statusBadge.className = 'status-badge ' + (a.status || 'active');
+            statusBadge.textContent = a.status || 'active';
+            tdStatus.appendChild(statusBadge);
+
+            // Actions
+            var tdActions = document.createElement('td');
+            var actions = document.createElement('div');
+            actions.className = 'row-actions';
+
+            var editBtn = document.createElement('button');
+            editBtn.className = 'row-btn';
+            editBtn.textContent = 'Edit';
+            editBtn.addEventListener('click', function() { openEditAssignment(a); });
+
+            var archiveBtn = document.createElement('button');
+            archiveBtn.className = 'row-btn archive';
+            archiveBtn.textContent = a.status === 'archived' ? 'Restore' : 'Archive';
+            archiveBtn.addEventListener('click', function() {
+                var newStatus = a.status === 'archived' ? 'active' : 'archived';
+                confirmAction(
+                    (newStatus === 'archived' ? 'Archive' : 'Restore') + ' "' + a.title + '"?',
+                    newStatus === 'archived' ? 'Assignment will be hidden from students' : 'Assignment will be visible to students',
+                    function() { archiveAssignment(a, newStatus); }
+                );
+            });
+
+            var deleteBtn = document.createElement('button');
+            deleteBtn.className = 'row-btn danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', function() {
+                confirmAction(
+                    'Delete "' + a.title + '"?',
+                    'This will permanently remove the assignment and all student progress data.',
+                    function() { deleteAssignment(a); }
+                );
+            });
+
+            actions.appendChild(editBtn);
+            actions.appendChild(archiveBtn);
+            actions.appendChild(deleteBtn);
+            tdActions.appendChild(actions);
+
+            [tdOrder, tdTitle, tdType, tdContentId, tdDue, tdPoints, tdStatus, tdActions].forEach(function(td) {
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        wrap.innerHTML = '';
+        wrap.appendChild(table);
+    }
+
+    function openCreateAssignment() {
+        if (!_activeClass) {
+            toast('Select a class first.', 'info');
+            return;
+        }
+
+        // Reset form
+        document.getElementById('edit-assignment-id').value = '';
+        document.getElementById('a-title').value       = '';
+        document.getElementById('a-description').value = '';
+        document.getElementById('a-content-type').value = '';
+        document.getElementById('a-content-id').value  = '';
+        document.getElementById('a-due-date').value    = '';
+        document.getElementById('a-points').value      = '100';
+        document.getElementById('a-order').value       = '';
+        document.getElementById('a-status').value      = 'active';
+        document.getElementById('modal-assignment-title').textContent = 'Create Assignment';
+        document.getElementById('btn-save-assignment').textContent    = 'Save Assignment';
+
+        openModal('modal-assignment');
+        document.getElementById('a-title').focus();
+    }
+
+    function openEditAssignment(a) {
+        document.getElementById('edit-assignment-id').value = a.assignmentId;
+        document.getElementById('a-title').value       = a.title       || '';
+        document.getElementById('a-description').value = a.description || '';
+        document.getElementById('a-content-type').value = a.contentType || '';
+        document.getElementById('a-content-id').value  = a.contentId   || '';
+        document.getElementById('a-due-date').value    = a.dueDate ? a.dueDate.substring(0, 10) : '';
+        document.getElementById('a-points').value      = a.points != null ? a.points : 100;
+        document.getElementById('a-order').value       = a.order   || '';
+        document.getElementById('a-status').value      = a.status  || 'active';
+        document.getElementById('modal-assignment-title').textContent = 'Edit Assignment';
+        document.getElementById('btn-save-assignment').textContent    = 'Save Changes';
+
+        openModal('modal-assignment');
+        document.getElementById('a-title').focus();
+    }
+
+    async function saveAssignment() {
+        var assignmentId = document.getElementById('edit-assignment-id').value.trim();
+        var isEdit       = assignmentId !== '';
+
+        var title       = document.getElementById('a-title').value.trim();
+        var description = document.getElementById('a-description').value.trim();
+        var contentType = document.getElementById('a-content-type').value;
+        var contentId   = document.getElementById('a-content-id').value.trim();
+        var dueDateVal  = document.getElementById('a-due-date').value;
+        var pointsVal   = document.getElementById('a-points').value;
+        var orderVal    = document.getElementById('a-order').value;
+        var status      = document.getElementById('a-status').value;
+
+        // Client-side validation
+        if (!title) {
+            toast('Title is required.', 'error');
+            document.getElementById('a-title').focus();
+            return;
+        }
+        if (!contentType) {
+            toast('Content type is required.', 'error');
+            document.getElementById('a-content-type').focus();
+            return;
+        }
+        if (!contentId) {
+            toast('Content ID is required.', 'error');
+            document.getElementById('a-content-id').focus();
+            return;
+        }
+
+        var points = Number(pointsVal) || 100;
+        if (points < 0 || points > 10000) {
+            toast('Points must be between 0 and 10,000.', 'error');
+            return;
+        }
+
+        var btn = document.getElementById('btn-save-assignment');
+        setButtonLoading(btn, true);
+
+        try {
+            if (isEdit) {
+                // Build updates object — only include fields that the CF allows
+                var updates = {
+                    title:       title,
+                    description: description,
+                    contentType: contentType,
+                    contentId:   contentId,
+                    points:      points,
+                    status:      status
+                };
+                if (dueDateVal)  { updates.dueDate = dueDateVal; }
+                if (orderVal)    { updates.order = Number(orderVal); }
+
+                await _fnUpdate({
+                    tenantId:     _tenantId,
+                    classId:      _activeClass.classId,
+                    assignmentId: assignmentId,
+                    updates:      updates
+                });
+                toast('Assignment updated.', 'success');
+            } else {
+                // Create new
+                var payload = {
+                    tenantId:    _tenantId,
+                    classId:     _activeClass.classId,
+                    title:       title,
+                    description: description,
+                    contentType: contentType,
+                    contentId:   contentId,
+                    points:      points
+                };
+                if (dueDateVal) { payload.dueDate = dueDateVal; }
+
+                await _fnCreate(payload);
+                toast('Assignment created.', 'success');
+            }
+
+            closeModal('modal-assignment');
+            await loadAssignments();
+
+        } catch (err) {
+            toast('Save failed: ' + (err.message || 'Unknown error'), 'error');
+            console.error('[InstructorApp] saveAssignment error:', err);
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    }
+
+    async function archiveAssignment(a, newStatus) {
+        try {
+            await _fnUpdate({
+                tenantId:     _tenantId,
+                classId:      _activeClass.classId,
+                assignmentId: a.assignmentId,
+                updates:      { status: newStatus }
+            });
+            toast('Assignment ' + (newStatus === 'archived' ? 'archived' : 'restored') + '.', 'success');
+            await loadAssignments();
+        } catch (err) {
+            toast('Action failed: ' + err.message, 'error');
+        }
+    }
+
+    async function deleteAssignment(a) {
+        try {
+            await _fnDelete({
+                tenantId:     _tenantId,
+                classId:      _activeClass.classId,
+                assignmentId: a.assignmentId
+            });
+            toast('Assignment deleted.', 'success');
+            await loadAssignments();
+        } catch (err) {
+            toast('Delete failed: ' + err.message, 'error');
+        }
+    }
+
+    // ── Student progress ──────────────────────────────────────────────────────
+
+    /**
+     * Load all student progress records for the active class via
+     * the getStudentProgress callable (admin path: returns all students).
+     */
+    async function loadStudentProgress() {
+        if (!_activeClass) { return; }
+
+        try {
+            var result = await _fnProgress({
+                tenantId: _tenantId,
+                classId:  _activeClass.classId
+                // No studentUid — admin path returns all students
+            });
+            _studentData = result.data.students || [];
+            renderStudentsTable();
+            updateClassStats();
+        } catch (err) {
+            // Non-fatal: student data might be empty for new classes
+            _studentData = [];
+            renderStudentsTable();
+            console.warn('[InstructorApp] loadStudentProgress:', err.message);
+        }
+    }
+
+    function renderStudentsTable() {
+        var wrap       = document.getElementById('students-table-wrap');
+        var countLabel = document.getElementById('students-count-label');
+        countLabel.textContent = _studentData.length + ' Operative' + (_studentData.length !== 1 ? 's' : '');
+
+        if (_studentData.length === 0) {
+            wrap.innerHTML = '';
+            var empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.innerHTML =
+                '<img class="empty-state-icon" src="/assets/images/icons/icon-users.webp" alt="">' +
+                '<div class="empty-state-title">No student data</div>' +
+                '<div class="empty-state-sub">Students will appear here once they enroll and start assignments</div>';
+            wrap.appendChild(empty);
+            return;
+        }
+
+        var table = document.createElement('table');
+        table.className = 'data-table';
+
+        var thead = document.createElement('thead');
+        var hr = document.createElement('tr');
+        ['Student', 'Completed', 'Score', 'Progress', 'Last Active', 'Actions'].forEach(function(col) {
+            var th = document.createElement('th');
+            th.textContent = col;
+            hr.appendChild(th);
+        });
+        thead.appendChild(hr);
+        table.appendChild(thead);
+
+        var tbody = document.createElement('tbody');
+        _studentData.forEach(function(student) {
+            var assignments = student.assignments || {};
+            var keys        = Object.keys(assignments);
+            var completed   = keys.filter(function(k) {
+                return assignments[k].status === 'completed' || assignments[k].status === 'graded';
+            }).length;
+
+            var totalScore = keys.reduce(function(sum, k) {
+                return sum + (assignments[k].score || 0);
+            }, 0);
+
+            var lastActive = '--';
+            var mostRecent = 0;
+            keys.forEach(function(k) {
+                var ts = assignments[k].submittedAt;
+                if (ts && new Date(ts).getTime() > mostRecent) {
+                    mostRecent = new Date(ts).getTime();
+                    lastActive = formatDate(new Date(ts));
+                }
+            });
+
+            var pct = _assignments.length > 0 ? Math.round((completed / _assignments.length) * 100) : 0;
+
+            var tr = document.createElement('tr');
+            tr.className = 'student-row';
+            tr.addEventListener('click', function() { showStudentDetail(student); });
+
+            var tdName = document.createElement('td');
+            tdName.style.fontWeight = '600';
+            tdName.textContent = truncate(student.studentUid, 18);
+
+            var tdCompleted = document.createElement('td');
+            tdCompleted.textContent = completed + ' / ' + _assignments.length;
+
+            var tdScore = document.createElement('td');
+            tdScore.style.fontWeight = '700';
+            tdScore.style.color = 'var(--vc-primary)';
+            tdScore.textContent = totalScore.toLocaleString();
+
+            var tdProgress = document.createElement('td');
+            var barWrap = document.createElement('span');
+            barWrap.className = 'progress-bar-wrap';
+            var fill = document.createElement('span');
+            fill.className = 'progress-bar-fill';
+            fill.style.width = pct + '%';
+            barWrap.appendChild(fill);
+            var pctLabel = document.createElement('span');
+            pctLabel.style.fontSize = '0.64rem';
+            pctLabel.style.color = 'var(--vc-text-dim)';
+            pctLabel.style.marginLeft = '6px';
+            pctLabel.textContent = pct + '%';
+            tdProgress.appendChild(barWrap);
+            tdProgress.appendChild(pctLabel);
+
+            var tdActive = document.createElement('td');
+            tdActive.style.color = 'var(--vc-text-dim)';
+            tdActive.textContent = lastActive;
+
+            var tdActions = document.createElement('td');
+            var viewBtn = document.createElement('button');
+            viewBtn.className = 'row-btn';
+            viewBtn.textContent = 'Detail';
+            viewBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showStudentDetail(student);
+            });
+            tdActions.appendChild(viewBtn);
+
+            [tdName, tdCompleted, tdScore, tdProgress, tdActive, tdActions].forEach(function(td) {
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        wrap.innerHTML = '';
+        wrap.appendChild(table);
+    }
+
+    function showStudentDetail(student) {
+        var assignments = student.assignments || {};
+
+        document.getElementById('students-panel').style.display       = 'none';
+        document.getElementById('student-detail-panel').style.display = 'block';
+
+        document.getElementById('student-detail-title').textContent = 'Student Detail';
+        document.getElementById('detail-student-name').textContent  = student.studentUid;
+        document.getElementById('detail-student-uid').textContent   = 'UID: ' + student.studentUid;
+
+        var totalScore = Object.keys(assignments).reduce(function(sum, k) {
+            return sum + (assignments[k].score || 0);
+        }, 0);
+        document.getElementById('detail-total-score').textContent = totalScore.toLocaleString();
+
+        // Build per-assignment breakdown table
+        var wrap = document.getElementById('student-assignments-wrap');
+        if (_assignments.length === 0) {
+            wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No assignments in this class</div></div>';
+            return;
+        }
+
+        var table = document.createElement('table');
+        table.className = 'data-table';
+
+        var thead = document.createElement('thead');
+        var hr = document.createElement('tr');
+        ['#', 'Assignment', 'Type', 'Status', 'Score', 'Submitted'].forEach(function(col) {
+            var th = document.createElement('th');
+            th.textContent = col;
+            hr.appendChild(th);
+        });
+        thead.appendChild(hr);
+        table.appendChild(thead);
+
+        var tbody = document.createElement('tbody');
+        _assignments.forEach(function(a) {
+            var progress = assignments[a.assignmentId] || { status: 'not_started' };
+            var tr = document.createElement('tr');
+
+            var tdOrder = document.createElement('td');
+            var badge = document.createElement('span');
+            badge.className = 'order-badge';
+            badge.textContent = a.order || '--';
+            tdOrder.appendChild(badge);
+
+            var tdTitle = document.createElement('td');
+            tdTitle.textContent = a.title;
+
+            var tdType = document.createElement('td');
+            var typeBadge = document.createElement('span');
+            typeBadge.className = 'type-badge ' + (a.contentType || 'module');
+            typeBadge.textContent = a.contentType || '--';
+            tdType.appendChild(typeBadge);
+
+            var tdStatus = document.createElement('td');
+            var statusBadge = document.createElement('span');
+            statusBadge.className = 'progress-status ' + (progress.status || 'not_started');
+            statusBadge.textContent = (progress.status || 'not_started').replace(/_/g, ' ');
+            tdStatus.appendChild(statusBadge);
+
+            var tdScore = document.createElement('td');
+            tdScore.style.fontWeight = '700';
+            tdScore.textContent = progress.score != null ? progress.score.toLocaleString() : '--';
+
+            var tdSubmitted = document.createElement('td');
+            tdSubmitted.style.color = 'var(--vc-text-dim)';
+            tdSubmitted.textContent = progress.submittedAt ? formatDate(new Date(progress.submittedAt)) : '--';
+
+            [tdOrder, tdTitle, tdType, tdStatus, tdScore, tdSubmitted].forEach(function(td) {
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        wrap.innerHTML = '';
+        wrap.appendChild(table);
+    }
+
+    function closeStudentDetail() {
+        document.getElementById('students-panel').style.display       = 'block';
+        document.getElementById('student-detail-panel').style.display = 'none';
+    }
+
+    // ── Class stats ───────────────────────────────────────────────────────────
+
+    function updateClassStats() {
+        var totalAssignments  = _assignments.length;
+        var activeAssignments = _assignments.filter(function(a) { return a.status === 'active'; }).length;
+        var studentCount      = _studentData.length;
+
+        var completionCount = 0;
+        _studentData.forEach(function(s) {
+            var assignments = s.assignments || {};
+            Object.keys(assignments).forEach(function(k) {
+                if (assignments[k].status === 'completed' || assignments[k].status === 'graded') {
+                    completionCount++;
+                }
+            });
+        });
+
+        document.getElementById('stat-assignments').textContent  = totalAssignments;
+        document.getElementById('stat-active').textContent       = activeAssignments;
+        document.getElementById('stat-students').textContent     = studentCount;
+        document.getElementById('stat-completions').textContent  = completionCount;
+    }
+
+    // ── Quick actions ─────────────────────────────────────────────────────────
+
+    function showClassReport() {
+        if (!_activeClass) {
+            toast('Select a class first.', 'info');
+            return;
+        }
+
+        var totalPts = _assignments.reduce(function(sum, a) { return sum + (a.points || 0); }, 0);
+        var active   = _assignments.filter(function(a) { return a.status === 'active'; }).length;
+        var draft    = _assignments.filter(function(a) { return a.status === 'draft'; }).length;
+        var archived = _assignments.filter(function(a) { return a.status === 'archived'; }).length;
+
+        var completionCount = 0;
+        _studentData.forEach(function(s) {
+            var assignments = s.assignments || {};
+            Object.keys(assignments).forEach(function(k) {
+                if (assignments[k].status === 'completed' || assignments[k].status === 'graded') {
+                    completionCount++;
+                }
+            });
+        });
+
+        var msg = document.getElementById('confirm-msg');
+        var sub = document.getElementById('confirm-sub');
+        msg.textContent = 'Class Report — ' + (_activeClass.name || _activeClass.classId);
+        sub.textContent = [
+            'Assignments: ' + _assignments.length + ' (' + active + ' active, ' + draft + ' draft, ' + archived + ' archived)',
+            'Total points available: ' + totalPts.toLocaleString(),
+            'Students enrolled: ' + _studentData.length,
+            'Total completions: ' + completionCount
+        ].join(' | ');
+
+        document.getElementById('btn-confirm-action').style.display = 'none';
+        document.getElementById('modal-confirm').querySelector('.modal-title').textContent = 'Class Report';
+        openModal('modal-confirm');
+
+        // Restore button display on close
+        document.getElementById('modal-confirm').addEventListener('transitionend', function restoreBtn() {
+            if (!document.getElementById('modal-confirm').classList.contains('open')) {
+                document.getElementById('btn-confirm-action').style.display = '';
+                document.getElementById('modal-confirm').querySelector('.modal-title').textContent = 'Confirm Action';
+                document.getElementById('modal-confirm').removeEventListener('transitionend', restoreBtn);
+            }
+        });
+    }
+
+    /**
+     * Generate and download a CSV of all student grades for the active class.
+     * Columns: Student UID, Assignment Title, Content Type, Content ID, Status, Score, Submitted At
+     */
+    function exportGrades() {
+        if (!_activeClass) {
+            toast('Select a class first.', 'info');
+            return;
+        }
+        if (_assignments.length === 0) {
+            toast('No assignments to export.', 'info');
+            return;
+        }
+
+        var rows = [['Student UID', 'Assignment Title', 'Content Type', 'Content ID', 'Due Date', 'Points', 'Status', 'Score', 'Submitted At']];
+
+        _studentData.forEach(function(student) {
+            var progressMap = student.assignments || {};
+            _assignments.forEach(function(a) {
+                var p = progressMap[a.assignmentId] || { status: 'not_started' };
+                rows.push([
+                    csvEscape(student.studentUid),
+                    csvEscape(a.title),
+                    csvEscape(a.contentType || ''),
+                    csvEscape(a.contentId || ''),
+                    a.dueDate ? a.dueDate.substring(0, 10) : '',
+                    a.points || 0,
+                    csvEscape(p.status || 'not_started'),
+                    p.score != null ? p.score : '',
+                    p.submittedAt ? p.submittedAt.substring(0, 19) : ''
+                ]);
+            });
+        });
+
+        var csvContent = rows.map(function(r) { return r.join(','); }).join('\n');
+        var blob  = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        var url   = URL.createObjectURL(blob);
+        var link  = document.createElement('a');
+        var fname = (_activeClass.name || _activeClass.classId).replace(/[^a-z0-9]/gi, '_') + '_grades_' + isoDate() + '.csv';
+        link.setAttribute('href', url);
+        link.setAttribute('download', fname);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast('Grades exported: ' + fname, 'success');
+    }
+
+    async function refreshData() {
+        if (!_activeClass) {
+            toast('Select a class first.', 'info');
+            return;
+        }
+        toast('Refreshing...', 'info');
+        await Promise.all([loadAssignments(), loadStudentProgress()]);
+        toast('Data refreshed.', 'success');
+    }
+
+    // ── Navigation ────────────────────────────────────────────────────────────
+
+    function navToDashboard() {
+        var slug = _tenantId || getSlugFromUrl() || '';
+        if (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+            window.location.href = TenantRouter.getUrl('dashboard');
+        } else {
+            window.location.href = '/tenant/index.html?slug=' + encodeURIComponent(slug);
+        }
+    }
+
+    async function signOut() {
+        try {
+            var { signOut: fbSignOut } = await import('https://www.gstatic.com/firebasejs/' + FIREBASE_VERSION + '/firebase-auth.js');
+            await fbSignOut(_auth);
+            // Clear tenant context and redirect to tenant entry or home
+            var tenantSlug = null;
+            try { tenantSlug = JSON.parse(sessionStorage.getItem('hexworth_tenant')).slug; } catch(e) {}
+            sessionStorage.removeItem('hexworth_tenant');
+            window.location.href = tenantSlug ? '/tenant/index.html?slug=' + tenantSlug : '/';
+        } catch (err) {
+            toast('Sign-out failed: ' + err.message, 'error');
+        }
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+
+    function switchTab(tabId, btn) {
+        document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.getElementById('tab-' + tabId).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    // ── Modal helpers ─────────────────────────────────────────────────────────
+
+    function openModal(id) {
+        document.getElementById(id).classList.add('open');
+        document.addEventListener('keydown', handleModalEsc);
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+        document.removeEventListener('keydown', handleModalEsc);
+    }
+
+    function handleModalEsc(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-overlay.open').forEach(function(m) {
+                m.classList.remove('open');
+            });
+            document.removeEventListener('keydown', handleModalEsc);
+        }
+    }
+
+    // Click overlay backdrop to close
+    document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                overlay.classList.remove('open');
+            }
+        });
+    });
+
+    // ── Confirmation dialog ───────────────────────────────────────────────────
+
+    function confirmAction(msg, sub, callback) {
+        document.getElementById('confirm-msg').textContent = msg;
+        document.getElementById('confirm-sub').textContent = sub || '';
+
+        var btn = document.getElementById('btn-confirm-action');
+        btn.style.display = '';
+        btn.textContent = 'Confirm Delete';
+
+        // Remove old listener and attach fresh one
+        var newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.addEventListener('click', function() {
+            closeModal('modal-confirm');
+            callback();
+        });
+
+        document.getElementById('modal-confirm').querySelector('.modal-title').textContent = 'Confirm Action';
+        openModal('modal-confirm');
+    }
+
+    // ── Loading state helpers ─────────────────────────────────────────────────
+
+    function showTabLoading(tabId) {
+        var wrapId = tabId === 'assignments' ? 'assignments-table-wrap' : 'students-table-wrap';
+        var wrap = document.getElementById(wrapId);
+        if (!wrap) { return; }
+        wrap.innerHTML =
+            '<div class="empty-state">' +
+            '<div class="hud-spinner" style="margin:0 auto 12px; width:32px; height:32px;"></div>' +
+            '<div class="empty-state-title">Loading...</div>' +
+            '</div>';
+    }
+
+    function setButtonLoading(btn, loading) {
+        if (loading) {
+            btn.disabled = true;
+            btn.dataset.origText = btn.textContent;
+            btn.innerHTML = '<span class="btn-spinner"></span>' + btn.dataset.origText;
+        } else {
+            btn.disabled = false;
+            btn.textContent = btn.dataset.origText || btn.textContent;
+        }
+    }
+
+    // ── Toast notifications ───────────────────────────────────────────────────
+
+    function toast(message, type) {
+        var container = document.getElementById('toast');
+        var msg = document.createElement('div');
+        msg.className = 'toast-msg ' + (type || 'info');
+        msg.textContent = message;
+        container.appendChild(msg);
+
+        // Trigger transition on next frame
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() { msg.classList.add('show'); });
+        });
+
+        setTimeout(function() {
+            msg.classList.remove('show');
+            setTimeout(function() { msg.remove(); }, 300);
+        }, 3500);
+    }
+
+    // ── Session timer ─────────────────────────────────────────────────────────
+
+    function updateSessionTimer() {
+        var elapsed = Math.floor((Date.now() - _sessionStart) / 1000);
+        var h  = Math.floor(elapsed / 3600);
+        var m  = Math.floor((elapsed % 3600) / 60);
+        var s  = elapsed % 60;
+        var el = document.getElementById('statusbar-session');
+        if (el) {
+            el.textContent =
+                String(h).padStart(2, '0') + ':' +
+                String(m).padStart(2, '0') + ':' +
+                String(s).padStart(2, '0');
+        }
+    }
+
+    // ── Utility functions ─────────────────────────────────────────────────────
+
+    function formatDate(d) {
+        if (!(d instanceof Date) || isNaN(d)) { return '--'; }
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function isoDate() {
+        return new Date().toISOString().substring(0, 10);
+    }
+
+    function truncate(str, maxLen) {
+        if (!str) { return '--'; }
+        return str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
+    }
+
+    function csvEscape(val) {
+        var str = String(val || '');
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    }
+
+    // ── Public interface (exposed on window for inline onclick handlers) ──────
+
+    window.InstructorApp = {
+        openCreateAssignment: openCreateAssignment,
+        saveAssignment:       saveAssignment,
+        toggleCreateClassForm: toggleCreateClassForm,
+        createClass:          createClass,
+        switchTab:            switchTab,
+        openModal:            openModal,
+        closeModal:           closeModal,
+        closeStudentDetail:   closeStudentDetail,
+        showClassReport:      showClassReport,
+        exportGrades:         exportGrades,
+        refreshData:          refreshData,
+        navToDashboard:       navToDashboard,
+        signOut:              signOut
+    };
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+
+    init();
+
+})();
+</script>
+</body>
+</html>

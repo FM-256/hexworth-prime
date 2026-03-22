@@ -658,3 +658,26 @@ const FirebaseAuth = (function() {
 document.addEventListener('DOMContentLoaded', function() {
     FirebaseAuth.init();
 });
+
+// ── Tenant Auto-Loaders ─────────────────────────────────────
+// If tenant context exists in sessionStorage, dynamically load
+// TenantRouter.js and TenantShell.js. Covers pages that load
+// FirebaseAuth but not AccessGuard (arena boxes, dispatch, arctic).
+(function() {
+    try {
+        if (sessionStorage.getItem('hexworth_tenant')) {
+            if (typeof TenantRouter === 'undefined' && !window.__tenantRouterRequested) {
+                window.__tenantRouterRequested = true;
+                var r = document.createElement('script');
+                r.src = '/components/TenantRouter.js';
+                document.head.appendChild(r);
+            }
+            if (!window.__tenantShellRequested) {
+                window.__tenantShellRequested = true;
+                var s = document.createElement('script');
+                s.src = '/components/TenantShell.js';
+                document.head.appendChild(s);
+            }
+        }
+    } catch(e) {}
+})();

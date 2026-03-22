@@ -4,8 +4,15 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ─── Helper: is this user an admin? ─────────────────────────
+    // Checks both custom claims (admin: true) and email allowlist.
+    // The email check mirrors requireAdmin() in Cloud Functions
+    // (functions/index.js line 1819) so both paths grant the same access.
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return request.auth != null && (
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'f.mora80@gmail.com' ||
+        request.auth.token.email == 'jorden@hexworth.com'
+      );
     }
 
     // Users collection — authenticated users can read/write their own doc
@@ -300,6 +307,21 @@ service cloud.firestore {
     match /tripwire_stats/{docId} {
       allow read: if request.auth != null;
       // Only Cloud Functions (admin SDK) can write — increment counters
+    }
+
+    // ─── Quality Reports ─────────────────────────────────────────────
+    // Published by Nexus CLI (admin SDK writes via --publish flag).
+    // Admin console reads to populate the Quality panel.
+    match /_quality_reports/{reportId} {
+      allow read: if isAdmin();
+      // Only CLI (admin SDK) can write — no client writes allowed
+    }
+
+    // ─── Admin Task Board ─────────────────────────────────────────────
+    // Shared operational task board for the admin team.
+    // Full read/write gated to admins only — no student access.
+    match /_admin_tasks/{taskId} {
+      allow read, write: if isAdmin();
     }
 
     // ─── WL: White Label Tenant System ─────────────────────────────────

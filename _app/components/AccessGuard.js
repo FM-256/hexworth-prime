@@ -391,6 +391,17 @@ const AccessGuard = (function() {
         return sessionStorage.getItem(`master_gate${gateNumber}_complete`) === 'true';
     }
 
+    // Check if user is a tourist (browsing without sorting)
+    // Uses direct localStorage check as fallback since TouristVisa.js
+    // may not have loaded yet when require() runs at parse time.
+    function isTourist() {
+        if (typeof TouristVisa !== 'undefined') {
+            return TouristVisa.isActive();
+        }
+        // Fallback: check localStorage directly (same key TouristVisa uses)
+        return localStorage.getItem('hexworth_tourist_active') === 'true';
+    }
+
     // Check if user has been sorted
     function isSorted() {
         return localStorage.getItem(config.storageKeys.house) !== null;
@@ -438,6 +449,52 @@ const AccessGuard = (function() {
         return true;
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // TOURIST VISA INTEGRATION
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Extract house ID from current page URL.
+     * Matches patterns like /houses/shield/..., /houses/code/games/..., etc.
+     * Returns null if not inside a house directory.
+     */
+    function _detectHouseFromUrl() {
+        var match = window.location.pathname.match(/\/houses\/([a-z-]+)\//);
+        return match ? match[1] : null;
+    }
+
+    /**
+     * Schedule tourist badge and overlay injection after DOM is ready.
+     * Also loads tourist-badge.css if not already present.
+     * Retries if TouristVisa.js hasn't loaded yet (async script).
+     */
+    function _scheduleTouristUI() {
+        function inject() {
+            // Load CSS if not already loaded
+            if (!document.querySelector('link[href*="tourist-badge.css"]')) {
+                var link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = getBasePath() + 'components/tourist-badge.css';
+                document.head.appendChild(link);
+            }
+            // Inject badge and overlay (retry if TouristVisa not yet loaded)
+            if (typeof TouristVisa !== 'undefined') {
+                TouristVisa.injectBadge();
+                TouristVisa.injectOverlay();
+                TouristVisa.installBlockers();
+            } else {
+                // TouristVisa.js is still loading — retry shortly
+                setTimeout(inject, 150);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', inject);
+        } else {
+            inject();
+        }
+    }
+
     // Hide page content immediately (before check)
     function hideContent() {
         // Add style to hide everything until verified
@@ -482,6 +539,13 @@ const AccessGuard = (function() {
         }
 
         setTimeout(() => {
+            // Tenant users: ALL redirects go to tenant hub.
+            // They should never see sorting, unauthorized, or Hexworth dashboard.
+            if (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+                window.location.href = TenantRouter.getUrl(destination);
+                return;
+            }
+
             let url;
             switch (destination) {
                 case 'sorting':
@@ -492,6 +556,9 @@ const AccessGuard = (function() {
                     break;
                 case 'dark-arts-gate':
                     url = basePath + 'dark-arts/gate-1.html';
+                    break;
+                case 'tourist-prompt':
+                    url = basePath + 'components/tourist-visa-prompt.html';
                     break;
                 case 'unauthorized':
                 default:
@@ -510,6 +577,17 @@ const AccessGuard = (function() {
     function require(level, param) {
         // Hide content immediately
         hideContent();
+
+        // Tenant users bypass all access gates — content filtering is
+        // handled by TenantFilter.js based on the tenant's license.
+        // Without this, white-label students would need to pass sorting
+        // quizzes and Dark Arts gates that don't exist in their experience.
+        try {
+            if (sessionStorage.getItem('hexworth_tenant') && level !== 'admin' && level !== 'admin-only') {
+                showContent();
+                return true;
+            }
+        } catch(e) {}
 
         // Firebase Admin bypasses everything except admin-only
         // QC-4: Sync show, async verify in background
@@ -540,18 +618,52 @@ const AccessGuard = (function() {
 
         switch (level) {
             case 'sorted':
-                // User must have completed sorting
-                authorized = isSorted();
-                if (!authorized) {
-                    redirectTo = 'sorting';
+                // User must have completed sorting — or be an active tourist
+                if (isSorted()) {
+                    authorized = true;
+                } else if (isTourist()) {
+                    // Tourist mode: allow through but track visit + inject banner
+                    if (typeof TouristVisa !== 'undefined') {
+                        var houseFromUrl = _detectHouseFromUrl();
+                        if (houseFromUrl) {
+                            var allowed = TouristVisa.visitHouse(houseFromUrl);
+                            if (!allowed) {
+                                // Limit reached — force sort
+                                TouristVisa.forceSort();
+                                return false;
+                            }
+                        }
+                    }
+                    authorized = true;
+                    // Defer badge/overlay injection until DOM is ready
+                    _scheduleTouristUI();
+                } else {
+                    // Not sorted, not a tourist — offer the tourist prompt
+                    // instead of hard-redirecting to sorting.html
+                    authorized = false;
+                    redirectTo = 'tourist-prompt';
                     message = 'You must complete the Sorting Quiz first.';
                 }
                 break;
 
             case 'house':
                 // User must be in specific house (or any house if param is 'any')
-                if (!isSorted()) {
-                    redirectTo = 'sorting';
+                if (!isSorted() && isTourist()) {
+                    // Tourist: allow read-only access to any house content
+                    if (typeof TouristVisa !== 'undefined') {
+                        var houseParam = param || _detectHouseFromUrl();
+                        if (houseParam && houseParam !== 'any') {
+                            var houseAllowed = TouristVisa.visitHouse(houseParam);
+                            if (!houseAllowed) {
+                                TouristVisa.forceSort();
+                                return false;
+                            }
+                        }
+                    }
+                    authorized = true;
+                    _scheduleTouristUI();
+                } else if (!isSorted()) {
+                    redirectTo = 'tourist-prompt';
                     message = 'You must complete the Sorting Quiz first.';
                 } else if (param === 'any' || param === undefined) {
                     authorized = true;
@@ -708,11 +820,11 @@ const AccessGuard = (function() {
 
             switch (level) {
                 case 'sorted':
-                    passed = isSorted();
+                    passed = isSorted() || isTourist();
                     break;
                 case 'house':
-                    // House hoppers can access any house
-                    passed = isSorted() && (param === 'any' || isHouseHopper() || getUserHouse() === param);
+                    // House hoppers can access any house; tourists can browse any house
+                    passed = isTourist() || (isSorted() && (param === 'any' || isHouseHopper() || getUserHouse() === param));
                     break;
                 case 'gate':
                     passed = hasPassedGatesUpTo(parseInt(param) || 1);
@@ -731,6 +843,11 @@ const AccessGuard = (function() {
             if (!passed) {
                 return require(level, param);  // Use single require for proper redirect
             }
+        }
+
+        // If tourist passed through requireAll, inject UI
+        if (isTourist()) {
+            _scheduleTouristUI();
         }
 
         showContent();
@@ -769,11 +886,11 @@ const AccessGuard = (function() {
 
             switch (level) {
                 case 'sorted':
-                    passed = isSorted();
+                    passed = isSorted() || isTourist();
                     break;
                 case 'house':
-                    // House hoppers can access any house
-                    passed = isSorted() && (param === 'any' || isHouseHopper() || getUserHouse() === param);
+                    // House hoppers can access any house; tourists can browse any house
+                    passed = isTourist() || (isSorted() && (param === 'any' || isHouseHopper() || getUserHouse() === param));
                     break;
                 case 'gate':
                     passed = hasPassedGatesUpTo(parseInt(param) || 1);
@@ -790,6 +907,9 @@ const AccessGuard = (function() {
             }
 
             if (passed) {
+                if (isTourist()) {
+                    _scheduleTouristUI();
+                }
                 showContent();
                 return true;
             }
@@ -829,6 +949,7 @@ const AccessGuard = (function() {
         getMasterKeyRemaining,
         showIndicatorIfActive,
         // User status
+        isTourist,
         isSorted,
         getUserHouse,
         isDivergent,
@@ -854,3 +975,41 @@ const AccessGuard = (function() {
 document.addEventListener('DOMContentLoaded', function() {
     AccessGuard.showIndicatorIfActive();
 });
+
+// ── Tourist Visa Auto-Loader ─────────────────────────────────
+// Dynamically load TouristVisa.js so AccessGuard can check tourist
+// status without requiring every page to manually include it.
+// No-op if TouristVisa is already loaded.
+(function() {
+    if (typeof TouristVisa !== 'undefined') return;
+    try {
+        var s = document.createElement('script');
+        s.src = '/components/TouristVisa.js';
+        document.head.appendChild(s);
+    } catch(e) {}
+})();
+
+// ── Tenant Auto-Loaders ─────────────────────────────────────
+// If tenant context exists in sessionStorage, dynamically load
+// TenantRouter.js (navigation routing) and TenantShell.js (branded header).
+// No-op when no tenant context (direct Hexworth Prime users).
+(function() {
+    try {
+        if (sessionStorage.getItem('hexworth_tenant')) {
+            // Load TenantRouter first (synchronous navigation decisions)
+            if (typeof TenantRouter === 'undefined' && !window.__tenantRouterRequested) {
+                window.__tenantRouterRequested = true;
+                var r = document.createElement('script');
+                r.src = '/components/TenantRouter.js';
+                document.head.appendChild(r);
+            }
+            // Load TenantShell (branded header bar)
+            if (!window.__tenantShellRequested) {
+                window.__tenantShellRequested = true;
+                var s = document.createElement('script');
+                s.src = '/components/TenantShell.js';
+                document.head.appendChild(s);
+            }
+        }
+    } catch(e) {}
+})();

@@ -142,9 +142,15 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Navigate to dashboard with relative path detection
+     * Navigate to dashboard with relative path detection.
+     * Tenant users go to their hub instead of the Hexworth Prime dashboard.
      */
     function navigateToDashboard() {
+        // Tenant routing: go to tenant hub if active
+        if (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+            window.location.href = TenantRouter.getUrl('dashboard');
+            return;
+        }
         const depth = (window.location.pathname.match(/\//g) || []).length;
         const prefix = '../'.repeat(Math.max(0, depth - 1));
         window.location.href = prefix + 'dashboard.html';
@@ -923,3 +929,26 @@ document.addEventListener('DOMContentLoaded', function autoTrackVisit() {
         ModuleProgress.trackVisit(houseId, file, { section: section });
     } catch (e) { /* silent */ }
 });
+
+// ── Tenant Auto-Loaders ─────────────────────────────────────
+// If tenant context exists in sessionStorage, dynamically load
+// TenantRouter.js and TenantShell.js. Duplicated from AccessGuard.js
+// for pages that load ModuleProgress but not AccessGuard.
+(function() {
+    try {
+        if (sessionStorage.getItem('hexworth_tenant')) {
+            if (typeof TenantRouter === 'undefined' && !window.__tenantRouterRequested) {
+                window.__tenantRouterRequested = true;
+                var r = document.createElement('script');
+                r.src = '/components/TenantRouter.js';
+                document.head.appendChild(r);
+            }
+            if (!window.__tenantShellRequested) {
+                window.__tenantShellRequested = true;
+                var s = document.createElement('script');
+                s.src = '/components/TenantShell.js';
+                document.head.appendChild(s);
+            }
+        }
+    } catch(e) {}
+})();

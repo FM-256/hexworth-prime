@@ -84,7 +84,7 @@ const ForensicsEngine = (() => {
                 </div>
             </div>
             <div class="fh-header-right">
-                <a href="/dashboard.html" class="fh-btn">&larr; Dashboard</a>
+                <a href="${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('dashboard') : '/dashboard.html'}" class="fh-btn">&larr; ${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getName() : 'Dashboard'}</a>
             </div>`;
         return header;
     }

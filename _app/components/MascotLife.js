@@ -11,7 +11,7 @@
 const MascotLife = (() => {
     'use strict';
 
-    const ICON_BASE = '/_app/assets/images/icons/';
+    const ICON_BASE = '/assets/images/icons/';
     const IDLE_DELAY = 10000;
     const ENCOUNTER_CHANCE = 0.05;
     const WHISPER_MS = 4000;
@@ -163,7 +163,7 @@ const MascotLife = (() => {
 .ml-mascot.ml-present{animation:ml-present .7s ease-out}`;
         const s = document.createElement('style');
         s.textContent = anim + `
-.ml-mascot{position:relative;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;z-index:100}
+.ml-mascot{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;z-index:100;width:48px;height:48px}
 .ml-mascot-icon{width:48px;height:48px;filter:drop-shadow(0 0 8px var(--ml-glow,rgba(255,255,255,.3)));transition:filter .3s}
 .ml-mascot:hover .ml-mascot-icon{filter:drop-shadow(0 0 14px var(--ml-glow,rgba(255,255,255,.5)))}
 .ml-whisper{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);background:#1a1a2e;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 14px;color:#e2e8f0;font-size:13px;line-height:1.4;max-width:240px;white-space:normal;pointer-events:none;opacity:0;transition:opacity .3s;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:200}
@@ -336,24 +336,22 @@ const MascotLife = (() => {
 
     // --- Init ---
     function _init(houseName) {
-        if (!houseName || !MASCOTS[houseName]) return;
+        console.log('[MascotLife] init called with:', houseName);
+        if (!houseName || !MASCOTS[houseName]) { console.warn('[MascotLife] bad house:', houseName); return; }
         _injectStyles();
         _house = houseName;
         _mascot = MASCOTS[houseName];
         _mascotEl = _createMascotEl(houseName);
-        if (!_mascotEl) return;
-        // Absolute positioning (not fixed — body filter breaks fixed)
-        _mascotEl.style.position = 'absolute';
-        _mascotEl.style.zIndex = '100';
-        function repos() {
-            _mascotEl.style.top = (window.scrollY + window.innerHeight - 68) + 'px';
-            _mascotEl.style.right = '20px';
-            _mascotEl.style.bottom = 'auto';
-        }
-        window.addEventListener('scroll', repos, { passive: true });
-        window.addEventListener('resize', repos, { passive: true });
-        document.body.appendChild(_mascotEl);
-        repos();
+        if (!_mascotEl) { console.warn('[MascotLife] _createMascotEl returned null'); return; }
+        console.log('[MascotLife] mascot element created, icon src:', ICON_BASE + _mascot.icon);
+
+        // Wrapper div sits outside normal flow, immune to container clipping
+        var wrapper = document.createElement('div');
+        wrapper.id = 'ml-wrapper';
+        wrapper.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;';
+        wrapper.appendChild(_mascotEl);
+        document.body.appendChild(wrapper);
+        console.log('[MascotLife] wrapper appended to body, wrapper in DOM:', !!document.getElementById('ml-wrapper'));
         _bindWhisper(_mascotEl, houseName);
         _bindIdle();
         var stored = null;

@@ -1,6 +1,6 @@
 # White Label Build Log
 
-## Status: Phase 0 Complete — Foundation Live
+## Status: Phase 1 Complete — Product Ready for Demo
 
 ---
 
@@ -9,7 +9,7 @@
 ### WL-1: Tenant Config Schema + Admin CLI + API (COMPLETE)
 
 **Firestore Schema:** `tenants/{tenantId}`
-- Branding: logo, colors, name, tagline, custom CSS, terminology overrides
+- Branding: logo, colors, name, tagline, custom CSS, terminology overrides, dashboardVariant
 - Licensing: tier (analyst/team/academy/enterprise), content access lists, seat limits, expiration
 - Domain: subdomain or custom CNAME
 - Auth: firebase, SAML, OIDC
@@ -17,58 +17,18 @@
 
 **Admin CLI:** `functions/tenant-admin.js`
 ```bash
-# Create a tenant
 node tenant-admin.js create --slug university-x --name "University X Cyber Range" --tier academy
-
-# Update branding
-node tenant-admin.js update --slug university-x --primary-color "#dc2626" --logo "https://..."
-
-# Set content access
+node tenant-admin.js update --slug university-x --primary-color "#dc2626" --dashboard-variant tactical-hud
 node tenant-admin.js set-content --slug university-x --series a,b,c --houses shield,eye
-
-# Add an instructor as admin
 node tenant-admin.js add-admin --slug university-x --uid firebase-uid-here
-
-# List all tenants
 node tenant-admin.js list
-
-# Show tenant details
 node tenant-admin.js show --slug university-x
-
-# Deactivate
 node tenant-admin.js deactivate --slug university-x
 ```
 
-**API Endpoint:** `getTenantConfig`
-- URL: `https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug={tenantSlug}`
-- Method: GET (public, no auth required — loader page needs this pre-authentication)
-- Returns: tenant branding, licensing tier, content access, auth config
-- Caches for 5 minutes (branding doesn't change often)
-- Strips internal fields (maxSeats, expiresAt, SAML/OIDC configs) from public response
-
-**API Endpoint:** `getTenantCatalog`
-- Type: Firebase callable (requires auth)
-- Input: `{ tenantId: "slug" }`
-- Returns: licensed content access list and feature flags
-- Checks license expiration and tenant status
-
-**Firestore Security Rules:**
-- `tenants/{tenantId}` — public read (loader page), admin SDK write only
-- `tenants/{tenantId}/classes/{classId}` — tenant admin create/update/delete, authenticated read
-- `tenants/{tenantId}/classes/{classId}/assignments/{assignmentId}` — tenant admin write
-- `tenants/{tenantId}/classes/{classId}/progress/{studentUid}` — student writes own, admin reads all
-
-**Demo Tenant Created:**
-```
-Slug:     hexworth-academy
-Name:     Hexworth Academy
-Tier:     academy
-Seats:    200
-Expires:  2027-03-20
-URL:      hexworth-academy.hexworth.app
-Colors:   Primary #06b6d4 (cyan), Secondary #8b5cf6 (purple)
-Content:  All (empty lists = unrestricted access)
-```
+**API Endpoints:**
+- `getTenantConfig` — HTTP GET, public, returns branding + licensing (5-min cache)
+- `getTenantCatalog` — Firebase callable, requires auth, returns content access
 
 ---
 
@@ -76,53 +36,12 @@ Content:  All (empty lists = unrestricted access)
 
 **File:** `_app/tenant/index.html`
 
-**How It Works:**
-1. Student opens URL: `/tenant/index.html?slug=hexworth-academy`
-2. Loading spinner appears: "Loading hexworth-academy..."
-3. Fetches tenant config from `getTenantConfig` API
-4. Applies CSS custom properties from tenant branding
-5. Sets logo, platform name, tagline
-6. Renders the SOC dashboard with licensed features
-7. Loading screen fades out, dashboard appears
-
-**URL Patterns Supported:**
-```
-/tenant/index.html?slug=hexworth-academy     # Query param
-/t/hexworth-academy/                          # Path-based (future)
-hexworth-academy.hexworth.app/                # Subdomain (future, WL-8)
-cyberrange.university.edu/                    # Custom domain (future, WL-9)
-```
-
-**Dashboard Layout:**
-- **Header Bar** — tenant logo + name + accent gradient underline + user info
-- **Welcome Section** — "Welcome, Analyst" + tagline
-- **Stats Row** — Active Missions, Flags Captured, Score, Analyst Rank
-- **Mission Queue** — assigned work styled as security alerts (empty state if no assignments)
-- **Quick Access Grid** — cards for licensed features:
-  - Training Range (always)
-  - VS Mode (if vsMode feature enabled)
-  - Wireshark Hub (if wiresharkHub enabled)
-  - Forensics Hub (if forensicsHub enabled)
-  - Bug Hunting Dojo (if bugHunting enabled)
-  - All Courses (always)
-- **Shift Status Bar** — "On Duty" indicator, session timer, tenant name
-
-**Error Handling:**
-- No slug provided → "No tenant specified" error message
-- Tenant not found → "Tenant not found (HTTP 404)" error
-- Tenant inactive → "This training environment is currently inactive"
-- Network failure → "Connection failed" with error detail
-
-**Branding Application:**
-```
-CSS Variable          Mapped From
---brand-primary       branding.primaryColor
---brand-secondary     branding.secondaryColor
---brand-bg            branding.backgroundColor
---brand-header        branding.headerColor
---brand-font          branding.fontFamily
-```
-Plus: custom CSS injection, logo display, platform name in title/header.
+Acts as both a router and default dashboard:
+1. Fetches tenant config from API
+2. Stores in sessionStorage
+3. Registers Service Worker for encapsulation
+4. If `dashboardVariant` is set, redirects to the variant file
+5. Otherwise renders the default SOC dashboard
 
 ---
 
@@ -130,79 +49,133 @@ Plus: custom CSS injection, logo display, platform name in title/header.
 
 **File:** `_app/components/TenantFilter.js`
 
-**Public API:**
 ```javascript
-// Check if content is allowed for this tenant
-TenantFilter.isAllowed('a1-ancient-ledger', 'box')    // → true/false
-TenantFilter.isAllowed('shield', 'house')              // → true/false
-TenantFilter.isAllowed('wireshark', 'hub')             // → true/false
-TenantFilter.isAllowed('vsMode', 'feature')            // → true/false
-
-// Batch filter arrays
-TenantFilter.filterBoxes(BOXES)                        // → filtered array
-TenantFilter.filterHouses(houseList)                   // → filtered array
-TenantFilter.filterHubs(hubList)                       // → filtered array
-
-// Feature checks
-TenantFilter.hasFeature('vsMode')                      // → true/false
-TenantFilter.hasFeature('chatbots')                    // → true/false
-
-// Tenant info
-TenantFilter.isActive()                                // → boolean
-TenantFilter.getName()                                 // → "Hexworth Academy" or "Hexworth Prime"
-TenantFilter.getBranding()                             // → branding object or null
-TenantFilter.getTenant()                               // → full tenant config or null
-
-// Apply branding to current page
-TenantFilter.applyBranding()                           // → no-op if no tenant
+TenantFilter.isAllowed('a1-ancient-ledger', 'box')    // true/false
+TenantFilter.filterBoxes(BOXES)                        // filtered array
+TenantFilter.hasFeature('vsMode')                      // true/false
 ```
 
-**How Content Filtering Works:**
+---
+
+### WL-4: SOC Dashboard — 4 Variant Skins (COMPLETE)
+
+Four distinct, fully functional dashboard designs:
+
+| Variant | File | Style |
+|---------|------|-------|
+| **Command Center** | `dashboard-command-center.html` | Bloomberg terminal, dense data, ticker, monospace |
+| **Clean Ops** | `dashboard-clean-ops.html` | Minimal, card-based, breathing room, Notion/Linear |
+| **Tactical HUD** | `dashboard-tactical-hud.html` | Scanlines, clip-paths, neon glow, Destiny/Warframe |
+| **Enterprise Console** | `dashboard-enterprise.html` | 3-column, left nav, KPIs, Splunk/ServiceNow |
+
+All variants:
+- Fetch real tenant config from API
+- Apply CSS custom property branding
+- Show real student data via `tenant-data.js` (Firebase Auth + Firestore)
+- Render real assignment queue from Assignment API
+- Register Service Worker for encapsulation
+- Load TenantRouter + TenantShell
+
+**Set variant:** `node tenant-admin.js update --slug X --dashboard-variant tactical-hud`
+**Comparison view:** `/tenant/dashboard-variants.html`
+
+---
+
+### WL-5: Assignment API (COMPLETE)
+
+Six Cloud Functions in `functions/index.js`:
+
+| Function | Auth | Purpose |
+|----------|------|---------|
+| `createAssignment` | Admin | Create assignment in class |
+| `updateAssignment` | Admin | Update assignment fields |
+| `deleteAssignment` | Admin | Delete assignment |
+| `getAssignments` | Auth | List assignments (admin: all, student: active + progress) |
+| `submitAssignmentProgress` | Auth | Student submits completion/score |
+| `getStudentProgress` | Auth | Admin: all students, Student: own progress |
+
+**Assignment Schema:**
+```javascript
+{
+  title: "Complete Phantom Shell CTF",
+  contentType: "box",        // box, module, quiz, lab, presentation
+  contentId: "a3-phantom-shell",
+  dueDate: Timestamp,
+  points: 100,
+  status: "active",          // active, draft, archived
+  order: 1,
+  createdAt: Timestamp,
+  createdBy: uid
+}
 ```
-Content Type    Filter Logic
-─────────────   ────────────────────────────────────────
-box             Extract series letter (a1 → 'a'), check against series[]
-house           Check house ID against houses[]
-hub             Check hub ID against hubs[]
-feature         Check feature flag in features{}
+
+---
+
+### WL-6: Grade Export (COMPLETE — via Instructor Panel)
+
+CSV export built into the instructor panel. Generates downloadable CSV with student names, assignment scores, completion status, and timestamps.
+
+---
+
+### WL-7: Demo Tenant with Sample Data (COMPLETE)
+
+**Seed Script:** `functions/seed-demo-tenant.js`
+**Reference Doc:** `_planning/WL7_DEMO_TENANT.md`
+
+```bash
+GOOGLE_CLOUD_PROJECT=hexworth-prime node seed-demo-tenant.js
 ```
 
-Empty arrays = unrestricted (all content allowed). This means a new tenant with no content restrictions gets everything — restrictions are opt-in.
+Pre-populates hexworth-academy with:
+- CYB-301 Fall 2026 (Dr. Martinez)
+- 8 assignments (775 total points)
+- 5 students: NOVA (6/8), CIPHER (4/8), GHOST (2/8), SPARK (1/8), ECHO (0/8)
 
-**Integration Points (where TenantFilter needs to be wired in):**
-- `_app/arena/index.html` — filter BOXES array in `renderBoxes()`
-- `_app/dashboard.html` — filter house cards and hub cards
-- `_app/games.html` — filter game listings
-- House index pages — show/hide based on tenant access
-- Hub landing pages — show/hide based on tenant access
+---
 
-**No Breaking Changes:**
-- When no tenant is in sessionStorage (direct Hexworth Prime users), ALL functions return true / pass-through
-- The filter is purely additive — it never blocks direct users
-- Existing pages work unchanged until TenantFilter is explicitly integrated
+### Tenant Data Layer (COMPLETE)
+
+**File:** `_app/tenant/tenant-data.js` (535 lines)
+
+Shared module loaded by all dashboard variants:
+- Firebase Auth (Google sign-in, anonymous fallback)
+- Real Firestore profile data (XP, level, flags, modules)
+- Assignment API integration (getAssignments, getStudentProgress)
+- Cross-variant DOM updates (stats, missions, leaderboard, XP bars)
+- Rank calculation from XP tiers (Recruit through Director)
+
+---
+
+### Instructor Panel (COMPLETE)
+
+**File:** `_app/tenant/instructor.html`
+
+Full instructor dashboard:
+- Class management (create, select, view)
+- Assignment CRUD via Cloud Functions
+- Student progress dashboard with completion bars
+- CSV grade export
+- Quick actions (create mission, class report, export, refresh)
+- Firebase Auth with adminUids verification
+- Tenant branding applied
+
+---
+
+### Tenant Encapsulation (COMPLETE)
+
+**Architecture doc:** `_planning/WHITE_LABEL_TENANT_ROUTER.md`
+
+Three-layer defense sealing tenant users inside the branded experience:
+
+1. **Service Worker** (`tenant-sw.js`) — intercepts all HTML page fetches, injects TenantRouter + TenantShell into `<head>` at the network layer
+2. **TenantRouter.js** — single source of truth for navigation. AccessGuard, ModuleProgress, FluxCapacitor, and content engines all call TenantRouter instead of hardcoding paths
+3. **TenantShell.js** — MutationObserver rewrites `<a>` tags pointing to dashboard/sorting/unauthorized. Safety net for HTML links
+
+AccessGuard bypasses all gates (sorting, house, dark-arts) for tenant users.
 
 ---
 
 ## What's NOT Built Yet
-
-### WL-4: SOC Dashboard — Student View (NEXT)
-The current dashboard shows stats and quick access cards but needs:
-- Real mission queue pulling from `tenants/{id}/classes/{id}/assignments/`
-- Progress tracking connected to existing Hexworth progress system
-- Active cases showing in-progress CTF boxes and labs
-
-### WL-5: Assignment API
-Cloud Functions for CRUD on assignments. Instructor creates "missions" that appear in the student's queue.
-
-### WL-6: Grade Export
-CSV export mapping student progress to cert objectives. LMS-compatible format.
-
-### WL-7: Demo Tenant with Sample Data
-Pre-populate the demo tenant with:
-- Sample class (CYB-301 Fall 2026)
-- 5 sample students with progress data
-- 3 sample assignments with due dates
-- Used for live demos and university pitches
 
 ### WL-8: Subdomain Routing
 `*.hexworth.app` wildcard DNS + Firebase Hosting rewrite.
@@ -214,7 +187,7 @@ Customer CNAME + auto-SSL provisioning.
 Deep link assignments, grade passback.
 
 ### WL-11: SSO Bridge
-SAML/OIDC → Firebase Auth mapping.
+SAML/OIDC to Firebase Auth mapping.
 
 ### WL-12: Pitch Deck + One-Pager
 Sales materials for university outreach.
@@ -223,51 +196,46 @@ Sales materials for university outreach.
 
 ## How to Test
 
-### Test the Branded Dashboard
-1. Open: `https://hexworth-prime.web.app/tenant/index.html?slug=hexworth-academy`
-2. Should see: loading spinner → branded SOC dashboard with "Hexworth Academy" branding
-3. Quick access cards should show based on licensed features
-
-### Test the API
+### Full Demo Flow
 ```bash
-# Get tenant config
-curl "https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug=hexworth-academy"
+# 1. Seed demo data (run before each demo for fresh dates)
+cd functions
+GOOGLE_CLOUD_PROJECT=hexworth-prime node seed-demo-tenant.js
 
-# Non-existent tenant
-curl "https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug=does-not-exist"
-# Returns: {"error":"Tenant not found"}
+# 2. Set dashboard variant
+GOOGLE_CLOUD_PROJECT=hexworth-prime node tenant-admin.js update \
+    --slug hexworth-academy --dashboard-variant tactical-hud
+
+# 3. Open student dashboard
+# https://hexworth-prime.web.app/tenant/index.html?slug=hexworth-academy
+
+# 4. Sign in → see real data, missions, stats
+
+# 5. Open instructor panel
+# https://hexworth-prime.web.app/tenant/instructor.html
+
+# 6. Navigate content → tenant shell persists, no leaks
 ```
 
 ### Create a New Tenant
 ```bash
-cd functions
 GOOGLE_CLOUD_PROJECT=hexworth-prime node tenant-admin.js create \
-    --slug test-university \
-    --name "Test University Cyber Lab" \
-    --tier team \
-    --primary-color "#dc2626"
-
-# Then test: /tenant/index.html?slug=test-university
-```
-
-### Change Branding
-```bash
-GOOGLE_CLOUD_PROJECT=hexworth-prime node tenant-admin.js update \
-    --slug hexworth-academy \
+    --slug university-x \
+    --name "University X Cyber Lab" \
+    --tier academy \
     --primary-color "#dc2626" \
-    --tagline "Defend the Digital Frontier"
-
-# Reload the dashboard — colors and tagline should change
+    --dashboard-variant enterprise
 ```
 
-### Restrict Content
+### Switch Dashboard Skins
 ```bash
-GOOGLE_CLOUD_PROJECT=hexworth-prime node tenant-admin.js set-content \
-    --slug hexworth-academy \
-    --series a,b \
-    --houses shield,web,eye
-
-# Dashboard quick access should still show all (content filter not yet integrated into individual pages)
+# Try each variant:
+node tenant-admin.js update --slug hexworth-academy --dashboard-variant command-center
+node tenant-admin.js update --slug hexworth-academy --dashboard-variant clean-ops
+node tenant-admin.js update --slug hexworth-academy --dashboard-variant tactical-hud
+node tenant-admin.js update --slug hexworth-academy --dashboard-variant enterprise
+# Or remove variant for default dashboard:
+# Set dashboardVariant to null in Firestore console
 ```
 
 ---
@@ -275,13 +243,16 @@ GOOGLE_CLOUD_PROJECT=hexworth-prime node tenant-admin.js set-content \
 ## Architecture Decisions
 
 ### Why CSS Variables (Not Separate Stylesheets)?
-One stylesheet, infinite skins. CSS custom properties cascade — set them on `:root` and everything downstream inherits. No build step, no per-tenant CSS files to maintain. A single `style.setProperty()` call rebrands the entire page.
+One stylesheet, infinite skins. CSS custom properties cascade — set them on `:root` and everything downstream inherits. No build step, no per-tenant CSS files to maintain.
 
 ### Why sessionStorage (Not localStorage)?
 Tenant context should not persist across tabs. If a student opens Hexworth Prime directly in a new tab, they should see the main platform — not the tenant-branded version. sessionStorage is tab-scoped, which is the correct behavior.
 
-### Why Public Read on Tenant Config?
-The branded loader page needs the config BEFORE the user signs in (to show the right logo, colors, and sign-in options). Making it auth-gated would create a chicken-and-egg problem. The public config is filtered to exclude sensitive fields (SAML configs, seat limits, expiration dates).
+### Why Service Worker for Encapsulation?
+Patching individual files was whack-a-mole — 5,000+ HTML files, 7 component escape routes. The SW operates at the network layer, injecting scripts into every page response before the browser parses it. Zero file modifications needed, guaranteed coverage.
+
+### Why 4 Dashboard Variants?
+Different customers want different aesthetics. A university CS department wants Enterprise Console. A competitive gaming academy wants Tactical HUD. A coding bootcamp wants Clean Ops. A SOC training center wants Command Center. One codebase, four skins, selectable per tenant.
 
 ### Why Not a Separate App Per Tenant?
 Maintenance burden. One codebase = one deploy = one CDN. Content updates, bug fixes, and feature additions automatically reach all tenants. The branding is a CSS overlay, not a fork.
@@ -289,6 +260,7 @@ Maintenance burden. One codebase = one deploy = one CDN. Content updates, bug fi
 ---
 
 *Created: 2026-03-20*
-*Last Updated: 2026-03-20*
+*Last Updated: 2026-03-21*
 *Phase 0: COMPLETE (WL-1, WL-2, WL-3)*
-*Next: Phase 1 (WL-4, WL-5, WL-6, WL-7)*
+*Phase 1: COMPLETE (WL-4, WL-5, WL-6, WL-7, Encapsulation, Data Layer, Instructor Panel)*
+*Next: Phase 2 (WL-8, WL-9, WL-10, WL-11, WL-12)*

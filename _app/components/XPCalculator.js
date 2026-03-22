@@ -53,14 +53,9 @@ const XPCalculator = (function () {
      * Returns integrity object if violated, null otherwise.
      */
     function _checkIntegrity(progress) {
-        // DISABLED: Roxy deactivated pending investigation into false positives.
-        // TripWire log accumulation was causing re-lockout loops.
-        // Re-enable after fixing trigger logic.
-        return null;
-
         let garbageCount = 0;
 
-        // Check completedModules for invalid IDs
+        // Check completedModules for invalid IDs (garbage injected via localStorage)
         const completed = Array.isArray(progress.completedModules) ? progress.completedModules : [];
         const garbage = completed.filter(id => !_isValidId(id));
         garbageCount += garbage.length;
@@ -75,14 +70,11 @@ const XPCalculator = (function () {
             }
         } catch (e) { /* ignore */ }
 
-        // Cross-reference TripWire log for storage tampering
-        try {
-            var tripLog = JSON.parse(localStorage.getItem('hexworth_tripwire_log') || '[]');
-            var storageTamps = tripLog.filter(function(e) { return e.sensor === 'storage'; });
-            if (storageTamps.length > 0) {
-                garbageCount += storageTamps.length;
-            }
-        } catch (e) { /* ignore */ }
+        // NOTE: TripWire log entries are intentionally NOT counted here.
+        // TripWire logs accumulate from normal cross-tab syncs and innocent
+        // interactions. Counting them caused false positives that locked out
+        // legitimate students. Only count actual data corruption (garbage IDs,
+        // bad house keys) — these are definitive evidence of manipulation.
 
         // Threshold: > 5 garbage entries = cheating
         const THRESHOLD = 5;

@@ -2483,22 +2483,7 @@
             'ai-security': 'ai',
             'aplus-core1': 'forge',
             'aplus-core2': 'forge',
-            'arctic-advanced-topics': 'arctic',
-            'arctic-arena': 'arctic',
-            'arctic-clh-advanced': 'arctic',
-            'arctic-clh-fundamentals': 'arctic',
-            'arctic-clh-intermediate': 'arctic',
-            'arctic-cli-fundamentals': 'arctic',
-            'arctic-databases': 'arctic',
-            'arctic-hardening': 'arctic',
-            'arctic-incident-response': 'arctic',
-            'arctic-linux-admin': 'arctic',
-            'arctic-log-analysis': 'arctic',
-            'arctic-networking': 'arctic',
-            'arctic-offensive-tools': 'arctic',
-            'arctic-shell-scripting': 'arctic',
-            'arctic-sysadmin': 'arctic',
-            'arctic-text-processing': 'arctic',
+            // Arctic paths are dynamically registered via LearningPaths.registerArctic()
             'aws-ccp': 'cloud',
             'aws-developer': 'cloud',
             'azure-fundamentals': 'cloud',
@@ -2524,7 +2509,7 @@
             'security-operations': 'eye',
             'security-plus': 'shield',
             'security-plus-crypto': 'key',
-            'signal-toolkit': 'forge',
+            'signal-toolkit': 'signal',
             'wsa': 'cloud'
         };
 

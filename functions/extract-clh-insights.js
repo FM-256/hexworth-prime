@@ -2,6 +2,13 @@
 /**
  * Extract all CLH insight phases from CLHConfig.js for server-side seeding.
  * Outputs JSON array of { moduleId, acceptedAnswers, correctMessage, wrongMessage }
+ *
+ * NOTE (SEC-004 remediation, 2026-03-22): acceptedAnswers arrays have been
+ * removed from CLHConfig.js to eliminate client-side answer key exposure.
+ * Answers are now stored exclusively in Firestore challenge_registry/clh/insights/.
+ * This script will no longer extract answers — it is kept for reference only.
+ * To update server-side answers, edit Firestore directly or re-seed from a
+ * secure source (not the client-shipped config file).
  */
 const fs = require('fs');
 const path = require('path');

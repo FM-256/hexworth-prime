@@ -881,7 +881,9 @@ Reading symbols from syn-gate-daemon...
                     return '[*] Starting SYNAPTIC-PROTO-V1.0 fuzzer\n[!] Incomplete — finish reverse engineering first\n[!] Update MAGIC bytes and framing logic in fuzzer.py before running.';
                 }
                 C20Config._fuzzerBuilt = true;
+                C20Config._crashTriggered = true;
                 if (engine) engine.advancePhase && engine.advancePhase('fuzzing');
+                if (engine) engine.advancePhase && engine.advancePhase('vuln_analysis');
                 return `[*] Starting SYNAPTIC-PROTO-V1.0 fuzzer v0.1
 [*] Target: 10.13.37.1:8000
 [*] Mode: stateful grammar-based (AUTH -> SEND_DATA mutation)
@@ -951,7 +953,9 @@ root@SYN-GATE-01:~#`;
                 return '[!] Protocol not yet reverse engineered. Load the binary into Ghidra first to map SYNAPTIC-PROTO-V1.0 grammar before fuzzing.';
             }
             C20Config._fuzzerBuilt = true;
+            C20Config._crashTriggered = true;
             if (engine) engine.advancePhase && engine.advancePhase('fuzzing');
+            if (engine) engine.advancePhase && engine.advancePhase('vuln_analysis');
             return `afl-fuzz 4.08c by <afl-users@googlegroups.com>
 
 [+] afl++ is ready to fuzz!

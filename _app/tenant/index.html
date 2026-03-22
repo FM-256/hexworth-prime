@@ -308,7 +308,7 @@
             </div>
             <div class="header-user">
                 <span class="header-user-name" id="header-user-name">Analyst</span>
-                <button class="header-btn" onclick="window.location.href='/'">Exit to Hexworth</button>
+                <button class="header-btn" onclick="if(typeof TenantRouter!=='undefined'&&TenantRouter.isActive()){TenantRouter.goToHub()}else{window.location.href='/'}">Sign Out</button>
             </div>
         </header>
 
@@ -408,6 +408,56 @@
             // Store tenant context for other pages
             sessionStorage.setItem('hexworth_tenant', JSON.stringify(config));
 
+            // ── Step 2a: Register Tenant Service Worker ──
+            // The SW intercepts all HTML page fetches and injects
+            // TenantRouter.js + TenantShell.js into <head> automatically.
+            // This seals every page in the app inside the tenant shell
+            // without modifying any content files.
+            if ('serviceWorker' in navigator) {
+                try {
+                    var reg = await navigator.serviceWorker.register('/tenant-sw.js', { scope: '/' });
+                    // Wait for the SW to activate before proceeding
+                    var sw = reg.installing || reg.waiting || reg.active;
+                    if (sw) {
+                        if (sw.state === 'activated') {
+                            sw.postMessage({ type: 'TENANT_ACTIVATE' });
+                        } else {
+                            sw.addEventListener('statechange', function() {
+                                if (sw.state === 'activated') {
+                                    sw.postMessage({ type: 'TENANT_ACTIVATE' });
+                                }
+                            });
+                        }
+                    }
+                    // Also message any already-active SW
+                    if (reg.active) {
+                        reg.active.postMessage({ type: 'TENANT_ACTIVATE' });
+                    }
+                } catch (swErr) {
+                    console.warn('[Tenant] Service Worker registration failed:', swErr.message);
+                    // Fallback: tenant shell will still work via auto-loaders in components
+                }
+            }
+
+            // ── Step 2b: Check for dashboard variant redirect ──
+            // If the tenant config specifies a dashboard variant, redirect to
+            // the appropriate dashboard file. This makes index.html a router
+            // that loads the correct variant transparently.
+            var variant = config.branding && config.branding.dashboardVariant;
+            var VARIANT_FILES = {
+                'command-center': 'dashboard-command-center.html',
+                'clean-ops':      'dashboard-clean-ops.html',
+                'tactical-hud':   'dashboard-tactical-hud.html',
+                'enterprise':     'dashboard-enterprise.html'
+            };
+            if (variant && VARIANT_FILES[variant]) {
+                // Redirect to the variant dashboard — it reads tenant context
+                // from sessionStorage (already set above), so no second API call
+                window.location.replace('/tenant/' + VARIANT_FILES[variant] + '?slug=' + encodeURIComponent(slug));
+                return;
+            }
+
+            // No variant specified — render the default dashboard below
             loaderText.textContent = 'Applying configuration...';
 
             // ── Step 3: Apply branding ──
@@ -523,6 +573,24 @@
             loaderError.textContent = err.message;
             loaderError.style.display = 'block';
         }
+    })();
+    </script>
+    <script src="tenant-data.js"></script>
+    <script>
+    (function() {
+        var checkConfig = setInterval(function() {
+            var raw = sessionStorage.getItem('hexworth_tenant');
+            if (raw) {
+                clearInterval(checkConfig);
+                try {
+                    var config = JSON.parse(raw);
+                    TenantData.init(config);
+                } catch (e) {
+                    console.error('[TenantData] Config parse error:', e);
+                }
+            }
+        }, 100);
+        setTimeout(function() { clearInterval(checkConfig); }, 15000);
     })();
     </script>
 </body>

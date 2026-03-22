@@ -716,7 +716,13 @@
 
             // Navigate after animation
             setTimeout(() => {
-                window.location.href = this.basePath + path;
+                // Tenant routing: dashboard clicks must go to the tenant hub,
+                // not the Hexworth Prime dashboard, to keep users encapsulated
+                if (path === 'dashboard.html' && typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) {
+                    window.location.href = TenantRouter.getUrl('dashboard');
+                } else {
+                    window.location.href = this.basePath + path;
+                }
             }, 150);
         }
 
