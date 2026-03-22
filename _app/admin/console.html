@@ -810,6 +810,97 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* =========================================================
+           TENANTS PANEL — specific overrides
+           ========================================================= */
+
+        /* Status dot (active/inactive indicator in table) */
+        .ac-status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+        .ac-status-dot.active   { background: var(--ac-success); box-shadow: 0 0 4px rgba(34,197,94,0.5); }
+        .ac-status-dot.inactive { background: var(--ac-danger);  box-shadow: 0 0 4px rgba(239,68,68,0.4); }
+        .ac-status-dot.trial    { background: var(--ac-warning); box-shadow: 0 0 4px rgba(245,158,11,0.4); }
+
+        /* Color picker row: swatch + input side by side */
+        .ac-color-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ac-color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.15);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .ac-color-row input[type="color"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+        .ac-color-row .ac-form-input {
+            flex: 1;
+        }
+
+        /* Feature checkboxes grid */
+        .ac-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .ac-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            background: var(--ac-surface);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+        .ac-checkbox-item:hover {
+            border-color: var(--ac-accent-border);
+        }
+        .ac-checkbox-item input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            accent-color: var(--ac-accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* Tenant form view / list view toggling */
+        .ac-tenant-view { display: none; }
+        .ac-tenant-view.visible { display: block; }
+
+        /* Tier badge colors */
+        .ac-badge-analyst    { background: rgba(100,116,139,0.2); color: #94a3b8; }
+        .ac-badge-team       { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .ac-badge-academy    { background: rgba(168,85,247,0.15); color: #c084fc; }
+        .ac-badge-enterprise { background: rgba(212,160,23,0.15); color: #d4a017; }
+
+        /* Tenant detail stats */
+        .ac-tenant-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
     </style>
 </head>
 <body>
@@ -861,6 +952,10 @@
             <div class="ac-nav-item" data-panel="roles" onclick="switchPanel('roles')">
                 <svg class="ac-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15l-2 5l9-13h-5l2-5L7 15h5z"/></svg>
                 <span>Roles</span>
+            </div>
+            <div class="ac-nav-item" data-panel="tenants" onclick="switchPanel('tenants')">
+                <svg class="ac-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M16 14h.01"/></svg>
+                <span>Tenants</span>
             </div>
         </aside>
 
@@ -1130,6 +1225,71 @@
                 </div>
             </div>
 
+            <!-- ===================================================
+                 PANEL 7: TENANT MANAGEMENT
+                 =================================================== -->
+            <div class="ac-panel" data-panel="tenants">
+                <div class="ac-panel-title">Tenant Management</div>
+
+                <!-- ── VIEW: Tenant List ── -->
+                <div class="ac-tenant-view visible" id="tenantListView">
+
+                    <!-- Top bar: search + create button -->
+                    <div class="ac-card" style="padding:14px 20px;">
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <input type="text" class="ac-search-input" id="tenantSearchInput"
+                                placeholder="Filter by name or slug..."
+                                oninput="filterTenantTable()"
+                                style="max-width:320px; margin-bottom:0;">
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="loadTenants()">Refresh</button>
+                            <button class="ac-btn ac-btn-primary" style="margin-left:auto;" onclick="showCreateTenantForm()">
+                                + Create New Tenant
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tenant table -->
+                    <div class="ac-card">
+                        <div id="tenantTableWrap">
+                            <div class="ac-loading"><div class="ac-spinner"></div>Loading tenants...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── VIEW: Create Tenant Form ── -->
+                <div class="ac-tenant-view" id="tenantCreateView">
+                    <div class="ac-card">
+                        <div class="ac-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Create New Tenant</span>
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="showTenantListView()">
+                                &larr; Back to List
+                            </button>
+                        </div>
+                        <div id="tenantCreateFormBody"><!-- populated by renderTenantForm() --></div>
+                    </div>
+                </div>
+
+                <!-- ── VIEW: Edit Tenant Form ── -->
+                <div class="ac-tenant-view" id="tenantEditView">
+                    <div class="ac-card">
+                        <div class="ac-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span id="tenantEditTitle">Edit Tenant</span>
+                            <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="showTenantListView()">
+                                &larr; Back to List
+                            </button>
+                        </div>
+                        <div id="tenantEditFormBody"><!-- populated by showEditTenantForm() --></div>
+                    </div>
+
+                    <!-- Detail stats card (shown below edit form) -->
+                    <div class="ac-card" id="tenantDetailCard" style="display:none;">
+                        <div class="ac-card-title">Tenant Details</div>
+                        <div class="ac-tenant-detail-grid" id="tenantDetailStats"></div>
+                        <div id="tenantDetailLinks" style="margin-top:4px;"></div>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -1239,6 +1399,7 @@
             if (panelName === 'handlers') loadHandlerData();
             if (panelName === 'health') loadHealthData();
             if (panelName === 'roles') loadRolesList();
+            if (panelName === 'tenants') loadTenants();
         };
 
         // ── Toast ───────────────────────────────────────────────────
@@ -2468,6 +2629,830 @@
                     showToast('Revoke failed: ' + e.message, 'error');
                 }
             }, true);
+        };
+
+        // =============================================================
+        //  TAB 7: TENANT MANAGEMENT
+        // =============================================================
+
+        // Cache for the tenant list; invalidated after create/update/toggle.
+        let _tenantsCache = null;
+
+        // ── View helpers ─────────────────────────────────────────────
+
+        // Switch to the tenant list view, hiding create/edit views.
+        window.showTenantListView = function() {
+            document.getElementById('tenantListView').classList.add('visible');
+            document.getElementById('tenantCreateView').classList.remove('visible');
+            document.getElementById('tenantEditView').classList.remove('visible');
+        };
+
+        // Switch to the create-tenant form view.
+        window.showCreateTenantForm = function() {
+            document.getElementById('tenantListView').classList.remove('visible');
+            document.getElementById('tenantCreateView').classList.add('visible');
+            document.getElementById('tenantEditView').classList.remove('visible');
+
+            // Render a blank form into the create container.
+            const body = document.getElementById('tenantCreateFormBody');
+            body.innerHTML = '';
+            body.appendChild(renderTenantForm(null, false));
+        };
+
+        // ── loadTenants ──────────────────────────────────────────────
+        // Query the top-level `tenants` collection and render the table.
+        // Admin users have Firestore read access via security rules.
+        window.loadTenants = async function() {
+            if (!db) {
+                document.getElementById('tenantTableWrap').innerHTML =
+                    '<div class="ac-empty" style="color:var(--ac-danger);">Firestore not initialized.</div>';
+                return;
+            }
+
+            document.getElementById('tenantTableWrap').innerHTML =
+                '<div class="ac-loading"><div class="ac-spinner"></div>Loading tenants...</div>';
+
+            try {
+                const { collection, getDocs, orderBy, query } = _firestoreModule;
+                const q = query(collection(db, 'tenants'), orderBy('createdAt', 'desc'));
+                const snap = await getDocs(q);
+
+                _tenantsCache = [];
+                snap.forEach(d => _tenantsCache.push({ id: d.id, ...d.data() }));
+
+                renderTenantTable(_tenantsCache);
+            } catch (e) {
+                document.getElementById('tenantTableWrap').innerHTML =
+                    '<div class="ac-empty" style="color:var(--ac-danger);">Failed to load tenants: ' + escHtml(e.message) + '</div>';
+            }
+        };
+
+        // ── renderTenantTable ────────────────────────────────────────
+        // Render the ac-table rows from an array of tenant objects.
+        function renderTenantTable(tenants) {
+            const wrap = document.getElementById('tenantTableWrap');
+
+            if (!tenants || tenants.length === 0) {
+                wrap.innerHTML = '<div class="ac-empty">No tenants found. Create the first one.</div>';
+                return;
+            }
+
+            const table = document.createElement('div');
+            table.className = 'ac-table-wrap';
+
+            // Build header
+            let html = '<table class="ac-table"><thead><tr>';
+            html += '<th>Status</th><th>Name</th><th>Slug</th><th>Tier</th><th>Variant</th><th>Seats</th><th>Expires</th><th>Actions</th>';
+            html += '</tr></thead><tbody>';
+
+            tenants.forEach(t => {
+                const status   = t.status || 'inactive';
+                const dotClass = status === 'active' ? 'active' : (status === 'trial' ? 'trial' : 'inactive');
+                const tier     = t.licensing?.tier || '--';
+                const tierBadgeClass = 'ac-badge-' + (tier === 'analyst' || tier === 'team' || tier === 'academy' || tier === 'enterprise' ? tier : 'analyst');
+                const variant  = t.branding?.dashboardVariant || 'default';
+                const seats    = t.licensing?.maxSeats != null ? t.licensing.maxSeats : '--';
+                const expires  = t.licensing?.expiresAt ? t.licensing.expiresAt.split('T')[0] : '--';
+                const slug     = t.slug || t.id;
+                const name     = t.name || slug;
+
+                // Check expiry: warn if within 30 days or already past
+                const now = Date.now();
+                const expMs = t.licensing?.expiresAt ? new Date(t.licensing.expiresAt).getTime() : null;
+                const expiresStyle = expMs && expMs < now + 30 * 86400000
+                    ? (expMs < now ? 'color:var(--ac-danger);' : 'color:var(--ac-warning);')
+                    : '';
+
+                html += '<tr data-slug="' + escHtml(slug) + '" data-name="' + escHtml(name.toLowerCase()) + '">';
+                html += '<td><span class="ac-status-dot ' + dotClass + '"></span>' + escHtml(status) + '</td>';
+                html += '<td style="font-weight:500;">' + escHtml(name) + '</td>';
+                html += '<td style="font-family:monospace; font-size:0.78rem; color:var(--ac-text-muted);">' + escHtml(slug) + '</td>';
+                html += '<td><span class="ac-badge ' + tierBadgeClass + '">' + escHtml(tier) + '</span></td>';
+                html += '<td>' + escHtml(variant) + '</td>';
+                html += '<td>' + escHtml(String(seats)) + '</td>';
+                html += '<td style="' + expiresStyle + '">' + escHtml(expires) + '</td>';
+                html += '<td style="white-space:nowrap; display:flex; gap:6px; flex-wrap:wrap;">';
+                html += '<button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="showEditTenantForm(\'' + escHtml(slug) + '\')">Edit</button>';
+                html += '<a class="ac-btn ac-btn-ghost ac-btn-sm" href="https://' + escHtml(slug) + '.hexworth.app" target="_blank" rel="noopener">Dashboard</a>';
+
+                if (status === 'active') {
+                    html += '<button class="ac-btn ac-btn-warning ac-btn-sm" onclick="toggleTenantStatus(\'' + escHtml(slug) + '\', \'' + escHtml(name) + '\', \'active\')">Deactivate</button>';
+                } else {
+                    html += '<button class="ac-btn ac-btn-success ac-btn-sm" onclick="toggleTenantStatus(\'' + escHtml(slug) + '\', \'' + escHtml(name) + '\', \'' + escHtml(status) + '\')">Activate</button>';
+                }
+
+                html += '</td></tr>';
+            });
+
+            html += '</tbody></table>';
+            table.innerHTML = html;
+            wrap.innerHTML = '';
+            wrap.appendChild(table);
+        }
+
+        // ── filterTenantTable ────────────────────────────────────────
+        // Live-filter the rendered table rows by name or slug.
+        // Works against the in-memory cache so no extra Firestore reads.
+        window.filterTenantTable = function() {
+            const term = document.getElementById('tenantSearchInput').value.trim().toLowerCase();
+
+            if (!_tenantsCache) return;
+
+            if (!term) {
+                renderTenantTable(_tenantsCache);
+                return;
+            }
+
+            const filtered = _tenantsCache.filter(t => {
+                const name = (t.name || '').toLowerCase();
+                const slug = (t.slug || t.id || '').toLowerCase();
+                return name.includes(term) || slug.includes(term);
+            });
+
+            renderTenantTable(filtered);
+        };
+
+        // ── generateSlug ─────────────────────────────────────────────
+        // Convert a display name to a URL-safe slug.
+        // "University of Chicago Cyber Range" -> "university-of-chicago-cyber-range"
+        function generateSlug(name) {
+            return name
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')   // remove special chars
+                .trim()
+                .replace(/\s+/g, '-')            // spaces to hyphens
+                .replace(/-{2,}/g, '-');         // collapse consecutive hyphens
+        }
+
+        // ── renderTenantForm ─────────────────────────────────────────
+        // Build and return the create/edit form DOM element.
+        // Pass `tenant` for edit mode (pre-populates fields), null for create mode.
+        // Pass `isEdit=true` to wire the Save button to updateTenant() instead of createTenant().
+        function renderTenantForm(tenant, isEdit) {
+            const t = tenant || {};
+            const branding = t.branding || {};
+            const licensing = t.licensing || {};
+            const features = licensing.contentAccess?.features || {};
+
+            const slug = t.slug || '';
+
+            // Default expiry: 1 year from today
+            const defaultExpiry = new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0];
+            const expiryVal = licensing.expiresAt ? licensing.expiresAt.split('T')[0] : defaultExpiry;
+
+            // Determine default max seats per tier
+            const defaultSeats = { analyst: 1, team: 25, academy: 200, enterprise: 9999 };
+
+            // Admin UIDs joined for textarea
+            const adminUidsStr = (t.adminUids || []).join('\n');
+
+            // Build the form as a DocumentFragment to keep innerHTML minimal
+            // (only safe, non-user-data values are embedded via template literals)
+            const wrap = document.createElement('div');
+
+            // ── Row 1: Name + Slug ──
+            const row1 = document.createElement('div');
+            row1.className = 'ac-form-row';
+            row1.style.marginBottom = '12px';
+
+            const nameGroup = document.createElement('div');
+            nameGroup.className = 'ac-form-group';
+            const nameLabel = document.createElement('label');
+            nameLabel.className = 'ac-form-label';
+            nameLabel.textContent = 'Name *';
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'ac-form-input';
+            nameInput.id = 'tenantFormName';
+            nameInput.placeholder = 'University X Cyber Range';
+            nameInput.value = t.name || '';
+            nameInput.required = true;
+            nameInput.addEventListener('input', () => {
+                // Auto-generate slug only in create mode
+                if (!isEdit) {
+                    slugInput.value = generateSlug(nameInput.value);
+                }
+            });
+            nameGroup.appendChild(nameLabel);
+            nameGroup.appendChild(nameInput);
+
+            const slugGroup = document.createElement('div');
+            slugGroup.className = 'ac-form-group';
+            const slugLabel = document.createElement('label');
+            slugLabel.className = 'ac-form-label';
+            slugLabel.textContent = 'Slug *';
+            const slugInput = document.createElement('input');
+            slugInput.type = 'text';
+            slugInput.className = 'ac-form-input';
+            slugInput.id = 'tenantFormSlug';
+            slugInput.placeholder = 'university-x';
+            slugInput.value = slug;
+            slugInput.required = true;
+            // Lock slug in edit mode to prevent key changes
+            if (isEdit) {
+                slugInput.readOnly = true;
+                slugInput.style.opacity = '0.6';
+                slugInput.title = 'Slug is the document key and cannot be changed after creation.';
+            }
+            slugGroup.appendChild(slugLabel);
+            slugGroup.appendChild(slugInput);
+
+            row1.appendChild(nameGroup);
+            row1.appendChild(slugGroup);
+            wrap.appendChild(row1);
+
+            // ── Row 2: Tier + Dashboard Variant ──
+            const row2 = document.createElement('div');
+            row2.className = 'ac-form-row';
+            row2.style.marginBottom = '12px';
+
+            const tierGroup = document.createElement('div');
+            tierGroup.className = 'ac-form-group';
+            const tierLabel = document.createElement('label');
+            tierLabel.className = 'ac-form-label';
+            tierLabel.textContent = 'Tier';
+            const tierSel = document.createElement('select');
+            tierSel.className = 'ac-form-select';
+            tierSel.id = 'tenantFormTier';
+            ['analyst', 'team', 'academy', 'enterprise'].forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v.charAt(0).toUpperCase() + v.slice(1);
+                if ((licensing.tier || 'team') === v) opt.selected = true;
+                tierSel.appendChild(opt);
+            });
+            // Auto-update max seats when tier changes (create mode only)
+            tierSel.addEventListener('change', () => {
+                if (!isEdit) {
+                    seatsInput.value = defaultSeats[tierSel.value] || 50;
+                }
+            });
+            tierGroup.appendChild(tierLabel);
+            tierGroup.appendChild(tierSel);
+
+            const variantGroup = document.createElement('div');
+            variantGroup.className = 'ac-form-group';
+            const variantLabel = document.createElement('label');
+            variantLabel.className = 'ac-form-label';
+            variantLabel.textContent = 'Dashboard Variant';
+            const variantSel = document.createElement('select');
+            variantSel.className = 'ac-form-select';
+            variantSel.id = 'tenantFormVariant';
+            [['', 'default'], ['command-center', 'Command Center'], ['clean-ops', 'Clean Ops'], ['tactical-hud', 'Tactical HUD'], ['enterprise', 'Enterprise']].forEach(([v, label]) => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = label;
+                if ((branding.dashboardVariant || '') === v) opt.selected = true;
+                variantSel.appendChild(opt);
+            });
+            variantGroup.appendChild(variantLabel);
+            variantGroup.appendChild(variantSel);
+
+            row2.appendChild(tierGroup);
+            row2.appendChild(variantGroup);
+            wrap.appendChild(row2);
+
+            // ── Row 3: Primary Color + Secondary Color ──
+            const row3 = document.createElement('div');
+            row3.className = 'ac-form-row';
+            row3.style.marginBottom = '12px';
+
+            function makeColorGroup(labelText, fieldId, defaultVal, currentVal) {
+                const group = document.createElement('div');
+                group.className = 'ac-form-group';
+                const lbl = document.createElement('label');
+                lbl.className = 'ac-form-label';
+                lbl.textContent = labelText;
+
+                const colorRow = document.createElement('div');
+                colorRow.className = 'ac-color-row';
+
+                // Hidden native color picker
+                const picker = document.createElement('input');
+                picker.type = 'color';
+                picker.id = fieldId + 'Picker';
+                picker.value = currentVal || defaultVal;
+
+                // Visible color swatch (clicking opens the native picker)
+                const swatch = document.createElement('span');
+                swatch.className = 'ac-color-swatch';
+                swatch.id = fieldId + 'Swatch';
+                swatch.style.background = currentVal || defaultVal;
+                swatch.title = 'Click to pick color';
+                swatch.addEventListener('click', () => picker.click());
+
+                // Text input for hex value
+                const textIn = document.createElement('input');
+                textIn.type = 'text';
+                textIn.className = 'ac-form-input';
+                textIn.id = fieldId;
+                textIn.value = currentVal || defaultVal;
+                textIn.placeholder = defaultVal;
+                textIn.maxLength = 7;
+
+                // Keep swatch, picker, and text input in sync
+                picker.addEventListener('input', () => {
+                    textIn.value = picker.value;
+                    swatch.style.background = picker.value;
+                });
+                textIn.addEventListener('input', () => {
+                    const val = textIn.value;
+                    if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+                        swatch.style.background = val;
+                        picker.value = val;
+                    }
+                });
+
+                colorRow.appendChild(picker);
+                colorRow.appendChild(swatch);
+                colorRow.appendChild(textIn);
+                group.appendChild(lbl);
+                group.appendChild(colorRow);
+                return group;
+            }
+
+            row3.appendChild(makeColorGroup('Primary Color', 'tenantFormPrimary', '#06b6d4', branding.primaryColor));
+            row3.appendChild(makeColorGroup('Secondary Color', 'tenantFormSecondary', '#8b5cf6', branding.secondaryColor));
+            wrap.appendChild(row3);
+
+            // ── Row 4: Logo URL + Tagline ──
+            const row4 = document.createElement('div');
+            row4.className = 'ac-form-row';
+            row4.style.marginBottom = '12px';
+
+            const logoGroup = document.createElement('div');
+            logoGroup.className = 'ac-form-group';
+            const logoLabel = document.createElement('label');
+            logoLabel.className = 'ac-form-label';
+            logoLabel.textContent = 'Logo URL';
+            const logoInput = document.createElement('input');
+            logoInput.type = 'text';
+            logoInput.className = 'ac-form-input';
+            logoInput.id = 'tenantFormLogo';
+            logoInput.placeholder = 'https://...';
+            logoInput.value = branding.logo || '';
+            logoGroup.appendChild(logoLabel);
+            logoGroup.appendChild(logoInput);
+
+            const taglineGroup = document.createElement('div');
+            taglineGroup.className = 'ac-form-group';
+            const taglineLabel = document.createElement('label');
+            taglineLabel.className = 'ac-form-label';
+            taglineLabel.textContent = 'Tagline';
+            const taglineInput = document.createElement('input');
+            taglineInput.type = 'text';
+            taglineInput.className = 'ac-form-input';
+            taglineInput.id = 'tenantFormTagline';
+            taglineInput.placeholder = 'Cybersecurity Training Platform';
+            taglineInput.value = branding.tagline || '';
+            taglineGroup.appendChild(taglineLabel);
+            taglineGroup.appendChild(taglineInput);
+
+            row4.appendChild(logoGroup);
+            row4.appendChild(taglineGroup);
+            wrap.appendChild(row4);
+
+            // ── Row 5: Max Seats + Expiration Date ──
+            const row5 = document.createElement('div');
+            row5.className = 'ac-form-row';
+            row5.style.marginBottom = '12px';
+
+            const seatsGroup = document.createElement('div');
+            seatsGroup.className = 'ac-form-group';
+            const seatsLabel = document.createElement('label');
+            seatsLabel.className = 'ac-form-label';
+            seatsLabel.textContent = 'Max Seats';
+            const seatsInput = document.createElement('input');
+            seatsInput.type = 'number';
+            seatsInput.className = 'ac-form-input';
+            seatsInput.id = 'tenantFormSeats';
+            seatsInput.min = '1';
+            seatsInput.value = licensing.maxSeats != null ? licensing.maxSeats : 50;
+            seatsGroup.appendChild(seatsLabel);
+            seatsGroup.appendChild(seatsInput);
+
+            const expiryGroup = document.createElement('div');
+            expiryGroup.className = 'ac-form-group';
+            const expiryLabel = document.createElement('label');
+            expiryLabel.className = 'ac-form-label';
+            expiryLabel.textContent = 'Expiration Date';
+            const expiryInput = document.createElement('input');
+            expiryInput.type = 'date';
+            expiryInput.className = 'ac-form-input';
+            expiryInput.id = 'tenantFormExpiry';
+            expiryInput.value = expiryVal;
+            expiryGroup.appendChild(expiryLabel);
+            expiryGroup.appendChild(expiryInput);
+
+            row5.appendChild(seatsGroup);
+            row5.appendChild(expiryGroup);
+            wrap.appendChild(row5);
+
+            // ── Features checkboxes ──
+            const featGroup = document.createElement('div');
+            featGroup.className = 'ac-form-group';
+            featGroup.style.marginBottom = '12px';
+            const featLabel = document.createElement('label');
+            featLabel.className = 'ac-form-label';
+            featLabel.textContent = 'Features';
+            featGroup.appendChild(featLabel);
+
+            const checkGrid = document.createElement('div');
+            checkGrid.className = 'ac-checkbox-grid';
+
+            const featureDefs = [
+                { id: 'tenantFeatVsMode',      label: 'VS Mode',        key: 'vsMode',        defaultOn: false },
+                { id: 'tenantFeatWireshark',   label: 'Wireshark Hub',  key: 'wiresharkHub',  defaultOn: true  },
+                { id: 'tenantFeatForensics',   label: 'Forensics Hub',  key: 'forensicsHub',  defaultOn: true  },
+                { id: 'tenantFeatBugHunting',  label: 'Bug Hunting',    key: 'bugHunting',    defaultOn: true  },
+                { id: 'tenantFeatCodeRunner',  label: 'Code Runner',    key: 'codeRunner',    defaultOn: true  }
+            ];
+
+            featureDefs.forEach(({ id, label, key, defaultOn }) => {
+                const item = document.createElement('label');
+                item.className = 'ac-checkbox-item';
+
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.id = id;
+                // In edit mode use the stored value; in create mode use the default.
+                cb.checked = features[key] != null ? features[key] : defaultOn;
+
+                const span = document.createElement('span');
+                span.textContent = label;
+
+                item.appendChild(cb);
+                item.appendChild(span);
+                checkGrid.appendChild(item);
+            });
+
+            featGroup.appendChild(checkGrid);
+            wrap.appendChild(featGroup);
+
+            // ── Admin UIDs textarea ──
+            const adminGroup = document.createElement('div');
+            adminGroup.className = 'ac-form-group';
+            adminGroup.style.marginBottom = '20px';
+            const adminLabel = document.createElement('label');
+            adminLabel.className = 'ac-form-label';
+            adminLabel.textContent = 'Admin UIDs (one per line)';
+            const adminTextarea = document.createElement('textarea');
+            adminTextarea.className = 'ac-form-input';
+            adminTextarea.id = 'tenantFormAdminUids';
+            adminTextarea.rows = 3;
+            adminTextarea.placeholder = 'firebase-uid-1\nfirebase-uid-2';
+            adminTextarea.style.resize = 'vertical';
+            adminTextarea.style.fontFamily = 'monospace';
+            adminTextarea.style.fontSize = '0.8rem';
+            adminTextarea.value = adminUidsStr;
+            adminGroup.appendChild(adminLabel);
+            adminGroup.appendChild(adminTextarea);
+            wrap.appendChild(adminGroup);
+
+            // ── Form action buttons ──
+            const actions = document.createElement('div');
+            actions.style.cssText = 'display:flex; gap:10px; justify-content:flex-end;';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'ac-btn ac-btn-ghost';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.addEventListener('click', showTenantListView);
+
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'ac-btn ac-btn-primary';
+            saveBtn.textContent = isEdit ? 'Save Changes' : 'Create Tenant';
+            saveBtn.addEventListener('click', () => {
+                if (isEdit) {
+                    saveTenantEdit(slug);
+                } else {
+                    submitCreateTenant();
+                }
+            });
+
+            actions.appendChild(cancelBtn);
+            actions.appendChild(saveBtn);
+            wrap.appendChild(actions);
+
+            return wrap;
+        }
+
+        // ── readTenantFormData ────────────────────────────────────────
+        // Collect and validate all form field values. Returns null on validation
+        // failure (toast already shown). Returns the structured tenant update object
+        // matching tenant-admin.js field paths for Firestore dot-notation updates.
+        function readTenantFormData(isCreate) {
+            const name = document.getElementById('tenantFormName').value.trim();
+            const slug = document.getElementById('tenantFormSlug').value.trim();
+            const tier = document.getElementById('tenantFormTier').value;
+            const variant = document.getElementById('tenantFormVariant').value;
+            const primary = document.getElementById('tenantFormPrimary').value.trim() || '#06b6d4';
+            const secondary = document.getElementById('tenantFormSecondary').value.trim() || '#8b5cf6';
+            const logo = document.getElementById('tenantFormLogo').value.trim();
+            const tagline = document.getElementById('tenantFormTagline').value.trim();
+            const seats = parseInt(document.getElementById('tenantFormSeats').value) || 50;
+            const expiry = document.getElementById('tenantFormExpiry').value;
+
+            // Parse admin UIDs -- split on newlines, filter blank lines
+            const adminUids = document.getElementById('tenantFormAdminUids').value
+                .split('\n')
+                .map(u => u.trim())
+                .filter(u => u.length > 0);
+
+            // Read feature checkboxes
+            const vsMode     = document.getElementById('tenantFeatVsMode').checked;
+            const wireshark  = document.getElementById('tenantFeatWireshark').checked;
+            const forensics  = document.getElementById('tenantFeatForensics').checked;
+            const bugHunting = document.getElementById('tenantFeatBugHunting').checked;
+            const codeRunner = document.getElementById('tenantFeatCodeRunner').checked;
+
+            // Validate required fields
+            if (!name) { showToast('Name is required.', 'error'); return null; }
+            if (!slug)  { showToast('Slug is required.', 'error'); return null; }
+            if (!/^[a-z0-9-]+$/.test(slug)) {
+                showToast('Slug must contain only lowercase letters, numbers, and hyphens.', 'error');
+                return null;
+            }
+
+            return {
+                name,
+                slug,
+                tier,
+                variant,
+                primary,
+                secondary,
+                logo,
+                tagline,
+                seats,
+                expiry,
+                adminUids,
+                features: { vsMode, wiresharkHub: wireshark, forensicsHub: forensics, bugHunting, codeRunner }
+            };
+        }
+
+        // ── createTenant ─────────────────────────────────────────────
+        // Write a new document to tenants/{slug}.
+        // Mirrors the createDefaultTenant() structure in tenant-admin.js exactly.
+        window.createTenant = async function(data) {
+            if (!db) { showToast('Firestore not initialized.', 'error'); return; }
+
+            const { doc, setDoc } = _firestoreModule;
+            const now = new Date().toISOString();
+
+            // Build the full tenant document matching the CLI schema
+            const tenantDoc = {
+                tenantId: data.slug,
+                name: data.name,
+                slug: data.slug,
+
+                branding: {
+                    logo: data.logo,
+                    favicon: '',
+                    primaryColor: data.primary,
+                    secondaryColor: data.secondary,
+                    backgroundColor: '#0a0a0f',
+                    headerColor: '#0d1117',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    customCSS: '',
+                    platformName: data.name,
+                    tagline: data.tagline || 'Cybersecurity Training Platform',
+                    dashboardVariant: data.variant || null,
+                    terminology: {}
+                },
+
+                licensing: {
+                    tier: data.tier,
+                    contentAccess: {
+                        series: [],
+                        houses: [],
+                        hubs: [],
+                        features: {
+                            vsMode:       data.features.vsMode,
+                            chatbots:     data.tier === 'enterprise',
+                            bugHunting:   data.features.bugHunting,
+                            codeRunner:   data.features.codeRunner,
+                            wiresharkHub: data.features.wiresharkHub,
+                            forensicsHub: data.features.forensicsHub
+                        }
+                    },
+                    maxSeats: data.seats,
+                    expiresAt: data.expiry ? new Date(data.expiry).toISOString() : new Date(Date.now() + 365 * 86400000).toISOString()
+                },
+
+                domain: {
+                    type: 'subdomain',
+                    subdomain: data.slug,
+                    customDomain: null
+                },
+
+                auth: {
+                    method: 'firebase',
+                    allowAnonymous: false,
+                    allowGoogleSSO: true,
+                    samlConfig: null,
+                    oidcConfig: null
+                },
+
+                adminUids: data.adminUids,
+                createdAt: now,
+                updatedAt: now,
+                status: 'active'
+            };
+
+            await setDoc(doc(db, 'tenants', data.slug), tenantDoc);
+        };
+
+        // ── submitCreateTenant ────────────────────────────────────────
+        // Called by the Create form's Save button.
+        window.submitCreateTenant = async function() {
+            const data = readTenantFormData(true);
+            if (!data) return;
+
+            try {
+                // Prevent overwriting an existing tenant
+                const { doc, getDoc } = _firestoreModule;
+                const existing = await getDoc(doc(db, 'tenants', data.slug));
+                if (existing.exists()) {
+                    showToast('A tenant with slug "' + data.slug + '" already exists.', 'error');
+                    return;
+                }
+
+                await createTenant(data);
+                showToast('Tenant "' + data.name + '" created.', 'success');
+                _tenantsCache = null; // invalidate cache
+                showTenantListView();
+                loadTenants();
+            } catch (e) {
+                showToast('Create failed: ' + e.message, 'error');
+            }
+        };
+
+        // ── showEditTenantForm ────────────────────────────────────────
+        // Switch to edit view and populate the form with tenant data.
+        window.showEditTenantForm = async function(slug) {
+            if (!db) return;
+
+            document.getElementById('tenantListView').classList.remove('visible');
+            document.getElementById('tenantCreateView').classList.remove('visible');
+            document.getElementById('tenantEditView').classList.add('visible');
+
+            document.getElementById('tenantEditTitle').textContent = 'Edit Tenant: ' + slug;
+
+            // Try the cache first to avoid an extra read
+            let tenant = _tenantsCache ? _tenantsCache.find(t => t.slug === slug || t.id === slug) : null;
+
+            if (!tenant) {
+                try {
+                    const { doc, getDoc } = _firestoreModule;
+                    const snap = await getDoc(doc(db, 'tenants', slug));
+                    if (!snap.exists()) { showToast('Tenant not found.', 'error'); return; }
+                    tenant = { id: snap.id, ...snap.data() };
+                } catch (e) {
+                    showToast('Failed to load tenant: ' + e.message, 'error');
+                    return;
+                }
+            }
+
+            // Render the form pre-populated with tenant data
+            const body = document.getElementById('tenantEditFormBody');
+            body.innerHTML = '';
+            body.appendChild(renderTenantForm(tenant, true));
+
+            // Render the detail stats card
+            renderTenantDetailCard(tenant);
+        };
+
+        // ── renderTenantDetailCard ───────────────────────────────────
+        // Populate the "Tenant Details" stat card shown below the edit form.
+        function renderTenantDetailCard(tenant) {
+            const card = document.getElementById('tenantDetailCard');
+            const grid = document.getElementById('tenantDetailStats');
+            const links = document.getElementById('tenantDetailLinks');
+            card.style.display = '';
+
+            const slug = tenant.slug || tenant.id;
+            const tier = tenant.licensing?.tier || '--';
+            const seats = tenant.licensing?.maxSeats != null ? tenant.licensing.maxSeats : '--';
+            const expires = tenant.licensing?.expiresAt ? tenant.licensing.expiresAt.split('T')[0] : '--';
+            const admins = (tenant.adminUids || []).length;
+            const created = tenant.createdAt ? tenant.createdAt.split('T')[0] : '--';
+
+            // Stat cards -- active students and classes are placeholders until
+            // enrollment tracking is wired up (showing "--" as specified).
+            const stats = [
+                { label: 'Active Students', value: '--',     cls: '' },
+                { label: 'Active Classes',  value: '--',     cls: '' },
+                { label: 'Admin UIDs',      value: admins,   cls: '' },
+                { label: 'Seats',           value: seats,    cls: '' },
+                { label: 'Tier',            value: tier,     cls: '' },
+                { label: 'Created',         value: created,  cls: '' },
+                { label: 'Expires',         value: expires,  cls: '' }
+            ];
+
+            let html = '';
+            stats.forEach(s => {
+                html += '<div class="ac-stat-card ' + s.cls + '">';
+                html += '<div class="ac-stat-value">' + escHtml(String(s.value)) + '</div>';
+                html += '<div class="ac-stat-label">' + escHtml(s.label) + '</div>';
+                html += '</div>';
+            });
+            grid.innerHTML = html;
+
+            // Dashboard link
+            const dashUrl = 'https://' + slug + '.hexworth.app';
+            links.innerHTML = '';
+            const link = document.createElement('a');
+            link.href = dashUrl;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.className = 'ac-btn ac-btn-ghost ac-btn-sm';
+            link.textContent = 'Open Tenant Dashboard: ' + dashUrl;
+            links.appendChild(link);
+        }
+
+        // ── updateTenant ─────────────────────────────────────────────
+        // Write a partial update to tenants/{slug} using Firestore dot-notation
+        // keys, matching the strategy in cmdUpdate() in tenant-admin.js.
+        window.updateTenant = async function(slug, data) {
+            if (!db) { showToast('Firestore not initialized.', 'error'); return; }
+
+            const { doc, updateDoc } = _firestoreModule;
+            const updates = {
+                updatedAt: new Date().toISOString(),
+                name: data.name,
+                'branding.platformName': data.name,
+                'branding.primaryColor': data.primary,
+                'branding.secondaryColor': data.secondary,
+                'branding.logo': data.logo,
+                'branding.tagline': data.tagline,
+                'branding.dashboardVariant': data.variant || null,
+                'licensing.tier': data.tier,
+                'licensing.maxSeats': data.seats,
+                'licensing.expiresAt': data.expiry ? new Date(data.expiry).toISOString() : null,
+                'licensing.contentAccess.features.vsMode':       data.features.vsMode,
+                'licensing.contentAccess.features.wiresharkHub': data.features.wiresharkHub,
+                'licensing.contentAccess.features.forensicsHub': data.features.forensicsHub,
+                'licensing.contentAccess.features.bugHunting':   data.features.bugHunting,
+                'licensing.contentAccess.features.codeRunner':   data.features.codeRunner,
+                adminUids: data.adminUids
+            };
+
+            // Remove null values so we don't overwrite with null unintentionally
+            Object.keys(updates).forEach(k => { if (updates[k] === null || updates[k] === undefined) delete updates[k]; });
+
+            await updateDoc(doc(db, 'tenants', slug), updates);
+        };
+
+        // ── saveTenantEdit ────────────────────────────────────────────
+        // Called by the Edit form's Save button.
+        window.saveTenantEdit = async function(slug) {
+            const data = readTenantFormData(false);
+            if (!data) return;
+
+            try {
+                await updateTenant(slug, data);
+                showToast('Tenant "' + data.name + '" updated.', 'success');
+                _tenantsCache = null; // invalidate cache
+                showTenantListView();
+                loadTenants();
+            } catch (e) {
+                showToast('Save failed: ' + e.message, 'error');
+            }
+        };
+
+        // ── toggleTenantStatus ────────────────────────────────────────
+        // Flip a tenant between 'active' and 'suspended'.
+        // Uses showConfirm() for the deactivate direction as it's destructive.
+        window.toggleTenantStatus = function(slug, name, currentStatus) {
+            if (!db) return;
+
+            const isActive = currentStatus === 'active';
+            const newStatus = isActive ? 'suspended' : 'active';
+            const actionLabel = isActive ? 'Deactivate' : 'Activate';
+            const message = isActive
+                ? 'Suspend tenant "' + escHtml(name) + '"? Their dashboard will become inaccessible immediately.'
+                : 'Activate tenant "' + escHtml(name) + '"? Their dashboard will become accessible immediately.';
+
+            const doToggle = async () => {
+                try {
+                    const { doc, updateDoc } = _firestoreModule;
+                    await updateDoc(doc(db, 'tenants', slug), {
+                        status: newStatus,
+                        updatedAt: new Date().toISOString()
+                    });
+                    showToast('Tenant "' + name + '" ' + (isActive ? 'deactivated.' : 'activated.'), isActive ? 'warning' : 'success');
+                    _tenantsCache = null;
+                    loadTenants();
+                } catch (e) {
+                    showToast('Status change failed: ' + e.message, 'error');
+                }
+            };
+
+            // Only prompt for confirmation on the destructive (deactivate) path
+            if (isActive) {
+                showConfirm(actionLabel + ' Tenant', message, doToggle, true);
+            } else {
+                doToggle();
+            }
         };
 
         // =============================================================
