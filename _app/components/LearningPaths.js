@@ -82,7 +82,7 @@ class LearningPaths {
                 {
                     id: 'shield-crypto-intro',
                     title: 'Cryptography Introduction',
-                    type: 'applet',
+                    type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/key/presentations/key-encryption-basics.presentation.html',
@@ -127,7 +127,7 @@ class LearningPaths {
                 {
                     id: 'shield-web-security-headers-lab',
                     title: 'Web Security Headers Lab',
-                    type: 'applet',
+                    type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'games/shield-web-security-headers-lab.applet.html',
@@ -614,7 +614,7 @@ class LearningPaths {
                 {
                     id: 'cloud-api-foundations-lab',
                     title: 'API Foundations Lab',
-                    type: 'applet',
+                    type: 'lab',
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/games/cloud-api-foundations-lab.applet.html',
@@ -1228,7 +1228,7 @@ class LearningPaths {
                 {
                     id: 'eye-log-analysis-lab',
                     title: 'Log Analysis Lab',
-                    type: 'applet',
+                    type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'games/eye-log-analysis-lab.applet.html',
@@ -1246,7 +1246,7 @@ class LearningPaths {
                 {
                     id: 'eye-threat-hunting-lab',
                     title: 'Threat Hunting Lab',
-                    type: 'applet',
+                    type: 'lab',
                     difficulty: 'advanced',
                     duration: '30 min',
                     href: 'games/eye-threat-hunting-lab.applet.html',
@@ -2008,7 +2008,7 @@ class LearningPaths {
                 {
                     id: 'script-ubuntu-components',
                     title: 'Section 1: Linux System Overview',
-                    type: 'presentation',
+                    type: 'applet',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'houses/script/applets/linux/script-ubuntu-components.applet.html',
@@ -2055,7 +2055,7 @@ class LearningPaths {
                 {
                     id: 'script-linux-lab-002',
                     title: 'Section 3 Lab: File Navigation',
-                    type: 'lab',
+                    type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
                     href: 'houses/script/applets/linux/script-linux-lab-002-file-navigation.applet.html',
@@ -2074,7 +2074,7 @@ class LearningPaths {
                 {
                     id: 'script-linux-lab-001',
                     title: 'Section 4 Lab: User Identity',
-                    type: 'lab',
+                    type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
                     href: 'houses/script/applets/linux/script-linux-lab-001-user-identity.applet.html',
@@ -2103,7 +2103,7 @@ class LearningPaths {
                 {
                     id: 'script-macos-linux-lab',
                     title: 'Section 6: macOS & Linux',
-                    type: 'lab',
+                    type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/script/applets/linux/script-lab-macos-linux.applet.html',
@@ -2123,73 +2123,73 @@ class LearningPaths {
                 {
                     id: 'forge-aplus-core1-ch01',
                     title: 'Motherboards',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch01-motherboards/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch02',
                     title: 'Expansion Cards & Storage',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch02-expansion-storage/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch03',
                     title: 'Peripherals & Connectors',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch03-peripherals/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch04',
                     title: 'Printers & Multifunction Devices',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch04-printers/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch05',
                     title: 'Networking Fundamentals',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch05-networking/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch06',
                     title: 'TCP/IP & Network Services',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch06-tcpip/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch07',
                     title: 'Wireless Networking',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch07-wireless/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch08',
                     title: 'Cloud & Virtualization',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch08-cloud/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch09',
                     title: 'Laptops & Mobile Devices',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch09-laptops/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch10',
                     title: 'Mobile Device Configuration',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch10-mobile/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch11',
                     title: 'Troubleshooting Methodology',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch11-troubleshooting/index.html'
                 },
                 {
                     id: 'forge-aplus-core1-ch12',
                     title: 'Hardware & Network Troubleshooting',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch12-hw-network-troubleshooting/index.html'
                 },
                 {
@@ -2227,73 +2227,73 @@ class LearningPaths {
                 {
                     id: 'forge-aplus-core2-ch13',
                     title: 'Windows Editions & Features',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch13-windows-editions/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch14',
                     title: 'Windows Settings & Configuration',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch14-windows-settings/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch15',
                     title: 'Administrative Tools',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch15-admin-tools/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch16',
                     title: 'System Utilities',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch16-system-tools/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch17',
                     title: 'macOS & Linux Basics',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch17-macos-linux/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch18',
                     title: 'Users, Groups & Permissions',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch18-users-groups/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch19',
                     title: 'Security Fundamentals',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch19-security/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch20',
                     title: 'Malware Detection & Removal',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch20-malware/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch21',
                     title: 'Physical Security',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch21-physical-security/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch22',
                     title: 'Incident Response',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch22-incident-response/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch23',
                     title: 'Change Management',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch23-change-management/index.html'
                 },
                 {
                     id: 'forge-aplus-core2-ch24',
                     title: 'Documentation & Professionalism',
-                    type: 'chapter',
+                    type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch24-documentation/index.html'
                 }
             ]
@@ -6107,6 +6107,7 @@ class LearningPaths {
             description: 'Field-ready tool reference guides for IT and cybersecurity professionals',
             icon: '/assets/images/icons/icon-tools.webp',
             color: '#10b981',
+            courseHref: 'signal/toolkit/index.html',
             modules: [
                 {
                     id: 'signal-tool-arduino-ide',
