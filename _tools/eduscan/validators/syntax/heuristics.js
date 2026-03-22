@@ -22,6 +22,9 @@
  * - HEUR-014: onclick with hardcoded window.location redirect (bypasses routing, breaks tenant encapsulation)
  * - HEUR-015: eval() usage in non-sandbox code (code injection risk — should use Function() or safer alternatives)
  * - HEUR-016: document.write() usage (DOM clobbering, breaks page if called after load)
+ * - QUIZ-001: Quiz uses QuizEngine with serverGrading but still has client-side correct: fields (answer leak — redundant answers exposed)
+ * - QUIZ-002: Quiz uses QuizEngine WITHOUT serverGrading and has client-side correct: fields (answers fully exposed via View Source)
+ * - QUIZ-003: Quiz uses QuizEngine WITHOUT serverGrading and has NO correct: fields (quiz grades 0% — broken, no answers anywhere)
  */
 
 const fs = require('fs');
@@ -95,6 +98,7 @@ class HeuristicsValidator {
         issues.push(...this.checkHardcodedRedirects(file));
         issues.push(...this.checkEvalUsage(file));
         issues.push(...this.checkDocumentWrite(file));
+        issues.push(...this.checkQuizConfiguration(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -1065,6 +1069,82 @@ class HeuristicsValidator {
                 fix: 'Use createElement + appendChild, or set innerHTML on a container element'
             });
         }
+
+        return issues;
+    }
+
+    /**
+     * QUIZ-001/002/003: Quiz configuration integrity checks
+     *
+     * Validates that quizzes using QuizEngine are properly configured:
+     *
+     * QUIZ-001 (high): serverGrading: true BUT correct: fields still present.
+     *   The answers are redundant (server has them) but still exposed to
+     *   students via View Source. Security leak — remove client-side answers.
+     *
+     * QUIZ-002 (high): NO serverGrading, HAS correct: fields.
+     *   Answers are fully client-side — students can see them in source.
+     *   Should migrate to serverGrading: true with Firestore keys.
+     *
+     * QUIZ-003 (critical): NO serverGrading, NO correct: fields.
+     *   Quiz has no answers anywhere — grades everyone 0%. Broken quiz
+     *   that wastes student time and gives no credit.
+     *
+     * Only checks .quiz.html files (by naming convention) and files that
+     * contain "QuizEngine" in their content.
+     */
+    checkQuizConfiguration(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check files that use QuizEngine
+        if (!content.includes('QuizEngine')) return issues;
+
+        // Skip index pages that merely reference QuizEngine in links/text
+        if (file.path.endsWith('index.html')) return issues;
+
+        const hasServerGrading = /serverGrading\s*:\s*true/.test(content);
+        const hasClientAnswers = /\bcorrect\s*:\s*\d/.test(content);
+
+        // Count questions to distinguish real quizzes from pages that mention QuizEngine
+        const questionCount = (content.match(/question\s*:\s*['"]/g) || []).length;
+        if (questionCount < 2) return issues; // Not a real quiz
+
+        if (hasServerGrading && hasClientAnswers) {
+            // QUIZ-001: Server grading enabled but client answers still present
+            issues.push({
+                code: 'QUIZ-001',
+                severity: 'high',
+                category: 'quiz',
+                message: 'Quiz has serverGrading: true but still contains client-side correct: fields — answers exposed redundantly via View Source',
+                file: file.path,
+                line: this.getLineNumber(content, content.search(/\bcorrect\s*:\s*\d/)),
+                fix: 'Remove all correct: fields from questions — server-side gradeQuiz CF has the answers in Firestore'
+            });
+        } else if (!hasServerGrading && hasClientAnswers) {
+            // QUIZ-002: No server grading, client answers exposed
+            issues.push({
+                code: 'QUIZ-002',
+                severity: 'high',
+                category: 'quiz',
+                message: 'Quiz has client-side correct: fields without serverGrading — answers visible via View Source (' + questionCount + ' questions)',
+                file: file.path,
+                line: this.getLineNumber(content, content.search(/\bcorrect\s*:\s*\d/)),
+                fix: 'Add serverGrading: true, add houseId, seed answers to Firestore quiz_keys/, then remove correct: fields'
+            });
+        } else if (!hasServerGrading && !hasClientAnswers) {
+            // QUIZ-003: No answers anywhere — quiz is broken
+            issues.push({
+                code: 'QUIZ-003',
+                severity: 'critical',
+                category: 'quiz',
+                message: 'Quiz has NO serverGrading and NO correct: fields — grades everyone 0%. Broken quiz with ' + questionCount + ' questions',
+                file: file.path,
+                line: this.getLineNumber(content, content.search(/QuizEngine/)),
+                fix: 'Add serverGrading: true and houseId, then seed answers to Firestore quiz_keys/'
+            });
+        }
+        // serverGrading: true + no client answers = correct configuration, no issue
 
         return issues;
     }
