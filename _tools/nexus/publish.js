@@ -75,11 +75,15 @@ async function publishToFirestore(summary) {
 function buildSummary(hub, config, spokes, store, gateResult, duration) {
     const findings = store.findings || [];
 
-    // Severity counts from findings store
+    // Severity counts from EduScan report only (not all spokes combined).
+    // The TREASURE_MAP.json is the authoritative source for scan findings.
+    // Reading from the findings store would inflate counts with sprint items,
+    // spellbook entries, and other spoke data.
     const severity = {
         critical: 0, high: 0, medium: 0, low: 0, suspect: 0, warning: 0
     };
-    findings.forEach(f => {
+    const eduscanFindings = findings.filter(f => f.source === 'eduscan');
+    eduscanFindings.forEach(f => {
         if (severity.hasOwnProperty(f.severity)) {
             severity[f.severity]++;
         }
@@ -111,9 +115,9 @@ function buildSummary(hub, config, spokes, store, gateResult, duration) {
         spokeData[name] = entry;
     }
 
-    // Top 50 findings sorted by severity priority
+    // Top 50 EduScan findings sorted by severity priority
     const SEV_PRIORITY = { critical: 0, high: 1, medium: 2, suspect: 3, warning: 4, low: 5, info: 6 };
-    const topIssues = findings
+    const topIssues = eduscanFindings
         .slice()
         .sort((a, b) => (SEV_PRIORITY[a.severity] || 99) - (SEV_PRIORITY[b.severity] || 99))
         .slice(0, 50)
@@ -133,9 +137,28 @@ function buildSummary(hub, config, spokes, store, gateResult, duration) {
         }
     });
 
-    // Meta from the EduScan TREASURE_MAP if available
-    const eduStatus = spokes.eduscan ? hub.getSpokeStatus(spokes.eduscan) : {};
-    const filesScanned = eduStatus.totalFilesScanned || store.stats?.totalFilesScanned || 0;
+    // Read filesScanned and authoritative severity counts from the
+    // TREASURE_MAP report — this is the actual EduScan output, not the
+    // findings store which mixes in sprint items and other spoke data
+    let filesScanned = 0;
+    try {
+        const fs = require('fs');
+        const reportPath = path.resolve(__dirname, '../reports/TREASURE_MAP.json');
+        if (fs.existsSync(reportPath)) {
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            filesScanned = report.summary?.totalFilesScanned || 0;
+            // Override severity with authoritative EduScan counts
+            if (report.summary?.issuesBySeverity) {
+                const s = report.summary.issuesBySeverity;
+                severity.critical = s.critical || 0;
+                severity.high = s.high || 0;
+                severity.medium = s.medium || 0;
+                severity.low = s.low || 0;
+                severity.suspect = s.suspect || 0;
+                severity.warning = s.warning || 0;
+            }
+        }
+    } catch (e) { /* fallback to findings store counts */ }
 
     return {
         gate: gateResult.passed ? 'PASS' : 'FAIL',
