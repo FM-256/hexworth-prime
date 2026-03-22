@@ -1104,7 +1104,10 @@ class HeuristicsValidator {
         if (file.path.endsWith('index.html')) return issues;
 
         const hasServerGrading = /serverGrading\s*:\s*true/.test(content);
-        const hasClientAnswers = /\bcorrect\s*:\s*\d/.test(content);
+        // Match correct: N where it appears in a question context (near 'options:' or 'question:').
+        // Exclude correct: 0 in counter/tracker objects (e.g., { count: 0, correct: 0 }).
+        const hasClientAnswers = /\bcorrect\s*:\s*[1-9]/.test(content) ||
+            (/\bcorrect\s*:\s*0/.test(content) && /options\s*:\s*\[/.test(content));
 
         // Count questions to distinguish real quizzes from pages that mention QuizEngine
         const questionCount = (content.match(/question\s*:\s*['"]/g) || []).length;
