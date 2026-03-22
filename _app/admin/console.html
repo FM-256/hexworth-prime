@@ -2660,26 +2660,16 @@
         };
 
         // ── loadTenants ──────────────────────────────────────────────
-        // Query the top-level `tenants` collection and render the table.
-        // Admin users have Firestore read access via security rules.
+        // Fetches all tenants via the adminListTenants Cloud Function.
+        // Uses the Admin SDK server-side (bypasses Firestore rules).
         window.loadTenants = async function() {
-            if (!db) {
-                document.getElementById('tenantTableWrap').innerHTML =
-                    '<div class="ac-empty" style="color:var(--ac-danger);">Firestore not initialized.</div>';
-                return;
-            }
-
             document.getElementById('tenantTableWrap').innerHTML =
                 '<div class="ac-loading"><div class="ac-spinner"></div>Loading tenants...</div>';
 
             try {
-                const { collection, getDocs, orderBy, query } = _firestoreModule;
-                const q = query(collection(db, 'tenants'), orderBy('createdAt', 'desc'));
-                const snap = await getDocs(q);
-
-                _tenantsCache = [];
-                snap.forEach(d => _tenantsCache.push({ id: d.id, ...d.data() }));
-
+                const result = await FirebaseAuth.callFunction('adminListTenants', {});
+                const data = result.data || result;
+                _tenantsCache = data.tenants || [];
                 renderTenantTable(_tenantsCache);
             } catch (e) {
                 document.getElementById('tenantTableWrap').innerHTML =
@@ -3190,89 +3180,40 @@
         }
 
         // ── createTenant ─────────────────────────────────────────────
-        // Write a new document to tenants/{slug}.
-        // Mirrors the createDefaultTenant() structure in tenant-admin.js exactly.
+        // Calls the adminCreateTenant Cloud Function which builds the full
+        // tenant document server-side with validation and schema enforcement.
         window.createTenant = async function(data) {
-            if (!db) { showToast('Firestore not initialized.', 'error'); return; }
-
-            const { doc, setDoc } = _firestoreModule;
-            const now = new Date().toISOString();
-
-            // Build the full tenant document matching the CLI schema
-            const tenantDoc = {
-                tenantId: data.slug,
-                name: data.name,
+            await FirebaseAuth.callFunction('adminCreateTenant', {
                 slug: data.slug,
-
+                name: data.name,
+                tier: data.tier,
                 branding: {
-                    logo: data.logo,
-                    favicon: '',
                     primaryColor: data.primary,
                     secondaryColor: data.secondary,
-                    backgroundColor: '#0a0a0f',
-                    headerColor: '#0d1117',
-                    fontFamily: 'Inter, system-ui, sans-serif',
-                    customCSS: '',
-                    platformName: data.name,
-                    tagline: data.tagline || 'Cybersecurity Training Platform',
-                    dashboardVariant: data.variant || null,
-                    terminology: {}
+                    logo: data.logo,
+                    tagline: data.tagline,
+                    dashboardVariant: data.variant || null
                 },
-
                 licensing: {
-                    tier: data.tier,
-                    contentAccess: {
-                        series: [],
-                        houses: [],
-                        hubs: [],
-                        features: {
-                            vsMode:       data.features.vsMode,
-                            chatbots:     data.tier === 'enterprise',
-                            bugHunting:   data.features.bugHunting,
-                            codeRunner:   data.features.codeRunner,
-                            wiresharkHub: data.features.wiresharkHub,
-                            forensicsHub: data.features.forensicsHub
-                        }
-                    },
                     maxSeats: data.seats,
-                    expiresAt: data.expiry ? new Date(data.expiry).toISOString() : new Date(Date.now() + 365 * 86400000).toISOString()
+                    expiresAt: data.expiry ? new Date(data.expiry).toISOString() : null
                 },
-
-                domain: {
-                    type: 'subdomain',
-                    subdomain: data.slug,
-                    customDomain: null
-                },
-
-                auth: {
-                    method: 'firebase',
-                    allowAnonymous: false,
-                    allowGoogleSSO: true,
-                    samlConfig: null,
-                    oidcConfig: null
-                },
-
-                adminUids: data.adminUids,
-                createdAt: now,
-                updatedAt: now,
-                status: 'active'
-            };
-
-            await setDoc(doc(db, 'tenants', data.slug), tenantDoc);
+                features: data.features,
+                adminUids: data.adminUids
+            });
         };
 
         // ── submitCreateTenant ────────────────────────────────────────
-        // Called by the Create form's Save button.
+        // Called by the Create form's Save button. The Cloud Function
+        // handles slug uniqueness validation server-side.
         window.submitCreateTenant = async function() {
             const data = readTenantFormData(true);
             if (!data) return;
 
             try {
-                // Prevent overwriting an existing tenant
-                const { doc, getDoc } = _firestoreModule;
-                const existing = await getDoc(doc(db, 'tenants', data.slug));
-                if (existing.exists()) {
-                    showToast('A tenant with slug "' + data.slug + '" already exists.', 'error');
+                // Slug uniqueness is enforced by adminCreateTenant CF
+                if (false) {
+                    // Removed: direct Firestore check replaced by CF validation
                     return;
                 }
 
@@ -3302,10 +3243,11 @@
 
             if (!tenant) {
                 try {
-                    const { doc, getDoc } = _firestoreModule;
-                    const snap = await getDoc(doc(db, 'tenants', slug));
-                    if (!snap.exists()) { showToast('Tenant not found.', 'error'); return; }
-                    tenant = { id: snap.id, ...snap.data() };
+                    // Fetch via Cloud Function instead of direct Firestore read
+                    const result = await FirebaseAuth.callFunction('adminGetTenant', { slug: slug });
+                    const data = result.data || result;
+                    tenant = data.tenant;
+                    if (!tenant) { showToast('Tenant not found.', 'error'); return; }
                 } catch (e) {
                     showToast('Failed to load tenant: ' + e.message, 'error');
                     return;
@@ -3370,36 +3312,25 @@
         }
 
         // ── updateTenant ─────────────────────────────────────────────
-        // Write a partial update to tenants/{slug} using Firestore dot-notation
-        // keys, matching the strategy in cmdUpdate() in tenant-admin.js.
+        // Calls adminUpdateTenant Cloud Function which handles dot-notation
+        // field updates server-side with validation.
         window.updateTenant = async function(slug, data) {
-            if (!db) { showToast('Firestore not initialized.', 'error'); return; }
-
-            const { doc, updateDoc } = _firestoreModule;
-            const updates = {
-                updatedAt: new Date().toISOString(),
-                name: data.name,
-                'branding.platformName': data.name,
-                'branding.primaryColor': data.primary,
-                'branding.secondaryColor': data.secondary,
-                'branding.logo': data.logo,
-                'branding.tagline': data.tagline,
-                'branding.dashboardVariant': data.variant || null,
-                'licensing.tier': data.tier,
-                'licensing.maxSeats': data.seats,
-                'licensing.expiresAt': data.expiry ? new Date(data.expiry).toISOString() : null,
-                'licensing.contentAccess.features.vsMode':       data.features.vsMode,
-                'licensing.contentAccess.features.wiresharkHub': data.features.wiresharkHub,
-                'licensing.contentAccess.features.forensicsHub': data.features.forensicsHub,
-                'licensing.contentAccess.features.bugHunting':   data.features.bugHunting,
-                'licensing.contentAccess.features.codeRunner':   data.features.codeRunner,
-                adminUids: data.adminUids
-            };
-
-            // Remove null values so we don't overwrite with null unintentionally
-            Object.keys(updates).forEach(k => { if (updates[k] === null || updates[k] === undefined) delete updates[k]; });
-
-            await updateDoc(doc(db, 'tenants', slug), updates);
+            await FirebaseAuth.callFunction('adminUpdateTenant', {
+                slug: slug,
+                updates: {
+                    name: data.name,
+                    primaryColor: data.primary,
+                    secondaryColor: data.secondary,
+                    logo: data.logo,
+                    tagline: data.tagline,
+                    dashboardVariant: data.variant || null,
+                    tier: data.tier,
+                    maxSeats: data.seats,
+                    expiresAt: data.expiry ? new Date(data.expiry).toISOString() : null,
+                    features: data.features,
+                    adminUids: data.adminUids
+                }
+            });
         };
 
         // ── saveTenantEdit ────────────────────────────────────────────
@@ -3434,10 +3365,9 @@
 
             const doToggle = async () => {
                 try {
-                    const { doc, updateDoc } = _firestoreModule;
-                    await updateDoc(doc(db, 'tenants', slug), {
-                        status: newStatus,
-                        updatedAt: new Date().toISOString()
+                    await FirebaseAuth.callFunction('adminUpdateTenant', {
+                        slug: slug,
+                        updates: { status: newStatus }
                     });
                     showToast('Tenant "' + name + '" ' + (isActive ? 'deactivated.' : 'activated.'), isActive ? 'warning' : 'success');
                     _tenantsCache = null;

@@ -3028,3 +3028,306 @@ exports.getStudentProgress = onCall(cfOptions, async (request) => {
         role: isAdmin ? 'admin' : 'student'
     };
 });
+
+
+// ─── WL: Tenant Admin Cloud Functions ────────────────────────────────
+// Server-side CRUD for tenant management. Called from the admin console
+// UI. Uses requireAdmin() — only platform admins (custom claim or email
+// allowlist) can create/modify tenants. This ensures Firestore security
+// rules never need a write rule on the tenants collection.
+
+// Valid values for input validation
+const VALID_TIERS = ['analyst', 'team', 'academy', 'enterprise'];
+const VALID_DASHBOARD_VARIANTS = ['command-center', 'clean-ops', 'tactical-hud', 'enterprise'];
+
+/**
+ * Helper: build a default tenant document from required fields.
+ * Mirrors createDefaultTenant() in tenant-admin.js so both the CLI
+ * and Cloud Function produce identical schema.
+ */
+function buildTenantDoc(slug, name, tier) {
+    return {
+        tenantId: slug,
+        name: name,
+        slug: slug,
+        branding: {
+            logo: '',
+            favicon: '',
+            primaryColor: '#06b6d4',
+            secondaryColor: '#8b5cf6',
+            backgroundColor: '#0a0a0f',
+            headerColor: '#0d1117',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            customCSS: '',
+            platformName: name,
+            tagline: 'Cybersecurity Training Platform',
+            dashboardVariant: null,
+            terminology: {}
+        },
+        licensing: {
+            tier: tier,
+            contentAccess: {
+                series: [],
+                houses: [],
+                hubs: [],
+                features: {
+                    vsMode: tier === 'academy' || tier === 'enterprise',
+                    chatbots: tier === 'enterprise',
+                    bugHunting: true,
+                    codeRunner: true,
+                    wiresharkHub: true,
+                    forensicsHub: true
+                }
+            },
+            maxSeats: tier === 'analyst' ? 1 :
+                      tier === 'team' ? 25 :
+                      tier === 'academy' ? 200 : 9999,
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        domain: {
+            type: 'subdomain',
+            subdomain: slug,
+            customDomain: null
+        },
+        auth: {
+            method: 'firebase',
+            allowAnonymous: false,
+            allowGoogleSSO: true,
+            samlConfig: null,
+            oidcConfig: null
+        },
+        adminUids: [],
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        status: 'active'
+    };
+}
+
+/**
+ * adminListTenants — Returns all tenants for the admin console table.
+ * Strips sensitive fields (SAML/OIDC configs) from response.
+ */
+exports.adminListTenants = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const snap = await db.collection('tenants').orderBy('createdAt', 'desc').get();
+    const tenants = [];
+
+    snap.forEach(doc => {
+        const d = doc.data();
+        // Strip sensitive auth configs
+        if (d.auth) {
+            delete d.auth.samlConfig;
+            delete d.auth.oidcConfig;
+        }
+        tenants.push({ id: doc.id, ...d });
+    });
+
+    return { tenants };
+});
+
+/**
+ * adminGetTenant — Returns a single tenant's full config.
+ */
+exports.adminGetTenant = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { slug } = request.data || {};
+    if (!slug) throw new HttpsError('invalid-argument', 'Slug is required.');
+
+    const doc = await db.doc(`tenants/${slug}`).get();
+    if (!doc.exists) throw new HttpsError('not-found', `Tenant "${slug}" not found.`);
+
+    return { tenant: { id: doc.id, ...doc.data() } };
+});
+
+/**
+ * adminCreateTenant — Creates a new tenant with default schema.
+ * Validates slug uniqueness and required fields.
+ */
+exports.adminCreateTenant = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { slug, name, tier, branding, licensing, features, adminUids } = request.data || {};
+
+    // Validate required fields
+    if (!slug || typeof slug !== 'string') {
+        throw new HttpsError('invalid-argument', 'Slug is required.');
+    }
+    if (!name || typeof name !== 'string') {
+        throw new HttpsError('invalid-argument', 'Name is required.');
+    }
+
+    // Validate slug format: lowercase, hyphens, alphanumeric
+    const slugClean = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (slugClean !== slug) {
+        throw new HttpsError('invalid-argument', 'Slug must be lowercase alphanumeric with hyphens only.');
+    }
+    if (slug.length < 3 || slug.length > 50) {
+        throw new HttpsError('invalid-argument', 'Slug must be 3-50 characters.');
+    }
+
+    // Validate tier
+    const tenantTier = tier || 'team';
+    if (!VALID_TIERS.includes(tenantTier)) {
+        throw new HttpsError('invalid-argument', 'Invalid tier. Must be: ' + VALID_TIERS.join(', '));
+    }
+
+    // Check slug uniqueness
+    const existing = await db.doc(`tenants/${slug}`).get();
+    if (existing.exists) {
+        throw new HttpsError('already-exists', `Tenant "${slug}" already exists.`);
+    }
+
+    // Build the tenant document with defaults
+    const tenantDoc = buildTenantDoc(slug, name, tenantTier);
+
+    // Apply optional overrides from the request
+    if (branding) {
+        if (branding.primaryColor) tenantDoc.branding.primaryColor = branding.primaryColor;
+        if (branding.secondaryColor) tenantDoc.branding.secondaryColor = branding.secondaryColor;
+        if (branding.logo) tenantDoc.branding.logo = branding.logo;
+        if (branding.tagline) tenantDoc.branding.tagline = branding.tagline;
+        if (branding.dashboardVariant) {
+            if (!VALID_DASHBOARD_VARIANTS.includes(branding.dashboardVariant)) {
+                throw new HttpsError('invalid-argument', 'Invalid dashboard variant.');
+            }
+            tenantDoc.branding.dashboardVariant = branding.dashboardVariant;
+        }
+    }
+
+    if (licensing) {
+        if (licensing.maxSeats) tenantDoc.licensing.maxSeats = parseInt(licensing.maxSeats);
+        if (licensing.expiresAt) tenantDoc.licensing.expiresAt = licensing.expiresAt;
+    }
+
+    // Apply feature overrides
+    if (features && typeof features === 'object') {
+        Object.keys(features).forEach(key => {
+            if (tenantDoc.licensing.contentAccess.features.hasOwnProperty(key)) {
+                tenantDoc.licensing.contentAccess.features[key] = !!features[key];
+            }
+        });
+    }
+
+    // Apply admin UIDs
+    if (adminUids && Array.isArray(adminUids)) {
+        tenantDoc.adminUids = adminUids.filter(uid => typeof uid === 'string' && uid.trim());
+    }
+
+    // Write to Firestore
+    await db.doc(`tenants/${slug}`).set(tenantDoc);
+
+    return { slug, message: `Tenant "${name}" created successfully.` };
+});
+
+/**
+ * adminUpdateTenant — Updates an existing tenant's fields.
+ * Uses dot-notation for nested field updates so unchanged fields
+ * are preserved (not overwritten with defaults).
+ */
+exports.adminUpdateTenant = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { slug, updates } = request.data || {};
+    if (!slug) throw new HttpsError('invalid-argument', 'Slug is required.');
+    if (!updates || typeof updates !== 'object') {
+        throw new HttpsError('invalid-argument', 'Updates object is required.');
+    }
+
+    // Verify tenant exists
+    const doc = await db.doc(`tenants/${slug}`).get();
+    if (!doc.exists) throw new HttpsError('not-found', `Tenant "${slug}" not found.`);
+
+    // Build the Firestore update object with dot-notation keys
+    const firestoreUpdates = { updatedAt: FieldValue.serverTimestamp() };
+
+    // Branding fields
+    const brandingFields = [
+        'primaryColor', 'secondaryColor', 'backgroundColor', 'headerColor',
+        'fontFamily', 'customCSS', 'platformName', 'tagline', 'logo', 'favicon'
+    ];
+    brandingFields.forEach(field => {
+        if (updates[field] !== undefined) {
+            firestoreUpdates[`branding.${field}`] = updates[field];
+        }
+    });
+
+    // Dashboard variant (with validation)
+    if (updates.dashboardVariant !== undefined) {
+        if (updates.dashboardVariant && !VALID_DASHBOARD_VARIANTS.includes(updates.dashboardVariant)) {
+            throw new HttpsError('invalid-argument', 'Invalid dashboard variant.');
+        }
+        firestoreUpdates['branding.dashboardVariant'] = updates.dashboardVariant || null;
+    }
+
+    // Name
+    if (updates.name) {
+        firestoreUpdates.name = updates.name;
+        firestoreUpdates['branding.platformName'] = updates.name;
+    }
+
+    // Licensing fields
+    if (updates.tier) {
+        if (!VALID_TIERS.includes(updates.tier)) {
+            throw new HttpsError('invalid-argument', 'Invalid tier.');
+        }
+        firestoreUpdates['licensing.tier'] = updates.tier;
+    }
+    if (updates.maxSeats !== undefined) {
+        firestoreUpdates['licensing.maxSeats'] = parseInt(updates.maxSeats);
+    }
+    if (updates.expiresAt !== undefined) {
+        firestoreUpdates['licensing.expiresAt'] = updates.expiresAt;
+    }
+
+    // Features
+    if (updates.features && typeof updates.features === 'object') {
+        Object.keys(updates.features).forEach(key => {
+            firestoreUpdates[`licensing.contentAccess.features.${key}`] = !!updates.features[key];
+        });
+    }
+
+    // Admin UIDs
+    if (updates.adminUids !== undefined) {
+        if (!Array.isArray(updates.adminUids)) {
+            throw new HttpsError('invalid-argument', 'adminUids must be an array.');
+        }
+        firestoreUpdates.adminUids = updates.adminUids.filter(uid => typeof uid === 'string' && uid.trim());
+    }
+
+    // Status
+    if (updates.status) {
+        if (!['active', 'suspended', 'inactive'].includes(updates.status)) {
+            throw new HttpsError('invalid-argument', 'Invalid status.');
+        }
+        firestoreUpdates.status = updates.status;
+    }
+
+    await db.doc(`tenants/${slug}`).update(firestoreUpdates);
+
+    return { slug, message: `Tenant "${slug}" updated.`, fieldsUpdated: Object.keys(firestoreUpdates).length };
+});
+
+/**
+ * adminDeleteTenant — Soft-deletes a tenant by setting status to 'deleted'.
+ * Does NOT remove the Firestore document — data is preserved for audit.
+ */
+exports.adminDeleteTenant = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { slug } = request.data || {};
+    if (!slug) throw new HttpsError('invalid-argument', 'Slug is required.');
+
+    const doc = await db.doc(`tenants/${slug}`).get();
+    if (!doc.exists) throw new HttpsError('not-found', `Tenant "${slug}" not found.`);
+
+    await db.doc(`tenants/${slug}`).update({
+        status: 'deleted',
+        deletedAt: FieldValue.serverTimestamp(),
+        deletedBy: request.auth.uid,
+        updatedAt: FieldValue.serverTimestamp()
+    });
+
+    return { slug, message: `Tenant "${slug}" has been deactivated.` };
+});
