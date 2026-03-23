@@ -25,6 +25,7 @@
  * - QUIZ-001: Quiz uses QuizEngine with serverGrading but still has client-side correct: fields (answer leak — redundant answers exposed)
  * - QUIZ-002: Quiz uses QuizEngine WITHOUT serverGrading and has client-side correct: fields (answers fully exposed via View Source)
  * - QUIZ-003: Quiz uses QuizEngine WITHOUT serverGrading and has NO correct: fields (quiz grades 0% — broken, no answers anywhere)
+ * - QUIZ-004: Quiz REGRESSION — file was server-graded in baseline but serverGrading is now missing (an edit reverted the fix)
  */
 
 const fs = require('fs');
@@ -99,6 +100,7 @@ class HeuristicsValidator {
         issues.push(...this.checkEvalUsage(file));
         issues.push(...this.checkDocumentWrite(file));
         issues.push(...this.checkQuizConfiguration(file));
+        issues.push(...this.checkQuizRegression(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -1148,6 +1150,70 @@ class HeuristicsValidator {
             });
         }
         // serverGrading: true + no client answers = correct configuration, no issue
+
+        return issues;
+    }
+
+    /**
+     * QUIZ-004: Quiz regression detector
+     *
+     * Compares each quiz file against a baseline snapshot of known
+     * server-graded quizzes (quiz-baseline.json). If a file was
+     * previously verified as having serverGrading: true but no longer
+     * does, it means an edit reverted the server grading fix.
+     *
+     * This catches the exact regression pattern where:
+     * 1. Quiz is migrated to server-side grading (QC-21)
+     * 2. A later edit (path fix, CSS, accessibility) overwrites the file
+     * 3. serverGrading: true disappears
+     * 4. Quiz silently grades everyone 0%
+     *
+     * The baseline is regenerated after each successful QC-21 migration
+     * or quiz fix session. It lives at _tools/eduscan/quiz-baseline.json.
+     */
+    checkQuizRegression(file) {
+        const issues = [];
+
+        // Only check files that are in the baseline
+        if (!this._quizBaseline) {
+            try {
+                const baselinePath = require('path').resolve(__dirname, '../../quiz-baseline.json');
+                this._quizBaseline = JSON.parse(require('fs').readFileSync(baselinePath, 'utf8'));
+            } catch (e) {
+                this._quizBaseline = { quizzes: {} };
+            }
+        }
+
+        const baseline = this._quizBaseline.quizzes || {};
+        if (!baseline[file.path]) return issues; // Not in baseline, skip
+
+        // This file WAS server-graded. Is it still?
+        const hasServerGrading = /serverGrading\s*:\s*true/.test(file.content);
+
+        if (!hasServerGrading) {
+            issues.push({
+                code: 'QUIZ-004',
+                severity: 'critical',
+                category: 'quiz',
+                message: 'REGRESSION: serverGrading was removed from this quiz. It was verified server-graded on ' +
+                         (baseline[file.path].snapshotDate || 'unknown date') +
+                         '. An edit reverted the fix — quiz now grades 0%.',
+                file: file.path,
+                fix: 'Restore serverGrading: true and houseId to the QuizEngine config. Check git log for what changed.'
+            });
+        }
+
+        // Also check if houseId was removed (needed for server grading to work)
+        if (hasServerGrading && baseline[file.path].hasHouseId && !/houseId\s*:/.test(file.content)) {
+            issues.push({
+                code: 'QUIZ-004',
+                severity: 'critical',
+                category: 'quiz',
+                message: 'REGRESSION: houseId was removed from this server-graded quiz. Server grading will fail without it.',
+                file: file.path,
+                fix: 'Restore houseId to the QuizEngine config.'
+            });
+        }
 
         return issues;
     }
