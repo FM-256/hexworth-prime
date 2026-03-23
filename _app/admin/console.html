@@ -1867,6 +1867,22 @@
             color: var(--ac-text-muted);
         }
 
+        /* Delete button on individual comments — appears on hover */
+        .tk-comment-delete {
+            opacity: 0;
+            border: none;
+            background: transparent;
+            color: var(--ac-danger);
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+            transition: opacity 0.2s, background 0.2s;
+            margin-left: auto;
+        }
+        .tk-comment:hover .tk-comment-delete { opacity: 0.6; }
+        .tk-comment-delete:hover { opacity: 1 !important; background: var(--ac-danger-subtle); }
+
         .tk-comment-text {
             color: var(--ac-text-secondary);
             line-height: 1.4;
@@ -7730,12 +7746,13 @@
                 return;
             }
 
-            el.innerHTML = comments.map(function(c) {
+            el.innerHTML = comments.map(function(c, idx) {
                 const ts = c.timestamp ? formatAge(c.timestamp) : '';
                 return '<div class="tk-comment">'
                     + '<div class="tk-comment-header">'
                     + '<span class="tk-comment-author">' + escHtml(c.author || 'Unknown') + '</span>'
                     + '<span class="tk-comment-time">' + escHtml(ts) + '</span>'
+                    + '<button class="tk-comment-delete" onclick="event.stopPropagation(); deleteComment(' + idx + ')" title="Delete this note">x</button>'
                     + '</div>'
                     + '<div class="tk-comment-text">' + escHtml(c.text || '') + '</div>'
                     + '</div>';
@@ -7871,6 +7888,46 @@
             } catch (err) {
                 console.error('[Tasks] addComment error:', err);
                 showToast('Failed to post comment: ' + err.message, 'error');
+            }
+        };
+
+        // ── deleteComment ────────────────────────────────────────────
+        // Removes a comment from the task's comments array by index.
+        // Uses arrayRemove with the exact object to delete from Firestore.
+        window.deleteComment = async function(commentIndex) {
+            if (!window._tkSelectedId) return;
+
+            // Get the current task data from the onSnapshot cache
+            const taskId = window._tkSelectedId;
+            const { doc, getDoc, updateDoc, arrayRemove, serverTimestamp } = _firestoreModule;
+
+            try {
+                const snap = await getDoc(doc(db, '_admin_tasks', taskId));
+                if (!snap.exists()) return;
+                const comments = snap.data().comments || [];
+
+                if (commentIndex < 0 || commentIndex >= comments.length) return;
+
+                const commentToDelete = comments[commentIndex];
+
+                showConfirm(
+                    'Delete Note',
+                    'Remove this note by ' + escHtml(commentToDelete.author || 'Unknown') + '?',
+                    async function() {
+                        try {
+                            await updateDoc(doc(db, '_admin_tasks', taskId), {
+                                comments:  arrayRemove(commentToDelete),
+                                updatedAt: serverTimestamp()
+                            });
+                            showToast('Note deleted', 'success');
+                        } catch (err) {
+                            showToast('Failed to delete note: ' + err.message, 'error');
+                        }
+                    },
+                    true // destructive
+                );
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
             }
         };
 
