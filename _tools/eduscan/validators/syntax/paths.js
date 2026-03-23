@@ -132,6 +132,62 @@ const STRUCTURAL_DEPTH_RULES = [
         targetPattern: /components\//,
         exactDepth: 3,
         description: 'dispatch box pages'
+    },
+    {
+        // Forensics hub module pages - exactly 3 levels
+        // forensics(1)/sections(2)/advanced-forensics(3)/file.html → ../../../components/
+        filePattern: /^forensics\/sections\/[^/]+\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 3,
+        description: 'forensics hub module files'
+    },
+    {
+        // Wireshark hub module pages - exactly 3 levels
+        // wireshark(1)/sections(2)/security-analysis(3)/file.html → ../../../components/
+        filePattern: /^wireshark\/sections\/[^/]+\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 3,
+        description: 'wireshark hub module files'
+    },
+    {
+        // AI house certifications - exactly 4 levels
+        // houses(1)/ai(2)/certifications(3)/ai-102(4)/file.html → ../../../../components/
+        filePattern: /^houses\/ai\/certifications\/[^/]+\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 4,
+        description: 'AI certification module files'
+    },
+    {
+        // AI house advanced - exactly 3 levels
+        // houses(1)/ai(2)/advanced(3)/file.html → ../../../components/
+        filePattern: /^houses\/ai\/advanced\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 3,
+        description: 'AI advanced module files'
+    },
+    {
+        // AI house cortex subdirectories - exactly 4 levels
+        // houses(1)/ai(2)/cortex(3)/math(4)/file.html → ../../../../components/
+        filePattern: /^houses\/ai\/cortex\/[^/]+\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 4,
+        description: 'AI cortex module files'
+    },
+    {
+        // AI house azure-openai - exactly 3 levels
+        // houses(1)/ai(2)/azure-openai(3)/file.html → ../../../components/
+        filePattern: /^houses\/ai\/azure-openai\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 3,
+        description: 'AI azure-openai module files'
+    },
+    {
+        // Code house algorithm-chamber subdirectories - exactly 4 levels
+        // houses(1)/code(2)/algorithm-chamber(3)/sorting(4)/file.html → ../../../../components/
+        filePattern: /^houses\/code\/algorithm-chamber\/[^/]+\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 4,
+        description: 'algorithm chamber module files'
     }
 ];
 
