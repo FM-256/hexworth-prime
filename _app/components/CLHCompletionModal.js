@@ -422,6 +422,23 @@ class CLHCompletionModal {
                     if (uid) FirestoreManager.addXP(uid, this.xpEarned, this.moduleId + ' completed');
                 }
             }
+
+            // Register completion with ModuleProgress — feeds dashboard,
+            // Arctic tracking, Firestore sync, CompletionStamp, and XP.
+            // Gated to CLH modules only (prefix check) and guarded against
+            // ModuleProgress not being loaded (typeof check).
+            // silent: true prevents the CompletionStamp overlay from
+            // conflicting with this modal's animation.
+            if (this.moduleId && this.moduleId.startsWith('CLH-')) {
+                try {
+                    if (typeof ModuleProgress !== 'undefined') {
+                        var mpId = this.moduleId.toLowerCase();
+                        ModuleProgress.complete('script', mpId, { silent: true, returnToDashboard: false });
+                    }
+                } catch (e) {
+                    // Never interrupt the completion modal for a tracking error
+                }
+            }
         }
     }
 
