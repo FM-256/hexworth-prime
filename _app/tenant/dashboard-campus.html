@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="/components/TenantRouter.js"></script>
+    <script src="/components/TenantShell.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+        :root {
+            --cam-bg:        #0c0c14;
+            --cam-surface:   #14141e;
+            --cam-surface2:  #1a1a28;
+            --cam-border:    rgba(255,255,255,0.08);
+            --cam-primary:   #3b82f6;
+            --cam-secondary: #6366f1;
+            --cam-text:      #dce0e8;
+            --cam-text-sub:  #7a8094;
+            --cam-text-dim:  #3a3e50;
+            --cam-font:      Inter, system-ui, -apple-system, sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--cam-font);
+            background: var(--cam-bg);
+            color: var(--cam-text);
+            min-height: 100vh;
+        }
+
+        /* ── Loading screen ── */
+        #tenant-loader {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--cam-bg);
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        #tenant-loader.fade-out { opacity: 0; pointer-events: none; }
+
+        .loader-spinner {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--cam-border);
+            border-top-color: var(--cam-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loader-text  { color: var(--cam-text-sub); font-size: 0.85rem; }
+        .loader-error { color: #ef4444; font-size: 0.85rem; margin-top: 10px; display: none; }
+
+        #tenant-app {
+            display: none;
+            min-height: 100vh;
+        }
+
+        /* ── Hero banner ── */
+        .cam-hero {
+            background: linear-gradient(135deg, var(--cam-primary), var(--cam-secondary));
+            padding: 32px 28px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cam-hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(12,12,20,0.4));
+            pointer-events: none;
+        }
+
+        .cam-hero-logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .cam-hero-logo img {
+            width: 56px;
+            height: 56px;
+            object-fit: contain;
+        }
+
+        .cam-hero-text {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+        }
+
+        .cam-hero-name {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .cam-hero-tagline {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .cam-hero-actions {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cam-hero-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 7px 16px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .cam-hero-btn:hover { background: rgba(255,255,255,0.25); }
+
+        /* ── Announcement area ── */
+        .cam-announcements {
+            background: var(--cam-surface);
+            border-bottom: 1px solid var(--cam-border);
+            padding: 12px 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+        }
+
+        .cam-announce-label {
+            color: var(--cam-primary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.7rem;
+            flex-shrink: 0;
+        }
+
+        .cam-announce-text {
+            color: var(--cam-text-sub);
+        }
+
+        .cam-semester {
+            margin-left: auto;
+            color: var(--cam-text-dim);
+            font-size: 0.72rem;
+            flex-shrink: 0;
+        }
+
+        /* ── Content area ── */
+        .cam-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 28px 28px 48px;
+        }
+
+        .cam-section-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--cam-text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 16px;
+        }
+
+        /* ── Card grid ── */
+        .cam-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .cam-card {
+            background: var(--cam-surface);
+            border: 1px solid var(--cam-border);
+            border-radius: 10px;
+            padding: 20px 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: var(--cam-text);
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* School color accent — top border uses primary */
+        .cam-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--cam-primary), var(--cam-secondary));
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .cam-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.14);
+        }
+        .cam-card:hover::before { opacity: 1; }
+
+        .cam-card-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: var(--cam-surface2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .cam-card-icon img {
+            width: 26px;
+            height: 26px;
+            object-fit: contain;
+        }
+
+        .cam-card-text { flex: 1; min-width: 0; }
+
+        .cam-card-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .cam-card-desc {
+            font-size: 0.78rem;
+            color: var(--cam-text-sub);
+        }
+
+        .cam-card-arrow {
+            color: var(--cam-text-dim);
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        /* ── Manage Assignments ── */
+        .cam-manage {
+            text-align: center;
+        }
+
+        .cam-manage a {
+            display: inline-block;
+            padding: 10px 24px;
+            border: 1px solid var(--cam-border);
+            border-radius: 8px;
+            color: var(--cam-primary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cam-manage a:hover {
+            background: rgba(59,130,246,0.06);
+            border-color: var(--cam-primary);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 700px) {
+            .cam-hero { padding: 24px 16px; flex-wrap: wrap; }
+            .cam-hero-logo { width: 56px; height: 56px; }
+            .cam-hero-logo img { width: 36px; height: 36px; }
+            .cam-hero-name { font-size: 1.2rem; }
+            .cam-hero-actions { width: 100%; }
+            .cam-announcements { padding: 10px 16px; flex-wrap: wrap; }
+            .cam-content { padding: 20px 16px 40px; }
+            .cam-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Tenant Dashboard — Campus</h1>
+
+    <!-- ── Loading Screen ── -->
+    <div id="tenant-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text" id="loader-text">Connecting...</div>
+        <div class="loader-error" id="loader-error"></div>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <div id="tenant-app">
+        <!-- Hero banner -->
+        <div class="cam-hero" id="cam-hero">
+            <div class="cam-hero-logo" id="brand-logo-wrap">
+                <img id="brand-logo-img" src="/assets/images/icons/icon-books.webp" alt="">
+            </div>
+            <div class="cam-hero-text">
+                <div class="cam-hero-name" id="brand-name">Campus Portal</div>
+                <div class="cam-hero-tagline" id="cam-tagline">Training Platform</div>
+            </div>
+            <div class="cam-hero-actions">
+                <a class="cam-hero-btn" href="/tenant/instructor.html">Assignments</a>
+                <a class="cam-hero-btn" href="javascript:void(0)" onclick="if(typeof firebase!=='undefined'){firebase.auth().signOut()}location.href='/'">Sign Out</a>
+            </div>
+        </div>
+
+        <!-- Announcements -->
+        <div class="cam-announcements">
+            <span class="cam-announce-label">Announcements</span>
+            <span class="cam-announce-text" id="cam-announce">Welcome to your campus training portal.</span>
+            <span class="cam-semester" id="cam-semester"></span>
+        </div>
+
+        <!-- Content -->
+        <div class="cam-content">
+            <div class="cam-section-title">Your Courses &amp; Resources</div>
+            <div class="cam-grid" id="card-grid"></div>
+
+            <div class="cam-manage">
+                <a href="/tenant/instructor.html">Manage Assignments</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * Dashboard Campus Variant
+     * University/institutional theme. Hero banner with school colors from branding config.
+     */
+    (async function() {
+        var loaderText  = document.getElementById('loader-text');
+        var loaderError = document.getElementById('loader-error');
+
+        try {
+            var slug = new URLSearchParams(window.location.search).get('slug');
+            if (!slug) {
+                var pathMatch = window.location.pathname.match(/\/t\/([^\/]+)/);
+                if (pathMatch) { slug = pathMatch[1]; }
+            }
+            if (!slug) {
+                throw new Error('No tenant specified. Add ?slug=your-tenant to the URL.');
+            }
+
+            loaderText.textContent = 'Loading ' + slug + '...';
+
+            var response = await fetch('https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug=' + encodeURIComponent(slug));
+            if (!response.ok) {
+                var errData = await response.json().catch(function() { return {}; });
+                throw new Error(errData.error || 'Tenant not found (HTTP ' + response.status + ')');
+            }
+            var config = await response.json();
+
+            if (config.status !== 'active') {
+                throw new Error('This training environment is currently inactive.');
+            }
+
+            sessionStorage.setItem('hexworth_tenant', JSON.stringify({
+                slug: config.slug || slug,
+                branding: config.branding
+            }));
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/tenant-sw.js', { scope: '/' }).then(function(reg) {
+                    var sw = reg.installing || reg.waiting || reg.active;
+                    if (sw) sw.postMessage({ type: 'TENANT_ACTIVATE' });
+                    if (reg.active) reg.active.postMessage({ type: 'TENANT_ACTIVATE' });
+                }).catch(function() {});
+            }
+
+            loaderText.textContent = 'Applying configuration...';
+
+            /* Apply branding */
+            var b    = config.branding;
+            var root = document.documentElement;
+            var primary   = b.primaryColor   || '#3b82f6';
+            var secondary = b.secondaryColor || '#6366f1';
+            root.style.setProperty('--cam-primary',   primary);
+            root.style.setProperty('--cam-secondary', secondary);
+
+            /* Hero gradient uses school colors */
+            document.getElementById('cam-hero').style.background =
+                'linear-gradient(135deg, ' + primary + ', ' + secondary + ')';
+
+            document.title = (b.platformName || config.name) + ' -- Campus Portal';
+            document.getElementById('brand-name').textContent = escapeText(b.platformName || config.name);
+            document.getElementById('cam-tagline').textContent = escapeText(b.tagline || 'Campus Training Portal');
+
+            /* Logo */
+            if (b.logo) {
+                var logoImg = document.getElementById('brand-logo-img');
+                logoImg.src = b.logo;
+                logoImg.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+                document.getElementById('brand-logo-wrap').style.background = 'rgba(255,255,255,0.1)';
+            }
+
+            /* Semester info */
+            var now = new Date();
+            var month = now.getMonth();
+            var year = now.getFullYear();
+            var semester = (month >= 7) ? 'Fall ' + year : (month >= 4) ? 'Summer ' + year : 'Spring ' + year;
+            document.getElementById('cam-semester').textContent = semester;
+
+            /* Render tiles */
+            var features = (config.licensing && config.licensing.contentAccess && config.licensing.contentAccess.features) || {};
+            renderCards(features, config);
+
+            /* Reveal */
+            var loader = document.getElementById('tenant-loader');
+            loader.classList.add('fade-out');
+            setTimeout(function() { loader.remove(); }, 500);
+            document.getElementById('tenant-app').style.display = 'block';
+
+        } catch (err) {
+            loaderText.textContent    = 'Connection failed';
+            loaderError.textContent   = err.message;
+            loaderError.style.display = 'block';
+        }
+    })();
+
+    function renderCards(features, config) {
+        var items = [];
+
+        if (features.trainingRange) {
+            items.push({ name: 'Training Range', desc: 'CTF Arena', icon: '/assets/images/icons/icon-target.webp', href: '/arena/' });
+        }
+        if (features.vsMode) {
+            items.push({ name: 'VS Mode', desc: 'Live Red vs Blue', icon: '/assets/images/icons/icon-swords.webp', href: '/arena/boxes/ops-01-operation-shadowgate/' });
+        }
+        if (features.wiresharkHub) {
+            items.push({ name: 'Wireshark Hub', desc: 'Packet Analysis', icon: '/assets/images/icons/icon-magnifier.webp', href: '/wireshark/' });
+        }
+        if (features.forensicsHub) {
+            items.push({ name: 'Forensics Hub', desc: 'Digital Forensics', icon: '/assets/images/icons/icon-detective.webp', href: '/forensics/' });
+        }
+        if (features.bugHunting) {
+            items.push({ name: 'Bug Hunting Dojo', desc: 'Vulnerability Research', icon: '/assets/images/icons/icon-syringe.webp', href: '/dark-arts/vault/dojo/' });
+        }
+
+        var COURSE_MAP = {
+            'network-plus': { name: 'CompTIA Network+', desc: 'N10-009', icon: '/assets/images/icons/icon-globe.webp', href: '/lobby.html' },
+            'cyberops':     { name: 'CyberOps', desc: '200-201', icon: '/assets/images/icons/icon-shield.webp', href: '/lobby.html' },
+            'aplus-core1':  { name: 'CompTIA A+ Core 1', desc: '220-1101', icon: '/assets/images/icons/icon-wrench.webp', href: '/lobby.html' },
+            'aplus-core2':  { name: 'CompTIA A+ Core 2', desc: '220-1102', icon: '/assets/images/icons/icon-wrench.webp', href: '/lobby.html' },
+            'md-100':       { name: 'MD-100', desc: 'Windows Client', icon: '/assets/images/icons/icon-terminal.webp', href: '/lobby.html' },
+            'md-101':       { name: 'MD-101', desc: 'Windows Devices', icon: '/assets/images/icons/icon-terminal.webp', href: '/lobby.html' },
+            'feh':          { name: 'FEH', desc: 'Forensics & Ethical Hacking', icon: '/assets/images/icons/icon-magnifier.webp', href: '/lobby.html' }
+        };
+
+        var courses = (config.licensing && config.licensing.contentAccess && config.licensing.contentAccess.courses) || [];
+        courses.forEach(function(courseId) {
+            var c = COURSE_MAP[courseId];
+            if (c) items.push(c);
+        });
+
+        if (features.allCourses) {
+            items.push({ name: 'All Courses', desc: 'Browse full curriculum', icon: '/assets/images/icons/icon-books.webp', href: '/dashboard.html' });
+        }
+
+        var container = document.getElementById('card-grid');
+        container.innerHTML = items.map(function(item) {
+            return '<a class="cam-card" href="' + item.href + '">'
+                 + '<div class="cam-card-icon"><img src="' + item.icon + '" alt=""></div>'
+                 + '<div class="cam-card-text">'
+                 + '<div class="cam-card-name">' + escapeText(item.name) + '</div>'
+                 + '<div class="cam-card-desc">' + escapeText(item.desc) + '</div>'
+                 + '</div>'
+                 + '<span class="cam-card-arrow">&#8250;</span>'
+                 + '</a>';
+        }).join('');
+    }
+
+    function escapeText(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+    </script>
+    <script src="tenant-data.js"></script>
+    <script>
+    (function() {
+        var checkConfig = setInterval(function() {
+            var raw = sessionStorage.getItem('hexworth_tenant');
+            if (raw) {
+                clearInterval(checkConfig);
+                try {
+                    var data = JSON.parse(raw);
+                    if (typeof TenantData !== 'undefined') TenantData.init(data);
+                } catch (e) {
+                    console.error('[TenantData] Config parse error:', e);
+                }
+            }
+        }, 100);
+        setTimeout(function() { clearInterval(checkConfig); }, 15000);
+    })();
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="/components/TenantRouter.js"></script>
+    <script src="/components/TenantShell.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+        :root {
+            --ns-bg:        #050508;
+            --ns-surface:   #0a0a0f;
+            --ns-border:    rgba(57,255,20,0.15);
+            --ns-glow:      rgba(57,255,20,0.08);
+            --ns-primary:   #39ff14;
+            --ns-secondary: #1a8a0a;
+            --ns-text:      #b0ccb0;
+            --ns-text-sub:  #4a6a4a;
+            --ns-text-dim:  #2a3a2a;
+            --ns-danger:    #ff3333;
+            --ns-warning:   #ffaa00;
+            --ns-font:      'Courier New', 'Consolas', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--ns-font);
+            background: var(--ns-bg);
+            color: var(--ns-text);
+            min-height: 100vh;
+        }
+
+        /* ── Loading screen ── */
+        #tenant-loader {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--ns-bg);
+            z-index: 9999;
+            transition: opacity 0.4s;
+        }
+        #tenant-loader.fade-out { opacity: 0; pointer-events: none; }
+
+        .loader-spinner {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--ns-text-dim);
+            border-top-color: var(--ns-primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin-bottom: 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loader-text  { color: var(--ns-text-sub); font-size: 0.8rem; }
+        .loader-error { color: var(--ns-danger); font-size: 0.8rem; margin-top: 10px; display: none; }
+
+        #tenant-app {
+            display: none;
+            min-height: 100vh;
+        }
+
+        /* ── Alert area ── */
+        .ns-alerts {
+            background: rgba(57,255,20,0.03);
+            border-bottom: 1px solid var(--ns-border);
+            padding: 6px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.72rem;
+            color: var(--ns-text-sub);
+        }
+
+        .ns-alerts .ns-alert-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--ns-primary);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .ns-alerts .ns-alert-text { color: var(--ns-primary); }
+        .ns-alerts .ns-timestamp { margin-left: auto; color: var(--ns-text-dim); }
+
+        /* ── Header ── */
+        .ns-header {
+            background: var(--ns-surface);
+            border-bottom: 1px solid var(--ns-border);
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 48px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+
+        .ns-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ns-header-logo {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .ns-header-logo img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            filter: brightness(0.8) saturate(0.6);
+        }
+
+        .ns-operator {
+            font-size: 0.85rem;
+            color: var(--ns-primary);
+        }
+
+        .ns-cursor {
+            display: inline-block;
+            width: 7px;
+            height: 14px;
+            background: var(--ns-primary);
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .ns-header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 0.72rem;
+        }
+
+        .ns-header-link {
+            color: var(--ns-text-sub);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .ns-header-link:hover { color: var(--ns-primary); }
+
+        /* ── Platform name ── */
+        .ns-platform {
+            text-align: center;
+            padding: 24px 20px 8px;
+            font-size: 0.7rem;
+            color: var(--ns-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        .ns-platform-name {
+            color: var(--ns-text-sub);
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+        }
+
+        .ns-tagline {
+            color: var(--ns-text-dim);
+            font-size: 0.7rem;
+            margin-top: 4px;
+        }
+
+        /* ── Card grid ── */
+        .ns-grid {
+            max-width: 900px;
+            margin: 24px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .ns-card {
+            border: 1px solid var(--ns-border);
+            background: transparent;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--ns-text);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .ns-card:hover {
+            border-color: var(--ns-primary);
+            box-shadow: 0 0 12px var(--ns-glow), inset 0 0 12px var(--ns-glow);
+        }
+
+        .ns-card-icon {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ns-card-icon img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            filter: brightness(0.7) saturate(0.5);
+        }
+
+        .ns-card:hover .ns-card-icon img {
+            filter: brightness(1) saturate(0.8) drop-shadow(0 0 4px var(--ns-glow));
+        }
+
+        .ns-card-text { flex: 1; min-width: 0; }
+
+        .ns-card-name {
+            font-size: 0.8rem;
+            font-weight: 400;
+            color: var(--ns-text);
+        }
+
+        .ns-card-desc {
+            font-size: 0.68rem;
+            color: var(--ns-text-dim);
+            text-transform: uppercase;
+        }
+
+        .ns-card-status {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--ns-primary);
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        /* ── Manage Assignments ── */
+        .ns-manage {
+            max-width: 900px;
+            margin: 12px auto 40px;
+            padding: 0 20px;
+            text-align: center;
+        }
+
+        .ns-manage a {
+            display: inline-block;
+            padding: 8px 20px;
+            border: 1px solid var(--ns-border);
+            color: var(--ns-text-sub);
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-family: var(--ns-font);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .ns-manage a:hover {
+            border-color: var(--ns-primary);
+            color: var(--ns-primary);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .ns-alerts { padding: 6px 12px; font-size: 0.65rem; }
+            .ns-header { padding: 0 12px; }
+            .ns-grid { padding: 0 12px; grid-template-columns: 1fr; }
+            .ns-manage { padding: 0 12px; }
+        }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Tenant Dashboard — Nightshift</h1>
+
+    <!-- ── Loading Screen ── -->
+    <div id="tenant-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text" id="loader-text">&gt; connecting...</div>
+        <div class="loader-error" id="loader-error"></div>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <div id="tenant-app">
+        <!-- Alert area -->
+        <div class="ns-alerts">
+            <span class="ns-alert-dot"></span>
+            <span class="ns-alert-text">SYSTEMS NOMINAL</span>
+            <span>|</span>
+            <span id="ns-status-msg">All modules online</span>
+            <span class="ns-timestamp" id="ns-clock"></span>
+        </div>
+
+        <!-- Header -->
+        <header class="ns-header">
+            <div class="ns-header-left">
+                <div class="ns-header-logo" id="brand-logo-wrap">
+                    <img id="brand-logo-img" src="/assets/images/icons/icon-terminal.webp" alt="">
+                </div>
+                <span class="ns-operator">&gt; OPERATOR: <span id="operator-name">UNKNOWN</span><span class="ns-cursor"></span></span>
+            </div>
+            <div class="ns-header-right">
+                <a class="ns-header-link" href="/tenant/instructor.html">ASSIGNMENTS</a>
+                <a class="ns-header-link" href="javascript:void(0)" onclick="if(typeof firebase!=='undefined'){firebase.auth().signOut()}location.href='/'">LOGOUT</a>
+            </div>
+        </header>
+
+        <!-- Platform identifier -->
+        <div class="ns-platform">
+            <div class="ns-platform-name" id="brand-name">PLATFORM</div>
+            <div class="ns-tagline" id="ns-tagline">Secure Training Environment</div>
+        </div>
+
+        <!-- Card grid -->
+        <div class="ns-grid" id="card-grid"></div>
+
+        <!-- Manage Assignments -->
+        <div class="ns-manage">
+            <a href="/tenant/instructor.html">[MANAGE ASSIGNMENTS]</a>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * Dashboard Night Shift Variant
+     * SOC analyst night shift theme. Terminal-inspired, neon green, monospace.
+     */
+    (async function() {
+        var loaderText  = document.getElementById('loader-text');
+        var loaderError = document.getElementById('loader-error');
+
+        try {
+            var slug = new URLSearchParams(window.location.search).get('slug');
+            if (!slug) {
+                var pathMatch = window.location.pathname.match(/\/t\/([^\/]+)/);
+                if (pathMatch) { slug = pathMatch[1]; }
+            }
+            if (!slug) {
+                throw new Error('No tenant specified. Add ?slug=your-tenant to the URL.');
+            }
+
+            loaderText.textContent = '> loading ' + slug + '...';
+
+            var response = await fetch('https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug=' + encodeURIComponent(slug));
+            if (!response.ok) {
+                var errData = await response.json().catch(function() { return {}; });
+                throw new Error(errData.error || 'Tenant not found (HTTP ' + response.status + ')');
+            }
+            var config = await response.json();
+
+            if (config.status !== 'active') {
+                throw new Error('This training environment is currently inactive.');
+            }
+
+            sessionStorage.setItem('hexworth_tenant', JSON.stringify({
+                slug: config.slug || slug,
+                branding: config.branding
+            }));
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/tenant-sw.js', { scope: '/' }).then(function(reg) {
+                    var sw = reg.installing || reg.waiting || reg.active;
+                    if (sw) sw.postMessage({ type: 'TENANT_ACTIVATE' });
+                    if (reg.active) reg.active.postMessage({ type: 'TENANT_ACTIVATE' });
+                }).catch(function() {});
+            }
+
+            loaderText.textContent = '> applying config...';
+
+            /* Apply branding */
+            var b    = config.branding;
+            var root = document.documentElement;
+            root.style.setProperty('--ns-primary',   b.primaryColor   || '#39ff14');
+            root.style.setProperty('--ns-secondary', b.secondaryColor || '#1a8a0a');
+
+            document.title = (b.platformName || config.name) + ' // Night Shift';
+            document.getElementById('brand-name').textContent = escapeText((b.platformName || config.name).toUpperCase());
+
+            if (b.tagline) {
+                document.getElementById('ns-tagline').textContent = escapeText(b.tagline);
+            }
+
+            if (b.logo) {
+                var logoImg = document.getElementById('brand-logo-img');
+                logoImg.src = b.logo;
+                logoImg.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+            }
+
+            /* Operator name from Firebase Auth */
+            var opNameEl = document.getElementById('operator-name');
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                var user = firebase.auth().currentUser;
+                if (user && user.displayName) {
+                    opNameEl.textContent = escapeText(user.displayName.toUpperCase());
+                } else if (user && user.email) {
+                    opNameEl.textContent = escapeText(user.email.split('@')[0].toUpperCase());
+                }
+            }
+
+            /* Clock */
+            function updateClock() {
+                var now = new Date();
+                document.getElementById('ns-clock').textContent =
+                    now.toLocaleTimeString('en-US', { hour12: false }) + ' UTC' + (now.getTimezoneOffset() > 0 ? '-' : '+') + Math.abs(now.getTimezoneOffset() / 60);
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            /* Render tiles */
+            var features = (config.licensing && config.licensing.contentAccess && config.licensing.contentAccess.features) || {};
+            renderCards(features, config);
+
+            /* Reveal */
+            var loader = document.getElementById('tenant-loader');
+            loader.classList.add('fade-out');
+            setTimeout(function() { loader.remove(); }, 500);
+            document.getElementById('tenant-app').style.display = 'block';
+
+        } catch (err) {
+            loaderText.textContent    = '> ERROR';
+            loaderError.textContent   = err.message;
+            loaderError.style.display = 'block';
+        }
+    })();
+
+    function renderCards(features, config) {
+        var items = [];
+
+        if (features.trainingRange) {
+            items.push({ name: 'Training Range', desc: 'CTF Arena', icon: '/assets/images/icons/icon-target.webp', href: '/arena/' });
+        }
+        if (features.vsMode) {
+            items.push({ name: 'VS Mode', desc: 'Red vs Blue', icon: '/assets/images/icons/icon-swords.webp', href: '/arena/boxes/ops-01-operation-shadowgate/' });
+        }
+        if (features.wiresharkHub) {
+            items.push({ name: 'Wireshark Hub', desc: 'Packet Analysis', icon: '/assets/images/icons/icon-magnifier.webp', href: '/wireshark/' });
+        }
+        if (features.forensicsHub) {
+            items.push({ name: 'Forensics Hub', desc: 'Digital Forensics', icon: '/assets/images/icons/icon-detective.webp', href: '/forensics/' });
+        }
+        if (features.bugHunting) {
+            items.push({ name: 'Bug Hunting Dojo', desc: 'Vuln Research', icon: '/assets/images/icons/icon-syringe.webp', href: '/dark-arts/vault/dojo/' });
+        }
+
+        var COURSE_MAP = {
+            'network-plus': { name: 'CompTIA Network+', desc: 'N10-009', icon: '/assets/images/icons/icon-globe.webp', href: '/lobby.html' },
+            'cyberops':     { name: 'CyberOps', desc: '200-201', icon: '/assets/images/icons/icon-shield.webp', href: '/lobby.html' },
+            'aplus-core1':  { name: 'CompTIA A+ Core 1', desc: '220-1101', icon: '/assets/images/icons/icon-wrench.webp', href: '/lobby.html' },
+            'aplus-core2':  { name: 'CompTIA A+ Core 2', desc: '220-1102', icon: '/assets/images/icons/icon-wrench.webp', href: '/lobby.html' },
+            'md-100':       { name: 'MD-100', desc: 'Windows Client', icon: '/assets/images/icons/icon-terminal.webp', href: '/lobby.html' },
+            'md-101':       { name: 'MD-101', desc: 'Windows Devices', icon: '/assets/images/icons/icon-terminal.webp', href: '/lobby.html' },
+            'feh':          { name: 'FEH', desc: 'Forensics & Ethical Hacking', icon: '/assets/images/icons/icon-magnifier.webp', href: '/lobby.html' }
+        };
+
+        var courses = (config.licensing && config.licensing.contentAccess && config.licensing.contentAccess.courses) || [];
+        courses.forEach(function(courseId) {
+            var c = COURSE_MAP[courseId];
+            if (c) items.push(c);
+        });
+
+        if (features.allCourses) {
+            items.push({ name: 'All Courses', desc: 'Full Curriculum', icon: '/assets/images/icons/icon-books.webp', href: '/dashboard.html' });
+        }
+
+        var container = document.getElementById('card-grid');
+        container.innerHTML = items.map(function(item) {
+            return '<a class="ns-card" href="' + item.href + '">'
+                 + '<div class="ns-card-icon"><img src="' + item.icon + '" alt=""></div>'
+                 + '<div class="ns-card-text">'
+                 + '<div class="ns-card-name">' + escapeText(item.name) + '</div>'
+                 + '<div class="ns-card-desc">' + escapeText(item.desc) + '</div>'
+                 + '</div>'
+                 + '<div class="ns-card-status"></div>'
+                 + '</a>';
+        }).join('');
+    }
+
+    function escapeText(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+    </script>
+    <script src="tenant-data.js"></script>
+    <script>
+    (function() {
+        var checkConfig = setInterval(function() {
+            var raw = sessionStorage.getItem('hexworth_tenant');
+            if (raw) {
+                clearInterval(checkConfig);
+                try {
+                    var data = JSON.parse(raw);
+                    if (typeof TenantData !== 'undefined') TenantData.init(data);
+                } catch (e) {
+                    console.error('[TenantData] Config parse error:', e);
+                }
+            }
+        }, 100);
+        setTimeout(function() { clearInterval(checkConfig); }, 15000);
+    })();
+    </script>
+
+</body>
+</html>
