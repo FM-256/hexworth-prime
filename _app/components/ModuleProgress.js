@@ -1,15 +1,42 @@
 /**
  * ModuleProgress.js - Unified Module Completion Handler
  *
- * Handles:
- * - Saving module progress
- * - Triggering achievements (first_module, first_quiz)
- * - Updating learning streaks
- * - Tracking time spent
+ * Core completion tracking component for Hexworth Prime. Every module, quiz,
+ * lab, and presentation calls into this IIFE to record progress. It is the
+ * single source of truth for "did the student finish this thing?"
  *
- * Usage:
- *   ModuleProgress.complete('forge', 'windows-editions');
- *   ModuleProgress.completeQuiz('shield', 'security-quiz', 85);
+ * == Architecture ==
+ * ModuleProgress writes to TWO localStorage formats simultaneously:
+ *   1. FLAT format:   progress[houseId][moduleId] = { completed, date, score, ... }
+ *      - Legacy format, still read by older pages and some quiz UIs
+ *   2. STRUCTURED format: progress.houses[houseId].modulesCompleted = [...]
+ *      - Used by HouseProgressPanel, XP/leveling, and the dashboard
+ *      - Bridged here so pages that don't load ProgressManager.js still update it
+ *
+ * It also syncs to three remote destinations (all non-blocking, fail-silent):
+ *   - Firestore user profile (cross-device sync via FirestoreManager)
+ *   - Firestore instructor dashboard (via ProgressManager.syncToFirestore)
+ *   - Tenant class progress (via syncClassProgress Cloud Function)
+ *
+ * == Public API ==
+ *   ModuleProgress.complete(houseId, moduleId, options)   - Mark a module done
+ *   ModuleProgress.completeQuiz(houseId, quizId, score, options) - Mark quiz done
+ *   ModuleProgress.isCompleted(houseId, moduleId)         - Check completion
+ *   ModuleProgress.getModuleProgress(houseId, moduleId)   - Get full record
+ *   ModuleProgress.getStats()                             - Streak, counts, progress
+ *   ModuleProgress.updateStreak()                         - Manually bump streak
+ *   ModuleProgress.trackVisit(houseId, moduleId, meta)    - Record last location
+ *   ModuleProgress._goToDashboard()                       - Navigate to dashboard
+ *
+ * == Side Effects ==
+ *   - Writes to localStorage keys: hexworth_progress, hexworth_streak,
+ *     hexworth_last_study, hexworth_modules_completed, hexworth_quizzes_passed,
+ *     hexworth_activity_queue, hexworth_completion_stamps, hexworth_last_visited
+ *   - Lazy-loads Firebase/Firestore scripts into <head> when syncing
+ *   - Injects CSS styles and DOM overlay for completion UI
+ *   - Dispatches 'completionStamp:marked' CustomEvent on window
+ *   - Auto-tracks page visits on DOMContentLoaded
+ *   - Auto-loads TenantRouter.js / TenantShell.js if tenant context is active
  *
  * @author Hexworth Prime
  * @version 1.0.0
@@ -18,18 +45,26 @@
 const ModuleProgress = (function() {
     'use strict';
 
-    const PROGRESS_KEY = 'hexworth_progress';
-    const STREAK_KEY = 'hexworth_streak';
-    const LAST_STUDY_KEY = 'hexworth_last_study';
-    const MODULES_COMPLETED_KEY = 'hexworth_modules_completed';
-    const QUIZZES_PASSED_KEY = 'hexworth_quizzes_passed';
+    // ── localStorage Key Constants ──────────────────────────────
+    // Central registry of all keys this module owns. Other components
+    // (dashboard, HouseProgressPanel) read these but never write them.
+    const PROGRESS_KEY = 'hexworth_progress';           // Main progress blob (flat + structured)
+    const STREAK_KEY = 'hexworth_streak';               // Consecutive study-day count
+    const LAST_STUDY_KEY = 'hexworth_last_study';       // Date string of last study day
+    const MODULES_COMPLETED_KEY = 'hexworth_modules_completed'; // Lifetime module count
+    const QUIZZES_PASSED_KEY = 'hexworth_quizzes_passed';       // Lifetime passed-quiz count
 
+    // Cached promise for Firestore dependency loading — initialized once on first sync
     let firestoreSyncReady = null; // Promise that resolves when deps are loaded
 
     /**
      * Queue an activity event for the dashboard ActivityFeed.
      * Module pages don't load ActivityFeed.js, so we write to a
      * localStorage queue that gets drained on dashboard load.
+     *
+     * @param {string} type - Event type (e.g. 'module_complete')
+     * @param {object} data - Event payload (moduleId, title, etc.)
+     * @sideeffect Writes to localStorage key 'hexworth_activity_queue'
      */
     function queueActivityEvent(type, data) {
         try {
@@ -47,13 +82,24 @@ const ModuleProgress = (function() {
     /**
      * Lazy-load Firebase/Firestore dependencies and sync to instructor dashboard.
      * Loads scripts once, caches the result, fails silently if offline or unauthenticated.
+     *
+     * Loads these scripts in order (skipping any already present):
+     *   FirebaseAuth -> FirestoreManager -> ClassManager -> AssignmentManager -> ProgressManager
+     *
+     * After loading, initializes FirebaseAuth and waits up to 5s for auth state
+     * to resolve (the user may not be signed in yet when this runs).
+     *
+     * @returns {Promise<boolean>} true if ProgressManager.syncToFirestore is available
+     * @sideeffect Injects up to 5 <script> tags into <head>
      */
     async function ensureFirestoreDeps() {
+        // Short-circuit if ProgressManager is already loaded from another path
         if (typeof ProgressManager !== 'undefined' && ProgressManager.syncToFirestore) {
             return true;
         }
 
-        // Determine components path relative to this script
+        // Determine components path relative to this script's location,
+        // so it works regardless of how deep the calling page is nested
         const scripts = document.querySelectorAll('script[src*="ModuleProgress"]');
         let basePath = '';
         if (scripts.length > 0) {
@@ -69,6 +115,7 @@ const ModuleProgress = (function() {
             'ProgressManager.js'
         ];
 
+        // Load each dependency sequentially (order matters — ProgressManager needs FirebaseAuth)
         for (const dep of deps) {
             if (document.querySelector(`script[src*="${dep}"]`)) continue;
             await new Promise((resolve, reject) => {
@@ -105,6 +152,20 @@ const ModuleProgress = (function() {
     /**
      * Push completion to user's Firestore profile for cross-device sync.
      * Non-blocking, fails silently if offline or not signed in.
+     *
+     * Routes to the appropriate FirestoreManager method based on type:
+     *   - 'quiz' -> passQuiz (includes score)
+     *   - 'lab'  -> completeLab
+     *   - other  -> completeModule
+     *
+     * The compound ID "{houseId}-{moduleId}" is constructed here — callers
+     * pass the short moduleId only.
+     *
+     * @param {string} houseId - House slug
+     * @param {string} moduleId - Short module key
+     * @param {string} type - 'quiz', 'lab', or 'presentation'
+     * @param {object} metadata - Extra data (e.g. { score } for quizzes)
+     * @sideeffect Writes to Firestore users/{uid}/progress document
      */
     function pushToUserProfile(houseId, moduleId, type, metadata = {}) {
         try {
@@ -124,6 +185,58 @@ const ModuleProgress = (function() {
         }
     }
 
+    /**
+     * [TENANT] Sync completion to tenant class progress (if student is enrolled).
+     *
+     * Reads tenant/class context from sessionStorage (set by the tenant lobby
+     * when a student enters a class) or localStorage (fallback for older sessions).
+     * Calls the syncClassProgress Cloud Function so the instructor's class
+     * dashboard reflects the student's progress in real time.
+     *
+     * This is a no-op if the student is not in a tenant class context.
+     *
+     * @param {string} moduleId - Short module key
+     * @param {string} moduleType - 'module', 'quiz', 'lab', etc.
+     * @param {object} metadata - { score } for quizzes, empty otherwise
+     * @sideeffect Calls syncClassProgress Cloud Function (Firestore write server-side)
+     */
+    function tryClassProgressSync(moduleId, moduleType, metadata) {
+        try {
+            var tenantSlug = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant_slug');
+            var classId = sessionStorage.getItem('hexworth_class') || localStorage.getItem('hexworth_class_id');
+            if (!tenantSlug || !classId) return; // Not in a class
+
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.callFunction) {
+                FirebaseAuth.callFunction('syncClassProgress', {
+                    tenantSlug: tenantSlug,
+                    classId: classId,
+                    moduleId: moduleId,
+                    type: moduleType || 'module',
+                    score: metadata && metadata.score != null ? metadata.score : undefined
+                }).catch(function(err) {
+                    console.warn('[ModuleProgress] Class progress sync failed:', err.message);
+                });
+            }
+        } catch (e) {
+            // Silent fail — localStorage progress is already saved
+        }
+    }
+
+    /**
+     * Sync completion to Firestore for the instructor dashboard.
+     *
+     * Lazily loads all Firebase dependencies on first call (ensureFirestoreDeps),
+     * then delegates to ProgressManager.syncToFirestore. Returns a promise so
+     * callers (complete/completeQuiz) can wait for sync before navigating away,
+     * preventing data loss on fast page transitions.
+     *
+     * @param {string} moduleId - Short module key
+     * @param {string} houseId - House slug
+     * @param {string} moduleType - 'presentation', 'quiz', 'lab'
+     * @param {object} metadata - Extra data (e.g. { score })
+     * @returns {Promise<void>} Resolves when sync completes or fails
+     * @sideeffect May inject Firebase scripts; writes to Firestore
+     */
     function tryFirestoreSync(moduleId, houseId, moduleType, metadata) {
         if (!firestoreSyncReady) {
             firestoreSyncReady = ensureFirestoreDeps().catch(() => false);
@@ -142,8 +255,13 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Navigate to dashboard with relative path detection.
-     * Tenant users go to their hub instead of the Hexworth Prime dashboard.
+     * [TENANT] Navigate to dashboard with relative path detection.
+     * Tenant users go to their tenant hub instead of the Hexworth Prime dashboard.
+     *
+     * For non-tenant users, calculates the relative path to dashboard.html based
+     * on the current URL depth (number of path segments).
+     *
+     * @sideeffect Sets window.location.href (page navigation)
      */
     function navigateToDashboard() {
         // Tenant routing: go to tenant hub if active
@@ -151,6 +269,7 @@ const ModuleProgress = (function() {
             window.location.href = TenantRouter.getUrl('dashboard');
             return;
         }
+        // Count slashes in path to determine how many "../" we need
         const depth = (window.location.pathname.match(/\//g) || []).length;
         const prefix = '../'.repeat(Math.max(0, depth - 1));
         window.location.href = prefix + 'dashboard.html';
@@ -168,10 +287,34 @@ const ModuleProgress = (function() {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Bridge to ProgressManager structured format.
-     * Awards XP and recalculates level on first completion.
+     * Bridge flat progress writes to ProgressManager's structured format.
+     * Awards XP and recalculates level on first completion. On repeat
+     * completions, awards diminishing XP (50% decay per repeat).
+     *
+     * This exists because module pages load ModuleProgress but NOT
+     * ProgressManager — yet the dashboard reads the structured format.
+     * Without this bridge, completing a module wouldn't update XP or
+     * house progress until the student returned to the dashboard.
+     *
+     * == XP Reward Table (first completion) ==
+     *   presentation/tool/applet: 100 XP
+     *   quiz (70-89%): 100 XP | quiz (90%+): 200 XP
+     *   lab: 500 XP
+     *   module: 1000 XP
+     *
+     * == Repeat Completion ==
+     *   Quizzes: no repeat XP (one-and-done)
+     *   Others: baseXP * 0.5^repeatCount (diminishing returns)
+     *
+     * @param {object} progress - The full progress object (mutated in place)
+     * @param {string} houseId - House slug
+     * @param {string} moduleId - Short module key
+     * @param {string} moduleType - 'presentation', 'quiz', 'lab', 'tool', 'applet', 'module'
+     * @param {object} [metadata] - { score } for quizzes
+     * @sideeffect Mutates the progress object (caller must save to localStorage)
      */
     function bridgeStructuredProgress(progress, houseId, moduleId, moduleType, metadata) {
+        // Initialize structured arrays if missing (first-ever completion)
         if (!Array.isArray(progress.completedModules)) progress.completedModules = [];
         if (!progress.houses) progress.houses = {};
         if (!progress.houses[houseId]) {
@@ -190,7 +333,7 @@ const ModuleProgress = (function() {
         if (!Array.isArray(house.modulesCompleted)) house.modulesCompleted = [];
         house.lastAccessed = Date.now();
 
-        // Track completion counts for diminishing XP
+        // Track per-module completion count for diminishing XP calculation
         if (!progress.completionCounts) progress.completionCounts = {};
         const prevCount = progress.completionCounts[moduleId] || 0;
         progress.completionCounts[moduleId] = prevCount + 1;
@@ -198,31 +341,32 @@ const ModuleProgress = (function() {
         const isFirstCompletion = !progress.completedModules.includes(moduleId);
 
         if (isFirstCompletion) {
-            // First completion: push to arrays + full XP
+            // First completion: push to global + house arrays, award full XP
             progress.completedModules.push(moduleId);
             if (!house.modulesCompleted.includes(moduleId)) {
                 house.modulesCompleted.push(moduleId);
             }
 
-            // Track type-specific lists
+            // Track type-specific lists (used by house progress panels)
             if (moduleType === 'quiz') {
                 if (!Array.isArray(house.quizzesPassed)) house.quizzesPassed = [];
                 if (!house.quizzesPassed.includes(moduleId)) house.quizzesPassed.push(moduleId);
             } else if (moduleType === 'lab') {
                 if (!Array.isArray(house.labsCompleted)) house.labsCompleted = [];
                 if (!house.labsCompleted.includes(moduleId)) house.labsCompleted.push(moduleId);
+                // Labs also tracked at top-level for cross-house lab counting
                 if (!Array.isArray(progress.labsCompleted)) progress.labsCompleted = [];
                 if (!progress.labsCompleted.includes(moduleId)) progress.labsCompleted.push(moduleId);
             }
 
-            // Award full XP (mirrors ProgressManager.XP_REWARDS)
+            // Award full XP (mirrors ProgressManager.XP_REWARDS — keep in sync!)
             const XP_BY_TYPE = {
                 presentation: 100, tool: 100, applet: 100,
                 quiz: 100, lab: 500, module: 1000
             };
             let xpReward = XP_BY_TYPE[moduleType] || XP_BY_TYPE.presentation;
 
-            // Quiz scoring: 70-89% = 100 XP, 90%+ = 200 XP
+            // Quiz scoring bonus: 90%+ gets double XP as excellence incentive
             if (moduleType === 'quiz' && metadata && metadata.score >= 90) {
                 xpReward = 200;
             }
@@ -230,10 +374,11 @@ const ModuleProgress = (function() {
             progress.xp = (Number(progress.xp) || 0) + xpReward;
             progress.level = calculateLevelFromXP(progress.xp);
         } else {
-            // Repeat completion — quizzes are one-and-done
+            // Repeat completion — quizzes are one-and-done (no re-farming XP)
             if (moduleType === 'quiz') return;
 
-            // Non-quiz repeat: award diminishing XP
+            // Non-quiz repeat: award diminishing XP using exponential decay
+            // e.g. 2nd time = 50%, 3rd = 25%, 4th = 12.5%, ...
             const XP_BY_TYPE = { presentation: 100, tool: 100, applet: 100, lab: 500 };
             const baseXP = XP_BY_TYPE[moduleType] || XP_BY_TYPE.presentation;
             const repeatXP = Math.floor(baseXP * Math.pow(0.5, prevCount));
@@ -250,6 +395,15 @@ const ModuleProgress = (function() {
      * Per-module stamps are visual tracking only (no XP).
      * House mastery XP (500k) is awarded by ProgressManager when
      * all modules in a house path are completed.
+     *
+     * Stamps use compound IDs ("{houseId}-{moduleId}") and are read by
+     * course hub pages to show checkmarks next to completed items.
+     *
+     * @param {string} houseId - House slug
+     * @param {string} moduleId - Short module key
+     * @param {number|null} score - Quiz score or null for non-quiz modules
+     * @sideeffect Writes to localStorage 'hexworth_completion_stamps'
+     * @sideeffect Dispatches 'completionStamp:marked' CustomEvent
      */
     function bridgeCompletionStamp(houseId, moduleId, score) {
         const STAMP_KEY = 'hexworth_completion_stamps';
@@ -258,6 +412,7 @@ const ModuleProgress = (function() {
             const stamps = JSON.parse(localStorage.getItem(STAMP_KEY) || '{}');
             const stampId = houseId + '-' + moduleId;
 
+            // Don't overwrite existing stamps (idempotent)
             if (stamps[stampId] && stamps[stampId].completed) return;
 
             stamps[stampId] = {
@@ -267,6 +422,7 @@ const ModuleProgress = (function() {
             };
             localStorage.setItem(STAMP_KEY, JSON.stringify(stamps));
 
+            // Notify any listening UI (e.g. course hub sidebar) of the new stamp
             window.dispatchEvent(new CustomEvent('completionStamp:marked', {
                 detail: { moduleId: stampId, score }
             }));
@@ -276,8 +432,17 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Calculate level from XP (mirrors ProgressManager formula, uncapped)
-     * Formula inverse: N = floor((1 + sqrt(1 + xp/12.5)) / 2)
+     * Calculate level from XP (mirrors ProgressManager formula, uncapped).
+     *
+     * Uses the inverse of the triangular number formula:
+     *   XP needed for level N = 25 * N * (N - 1)
+     *   Solving for N: N = floor((1 + sqrt(1 + xp/12.5)) / 2)
+     *
+     * This is duplicated here (rather than calling ProgressManager) because
+     * ProgressManager may not be loaded on module pages.
+     *
+     * @param {number} xp - Total XP earned
+     * @returns {number} Current level (minimum 1)
      */
     function calculateLevelFromXP(xp) {
         if (!xp || xp <= 0) return 1;
@@ -285,7 +450,19 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Complete a module.
+     * Complete a module (presentation, tool, applet, or generic content).
+     *
+     * This is the primary entry point called by every completable page.
+     * It orchestrates the full completion pipeline:
+     *   1. Write flat progress to localStorage
+     *   2. Bridge to structured format (XP, levels, house arrays)
+     *   3. Bridge to CompletionStamp (visual checkmarks)
+     *   4. Sync to Firestore (instructor dashboard + user profile)
+     *   5. Sync to tenant class progress (if enrolled)
+     *   6. Update streak + achievement checks
+     *   7. Show completion overlay UI
+     *   8. Queue activity event for dashboard feed
+     *   9. Handle Arctic path auto-navigation (if applicable)
      *
      * IMPORTANT — Argument order convention: (houseId, moduleId, ...).
      * This matches the Firestore compound ID format "{house}-{module}" and is
@@ -301,6 +478,12 @@ const ModuleProgress = (function() {
      * @param {boolean} options.returnToDashboard - Navigate to dashboard after
      * @param {string} options.returnUrl - Custom URL to navigate to instead of dashboard
      * @param {number} options.timeSpent - Time spent in minutes
+     * @param {string} options.type - Content type ('presentation', 'tool', 'lab', etc.)
+     * @returns {boolean} Always returns true (completion always succeeds locally)
+     * @sideeffect Writes to multiple localStorage keys (see file header)
+     * @sideeffect May inject DOM overlay and CSS styles
+     * @sideeffect May trigger Firestore writes (non-blocking)
+     * @sideeffect May navigate away (Arctic path or returnUrl)
      */
     function complete(houseId, moduleId, options = {}) {
         const { silent = false, returnToDashboard = true, returnUrl = null, timeSpent = 0, type = 'presentation' } = options;
@@ -313,10 +496,11 @@ const ModuleProgress = (function() {
         const isFirstCompletion = !Array.isArray(progress.completedModules)
             || !progress.completedModules.includes(moduleId);
 
-        // Check if this is first completion ever
+        // Check if this is first completion ever (for 'first_module' achievement)
         const isFirstModule = !hasCompletedAnyModule(progress);
 
-        // Save this module's progress (flat format)
+        // Save this module's progress (flat format — the legacy format still
+        // read by quiz UIs and older pages)
         const now = new Date().toISOString();
         progress[houseId][moduleId] = {
             completed: true,
@@ -333,8 +517,12 @@ const ModuleProgress = (function() {
 
         localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
+        // ── Remote Sync (all non-blocking, fail-silent) ─────────
         // Sync to Firestore for instructor dashboard
         const syncPromise = tryFirestoreSync(moduleId, houseId, 'presentation', {});
+
+        // Sync to tenant class progress (if enrolled)
+        tryClassProgressSync(moduleId, type || 'presentation', {});
 
         // Push to user's Firestore profile (cross-device sync)
         // Only on first completion — CF FieldValue.increment isn't diminishing-aware
@@ -342,11 +530,11 @@ const ModuleProgress = (function() {
             pushToUserProfile(houseId, moduleId, type || 'presentation');
         }
 
-        // Update completion counter
+        // Update completion counter (lifetime total, used by stats panel)
         const completedCount = parseInt(localStorage.getItem(MODULES_COMPLETED_KEY) || '0', 10);
         localStorage.setItem(MODULES_COMPLETED_KEY, (completedCount + 1).toString());
 
-        // Update streak
+        // Update streak (consecutive study days)
         updateStreak();
 
         // Trigger achievements
@@ -360,7 +548,7 @@ const ModuleProgress = (function() {
             checkExplorerAchievement(progress);
         }
 
-        // Show completion UI
+        // Show completion UI (overlay with Next/Stay/Dashboard choices)
         if (!silent) {
             showCompletionOverlay(houseId, moduleId);
         }
@@ -375,9 +563,12 @@ const ModuleProgress = (function() {
             ActivityFeed.moduleComplete(moduleId, prettyTitle);
         }
 
-        // Arctic path override: if user came FROM Arctic, navigate to next Arctic module
-        // Only applies when the current module is in an Arctic path — prevents stale
-        // hexworth_arctic_next values from hijacking non-Arctic module completions
+        // ── Arctic Path Override ────────────────────────────────
+        // Arctic is a guided learning path that auto-navigates between modules.
+        // If the student came FROM an Arctic path, the next destination was
+        // stashed in localStorage by the Arctic navigator. We honor it here
+        // but ONLY if the current module is actually in an Arctic path —
+        // prevents stale hexworth_arctic_next values from hijacking unrelated modules.
         if (returnToDashboard || returnUrl) {
             let arcticDest = null;
             try {
@@ -400,6 +591,8 @@ const ModuleProgress = (function() {
                 if (silent) {
                     navigateFn();
                 } else {
+                    // Wait for Firestore sync (max 8s) before navigating,
+                    // so the instructor dashboard doesn't miss the completion
                     const timeout = new Promise(r => setTimeout(r, 8000));
                     Promise.race([syncPromise, timeout]).then(navigateFn, navigateFn);
                 }
@@ -410,13 +603,28 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Complete a quiz with score.
+     * Complete a quiz with score tracking.
+     *
+     * Similar to complete() but adds quiz-specific behavior:
+     *   - Pass/fail determination against passingScore threshold (default 70%)
+     *   - Score stored in progress record
+     *   - Attempt counter incremented each call (even on failure)
+     *   - XP and stamps only awarded on pass
+     *   - Shows pass/fail notification instead of completion overlay
+     *   - Auto-navigates to returnUrl/dashboard on pass (not on fail)
+     *
      * Same (houseId, moduleId) convention as complete() — see note there.
      *
      * @param {string} houseId - The house ID
      * @param {string} quizId - The SHORT quiz key (no house prefix)
      * @param {number} score - Score percentage (0-100)
      * @param {object} options - Additional options
+     * @param {boolean} options.silent - Don't show notification
+     * @param {boolean} options.returnToDashboard - Navigate to dashboard after passing
+     * @param {string} options.returnUrl - Custom URL to navigate to after passing
+     * @param {number} options.passingScore - Minimum passing score (default 70)
+     * @returns {boolean} true if passed, false if failed
+     * @sideeffect Same as complete() plus attempt tracking
      */
     function completeQuiz(houseId, quizId, score, options = {}) {
         const { silent = false, returnToDashboard = true, returnUrl = null, passingScore = 70 } = options;
@@ -427,10 +635,10 @@ const ModuleProgress = (function() {
         const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
         progress[houseId] = progress[houseId] || {};
 
-        // Check if this is first passing quiz ever
+        // Check if this is first passing quiz ever (for 'first_quiz' achievement)
         const isFirstQuiz = passed && !hasPassedAnyQuiz(progress);
 
-        // Save quiz progress
+        // Save quiz progress (flat format) — written even on failure for attempt tracking
         const now = new Date().toISOString();
         progress[houseId][quizId] = {
             completed: passed,
@@ -441,6 +649,7 @@ const ModuleProgress = (function() {
         };
 
         // Bridge to ProgressManager structured format (XP, levels, house progress)
+        // Only on pass — failed quizzes don't earn XP or stamps
         if (passed) {
             bridgeStructuredProgress(progress, houseId, quizId, 'quiz', { score });
             bridgeCompletionStamp(houseId, quizId, score);
@@ -448,10 +657,14 @@ const ModuleProgress = (function() {
 
         localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
+        // ── Remote Sync (all non-blocking, fail-silent) ─────────
         // Sync to Firestore for instructor dashboard
         const syncPromise = tryFirestoreSync(quizId, houseId, 'quiz', { score });
 
-        // Push to user's Firestore profile (cross-device sync)
+        // Sync to tenant class progress (if enrolled)
+        tryClassProgressSync(quizId, 'quiz', { score: score });
+
+        // Push to user's Firestore profile (cross-device sync) — only on pass
         if (passed) {
             pushToUserProfile(houseId, quizId, 'quiz', { score });
         }
@@ -461,7 +674,7 @@ const ModuleProgress = (function() {
             const passedCount = parseInt(localStorage.getItem(QUIZZES_PASSED_KEY) || '0', 10);
             localStorage.setItem(QUIZZES_PASSED_KEY, (passedCount + 1).toString());
 
-            // Update streak
+            // Update streak (quizzes count as study activity)
             updateStreak();
 
             // Trigger achievements
@@ -472,20 +685,21 @@ const ModuleProgress = (function() {
             }
         }
 
-        // Show notification
+        // Show notification (pass or fail)
         if (!silent) {
             showQuizNotification(passed, score);
         }
 
         console.log(`<img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Quiz completed: ${houseId}/${quizId} - Score: ${score}% (${passed ? 'PASS' : 'FAIL'})`);
 
-        // Queue activity event for dashboard feed
+        // Queue activity event for dashboard feed (only on pass)
         if (passed) {
             const quizTitle = quizId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             queueActivityEvent('module_complete', { moduleId: quizId, title: `${quizTitle} (${score}%)` });
         }
 
         // Return to destination if passed — wait for Firestore sync first (max 8s timeout)
+        // On failure, the student stays on the quiz page to retry
         if ((returnToDashboard || returnUrl) && passed) {
             const navigateFn = returnUrl
                 ? () => { window.location.href = returnUrl; }
@@ -502,7 +716,15 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Check if user has completed any module
+     * Check if user has completed any module (any house, any type).
+     * Used to detect the very first completion for the 'first_module' achievement.
+     *
+     * Scans the flat progress format — looks for any object with completed: true
+     * inside any house sub-object. Skips non-house keys (arrays, primitives)
+     * that exist at the top level of the progress blob.
+     *
+     * @param {object} progress - The full progress object
+     * @returns {boolean} true if at least one module has completed: true
      */
     function hasCompletedAnyModule(progress) {
         for (const house of Object.values(progress)) {
@@ -516,7 +738,14 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Check if user has passed any quiz
+     * Check if user has passed any quiz (any house).
+     * Used to detect the very first quiz pass for the 'first_quiz' achievement.
+     *
+     * Differentiates quizzes from modules by checking for a 'score' property —
+     * only quiz records include a score field.
+     *
+     * @param {object} progress - The full progress object
+     * @returns {boolean} true if at least one quiz has completed: true + score
      */
     function hasPassedAnyQuiz(progress) {
         for (const house of Object.values(progress)) {
@@ -530,7 +759,14 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Check for explorer achievement
+     * Check for the 'explorer' achievement — awarded when a student has
+     * completed at least one module in every core house.
+     *
+     * Only checks the 7 core academic houses (web, shield, forge, script,
+     * cloud, code, key). Special houses (arctic, dark-arts, arena) are excluded.
+     *
+     * @param {object} progress - The full progress object
+     * @sideeffect May call AchievementManager.unlock('explorer')
      */
     function checkExplorerAchievement(progress) {
         const housesToVisit = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key'];
@@ -545,7 +781,18 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Update learning streak
+     * Update the learning streak (consecutive study days).
+     *
+     * Streak logic:
+     *   - Same day as last study: no change (already counted today)
+     *   - Yesterday was last study: increment streak (consecutive)
+     *   - Any other day: reset to 1 (streak broken)
+     *
+     * Also checks streak-based achievements at 3, 7, and 30 day milestones.
+     *
+     * @returns {number} Current streak count
+     * @sideeffect Writes to localStorage STREAK_KEY and LAST_STUDY_KEY
+     * @sideeffect May call AchievementManager.unlock('streak_3/7/30')
      */
     function updateStreak() {
         const today = new Date().toDateString();
@@ -583,7 +830,13 @@ const ModuleProgress = (function() {
 
     /**
      * Detect navigation links from the page's nav footer.
-     * Returns { nextUrl, nextLabel, courseHomeUrl, indexUrl }.
+     *
+     * Scrapes the current page's DOM for navigation buttons (Next Module,
+     * Course Home) so the completion overlay can offer contextual choices.
+     * This avoids hardcoding nav URLs — each module page defines its own
+     * navigation via .nav-btn links in a footer.
+     *
+     * @returns {{ nextUrl: string|null, nextLabel: string|null, courseHomeUrl: string|null, indexUrl: string|null }}
      */
     function detectNavLinks() {
         const result = { nextUrl: null, nextLabel: null, courseHomeUrl: null, indexUrl: null };
@@ -595,14 +848,14 @@ const ModuleProgress = (function() {
             const href = a.getAttribute('href');
             if (!href || a.classList.contains('disabled')) return;
 
-            // "Next:" links
+            // "Next:" links (e.g. "Next: Subnetting >")
             if (/next/i.test(text) && !a.classList.contains('disabled')) {
                 result.nextUrl = href;
                 result.nextLabel = text.replace(/^Next:\s*/i, '').replace(/\s*>\s*$/, '').trim();
             }
         });
 
-        // Look for index.html link (course home)
+        // Look for index.html link (course home) — used as "Course Home" button
         const allLinks = document.querySelectorAll('a[href]');
         allLinks.forEach(a => {
             const href = a.getAttribute('href') || '';
@@ -611,19 +864,31 @@ const ModuleProgress = (function() {
             }
         });
 
-        // Derive course home from current path
-        const path = window.location.pathname;
-        const lastSlash = path.lastIndexOf('/');
-        if (lastSlash > 0) {
-            result.courseHomeUrl = path.substring(0, lastSlash + 1) + 'index.html';
+        // Use detected indexUrl as courseHomeUrl (no blind directory guess —
+        // that was removed per QC-20 to prevent broken links)
+        if (result.indexUrl) {
+            result.courseHomeUrl = result.indexUrl;
         }
 
         return result;
     }
 
     /**
-     * Show completion overlay with navigation choices.
-     * Options: Next Module, Stay & Explore, Course Home, Dashboard
+     * Show the completion overlay — a modal with navigation choices.
+     *
+     * Displays a centered card with up to 4 buttons:
+     *   1. "Next: [Module Name]" — only if a next link was found in the page nav
+     *   2. "Stay & Explore" — dismisses the overlay, keeps the student on the page
+     *   3. "Course Home" — only if an index.html link was found on the page
+     *   4. "Dashboard" — suppressed inside course hubs (hub isolation pattern)
+     *
+     * Injects its own CSS on first call (styles are shared with quiz notification).
+     * The overlay is a fixed-position backdrop with blur effect.
+     *
+     * @param {string} houseId - House slug (used for context, not displayed)
+     * @param {string} moduleId - Module slug (used for context, not displayed)
+     * @sideeffect Injects <style id="module-progress-styles"> into <head>
+     * @sideeffect Appends overlay div to document.body
      */
     function showCompletionOverlay(houseId, moduleId) {
         // Inject styles if not present
@@ -759,28 +1024,33 @@ const ModuleProgress = (function() {
             document.head.appendChild(styles);
         }
 
+        // Detect available navigation from the page's own nav footer
         const nav = detectNavLinks();
 
-        // Build action buttons
+        // Build action buttons based on what's available
         let actionsHtml = '';
 
-        // Next Module (if available)
+        // Next Module (if available — scraped from the page's nav footer)
         if (nav.nextUrl) {
             const label = nav.nextLabel || 'Next Module';
             actionsHtml += `<a href="${nav.nextUrl}" class="mp-btn mp-btn-next">Next: ${label} &rarr;</a>`;
         }
 
-        // Stay & Explore
+        // Stay & Explore (always available — dismisses overlay)
         actionsHtml += '<button class="mp-btn mp-btn-stay" onclick="this.closest(\'.mp-overlay\').remove()">Stay &amp; Explore</button>';
 
-        // Course Home
+        // Course Home (if detected on the page)
         if (nav.indexUrl || nav.courseHomeUrl) {
             const courseUrl = nav.indexUrl || nav.courseHomeUrl;
             actionsHtml += `<a href="${courseUrl}" class="mp-btn mp-btn-course">Course Home</a>`;
         }
 
-        // Dashboard
-        actionsHtml += '<a href="javascript:void(0)" class="mp-btn mp-btn-dash" onclick="ModuleProgress._goToDashboard()">Dashboard</a>';
+        // Dashboard — suppressed inside course hubs (hub isolation pattern:
+        // self-contained directories like network-plus/ should not link out)
+        var isInsideHub = /\/network-plus\/(?:modules|labs|presentations|quizzes|exams|tools)\//.test(window.location.pathname);
+        if (!isInsideHub) {
+            actionsHtml += '<a href="javascript:void(0)" class="mp-btn mp-btn-dash" onclick="ModuleProgress._goToDashboard()">Dashboard</a>';
+        }
 
         const overlay = document.createElement('div');
         overlay.className = 'mp-overlay';
@@ -799,7 +1069,16 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Show quiz result notification
+     * Show quiz result notification (pass or fail).
+     *
+     * Unlike showCompletionOverlay, this is a simple centered notification
+     * showing the score percentage and pass/fail status. Failed notifications
+     * auto-dismiss after 3 seconds; passed notifications persist (the student
+     * will be navigated away shortly).
+     *
+     * @param {boolean} passed - Whether the quiz was passed
+     * @param {number} score - Score percentage (0-100)
+     * @sideeffect Appends notification div to document.body
      */
     function showQuizNotification(passed, score) {
         const notification = document.createElement('div');
@@ -809,7 +1088,7 @@ const ModuleProgress = (function() {
             <div class="qn-text">${passed ? 'Quiz Passed!' : 'Try Again'}</div>
         `;
 
-        // Ensure styles are loaded
+        // Ensure styles are loaded (reuses the same stylesheet as completion overlay)
         if (!document.getElementById('module-progress-styles')) {
             showCompletionNotification('', ''); // Load styles
             document.querySelector('.module-complete-notification')?.remove();
@@ -817,13 +1096,18 @@ const ModuleProgress = (function() {
 
         document.body.appendChild(notification);
 
+        // Auto-dismiss failure notifications — pass notifications stay
+        // because the page will navigate away after Firestore sync
         if (!passed) {
             setTimeout(() => notification.remove(), 3000);
         }
     }
 
     /**
-     * Get current stats
+     * Get current user stats — streak, lifetime counts, and full progress blob.
+     * Used by the dashboard stats panel and profile page.
+     *
+     * @returns {{ streak: number, modulesCompleted: number, quizzesPassed: number, progress: object }}
      */
     function getStats() {
         const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
@@ -840,7 +1124,12 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Get progress for a specific module
+     * Get the full progress record for a specific module.
+     * Returns the flat-format object with completed, date, score, attempts, etc.
+     *
+     * @param {string} houseId - House slug
+     * @param {string} moduleId - Short module key
+     * @returns {object|null} Progress record or null if never visited
      */
     function getModuleProgress(houseId, moduleId) {
         const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
@@ -848,7 +1137,12 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Check if a module is completed
+     * Check if a module is completed. Convenience wrapper around getModuleProgress.
+     * Used by module pages to show "already completed" badges or skip re-completion.
+     *
+     * @param {string} houseId - House slug
+     * @param {string} moduleId - Short module key
+     * @returns {boolean} true if the module has completed: true in progress
      */
     function isCompleted(houseId, moduleId) {
         const module = getModuleProgress(houseId, moduleId);
@@ -859,12 +1153,18 @@ const ModuleProgress = (function() {
      * Track module visit for "Continue Learning" on the dashboard.
      * Call from any module/lab page to record the user's last location.
      *
+     * The dashboard's "Continue Learning" card reads hexworth_last_visited
+     * to show a quick-resume link. This is separate from completion tracking —
+     * it fires on page load (via auto-track below), not on completion.
+     *
      * @param {string} houseId - House slug (e.g. 'script', 'shield')
      * @param {string} moduleId - Module slug (e.g. 'db-12-inner-join')
      * @param {object} [meta] - Optional: { section, returnUrl }
+     * @sideeffect Writes to localStorage 'hexworth_last_visited'
      */
     function trackVisit(houseId, moduleId, meta) {
         try {
+            // Extract a clean title from document.title (strip site name suffix)
             var title = document.title.split('|')[0].split(' — ')[0].trim();
             var entry = {
                 houseId: houseId,
@@ -879,7 +1179,7 @@ const ModuleProgress = (function() {
         } catch (e) { /* silent */ }
     }
 
-    // Public API
+    // ── Public API ──────────────────────────────────────────────
     return {
         complete,
         completeQuiz,
@@ -888,18 +1188,20 @@ const ModuleProgress = (function() {
         isCompleted,
         updateStreak,
         trackVisit,
-        _goToDashboard: navigateToDashboard
+        _goToDashboard: navigateToDashboard  // Exposed for onclick in overlay HTML
     };
 })();
 
-// Make globally available
+// Make globally available (window.ModuleProgress)
 if (typeof window !== 'undefined') {
     window.ModuleProgress = ModuleProgress;
 }
 
-// Auto-track page visit from URL pattern: /houses/{house}/.../{file}.html
-// or /signal/..., /arena/..., /dispatch/..., etc.
-// Deferred to DOMContentLoaded so document.title is available.
+// ── Auto-Track Page Visit ───────────────────────────────────────
+// Automatically records the student's current location for "Continue Learning".
+// Fires on DOMContentLoaded so document.title is available. Detects the house
+// from URL patterns: /houses/{house}/ or /signal/, /arena/, /dispatch/, /dark-arts/.
+// Skips index pages (course home) and non-trackable paths.
 document.addEventListener('DOMContentLoaded', function autoTrackVisit() {
     try {
         var p = location.pathname;
@@ -914,10 +1216,11 @@ document.addEventListener('DOMContentLoaded', function autoTrackVisit() {
             else if (p.indexOf('/dark-arts/') !== -1) houseId = 'dark-arts';
             else return; // Not a trackable page
         }
-        // Extract module ID from filename
+        // Extract module ID from filename (strip .html extension)
         var file = p.split('/').pop().replace(/\.html$/, '');
         if (!file || file === 'index') return;
-        // Derive section from path (e.g. "databases", "linux-mastery")
+        // Derive human-readable section name from path
+        // (e.g. "databases" -> "Databases", "linux-mastery" -> "Linux Mastery")
         var parts = p.split('/');
         var section = '';
         for (var i = parts.length - 2; i >= 0; i--) {
@@ -931,9 +1234,12 @@ document.addEventListener('DOMContentLoaded', function autoTrackVisit() {
 });
 
 // ── Tenant Auto-Loaders ─────────────────────────────────────
-// If tenant context exists in sessionStorage, dynamically load
-// TenantRouter.js and TenantShell.js. Duplicated from AccessGuard.js
-// for pages that load ModuleProgress but not AccessGuard.
+// [TENANT] If tenant context exists in sessionStorage, dynamically load
+// TenantRouter.js and TenantShell.js so navigateToDashboard() can route
+// to the tenant hub. This is duplicated from AccessGuard.js for pages
+// that load ModuleProgress but not AccessGuard (e.g. standalone labs).
+// Uses window flags (__tenantRouterRequested, __tenantShellRequested) to
+// prevent double-loading if both ModuleProgress and AccessGuard are present.
 (function() {
     try {
         if (sessionStorage.getItem('hexworth_tenant')) {
