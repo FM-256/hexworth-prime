@@ -212,16 +212,47 @@ const ModuleProgress = (function() {
             var classId = sessionStorage.getItem('hexworth_class') || localStorage.getItem('hexworth_class_id');
             if (!tenantSlug || !classId) return; // Not in a class
 
+            // Build the payload for the Cloud Function
+            var payload = {
+                tenantSlug: tenantSlug,
+                classId: classId,
+                moduleId: moduleId,
+                type: moduleType || 'module',
+                score: metadata && metadata.score != null ? metadata.score : undefined
+            };
+
+            // If FirebaseAuth is already loaded, call immediately
             if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.callFunction) {
-                FirebaseAuth.callFunction('syncClassProgress', {
-                    tenantSlug: tenantSlug,
-                    classId: classId,
-                    moduleId: moduleId,
-                    type: moduleType || 'module',
-                    score: metadata && metadata.score != null ? metadata.score : undefined
-                }).catch(function(err) {
+                FirebaseAuth.callFunction('syncClassProgress', payload).catch(function(err) {
                     console.warn('[ModuleProgress] Class progress sync failed:', err.message);
                 });
+            } else {
+                // Lazy-load FirebaseAuth for tenant students on pages that don't
+                // include it directly (e.g., Network+ content after FluxCapacitor removal).
+                // This ensures progress syncs to Firestore even without FluxCapacitor.
+                var script = document.createElement('script');
+                script.src = '/components/FirebaseAuth.js';
+                script.onload = function() {
+                    // Wait for FirebaseAuth to initialize (it auto-inits on load)
+                    var attempts = 0;
+                    var waitForAuth = setInterval(function() {
+                        attempts++;
+                        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.callFunction) {
+                            clearInterval(waitForAuth);
+                            FirebaseAuth.callFunction('syncClassProgress', payload).catch(function(err) {
+                                console.warn('[ModuleProgress] Class progress sync failed:', err.message);
+                            });
+                        } else if (attempts > 20) {
+                            // Give up after ~4 seconds — don't block the page
+                            clearInterval(waitForAuth);
+                            console.warn('[ModuleProgress] FirebaseAuth did not initialize in time');
+                        }
+                    }, 200);
+                };
+                script.onerror = function() {
+                    console.warn('[ModuleProgress] Failed to lazy-load FirebaseAuth.js');
+                };
+                document.head.appendChild(script);
             }
         } catch (e) {
             // Silent fail — localStorage progress is already saved
